@@ -41,6 +41,23 @@ export class PostgresOutboxWriter implements OutboxWriter {
       ],
     );
   }
+
+  async claimPending(limit = 50): Promise<EventEnvelope[]> {
+    if (!Number.isSafeInteger(limit) || limit < 1 || limit > 500)
+      throw new Error("Invalid outbox batch size");
+    const result = await this.tx.query<{ payload: EventEnvelope }>(
+      "UPDATE platform.outbox_events SET attempt_count=attempt_count+1 WHERE id IN (SELECT id FROM platform.outbox_events WHERE status='PENDING' ORDER BY created_at FOR UPDATE SKIP LOCKED LIMIT $1) RETURNING payload",
+      [limit],
+    );
+    return result.rows.map((row) => row.payload);
+  }
+
+  async markPublished(eventId: string): Promise<void> {
+    await this.tx.query(
+      "UPDATE platform.outbox_events SET status='PUBLISHED',published_at=now() WHERE event_id=$1 AND tenant_id=$2 AND status='PENDING'",
+      [eventId, this.tx.tenantId],
+    );
+  }
 }
 export interface InboxStore {
   claim(consumer: string, eventId: string): Promise<boolean>;

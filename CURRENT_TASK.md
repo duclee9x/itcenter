@@ -1,12 +1,12 @@
 # CURRENT TASK
 
-Task: `TASK-003`
+Task: `TASK-004`
 
-Task specification: `tasks/TASK-003_AUTHORIZATION_SCOPES_PRIVILEGED_ACCESS.md`
+Task specification: `tasks/TASK-004_COMMAND_IDEMPOTENCY_OUTBOX_INBOX_OPERATION.md`
 
 Status: `CODE_COMPLETE`
 
 Branch: `master` (repository has no commits yet)
 
-TASK-002 and TASK-003 acceptance criteria pass. TASK-004 is next through the
-task registry workflow.
+TASK-002, TASK-003 and TASK-004 acceptance criteria pass. TASK-005 is next
+through the task registry workflow.

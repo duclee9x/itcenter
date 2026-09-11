@@ -39,4 +39,38 @@ export class OperationRegistry {
     );
     return result.rows[0] ?? null;
   }
+
+  async transition(input: {
+    operationId: string;
+    expectedVersion: number;
+    from: Operation["state"];
+    to: Operation["state"];
+    errorCode?: string;
+  }): Promise<void> {
+    const allowed: Record<Operation["state"], Operation["state"][]> = {
+      QUEUED: ["RUNNING", "CANCELLED"],
+      RUNNING: ["WAITING", "SUCCEEDED", "FAILED", "CANCELLED"],
+      WAITING: ["RUNNING", "FAILED", "CANCELLED"],
+      SUCCEEDED: [],
+      FAILED: [],
+      CANCELLED: [],
+    };
+    if (!allowed[input.from].includes(input.to))
+      throw new Error(
+        `Invalid operation transition ${input.from} -> ${input.to}`,
+      );
+    const result = await this.tx.query(
+      "UPDATE platform.operations SET state=$3,error_code=$4,version=version+1,updated_at=now() WHERE operation_id=$1 AND tenant_id=$2 AND state=$5 AND version=$6",
+      [
+        input.operationId,
+        this.tx.tenantId,
+        input.to,
+        input.errorCode ?? null,
+        input.from,
+        input.expectedVersion,
+      ],
+    );
+    if (!result.rowCount)
+      throw new Error("Operation version or state conflict");
+  }
 }

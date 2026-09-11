@@ -76,6 +76,11 @@ export class PostgresIdempotencyStore implements IdempotencyStore {
     );
     if (previous.rowCount) {
       const r = previous.rows[0]!;
+      if (new Date(r.expires_at).getTime() <= Date.now())
+        throw new ApplicationError(
+          "IDEMPOTENCY_KEY_CONFLICT",
+          "Idempotency key has expired and cannot be reused.",
+        );
       if (r.request_hash !== hash)
         throw new ApplicationError(
           "IDEMPOTENCY_KEY_CONFLICT",

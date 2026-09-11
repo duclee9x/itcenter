@@ -2,11 +2,11 @@
 
 ## Active Task
 
-TASK-003 — Authorization Scopes + Privileged Access
+TASK-004 — Command, Idempotency, Outbox, Inbox + Operation Hardening
 
-Feature: F-002
-Workflow: WF-ID02
-Branch: master (repository has no commits yet)
+Feature: FOUNDATION
+Workflow: PLATFORM-CONTROL
+Branch: master
 
 ## Overall Status
 
@@ -36,27 +36,23 @@ CODE_COMPLETE
 
 ## Remaining Work
 
-- TASK-002 is complete at commit `c518d48`.
-- TASK-003 task contract has been created from the registry and required specs.
-- Existing RBAC evaluator and temporary grant migration are the starting point.
-- Added tenant-first active-user authorization filtering.
-- Added versioned, revocable temporary grant persistence helpers and migration.
-- Added temporary grant validation/revocation unit coverage.
-- Added temporary-grant create/revoke API commands with `rbac.manage`,
-  idempotency, expected version, audit and outbox handling.
-- Added E2E coverage for create, replay, key conflict, revoke and cross-tenant
-  isolation.
+- TASK-002 completed at `c518d48`; TASK-003 completed at `7b7c2c0`.
+- Existing idempotency, outbox, inbox and operation foundations are the
+  starting point for TASK-004.
+- Added versioned operation state transitions with allowed-state validation.
+- Added outbox claim/attempt and tenant-scoped publication marking.
+- Added explicit expired-idempotency-key conflict behavior.
+- Added PostgreSQL integration coverage for operation and outbox hardening.
 
 ## Verification State
 
-PASS: TASK-002 gates pass at commit `c518d48`; TASK-003 unit, migration,
-integration, E2E, typecheck, format, lint and build checks pass.
+PASS: `npm test`, `typecheck`, `format:check`, `lint` and `build`.
 
-NOT RUN: none for TASK-003 acceptance criteria.
+NOT RUN: none for TASK-004 acceptance criteria.
 
 ## Exact Next Step
 
-Proceed to TASK-004 only through the task registry workflow.
+Proceed to TASK-005 only through the task registry workflow.
 
 ## SPEC_CONFLICT
 
