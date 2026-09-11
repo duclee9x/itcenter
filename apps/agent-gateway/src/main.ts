@@ -9,6 +9,7 @@ import { installShutdown } from "../../../packages/observability/src/lifecycle.j
 import { agentServer } from "./server.js";
 import { unavailableAuthentication } from "../../../packages/auth/src/index.js";
 import { databaseReady } from "../../../packages/persistence/src/index.js";
+import { PostgresUnitOfWork } from "../../../packages/persistence/src/index.js";
 const config = loadConfig(process.env, "agent-gateway", 3001);
 const log = logger(config);
 const pool = createPool(
@@ -19,6 +20,7 @@ const server = agentServer(
   config,
   () => databaseReady(pool),
   unavailableAuthentication,
+  new PostgresUnitOfWork(pool),
 );
 server.listen(config.port, config.host, () => log("info", "started"));
 installShutdown(server, async () => {

@@ -1,0 +1,6 @@
+{
+  "name": "@itcenter/agent",
+  "private": true,
+  "type": "module",
+  "dependencies": {}
+}
