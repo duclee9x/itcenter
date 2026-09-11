@@ -68,6 +68,8 @@ TASK-030 monitoring ingestion and normalization verification passed.
   engine-managed start and transition commands.
 - Added approval policies, requests and append-only decisions with explicit
   create/approve/reject commands, self-approval protection and audit/outbox.
+- Added Problem, Change and Knowledge persistence with explicit create and
+  transition APIs, validation, idempotency, outbox and audit effects.
 
 ## Verification State
 
@@ -78,8 +80,8 @@ integration and E2E database gates used disposable databases.
 PASS: `./local serve` connected to the running PostgreSQL container on the
 published port `127.0.0.1:15432`; API readiness returned HTTP 200.
 
-TASK-036 complete: approval create and decision APIs enforce pending state,
-expected version and requester/approver separation with tenant-scoped
+TASK-037 complete: Problem, Change and Knowledge foundation APIs enforce
+documented initial states and protected transitions with tenant-scoped
 persistence, outbox and audit effects.
 
 MIGRATION_RISK: the existing local volume rejects `npm run db:migrate` because
@@ -89,7 +91,7 @@ migration before applying schema changes.
 
 ## Exact Next Step
 
-TASK-037 is next; proceed only through the task registry workflow.
+TASK-038 is next; proceed only through the task registry workflow.
 
 ## SPEC_CONFLICT
 

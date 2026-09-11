@@ -45,6 +45,10 @@ import {
   transitionSla,
 } from "../../../modules/control-plane/index.js";
 import {
+  createProblem,
+  transitionRecord,
+} from "../../../modules/problem/index.js";
+import {
   createIncident,
   correlateIncident,
   declareMajor,
@@ -143,6 +147,144 @@ export function apiServer(
       /^\/api\/v1\/approvals\/([^/]+)\/commands\/(approve|reject)$/.exec(
         req.url ?? "",
       );
+    const recordTransitionMatch =
+      /^\/api\/v1\/(problems|changes|knowledge)\/([^/]+)\/commands\/transition$/.exec(
+        req.url ?? "",
+      );
+    const recordCreateKind =
+      req.url === "/api/v1/problems"
+        ? "PROBLEM"
+        : req.url === "/api/v1/changes"
+          ? "CHANGE"
+          : req.url === "/api/v1/knowledge"
+            ? "KNOWLEDGE"
+            : null;
+    if (req.method === "POST" && (recordCreateKind || recordTransitionMatch)) {
+      const principal = await authenticate(
+        authentication,
+        req.headers.authorization,
+      );
+      const key = req.headers["idempotency-key"];
+      if (typeof key !== "string" || !key.trim())
+        throw new ApplicationError(
+          "VALIDATION_ERROR",
+          "Idempotency-Key is required.",
+        );
+      const body = await new Promise<string>((resolve) => {
+        let data = "";
+        req.on("data", (chunk) => (data += chunk));
+        req.on("end", () => resolve(data));
+      });
+      let input: Record<string, unknown>;
+      try {
+        input = (body ? JSON.parse(body) : {}) as Record<string, unknown>;
+      } catch {
+        throw new ApplicationError("VALIDATION_ERROR", "Invalid JSON request.");
+      }
+      const kind =
+        recordCreateKind ??
+        (recordTransitionMatch![1] === "problems"
+          ? "PROBLEM"
+          : recordTransitionMatch![1] === "changes"
+            ? "CHANGE"
+            : "KNOWLEDGE");
+      const isTransition = Boolean(recordTransitionMatch);
+      const permission =
+        kind === "PROBLEM"
+          ? "problem.manage"
+          : kind === "CHANGE"
+            ? "change.manage"
+            : "knowledge.manage";
+      await authorize(authorization, {
+        principal,
+        action: permission,
+        resource: {
+          type: kind.toLowerCase(),
+          id: recordTransitionMatch?.[2] ?? String(input.code ?? "new"),
+          tenant_id: principal.tenant_id,
+        },
+        scope: {},
+        context: { ...context },
+      });
+      const result = await uow.run(principal.tenant_id, (tx) =>
+        new PostgresIdempotencyStore(tx).execute(
+          {
+            principalId: principal.id,
+            operation: isTransition ? `${kind}.TRANSITION` : `${kind}.CREATE`,
+            businessScope:
+              recordTransitionMatch?.[2] ?? String(input.code ?? "new"),
+            key,
+            semanticRequest: input as never,
+            expiresAt: new Date(Date.now() + 86400000),
+          },
+          async () => {
+            const value = isTransition
+              ? await transitionRecord({
+                  tx,
+                  kind: kind as "PROBLEM" | "CHANGE" | "KNOWLEDGE",
+                  id: recordTransitionMatch![2]!,
+                  expectedVersion: input.expected_version as number,
+                  targetState: input.target_state as string,
+                  reason: input.reason as string,
+                })
+              : await createProblem({
+                  tx,
+                  kind: kind as "PROBLEM" | "CHANGE" | "KNOWLEDGE",
+                  code: input.code as string,
+                  title: input.title as string,
+                  body: input.body as string | undefined,
+                  risk: input.risk as string | undefined,
+                  impact: input.impact as string | undefined,
+                  implementationPlan: input.implementation_plan as
+                    string | undefined,
+                });
+            const now = new Date().toISOString();
+            const eventType = isTransition
+              ? `${kind}.STATE_CHANGED`
+              : `${kind}.CREATED`;
+            await new PostgresOutboxWriter(tx).append({
+              event_id: randomUUID(),
+              event_type: eventType,
+              schema_version: 1,
+              occurred_at: now,
+              producer: { service: config.serviceName, instance: "api" },
+              aggregate: { type: kind, id: value.id, version: value.version },
+              actor: { type: principal.actor_type, id: principal.id },
+              correlation_id: context.correlation_id,
+              causation_id: context.causation_id,
+              tenant_id: principal.tenant_id,
+              organization_id: principal.tenant_id,
+              idempotency_key: key,
+              payload: value,
+            });
+            await new PostgresAudit(tx).append({
+              id: randomUUID(),
+              tenant_id: principal.tenant_id,
+              event_type: eventType,
+              occurred_at: now,
+              actor: { type: principal.actor_type, id: principal.id },
+              action: { command_type: eventType },
+              subject: { entity_type: kind, entity_id: value.id },
+              correlation_id: context.correlation_id,
+              causation_id: context.causation_id,
+              reason: {
+                code: eventType,
+                text: (input.reason as string) ?? "Record created",
+              },
+              before: null,
+              after: value,
+              outcome: { status: "SUCCESS" },
+              classification: "INTERNAL",
+              relations: [],
+              evidence: [],
+            });
+            return { status: isTransition ? 200 : 201, body: value };
+          },
+        ),
+      );
+      json(res, result.status, { data: result.body, meta: context });
+      return true;
+    }
     if (
       req.method === "POST" &&
       (req.url === "/api/v1/approvals" || approvalDecisionMatch)
