@@ -1,6 +1,7 @@
 import type { Permission } from "../domain/model.js";
 // Platform permission needed by the bootstrap operation query; no grant is implied.
 export const permissions: readonly Permission[] = [
+  { code: "asset.create", resource_type: "asset", action: "create" },
   { code: "session.revoke", resource_type: "session", action: "revoke" },
   {
     code: "authorization.evaluate",

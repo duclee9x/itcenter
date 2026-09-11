@@ -2,15 +2,15 @@
 
 ## Active Task
 
-TASK-006 — Phase 0 Integration Gate
+TASK-010 — Location Hierarchy + Asset Registry
 
-Feature: PHASE-GATE
-Workflow: P0-GATE
+Feature: F-005
+Workflow: WF-A01
 Branch: master
 
 ## Overall Status
 
-IN_PROGRESS
+CODE_COMPLETE
 
 ## Completed
 
@@ -46,16 +46,19 @@ IN_PROGRESS
 - Added audit checksum/hash-chain metadata, tenant-scoped audit queries and
   integrity verification.
 - Added migration and integration coverage for audit query/integrity controls.
+- Added tenant-scoped asset registry schema and asset create command with
+  idempotency, `ASSET.CREATED` outbox and audit.
+- Added E2E coverage for asset creation and idempotent replay.
 
 ## Verification State
 
 PASS: `npm test`, `typecheck`, `format:check`, `lint` and `build`.
 
-NOT RUN: none for TASK-006 acceptance criteria.
+NOT RUN: none for TASK-010 acceptance criteria.
 
 ## Exact Next Step
 
-Proceed to TASK-010 only through the task registry workflow.
+Proceed to TASK-011 only through the task registry workflow.
 
 ## SPEC_CONFLICT
 

@@ -245,3 +245,99 @@ test("temporary grant commands enforce idempotency, version and tenant scope", a
     await db.close();
   }
 });
+
+test("asset registry creates an asset idempotently with audit and outbox", async () => {
+  const { testDatabase } = await import("../helpers.js");
+  const { randomUUID } = await import("node:crypto");
+  const db = await testDatabase();
+  const userId = randomUUID(),
+    categoryId = randomUUID(),
+    modelId = randomUUID();
+  try {
+    await db.pool.query(
+      "INSERT INTO identity.users(id,tenant_id,display_code,username,display_name,employment_status) VALUES($1,'tenant-a','U-1','user-a','User A','ACTIVE')",
+      [userId],
+    );
+    await db.pool.query(
+      "INSERT INTO asset.categories(id,tenant_id,name) VALUES($1,'tenant-a','Laptop')",
+      [categoryId],
+    );
+    await db.pool.query(
+      "INSERT INTO asset.models(id,tenant_id,manufacturer,model_name,category_id) VALUES($1,'tenant-a','Vendor','Model X',$2)",
+      [modelId, categoryId],
+    );
+    const server = apiServer(
+      config,
+      async () => true,
+      {
+        async authenticate() {
+          return { id: userId, tenant_id: "tenant-a", actor_type: "USER" };
+        },
+      },
+      {
+        async evaluate() {
+          return { result: "ALLOW", reason: "test" };
+        },
+      },
+      db.uow,
+    );
+    const url = await listen(server);
+    try {
+      const payload = {
+        asset_code: "AST-1",
+        asset_tag: "TAG-1",
+        model_id: modelId,
+      };
+      const send = () =>
+        fetch(url + "/api/v1/assets", {
+          method: "POST",
+          headers: {
+            authorization: "Bearer verified",
+            "content-type": "application/json",
+            "idempotency-key": "asset-key",
+          },
+          body: JSON.stringify(payload),
+        });
+      const first = await send();
+      assert.equal(first.status, 201);
+      const created = ((await first.json()) as { data: { id: string } }).data;
+      const replay = await send();
+      assert.equal(replay.status, 201);
+      assert.equal(
+        ((await replay.json()) as { data: { id: string } }).data.id,
+        created.id,
+      );
+      assert.equal(
+        (
+          await db.pool.query(
+            "SELECT count(*)::int AS count FROM asset.assets WHERE id=$1",
+            [created.id],
+          )
+        ).rows[0].count,
+        1,
+      );
+      assert.equal(
+        (
+          await db.pool.query(
+            "SELECT count(*)::int AS count FROM platform.outbox_events WHERE aggregate_id=$1",
+            [created.id],
+          )
+        ).rows[0].count,
+        1,
+      );
+      assert.equal(
+        (
+          await db.pool.query(
+            "SELECT count(*)::int AS count FROM audit.audit_events WHERE subject->>'entity_id'=$1",
+            [created.id],
+          )
+        ).rows[0].count,
+        1,
+      );
+    } finally {
+      await close(server);
+    }
+  } finally {
+    await db.close();
+  }
+});

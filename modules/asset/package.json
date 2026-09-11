@@ -1,0 +1,9 @@
+{
+  "name": "@itcenter/asset",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@itcenter/persistence": "*",
+    "@itcenter/api-contracts": "*"
+  }
+}

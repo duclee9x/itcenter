@@ -18,6 +18,7 @@ import {
   revokeSession,
   revokeTemporary,
 } from "../../../modules/identity/index.js";
+import { createAsset } from "../../../modules/asset/index.js";
 import {
   PostgresIdempotencyStore,
   PostgresOutboxWriter,
@@ -136,6 +137,105 @@ export function apiServer(
               evidence: [],
             });
             return { status: 200, body: { revoked: true } };
+          },
+        ),
+      );
+      json(res, result.status, { data: result.body, meta: context });
+      return true;
+    }
+    if (req.method === "POST" && req.url === "/api/v1/assets") {
+      const principal = await authenticate(
+        authentication,
+        req.headers.authorization,
+      );
+      const key = req.headers["idempotency-key"];
+      if (typeof key !== "string" || !key.trim())
+        throw new ApplicationError(
+          "VALIDATION_ERROR",
+          "Idempotency-Key is required.",
+        );
+      const body = await new Promise<string>((resolve) => {
+        let data = "";
+        req.on("data", (c) => (data += c));
+        req.on("end", () => resolve(data));
+      });
+      let input: Record<string, unknown>;
+      try {
+        input = JSON.parse(body) as Record<string, unknown>;
+      } catch {
+        throw new ApplicationError("VALIDATION_ERROR", "Invalid JSON request.");
+      }
+      await authorize(authorization, {
+        principal,
+        action: "asset.create",
+        resource: {
+          type: "asset",
+          id: String(input.asset_code ?? "asset"),
+          tenant_id: principal.tenant_id,
+        },
+        scope: {},
+        context: { ...context },
+      });
+      const result = await uow.run(principal.tenant_id, (tx) =>
+        new PostgresIdempotencyStore(tx).execute(
+          {
+            principalId: principal.id,
+            operation: "ASSET.CREATE",
+            businessScope: String(input.asset_code ?? "asset"),
+            key,
+            semanticRequest: input as never,
+            expiresAt: new Date(Date.now() + 86400000),
+          },
+          async () => {
+            const asset = await createAsset({
+              tx,
+              assetCode: String(input.asset_code ?? ""),
+              modelId: String(input.model_id ?? ""),
+              ...(typeof input.asset_tag === "string"
+                ? { assetTag: input.asset_tag }
+                : {}),
+              ...(typeof input.serial_number === "string"
+                ? { serialNumber: input.serial_number }
+                : {}),
+              ...(typeof input.location_id === "string"
+                ? { locationId: input.location_id }
+                : {}),
+            });
+            const now = new Date().toISOString();
+            await new PostgresOutboxWriter(tx).append({
+              event_id: randomUUID(),
+              event_type: "ASSET.CREATED",
+              schema_version: 1,
+              occurred_at: now,
+              producer: { service: config.serviceName, instance: "api" },
+              aggregate: { type: "ASSET", id: asset.id, version: 1 },
+              actor: { type: principal.actor_type, id: principal.id },
+              correlation_id: context.correlation_id,
+              causation_id: context.causation_id,
+              tenant_id: principal.tenant_id,
+              organization_id: principal.tenant_id,
+              idempotency_key: key,
+              payload: asset,
+            });
+            await new PostgresAudit(tx).append({
+              id: randomUUID(),
+              tenant_id: principal.tenant_id,
+              event_type: "ASSET.CREATED",
+              occurred_at: now,
+              actor: { type: principal.actor_type, id: principal.id },
+              action: { command_type: "ASSET.CREATE" },
+              subject: { entity_type: "ASSET", entity_id: asset.id },
+              correlation_id: context.correlation_id,
+              causation_id: context.causation_id,
+              reason: { code: "ASSET_REGISTERED", text: "Asset registered" },
+              before: null,
+              after: asset,
+              outcome: { status: "SUCCESS" },
+              classification: "INTERNAL",
+              relations: [],
+              evidence: [],
+            });
+            return { status: 201, body: asset };
           },
         ),
       );
