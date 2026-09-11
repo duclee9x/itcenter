@@ -6,7 +6,7 @@ feature_id: F-017
 workflow_id: WF-003
 phase: P2
 priority: P0
-status: IN_PROGRESS
+status: CODE_COMPLETE
 owner_domain: monitoring
 ```
 

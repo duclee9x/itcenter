@@ -4,15 +4,15 @@
 
 TASK-030 — Monitoring Ingestion + Normalization + Dedupe
 
-Feature: F-009/F-010/F-011
-Workflow: WF-002
+Feature: F-017
+Workflow: WF-003
 Branch: master
 
 ## Overall Status
 
-IN_PROGRESS
+CODE_COMPLETE
 
-TASK-021 gate verification passed for the Phase 1 vertical slice.
+TASK-030 monitoring ingestion and normalization verification passed.
 
 ## Completed
 
@@ -56,18 +56,21 @@ TASK-021 gate verification passed for the Phase 1 vertical slice.
 - Added transfer validation, assignment history preservation, and `ASSET.TRANSFERRED` effects.
 - Added `ASSET.REQUEST_RETURN` and `ASSET.RECEIVE_RETURN` commands with pending/returned state handling.
 - Added immutable return documents, condition grades, return movement, and return E2E coverage.
+- Added monitoring event normalization, persistence, tenant/source/provider-event dedupe,
+  idempotency, critical/recovered outbox events, audit and API permission enforcement.
 
 ## Verification State
 
-PASS: `npm test`, `typecheck`, `format:check`, `lint` and `build`.
+PASS: `npm test`, `typecheck`, `format:check`, `lint` and `build`, with
+`TEST_DATABASE_URL` pointed at the running PostgreSQL container so migration,
+integration and E2E database gates used disposable databases.
 
 PASS: `./local serve` connected to the running PostgreSQL container on the
 published port `127.0.0.1:15432`; API readiness returned HTTP 200.
 
-TASK-030 progress: monitoring schema, normalization module, permission,
+TASK-030 complete: monitoring schema, normalization module, permission,
 ingestion endpoint, tenant/source/provider-event dedupe, idempotency, outbox
-and audit writes are implemented. Database-backed migration and API tests are
-still required before marking the task `CODE_COMPLETE`.
+and audit writes are implemented.
 
 MIGRATION_RISK: the existing local volume rejects `npm run db:migrate` because
 an applied migration checksum differs. Do not edit migration history or reset
@@ -76,8 +79,7 @@ migration before applying schema changes.
 
 ## Exact Next Step
 
-Complete TASK-030 database-backed verification, then proceed to TASK-031 only
-through the task registry workflow.
+TASK-031 is next; proceed only through the task registry workflow.
 
 ## SPEC_CONFLICT
 
