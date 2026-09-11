@@ -41,6 +41,8 @@ import { issueEnrollmentToken } from "../../../modules/agent/index.js";
 import {
   createIncident,
   correlateIncident,
+  declareMajor,
+  publishCommunication,
   transitionIncident,
 } from "../../../modules/incident/index.js";
 import {
@@ -121,6 +123,133 @@ export function apiServer(
       /^\/api\/v1\/incidents\/([^/]+)\/commands\/correlate$/.exec(
         req.url ?? "",
       );
+    const majorMatch =
+      /^\/api\/v1\/incidents\/([^/]+)\/commands\/declare-major$/.exec(
+        req.url ?? "",
+      );
+    const communicationMatch =
+      /^\/api\/v1\/incidents\/([^/]+)\/communications$/.exec(req.url ?? "");
+    if (req.method === "POST" && (majorMatch || communicationMatch)) {
+      const principal = await authenticate(
+        authentication,
+        req.headers.authorization,
+      );
+      const key = req.headers["idempotency-key"];
+      if (typeof key !== "string" || !key.trim())
+        throw new ApplicationError(
+          "VALIDATION_ERROR",
+          "Idempotency-Key is required.",
+        );
+      const body = await new Promise<string>((resolve) => {
+        let data = "";
+        req.on("data", (chunk) => (data += chunk));
+        req.on("end", () => resolve(data));
+      });
+      let input: Record<string, unknown>;
+      try {
+        input = (body ? JSON.parse(body) : {}) as Record<string, unknown>;
+      } catch {
+        throw new ApplicationError("VALIDATION_ERROR", "Invalid JSON request.");
+      }
+      const isMajor = Boolean(majorMatch);
+      await authorize(authorization, {
+        principal,
+        action: isMajor ? "incident.declare_major" : "incident.communicate",
+        resource: {
+          type: "incident",
+          id: (majorMatch ?? communicationMatch)![1]!,
+          tenant_id: principal.tenant_id,
+        },
+        scope: {},
+        context: { ...context },
+      });
+      const result = await uow.run(principal.tenant_id, (tx) =>
+        new PostgresIdempotencyStore(tx).execute(
+          {
+            principalId: principal.id,
+            operation: isMajor
+              ? "INCIDENT.DECLARE_MAJOR"
+              : "INCIDENT.COMMUNICATE",
+            businessScope: (majorMatch ?? communicationMatch)![1]!,
+            key,
+            semanticRequest: input as never,
+            expiresAt: new Date(Date.now() + 86400000),
+          },
+          async () => {
+            const value = isMajor
+              ? await declareMajor({
+                  tx,
+                  incidentId: (majorMatch ?? communicationMatch)![1]!,
+                  expectedVersion: input.expected_version as number,
+                  reason: input.reason as string,
+                  cadence: input.communication_cadence as string,
+                })
+              : await publishCommunication({
+                  tx,
+                  incidentId: communicationMatch![1]!,
+                  audience: input.audience as string,
+                  channel: input.channel as string,
+                  subject: input.subject as string,
+                  body: input.body as string,
+                });
+            const now = new Date().toISOString();
+            const eventType = isMajor
+              ? "INCIDENT.MAJOR_DECLARED"
+              : "INCIDENT.COMMUNICATION.PUBLISHED";
+            const output = value as unknown as Record<string, unknown>;
+            await new PostgresOutboxWriter(tx).append({
+              event_id: randomUUID(),
+              event_type: eventType,
+              schema_version: 1,
+              occurred_at: now,
+              producer: { service: config.serviceName, instance: "api" },
+              aggregate: {
+                type: "INCIDENT",
+                id: (output.id ?? output.incident_id) as string,
+                version: (output.version as number | undefined) ?? 1,
+              },
+              actor: { type: principal.actor_type, id: principal.id },
+              correlation_id: context.correlation_id,
+              causation_id: context.causation_id,
+              tenant_id: principal.tenant_id,
+              organization_id: principal.tenant_id,
+              idempotency_key: key,
+              payload: value,
+            });
+            await new PostgresAudit(tx).append({
+              id: randomUUID(),
+              tenant_id: principal.tenant_id,
+              event_type: eventType,
+              occurred_at: now,
+              actor: { type: principal.actor_type, id: principal.id },
+              action: { command_type: eventType },
+              subject: {
+                entity_type: "INCIDENT",
+                entity_id: (output.id ?? output.incident_id) as string,
+              },
+              correlation_id: context.correlation_id,
+              causation_id: context.causation_id,
+              reason: {
+                code: eventType,
+                text:
+                  (input.reason as string) ??
+                  (input.subject as string) ??
+                  "Major incident communication",
+              },
+              before: null,
+              after: value,
+              outcome: { status: "SUCCESS" },
+              classification: "INTERNAL",
+              relations: [],
+              evidence: [],
+            });
+            return { status: 201, body: value };
+          },
+        ),
+      );
+      json(res, result.status, { data: result.body, meta: context });
+      return true;
+    }
     if (
       req.method === "POST" &&
       (req.url === "/api/v1/incidents" ||

@@ -51,4 +51,14 @@ export const permissions: readonly Permission[] = [
     resource_type: "incident",
     action: "correlate",
   },
+  {
+    code: "incident.declare_major",
+    resource_type: "incident",
+    action: "declare_major",
+  },
+  {
+    code: "incident.communicate",
+    resource_type: "incident",
+    action: "communicate",
+  },
 ];

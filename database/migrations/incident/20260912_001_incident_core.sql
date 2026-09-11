@@ -36,3 +36,18 @@ CREATE TABLE incident.relations (
   CHECK (related_entity_type IN ('INCIDENT','TICKET')),
   CHECK (correlation_score IS NULL OR (correlation_score >= 0 AND correlation_score <= 1))
 );
+CREATE TABLE incident.communications (
+  id uuid PRIMARY KEY,
+  tenant_id text NOT NULL,
+  incident_id uuid NOT NULL REFERENCES incident.incidents(id),
+  audience text NOT NULL,
+  channel text NOT NULL,
+  subject text NOT NULL,
+  body text NOT NULL,
+  status text NOT NULL DEFAULT 'DRAFT',
+  published_at timestamptz,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  CHECK (status IN ('DRAFT','PUBLISHED','CANCELLED')),
+  CHECK (channel IN ('PORTAL','EMAIL','TEAMS','SLACK','WEBHOOK'))
+);
+CREATE INDEX incident_communications_lookup ON incident.communications(tenant_id, incident_id, created_at DESC);
