@@ -29,6 +29,7 @@ import {
 } from "../../../modules/asset/index.js";
 import {
   createTicket,
+  enrichTicket,
   transitionTicket,
 } from "../../../modules/ticket/index.js";
 import {
@@ -98,7 +99,9 @@ export function apiServer(
             ? "ticket.reopen"
             : ticketCommandMatch![2] === "assign"
               ? "ticket.assign"
-              : "ticket.update";
+              : ticketCommandMatch![2] === "enrich"
+                ? "ticket.update"
+                : "ticket.update";
       const scopeId = ticketCreateMatch
         ? principal.id
         : ticketCommandMatch![1]!;
@@ -136,40 +139,52 @@ export function apiServer(
                   priority: input.priority as string,
                   sourceChannel: input.source_channel as string,
                 })
-              : await transitionTicket({
-                  tx,
-                  ticketId: ticketCommandMatch![1]!,
-                  expectedVersion: input.expected_version as number,
-                  targetState:
-                    ticketCommandMatch![2] === "assign"
-                      ? "ASSIGNED"
-                      : ticketCommandMatch![2] === "start"
-                        ? "IN_PROGRESS"
-                        : ticketCommandMatch![2] === "request-info"
-                          ? "WAITING_USER"
-                          : ticketCommandMatch![2] === "resolve"
-                            ? "RESOLVED"
-                            : ticketCommandMatch![2] === "reopen"
-                              ? "REOPENED"
-                              : ticketCommandMatch![2]!.toUpperCase(),
-                  reason: input.reason as string,
-                  actorType: principal.actor_type,
-                  actorId: principal.id,
-                  correlationId: context.correlation_id,
-                  ...(typeof input.assignee_user_id === "string"
-                    ? { assigneeUserId: input.assignee_user_id }
-                    : {}),
-                  ...(typeof input.resolution_code === "string"
-                    ? { resolutionCode: input.resolution_code }
-                    : {}),
-                });
+              : ticketCommandMatch![2] === "enrich"
+                ? await enrichTicket({
+                    tx,
+                    ticketId: ticketCommandMatch![1]!,
+                    expectedVersion: input.expected_version as number,
+                    ...(typeof input.asset_id === "string"
+                      ? { assetId: input.asset_id }
+                      : {}),
+                    reason: input.reason as string,
+                  })
+                : await transitionTicket({
+                    tx,
+                    ticketId: ticketCommandMatch![1]!,
+                    expectedVersion: input.expected_version as number,
+                    targetState:
+                      ticketCommandMatch![2] === "assign"
+                        ? "ASSIGNED"
+                        : ticketCommandMatch![2] === "start"
+                          ? "IN_PROGRESS"
+                          : ticketCommandMatch![2] === "request-info"
+                            ? "WAITING_USER"
+                            : ticketCommandMatch![2] === "resolve"
+                              ? "RESOLVED"
+                              : ticketCommandMatch![2] === "reopen"
+                                ? "REOPENED"
+                                : ticketCommandMatch![2]!.toUpperCase(),
+                    reason: input.reason as string,
+                    actorType: principal.actor_type,
+                    actorId: principal.id,
+                    correlationId: context.correlation_id,
+                    ...(typeof input.assignee_user_id === "string"
+                      ? { assigneeUserId: input.assignee_user_id }
+                      : {}),
+                    ...(typeof input.resolution_code === "string"
+                      ? { resolutionCode: input.resolution_code }
+                      : {}),
+                  });
             const eventType = ticketCreateMatch
               ? "TICKET.CREATED"
-              : ticketCommandMatch![2] === "resolve"
-                ? "TICKET.RESOLVED"
-                : ticketCommandMatch![2] === "reopen"
-                  ? "TICKET.REOPENED"
-                  : "TICKET.STATE_CHANGED";
+              : ticketCommandMatch![2] === "enrich"
+                ? "TICKET.ENRICHED"
+                : ticketCommandMatch![2] === "resolve"
+                  ? "TICKET.RESOLVED"
+                  : ticketCommandMatch![2] === "reopen"
+                    ? "TICKET.REOPENED"
+                    : "TICKET.STATE_CHANGED";
             const now = new Date().toISOString();
             await new PostgresOutboxWriter(tx).append({
               event_id: randomUUID(),

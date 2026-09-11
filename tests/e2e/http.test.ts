@@ -812,11 +812,31 @@ test("ticket core creates, transitions, resolves and replays idempotently", asyn
   const { testDatabase } = await import("../helpers.js");
   const { randomUUID } = await import("node:crypto");
   const db = await testDatabase();
-  const actorId = randomUUID();
+  const actorId = randomUUID(),
+    categoryId = randomUUID(),
+    modelId = randomUUID(),
+    assetId = randomUUID(),
+    assignmentId = randomUUID();
   try {
     await db.pool.query(
       "INSERT INTO identity.users(id,tenant_id,display_code,username,display_name,employment_status) VALUES($1,'tenant-a','T-A','ticket-actor','Ticket Actor','ACTIVE')",
       [actorId],
+    );
+    await db.pool.query(
+      "INSERT INTO asset.categories(id,tenant_id,name) VALUES($1,'tenant-a','Ticket Laptop')",
+      [categoryId],
+    );
+    await db.pool.query(
+      "INSERT INTO asset.models(id,tenant_id,manufacturer,model_name,category_id) VALUES($1,'tenant-a','Vendor','Ticket Model',$2)",
+      [modelId, categoryId],
+    );
+    await db.pool.query(
+      "INSERT INTO asset.assets(id,tenant_id,asset_code,asset_model_id,lifecycle_state,assignment_state) VALUES($1,'tenant-a','AST-TICKET',$2,'IN_USE','ASSIGNED')",
+      [assetId, modelId],
+    );
+    await db.pool.query(
+      "INSERT INTO asset.assignments(id,tenant_id,asset_id,user_id,reason) VALUES($1,'tenant-a',$2,$3,'Ticket context')",
+      [assignmentId, assetId, actorId],
     );
     const server = apiServer(
       config,
@@ -877,6 +897,30 @@ test("ticket core creates, transitions, resolves and replays idempotently", asyn
         ).rows[0].count,
         1,
       );
+      const enrich = await fetch(
+        `${url}/api/v1/tickets/${ticket.id}/commands/enrich`,
+        {
+          method: "POST",
+          headers: {
+            authorization: "Bearer verified",
+            "content-type": "application/json",
+            "idempotency-key": "ticket-enrich-key",
+          },
+          body: JSON.stringify({
+            expected_version: 1,
+            asset_id: assetId,
+            reason: "Initial context enrichment",
+          }),
+        },
+      );
+      assert.equal(enrich.status, 201);
+      const enriched = (
+        (await enrich.json()) as {
+          data: { version: number; enrichment: { asset: { id: string } } };
+        }
+      ).data;
+      assert.equal(enriched.version, 2);
+      assert.equal(enriched.enrichment.asset.id, assetId);
       const transition = async (
         action: string,
         key: string,
@@ -892,24 +936,24 @@ test("ticket core creates, transitions, resolves and replays idempotently", asyn
           },
           body: JSON.stringify({ expected_version, reason: action, ...extra }),
         });
-      assert.equal((await transition("triage", "triage-key", 1)).status, 201);
+      assert.equal((await transition("triage", "triage-key", 2)).status, 201);
       assert.equal(
         (
-          await transition("assign", "assign-ticket-key", 2, {
+          await transition("assign", "assign-ticket-key", 3, {
             assignee_user_id: actorId,
           })
         ).status,
         201,
       );
       assert.equal(
-        (await transition("start", "start-ticket-key", 3)).status,
+        (await transition("start", "start-ticket-key", 4)).status,
         201,
       );
-      const resolved = await transition("resolve", "resolve-ticket-key", 4, {
+      const resolved = await transition("resolve", "resolve-ticket-key", 5, {
         resolution_code: "FIXED",
       });
       assert.equal(resolved.status, 201);
-      const replay = await transition("resolve", "resolve-ticket-key", 4, {
+      const replay = await transition("resolve", "resolve-ticket-key", 5, {
         resolution_code: "FIXED",
       });
       assert.equal(replay.status, 201);
@@ -938,7 +982,7 @@ test("ticket core creates, transitions, resolves and replays idempotently", asyn
             [ticket.id],
           )
         ).rows[0].count,
-        5,
+        6,
       );
       assert.equal(
         (
@@ -947,7 +991,7 @@ test("ticket core creates, transitions, resolves and replays idempotently", asyn
             [ticket.id],
           )
         ).rows[0].count,
-        5,
+        6,
       );
     } finally {
       await close(server);

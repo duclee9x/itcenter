@@ -1,1 +1,5 @@
-export { createTicket, transitionTicket } from "./application/ticket.js";
+export {
+  createTicket,
+  enrichTicket,
+  transitionTicket,
+} from "./application/ticket.js";

@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { Transaction } from "../../../packages/persistence/src/index.js";
+import type { Json } from "../../../packages/shared-kernel/src/index.js";
 import {
   ApplicationError,
   assertVersion,
@@ -185,4 +186,75 @@ export async function transitionTicket(input: {
     ...(input.resolutionCode ? { resolution_code: input.resolutionCode } : {}),
     version,
   };
+}
+
+export async function enrichTicket(input: {
+  tx: Transaction;
+  ticketId: string;
+  expectedVersion: number;
+  assetId?: string;
+  reason: string;
+}): Promise<{
+  id: string;
+  version: number;
+  enrichment: Json;
+}> {
+  if (!Number.isSafeInteger(input.expectedVersion) || !input.reason.trim())
+    throw new ApplicationError(
+      "VALIDATION_ERROR",
+      "expected_version and reason are required.",
+    );
+  const ticketResult = await input.tx.query(
+    "SELECT id,requester_user_id,enrichment,version FROM helpdesk.tickets WHERE tenant_id=$1 AND id=$2 FOR UPDATE",
+    [input.tx.tenantId, input.ticketId],
+  );
+  if (!ticketResult.rowCount)
+    throw new ApplicationError("NOT_FOUND", "Ticket was not found.");
+  const ticket = ticketResult.rows[0]!;
+  assertVersion(ticket.version, input.expectedVersion);
+  const userResult = await input.tx.query(
+    "SELECT id,display_code,username,display_name,employment_status FROM identity.users WHERE tenant_id=$1 AND id=$2",
+    [input.tx.tenantId, ticket.requester_user_id],
+  );
+  if (!userResult.rowCount)
+    throw new ApplicationError("NOT_FOUND", "Requester was not found.");
+  const requester = userResult.rows[0]!;
+  if (requester.employment_status !== "ACTIVE")
+    throw new ApplicationError(
+      "BUSINESS_RULE_VIOLATION",
+      "Requester is not active.",
+    );
+  const enrichment: Json = {
+    requester: {
+      id: requester.id,
+      display_code: requester.display_code,
+      username: requester.username,
+      display_name: requester.display_name,
+    },
+  };
+  if (input.assetId) {
+    const asset = await input.tx.query(
+      "SELECT a.id,a.asset_code,a.asset_tag,a.lifecycle_state,a.current_location_id FROM asset.assets a WHERE a.tenant_id=$1 AND a.id=$2 AND EXISTS (SELECT 1 FROM asset.assignments x WHERE x.tenant_id=a.tenant_id AND x.asset_id=a.id AND x.user_id=$3 AND x.status='ACTIVE')",
+      [input.tx.tenantId, input.assetId, requester.id],
+    );
+    if (!asset.rowCount)
+      throw new ApplicationError(
+        "BUSINESS_RULE_VIOLATION",
+        "Asset is not actively assigned to the requester.",
+      );
+    const assetRow = asset.rows[0]!;
+    (enrichment as { [key: string]: Json }).asset = {
+      id: assetRow.id,
+      asset_code: assetRow.asset_code,
+      asset_tag: assetRow.asset_tag,
+      lifecycle_state: assetRow.lifecycle_state,
+      current_location_id: assetRow.current_location_id,
+    };
+  }
+  const version = input.expectedVersion + 1;
+  await input.tx.query(
+    "UPDATE helpdesk.tickets SET enrichment=$1,updated_at=now(),version=$2 WHERE tenant_id=$3 AND id=$4",
+    [JSON.stringify(enrichment), version, input.tx.tenantId, input.ticketId],
+  );
+  return { id: input.ticketId, version, enrichment };
 }
