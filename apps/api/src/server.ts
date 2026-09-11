@@ -20,7 +20,11 @@ import {
 } from "../../../modules/identity/index.js";
 import {
   createAsset,
+  assignAsset,
   reserveAsset,
+  transferAsset,
+  requestReturn,
+  receiveReturn,
   transitionLifecycle,
 } from "../../../modules/asset/index.js";
 import {
@@ -44,6 +48,379 @@ export function apiServer(
     const reserveMatch = /^\/api\/v1\/assets\/([^/]+)\/commands\/reserve$/.exec(
       req.url ?? "",
     );
+    const assignMatch = /^\/api\/v1\/assets\/([^/]+)\/commands\/assign$/.exec(
+      req.url ?? "",
+    );
+    const transferMatch =
+      /^\/api\/v1\/assets\/([^/]+)\/commands\/transfer$/.exec(req.url ?? "");
+    const requestReturnMatch =
+      /^\/api\/v1\/assets\/([^/]+)\/commands\/request-return$/.exec(
+        req.url ?? "",
+      );
+    const receiveReturnMatch =
+      /^\/api\/v1\/assets\/([^/]+)\/commands\/receive-return$/.exec(
+        req.url ?? "",
+      );
+    if (req.method === "POST" && (requestReturnMatch || receiveReturnMatch)) {
+      const match = requestReturnMatch ?? receiveReturnMatch!;
+      const principal = await authenticate(
+        authentication,
+        req.headers.authorization,
+      );
+      const key = req.headers["idempotency-key"];
+      if (typeof key !== "string" || !key.trim())
+        throw new ApplicationError(
+          "VALIDATION_ERROR",
+          "Idempotency-Key is required.",
+        );
+      const body = await new Promise<string>((resolve) => {
+        let data = "";
+        req.on("data", (c) => (data += c));
+        req.on("end", () => resolve(data));
+      });
+      let input: Record<string, unknown>;
+      try {
+        input = (body ? JSON.parse(body) : {}) as Record<string, unknown>;
+      } catch {
+        throw new ApplicationError("VALIDATION_ERROR", "Invalid JSON request.");
+      }
+      const request = Boolean(requestReturnMatch);
+      const action = request ? "asset.request_return" : "asset.receive_return";
+      await authorize(authorization, {
+        principal,
+        action,
+        resource: {
+          type: "asset",
+          id: match[1]!,
+          tenant_id: principal.tenant_id,
+        },
+        scope: {},
+        context: { ...context },
+      });
+      const required = request
+        ? Number.isSafeInteger(input.expected_version) &&
+          typeof input.due_at === "string" &&
+          typeof input.reason === "string"
+        : Number.isSafeInteger(input.expected_version) &&
+          typeof input.return_request_id === "string" &&
+          typeof input.received_location_id === "string" &&
+          typeof input.condition_grade === "string" &&
+          typeof input.notes === "string";
+      if (!required)
+        throw new ApplicationError(
+          "VALIDATION_ERROR",
+          request
+            ? "expected_version, due_at and reason are required."
+            : "expected_version, return_request_id, received_location_id, condition_grade and notes are required.",
+        );
+      const result = await uow.run(principal.tenant_id, (tx) =>
+        new PostgresIdempotencyStore(tx).execute(
+          {
+            principalId: principal.id,
+            operation: request
+              ? "ASSET.REQUEST_RETURN"
+              : "ASSET.RECEIVE_RETURN",
+            businessScope: match[1]!,
+            key,
+            semanticRequest: input as never,
+            expiresAt: new Date(Date.now() + 86400000),
+          },
+          async () => {
+            const value = request
+              ? await requestReturn({
+                  tx,
+                  assetId: match[1]!,
+                  expectedVersion: input.expected_version as number,
+                  dueAt: input.due_at as string,
+                  reason: input.reason as string,
+                })
+              : await receiveReturn({
+                  tx,
+                  assetId: match[1]!,
+                  expectedVersion: input.expected_version as number,
+                  returnRequestId: input.return_request_id as string,
+                  receivedLocationId: input.received_location_id as string,
+                  conditionGrade: input.condition_grade as string,
+                  notes: input.notes as string,
+                });
+            const eventType = request
+              ? "ASSET.RETURN_REQUESTED"
+              : "ASSET.RETURNED";
+            const now = new Date().toISOString();
+            await new PostgresOutboxWriter(tx).append({
+              event_id: randomUUID(),
+              event_type: eventType,
+              schema_version: 1,
+              occurred_at: now,
+              producer: { service: config.serviceName, instance: "api" },
+              aggregate: {
+                type: "ASSET",
+                id: value.asset_id,
+                version: value.version,
+              },
+              actor: { type: principal.actor_type, id: principal.id },
+              correlation_id: context.correlation_id,
+              causation_id: context.causation_id,
+              tenant_id: principal.tenant_id,
+              organization_id: principal.tenant_id,
+              idempotency_key: key,
+              payload: value,
+            });
+            await new PostgresAudit(tx).append({
+              id: randomUUID(),
+              tenant_id: principal.tenant_id,
+              event_type: eventType,
+              occurred_at: now,
+              actor: { type: principal.actor_type, id: principal.id },
+              action: {
+                command_type: request
+                  ? "ASSET.REQUEST_RETURN"
+                  : "ASSET.RECEIVE_RETURN",
+              },
+              subject: { entity_type: "ASSET", entity_id: value.asset_id },
+              correlation_id: context.correlation_id,
+              causation_id: context.causation_id,
+              reason: {
+                code: eventType,
+                text: request
+                  ? (input.reason as string)
+                  : (input.notes as string),
+              },
+              before: { version: input.expected_version as number },
+              after: value,
+              outcome: { status: "SUCCESS" },
+              classification: "INTERNAL",
+              relations: [],
+              evidence: [],
+            });
+            return { status: 201, body: value };
+          },
+        ),
+      );
+      json(res, result.status, { data: result.body, meta: context });
+      return true;
+    }
+    if (req.method === "POST" && transferMatch) {
+      const principal = await authenticate(
+        authentication,
+        req.headers.authorization,
+      );
+      const key = req.headers["idempotency-key"];
+      if (typeof key !== "string" || !key.trim())
+        throw new ApplicationError(
+          "VALIDATION_ERROR",
+          "Idempotency-Key is required.",
+        );
+      const body = await new Promise<string>((resolve) => {
+        let data = "";
+        req.on("data", (c) => (data += c));
+        req.on("end", () => resolve(data));
+      });
+      let input: Record<string, unknown>;
+      try {
+        input = (body ? JSON.parse(body) : {}) as Record<string, unknown>;
+      } catch {
+        throw new ApplicationError("VALIDATION_ERROR", "Invalid JSON request.");
+      }
+      if (
+        !Number.isSafeInteger(input.expected_version) ||
+        typeof input.to_location_id !== "string" ||
+        typeof input.to_user_id !== "string" ||
+        typeof input.reason !== "string"
+      )
+        throw new ApplicationError(
+          "VALIDATION_ERROR",
+          "expected_version, to_location_id, to_user_id and reason are required.",
+        );
+      await authorize(authorization, {
+        principal,
+        action: "asset.transfer",
+        resource: {
+          type: "asset",
+          id: transferMatch[1]!,
+          tenant_id: principal.tenant_id,
+        },
+        scope: {},
+        context: { ...context },
+      });
+      const result = await uow.run(principal.tenant_id, (tx) =>
+        new PostgresIdempotencyStore(tx).execute(
+          {
+            principalId: principal.id,
+            operation: "ASSET.TRANSFER",
+            businessScope: transferMatch[1]!,
+            key,
+            semanticRequest: input as never,
+            expiresAt: new Date(Date.now() + 86400000),
+          },
+          async () => {
+            const movement = await transferAsset({
+              tx,
+              assetId: transferMatch[1]!,
+              expectedVersion: input.expected_version as number,
+              toLocationId: input.to_location_id as string,
+              toUserId: input.to_user_id as string,
+              reason: input.reason as string,
+              actorType: principal.actor_type,
+              actorId: principal.id,
+              correlationId: context.correlation_id,
+            });
+            const now = new Date().toISOString();
+            await new PostgresOutboxWriter(tx).append({
+              event_id: randomUUID(),
+              event_type: "ASSET.TRANSFERRED",
+              schema_version: 1,
+              occurred_at: now,
+              producer: { service: config.serviceName, instance: "api" },
+              aggregate: {
+                type: "ASSET",
+                id: movement.asset_id,
+                version: movement.version,
+              },
+              actor: { type: principal.actor_type, id: principal.id },
+              correlation_id: context.correlation_id,
+              causation_id: context.causation_id,
+              tenant_id: principal.tenant_id,
+              organization_id: principal.tenant_id,
+              idempotency_key: key,
+              payload: movement,
+            });
+            await new PostgresAudit(tx).append({
+              id: randomUUID(),
+              tenant_id: principal.tenant_id,
+              event_type: "ASSET.TRANSFERRED",
+              occurred_at: now,
+              actor: { type: principal.actor_type, id: principal.id },
+              action: { command_type: "ASSET.TRANSFER" },
+              subject: { entity_type: "ASSET", entity_id: movement.asset_id },
+              correlation_id: context.correlation_id,
+              causation_id: context.causation_id,
+              reason: {
+                code: "ASSET_TRANSFERRED",
+                text: input.reason as string,
+              },
+              before: { version: input.expected_version as number },
+              after: movement,
+              outcome: { status: "SUCCESS" },
+              classification: "INTERNAL",
+              relations: [],
+              evidence: [],
+            });
+            return { status: 201, body: movement };
+          },
+        ),
+      );
+      json(res, result.status, { data: result.body, meta: context });
+      return true;
+    }
+    if (req.method === "POST" && assignMatch) {
+      const principal = await authenticate(
+        authentication,
+        req.headers.authorization,
+      );
+      const key = req.headers["idempotency-key"];
+      if (typeof key !== "string" || !key.trim())
+        throw new ApplicationError(
+          "VALIDATION_ERROR",
+          "Idempotency-Key is required.",
+        );
+      const body = await new Promise<string>((resolve) => {
+        let data = "";
+        req.on("data", (c) => (data += c));
+        req.on("end", () => resolve(data));
+      });
+      let input: Record<string, unknown>;
+      try {
+        input = (body ? JSON.parse(body) : {}) as Record<string, unknown>;
+      } catch {
+        throw new ApplicationError("VALIDATION_ERROR", "Invalid JSON request.");
+      }
+      if (
+        !Number.isSafeInteger(input.expected_version) ||
+        typeof input.user_id !== "string" ||
+        typeof input.reason !== "string"
+      )
+        throw new ApplicationError(
+          "VALIDATION_ERROR",
+          "expected_version, user_id and reason are required.",
+        );
+      await authorize(authorization, {
+        principal,
+        action: "asset.assign",
+        resource: {
+          type: "asset",
+          id: assignMatch[1]!,
+          tenant_id: principal.tenant_id,
+        },
+        scope: {},
+        context: { ...context },
+      });
+      const result = await uow.run(principal.tenant_id, (tx) =>
+        new PostgresIdempotencyStore(tx).execute(
+          {
+            principalId: principal.id,
+            operation: "ASSET.ASSIGN",
+            businessScope: assignMatch[1]!,
+            key,
+            semanticRequest: input as never,
+            expiresAt: new Date(Date.now() + 86400000),
+          },
+          async () => {
+            const assignment = await assignAsset({
+              tx,
+              assetId: assignMatch[1]!,
+              expectedVersion: input.expected_version as number,
+              userId: input.user_id as string,
+              reason: input.reason as string,
+              actorType: principal.actor_type,
+              actorId: principal.id,
+              correlationId: context.correlation_id,
+            });
+            const now = new Date().toISOString();
+            await new PostgresOutboxWriter(tx).append({
+              event_id: randomUUID(),
+              event_type: "ASSET.ASSIGNED",
+              schema_version: 1,
+              occurred_at: now,
+              producer: { service: config.serviceName, instance: "api" },
+              aggregate: {
+                type: "ASSET",
+                id: assignment.asset_id,
+                version: assignment.version,
+              },
+              actor: { type: principal.actor_type, id: principal.id },
+              correlation_id: context.correlation_id,
+              causation_id: context.causation_id,
+              tenant_id: principal.tenant_id,
+              organization_id: principal.tenant_id,
+              idempotency_key: key,
+              payload: assignment,
+            });
+            await new PostgresAudit(tx).append({
+              id: randomUUID(),
+              tenant_id: principal.tenant_id,
+              event_type: "ASSET.ASSIGNED",
+              occurred_at: now,
+              actor: { type: principal.actor_type, id: principal.id },
+              action: { command_type: "ASSET.ASSIGN" },
+              subject: { entity_type: "ASSET", entity_id: assignment.asset_id },
+              correlation_id: context.correlation_id,
+              causation_id: context.causation_id,
+              reason: { code: "ASSET_ASSIGNED", text: input.reason as string },
+              before: { version: input.expected_version as number },
+              after: assignment,
+              outcome: { status: "SUCCESS" },
+              classification: "INTERNAL",
+              relations: [],
+              evidence: [],
+            });
+            return { status: 201, body: assignment };
+          },
+        ),
+      );
+      json(res, result.status, { data: result.body, meta: context });
+      return true;
+    }
     if (req.method === "POST" && reserveMatch) {
       const principal = await authenticate(
         authentication,

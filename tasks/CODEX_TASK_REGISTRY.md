@@ -150,9 +150,9 @@ Only generate a detailed `TASK-xxx_*.md` when the task becomes `READY` or is the
 | `TASK-010` | `F-005` | `WF-A01` | P1 | P0 | Location Hierarchy + Asset Registry | TASK-006 | **SATISFIED** | CODE_COMPLETE | `TASK-010_LOCATION_HIERARCHY_ASSET_REGISTRY.md` |
 | `TASK-011` | `F-005` | `WF-A01` | P1 | P0 | Asset Lifecycle + Canonical State Constraints | TASK-010 | **SATISFIED** | CODE_COMPLETE | `TASK-011_ASSET_LIFECYCLE_CANONICAL_STATE.md` |
 | `TASK-012` | `F-005` | `WF-005/WF-006` | P1 | P1 | Basic Warehouse Receiving + Reservation | TASK-011 | **SATISFIED** | CODE_COMPLETE | `TASK-012_BASIC_WAREHOUSE_RECEIVING_RESERVATION.md` |
-| `TASK-013` | `F-006` | `WF-006` | P1 | P0 | Asset Assignment End-to-End | TASK-003, TASK-011 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |
-| `TASK-014` | `F-007` | `WF-007` | P1 | P1 | Asset Transfer End-to-End | TASK-013 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |
-| `TASK-015` | `F-008/F-016` | `WF-008` | P1 | P0 | Asset Return + Handover/Return Documents | TASK-013 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |
+| `TASK-013` | `F-006` | `WF-006` | P1 | P0 | Asset Assignment End-to-End | TASK-003, TASK-011 | **SATISFIED** | CODE_COMPLETE | `TASK-013_ASSET_ASSIGNMENT_END_TO_END.md` |
+| `TASK-014` | `F-007` | `WF-007` | P1 | P1 | Asset Transfer End-to-End | TASK-013 | **SATISFIED** | CODE_COMPLETE | `TASK-014_ASSET_TRANSFER_END_TO_END.md` |
+| `TASK-015` | `F-008/F-016` | `WF-008` | P1 | P0 | Asset Return + Handover/Return Documents | TASK-013 | **SATISFIED** | CODE_COMPLETE | `TASK-015_ASSET_RETURN_HANDOVER_DOCUMENTS.md` |
 | `TASK-016` | `F-009/F-010/F-011` | `WF-002` | P1 | P0 | Ticket Core + Ticket State Machine + Commands | TASK-003, TASK-006 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |
 | `TASK-017` | `F-009` | `WF-002/WF-COM01` | P1 | P0 | Ticket Intake — Portal + Email Normalization | TASK-016 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |
 | `TASK-018` | `F-009` | `WF-002` | P1 | P0 | Ticket Auto-Enrichment — User + Asset Context | TASK-010, TASK-016, TASK-017 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |

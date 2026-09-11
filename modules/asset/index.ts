@@ -1,2 +1,9 @@
 export { createAsset } from "./application/registry.js";
-export { reserveAsset, transitionLifecycle } from "./application/lifecycle.js";
+export {
+  assignAsset,
+  reserveAsset,
+  requestReturn,
+  receiveReturn,
+  transferAsset,
+  transitionLifecycle,
+} from "./application/lifecycle.js";

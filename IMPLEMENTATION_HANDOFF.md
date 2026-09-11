@@ -2,18 +2,18 @@
 
 ## Active Task
 
-TASK-012 — Basic Warehouse Receiving + Reservation
+TASK-015 — Asset Return + Handover/Return Documents
 
-Feature: F-005
-Workflow: WF-A01
+Feature: F-008/F-016
+Workflow: WF-008
 Branch: master
 
 ## Overall Status
 
 CODE_COMPLETE
 
-TASK-012 has the reservation table, canonical transition logic, and HTTP
-ASSET.RESERVE command with authorization, idempotency, outbox and audit.
+TASK-015 has return request/receipt commands, return movement and document persistence,
+assignment closure, and authorization, idempotency, outbox, audit, and E2E verification.
 
 ## Completed
 
@@ -52,16 +52,19 @@ ASSET.RESERVE command with authorization, idempotency, outbox and audit.
 - Added tenant-scoped asset registry schema and asset create command with
   idempotency, `ASSET.CREATED` outbox and audit.
 - Added E2E coverage for asset creation and idempotent replay.
+- Fixed migration runner ordering so identity schema is applied before asset.
+- Added movement persistence with source/destination location and user.
+- Added transfer validation, assignment history preservation, and `ASSET.TRANSFERRED` effects.
+- Added `ASSET.REQUEST_RETURN` and `ASSET.RECEIVE_RETURN` commands with pending/returned state handling.
+- Added immutable return documents, condition grades, return movement, and return E2E coverage.
 
 ## Verification State
 
 PASS: `npm test`, `typecheck`, `format:check`, `lint` and `build`.
 
-NOT RUN: none for TASK-010 acceptance criteria.
-
 ## Exact Next Step
 
-Proceed to TASK-011 only through the task registry workflow.
+Proceed to TASK-016 only through the task registry workflow.
 
 ## SPEC_CONFLICT
 

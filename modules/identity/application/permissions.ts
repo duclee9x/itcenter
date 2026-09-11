@@ -10,6 +10,18 @@ export const permissions: readonly Permission[] = [
   { code: "asset.retire", resource_type: "asset", action: "retire" },
   { code: "asset.receive", resource_type: "asset", action: "receive" },
   { code: "asset.reserve", resource_type: "asset", action: "reserve" },
+  { code: "asset.assign", resource_type: "asset", action: "assign" },
+  { code: "asset.transfer", resource_type: "asset", action: "transfer" },
+  {
+    code: "asset.request_return",
+    resource_type: "asset",
+    action: "request_return",
+  },
+  {
+    code: "asset.receive_return",
+    resource_type: "asset",
+    action: "receive_return",
+  },
   { code: "session.revoke", resource_type: "session", action: "revoke" },
   {
     code: "authorization.evaluate",

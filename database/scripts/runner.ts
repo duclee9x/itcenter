@@ -7,7 +7,10 @@ export async function migrate(
   root = path.resolve("database/migrations"),
 ): Promise<void> {
   const files: string[] = [];
-  for (const owner of (await readdir(root)).sort())
+  // Owners are ordered by schema dependencies. Asset migrations reference
+  // identity.users, and audit/platform tables are independent foundations.
+  const owners = ["platform", "identity", "asset", "audit"];
+  for (const owner of owners)
     for (const file of (await readdir(path.join(root, owner))).sort())
       if (file.endsWith(".sql")) files.push(path.join(owner, file));
   const client = await pool.connect();
