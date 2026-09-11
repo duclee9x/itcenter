@@ -841,6 +841,7 @@ test("ticket core creates, transitions, resolves and replays idempotently", asyn
         description: "Network unavailable",
         requester_user_id: actorId,
         priority: "P2",
+        source_channel: "PORTAL",
       };
       const create = await fetch(`${url}/api/v1/tickets`, {
         method: "POST",
@@ -858,6 +859,24 @@ test("ticket core creates, transitions, resolves and replays idempotently", asyn
         }
       ).data;
       assert.equal(ticket.state, "NEW");
+      assert.deepEqual(
+        (
+          await db.pool.query(
+            "SELECT source_channel FROM helpdesk.tickets WHERE id=$1",
+            [ticket.id],
+          )
+        ).rows[0],
+        { source_channel: "PORTAL" },
+      );
+      assert.equal(
+        (
+          await db.pool.query(
+            "SELECT count(*)::int AS count FROM helpdesk.ticket_messages WHERE ticket_id=$1 AND channel='PORTAL'",
+            [ticket.id],
+          )
+        ).rows[0].count,
+        1,
+      );
       const transition = async (
         action: string,
         key: string,

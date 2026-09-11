@@ -31,6 +31,7 @@ export async function createTicket(input: {
   description: string;
   requesterUserId: string;
   priority: string;
+  sourceChannel: string;
 }): Promise<{
   id: string;
   ticket_code: string;
@@ -42,11 +43,12 @@ export async function createTicket(input: {
     !input.title.trim() ||
     !input.description.trim() ||
     !input.requesterUserId.trim() ||
-    !["P1", "P2", "P3", "P4"].includes(input.priority)
+    !["P1", "P2", "P3", "P4"].includes(input.priority) ||
+    !["PORTAL", "EMAIL", "API"].includes(input.sourceChannel)
   )
     throw new ApplicationError(
       "VALIDATION_ERROR",
-      "ticket_code, title, description, requester_user_id and valid priority are required.",
+      "ticket fields and source_channel are required.",
     );
   const user = await input.tx.query(
     "SELECT id FROM identity.users WHERE tenant_id=$1 AND id=$2 AND employment_status='ACTIVE'",
@@ -60,7 +62,7 @@ export async function createTicket(input: {
   const id = randomUUID();
   try {
     await input.tx.query(
-      "INSERT INTO helpdesk.tickets(id,tenant_id,ticket_code,title,description,requester_user_id,priority) VALUES($1,$2,$3,$4,$5,$6,$7)",
+      "INSERT INTO helpdesk.tickets(id,tenant_id,ticket_code,title,description,requester_user_id,priority,source_channel) VALUES($1,$2,$3,$4,$5,$6,$7,$8)",
       [
         id,
         input.tx.tenantId,
@@ -69,6 +71,18 @@ export async function createTicket(input: {
         input.description,
         input.requesterUserId,
         input.priority,
+        input.sourceChannel,
+      ],
+    );
+    await input.tx.query(
+      "INSERT INTO helpdesk.ticket_messages(id,tenant_id,ticket_id,author_user_id,channel,body) VALUES($1,$2,$3,$4,$5,$6)",
+      [
+        randomUUID(),
+        input.tx.tenantId,
+        id,
+        input.requesterUserId,
+        input.sourceChannel,
+        input.description,
       ],
     );
   } catch (error) {

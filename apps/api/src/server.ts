@@ -134,6 +134,7 @@ export function apiServer(
                   description: input.description as string,
                   requesterUserId: input.requester_user_id as string,
                   priority: input.priority as string,
+                  sourceChannel: input.source_channel as string,
                 })
               : await transitionTicket({
                   tx,

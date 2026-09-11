@@ -2,7 +2,7 @@
 
 ## Active Task
 
-TASK-016 — Ticket Core + Ticket State Machine + Commands
+TASK-017 — Ticket Intake — Portal + Email Normalization
 
 Feature: F-009/F-010/F-011
 Workflow: WF-002
@@ -12,7 +12,7 @@ Branch: master
 
 CODE_COMPLETE
 
-TASK-016 has ticket core, phase 1 state machine, command handlers, and full verification.
+TASK-017 has source-channel-aware ticket creation, normalized initial messages, and full verification.
 
 ## Completed
 
@@ -63,7 +63,7 @@ PASS: `npm test`, `typecheck`, `format:check`, `lint` and `build`.
 
 ## Exact Next Step
 
-Proceed to TASK-017 only through the task registry workflow.
+Proceed to TASK-018 only through the task registry workflow.
 
 ## SPEC_CONFLICT
 
