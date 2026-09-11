@@ -1,12 +1,12 @@
 # CURRENT TASK
 
-Task: `TASK-010`
+Task: `TASK-011`
 
-Task specification: `tasks/TASK-010_LOCATION_HIERARCHY_ASSET_REGISTRY.md`
+Task specification: `tasks/TASK-011_ASSET_LIFECYCLE_CANONICAL_STATE.md`
 
 Status: `CODE_COMPLETE`
 
 Branch: `master` (repository has no commits yet)
 
-TASK-000 through TASK-010 acceptance criteria pass. TASK-011 is next through
+TASK-000 through TASK-011 acceptance criteria pass. TASK-012 is next through
 the task registry workflow.

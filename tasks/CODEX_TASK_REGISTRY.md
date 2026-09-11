@@ -148,7 +148,7 @@ Only generate a detailed `TASK-xxx_*.md` when the task becomes `READY` or is the
 | `TASK-005` | `AUDIT-FOUNDATION` | `AUDIT-CONTROL` | P0 | P0 | Audit Foundation + Query + Integrity Controls | TASK-001, TASK-004 | **SATISFIED** | CODE_COMPLETE | `TASK-005_AUDIT_FOUNDATION_QUERY_INTEGRITY.md` |
 | `TASK-006` | `PHASE-GATE` | `P0-GATE` | P0 | P0 | Phase 0 Integration Gate | TASK-002, TASK-003, TASK-004, TASK-005 | **SATISFIED** | CODE_COMPLETE | `TASK-006_PHASE0_INTEGRATION_GATE.md` |
 | `TASK-010` | `F-005` | `WF-A01` | P1 | P0 | Location Hierarchy + Asset Registry | TASK-006 | **SATISFIED** | CODE_COMPLETE | `TASK-010_LOCATION_HIERARCHY_ASSET_REGISTRY.md` |
-| `TASK-011` | `F-005` | `WF-A01` | P1 | P0 | Asset Lifecycle + Canonical State Constraints | TASK-010 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |
+| `TASK-011` | `F-005` | `WF-A01` | P1 | P0 | Asset Lifecycle + Canonical State Constraints | TASK-010 | **SATISFIED** | CODE_COMPLETE | `TASK-011_ASSET_LIFECYCLE_CANONICAL_STATE.md` |
 | `TASK-012` | `F-005` | `WF-005/WF-006` | P1 | P1 | Basic Warehouse Receiving + Reservation | TASK-011 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |
 | `TASK-013` | `F-006` | `WF-006` | P1 | P0 | Asset Assignment End-to-End | TASK-003, TASK-011 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |
 | `TASK-014` | `F-007` | `WF-007` | P1 | P1 | Asset Transfer End-to-End | TASK-013 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |

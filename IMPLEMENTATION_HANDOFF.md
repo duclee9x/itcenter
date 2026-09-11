@@ -2,7 +2,7 @@
 
 ## Active Task
 
-TASK-010 — Location Hierarchy + Asset Registry
+TASK-011 — Asset Lifecycle + Canonical State Constraints
 
 Feature: F-005
 Workflow: WF-A01
@@ -11,6 +11,9 @@ Branch: master
 ## Overall Status
 
 CODE_COMPLETE
+
+TASK-011 implemented canonical lifecycle constraints, transition history, and
+the authorized idempotent ASSET.RETIRE command with outbox and audit effects.
 
 ## Completed
 
