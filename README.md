@@ -1,24 +1,38 @@
 # IT Operations Hub
 
-Current verified baseline: TASK-004 · Platform control foundations.
+Current verified baseline: TASK-012 · Warehouse reservation foundation.
 
 Modular monolith with API, Worker and Agent Gateway processes. TASK-000 through TASK-004 are implemented according to their task contracts. Later business workflows remain governed by `tasks/CODEX_TASK_REGISTRY.md`.
 
 ## Development
 
-Requires Node.js 22 or newer, npm, and PostgreSQL 18 (or Docker Compose). No broker, cache, or object-store service is required.
+Requires Node.js 22 or newer, npm, and Podman. No broker, cache, or object-store service is required.
 
 ```sh
 npm ci
-# Supply a local-only password in your environment:
 export ITCENTER_LOCAL_DB_PASSWORD='<local-only-password>'
-docker compose -f infra/docker/compose.yaml up -d
+podman compose -f infra/docker/compose.yaml up -d
 export APP_ENV=local
+export HOST=127.0.0.1
+export PORT=3000
 export DATABASE_SECRET_REF=env:ITCENTER_DATABASE_URL
 export ITCENTER_DATABASE_URL='postgres://itcenter:<URL-encoded-local-password>@127.0.0.1:5432/itcenter'
 npm run db:migrate
 npm run db:seed
 npm run start:api
+```
+
+Check the local API from another terminal:
+
+```sh
+curl http://127.0.0.1:3000/api/v1/health/live
+curl http://127.0.0.1:3000/api/v1/health/ready
+```
+
+To stop PostgreSQL later:
+
+```sh
+podman compose -f infra/docker/compose.yaml down
 ```
 
 Run the other processes in separate terminals with the same database settings:
