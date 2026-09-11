@@ -145,7 +145,7 @@ Only generate a detailed `TASK-xxx_*.md` when the task becomes `READY` or is the
 | `TASK-002` | `F-001` | `WF-ID01` | P0 | P0 | OIDC Authentication + Session Lifecycle | TASK-001 | **SATISFIED** | CODE_COMPLETE | `TASK-002_OIDC_AUTHENTICATION_SESSION.md` |
 | `TASK-003` | `F-002` | `WF-ID02` | P0 | P0 | Authorization Scopes + Privileged Access | TASK-001, TASK-002 | **SATISFIED** | CODE_COMPLETE | `TASK-003_AUTHORIZATION_SCOPES_PRIVILEGED_ACCESS.md` |
 | `TASK-004` | `FOUNDATION` | `PLATFORM-CONTROL` | P0 | P0 | Command, Idempotency, Outbox, Inbox + Operation Hardening | TASK-000 | **SATISFIED** | CODE_COMPLETE | `TASK-004_COMMAND_IDEMPOTENCY_OUTBOX_INBOX_OPERATION.md` |
-| `TASK-005` | `AUDIT-FOUNDATION` | `AUDIT-CONTROL` | P0 | P0 | Audit Foundation + Query + Integrity Controls | TASK-001, TASK-004 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |
+| `TASK-005` | `AUDIT-FOUNDATION` | `AUDIT-CONTROL` | P0 | P0 | Audit Foundation + Query + Integrity Controls | TASK-001, TASK-004 | **READY** | NOT_STARTED | `GENERATE_ON_READY` |
 | `TASK-006` | `PHASE-GATE` | `P0-GATE` | P0 | P0 | Phase 0 Integration Gate | TASK-002, TASK-003, TASK-004, TASK-005 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |
 | `TASK-010` | `F-005` | `WF-A01` | P1 | P0 | Location Hierarchy + Asset Registry | TASK-006 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |
 | `TASK-011` | `F-005` | `WF-A01` | P1 | P0 | Asset Lifecycle + Canonical State Constraints | TASK-010 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |
