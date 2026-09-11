@@ -60,6 +60,8 @@ TASK-030 monitoring ingestion and normalization verification passed.
   idempotency, critical/recovered outbox events, audit and API permission enforcement.
 - Added incident persistence, create/state transition commands, state invariants,
   idempotency, outbox and audit effects.
+- Added root incident relations, child incident/ticket correlation command,
+  tenant checks, unique dedupe constraint, outbox and audit effects.
 
 ## Verification State
 
@@ -70,8 +72,8 @@ integration and E2E database gates used disposable databases.
 PASS: `./local serve` connected to the running PostgreSQL container on the
 published port `127.0.0.1:15432`; API readiness returned HTTP 200.
 
-TASK-032 complete: incident schema, create and transition API commands,
-canonical state validation, idempotency, outbox and audit writes are implemented.
+TASK-033 complete: root incident relations and explicit incident/ticket
+correlation are implemented with tenant checks, idempotency, outbox and audit.
 
 MIGRATION_RISK: the existing local volume rejects `npm run db:migrate` because
 an applied migration checksum differs. Do not edit migration history or reset
@@ -80,7 +82,7 @@ migration before applying schema changes.
 
 ## Exact Next Step
 
-TASK-033 is next; proceed only through the task registry workflow.
+TASK-034 is next; proceed only through the task registry workflow.
 
 ## SPEC_CONFLICT
 

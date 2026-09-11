@@ -40,6 +40,7 @@ import { normalizeMonitoringEvent } from "../../../modules/monitoring/index.js";
 import { issueEnrollmentToken } from "../../../modules/agent/index.js";
 import {
   createIncident,
+  correlateIncident,
   transitionIncident,
 } from "../../../modules/incident/index.js";
 import {
@@ -116,9 +117,15 @@ export function apiServer(
       /^\/api\/v1\/incidents\/([^/]+)\/commands\/transition$/.exec(
         req.url ?? "",
       );
+    const incidentCorrelateMatch =
+      /^\/api\/v1\/incidents\/([^/]+)\/commands\/correlate$/.exec(
+        req.url ?? "",
+      );
     if (
       req.method === "POST" &&
-      (req.url === "/api/v1/incidents" || incidentTransitionMatch)
+      (req.url === "/api/v1/incidents" ||
+        incidentTransitionMatch ||
+        incidentCorrelateMatch)
     ) {
       const principal = await authenticate(
         authentication,
@@ -142,7 +149,12 @@ export function apiServer(
         throw new ApplicationError("VALIDATION_ERROR", "Invalid JSON request.");
       }
       const isTransition = Boolean(incidentTransitionMatch);
-      const action = isTransition ? "incident.update" : "incident.create";
+      const isCorrelation = Boolean(incidentCorrelateMatch);
+      const action = isCorrelation
+        ? "incident.correlate"
+        : isTransition
+          ? "incident.update"
+          : "incident.create";
       await authorize(authorization, {
         principal,
         action,
@@ -150,6 +162,7 @@ export function apiServer(
           type: "incident",
           id:
             incidentTransitionMatch?.[1] ??
+            incidentCorrelateMatch?.[1] ??
             String(input.incident_code ?? "new"),
           tenant_id: principal.tenant_id,
         },
@@ -160,41 +173,60 @@ export function apiServer(
         new PostgresIdempotencyStore(tx).execute(
           {
             principalId: principal.id,
-            operation: isTransition ? "INCIDENT.TRANSITION" : "INCIDENT.CREATE",
+            operation: isCorrelation
+              ? "INCIDENT.CORRELATE"
+              : isTransition
+                ? "INCIDENT.TRANSITION"
+                : "INCIDENT.CREATE",
             businessScope:
               incidentTransitionMatch?.[1] ??
+              incidentCorrelateMatch?.[1] ??
               String(input.incident_code ?? "new"),
             key,
             semanticRequest: input as never,
             expiresAt: new Date(Date.now() + 86400000),
           },
           async () => {
-            const value = isTransition
-              ? await transitionIncident({
+            const value = isCorrelation
+              ? await correlateIncident({
                   tx,
-                  incidentId: incidentTransitionMatch![1]!,
-                  expectedVersion: input.expected_version as number,
-                  targetState: input.target_state as string,
+                  childIncidentId: incidentCorrelateMatch![1]!,
+                  rootIncidentId: input.root_incident_id as string,
+                  relatedEntityType: input.related_entity_type as
+                    "INCIDENT" | "TICKET",
+                  relatedEntityId: input.related_entity_id as string,
                   reason: input.reason as string,
-                  verification: input.verification as string | undefined,
-                  resolutionSummary: input.resolution_summary as
-                    string | undefined,
-                  postChecks: input.post_checks as string | undefined,
+                  score: input.correlation_score as number | undefined,
                 })
-              : await createIncident({
-                  tx,
-                  incidentCode: input.incident_code as string,
-                  title: input.title as string,
-                  source: input.source as string,
-                  monitoringEventId: input.monitoring_event_id as
-                    string | undefined,
-                  priority: input.priority as string,
-                  serviceId: input.service_id as string | undefined,
-                });
+              : isTransition
+                ? await transitionIncident({
+                    tx,
+                    incidentId: incidentTransitionMatch![1]!,
+                    expectedVersion: input.expected_version as number,
+                    targetState: input.target_state as string,
+                    reason: input.reason as string,
+                    verification: input.verification as string | undefined,
+                    resolutionSummary: input.resolution_summary as
+                      string | undefined,
+                    postChecks: input.post_checks as string | undefined,
+                  })
+                : await createIncident({
+                    tx,
+                    incidentCode: input.incident_code as string,
+                    title: input.title as string,
+                    source: input.source as string,
+                    monitoringEventId: input.monitoring_event_id as
+                      string | undefined,
+                    priority: input.priority as string,
+                    serviceId: input.service_id as string | undefined,
+                  });
             const now = new Date().toISOString();
-            const eventType = isTransition
-              ? "INCIDENT.STATE_CHANGED"
-              : "INCIDENT.CREATED";
+            const output = value as unknown as Record<string, unknown>;
+            const eventType = isCorrelation
+              ? "INCIDENT.CORRELATED"
+              : isTransition
+                ? "INCIDENT.STATE_CHANGED"
+                : "INCIDENT.CREATED";
             await new PostgresOutboxWriter(tx).append({
               event_id: randomUUID(),
               event_type: eventType,
@@ -203,8 +235,8 @@ export function apiServer(
               producer: { service: config.serviceName, instance: "api" },
               aggregate: {
                 type: "INCIDENT",
-                id: value.id,
-                version: value.version,
+                id: (output.id ?? output.root_incident_id) as string,
+                version: (output.version as number | undefined) ?? 1,
               },
               actor: { type: principal.actor_type, id: principal.id },
               correlation_id: context.correlation_id,
@@ -221,7 +253,10 @@ export function apiServer(
               occurred_at: now,
               actor: { type: principal.actor_type, id: principal.id },
               action: { command_type: eventType },
-              subject: { entity_type: "INCIDENT", entity_id: value.id },
+              subject: {
+                entity_type: "INCIDENT",
+                entity_id: (output.id ?? output.root_incident_id) as string,
+              },
               correlation_id: context.correlation_id,
               causation_id: context.causation_id,
               reason: {
@@ -235,7 +270,10 @@ export function apiServer(
               relations: [],
               evidence: [],
             });
-            return { status: isTransition ? 200 : 201, body: value };
+            return {
+              status: isTransition || isCorrelation ? 200 : 201,
+              body: value,
+            };
           },
         ),
       );

@@ -46,4 +46,9 @@ export const permissions: readonly Permission[] = [
   { code: "agent.enroll", resource_type: "agent", action: "enroll" },
   { code: "incident.create", resource_type: "incident", action: "create" },
   { code: "incident.update", resource_type: "incident", action: "update" },
+  {
+    code: "incident.correlate",
+    resource_type: "incident",
+    action: "correlate",
+  },
 ];
