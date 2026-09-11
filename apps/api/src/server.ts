@@ -20,6 +20,7 @@ import {
 } from "../../../modules/identity/index.js";
 import {
   createAsset,
+  reserveAsset,
   transitionLifecycle,
 } from "../../../modules/asset/index.js";
 import {
@@ -40,6 +41,122 @@ export function apiServer(
     const retireMatch = /^\/api\/v1\/assets\/([^/]+)\/commands\/retire$/.exec(
       req.url ?? "",
     );
+    const reserveMatch = /^\/api\/v1\/assets\/([^/]+)\/commands\/reserve$/.exec(
+      req.url ?? "",
+    );
+    if (req.method === "POST" && reserveMatch) {
+      const principal = await authenticate(
+        authentication,
+        req.headers.authorization,
+      );
+      const key = req.headers["idempotency-key"];
+      if (typeof key !== "string" || !key.trim())
+        throw new ApplicationError(
+          "VALIDATION_ERROR",
+          "Idempotency-Key is required.",
+        );
+      const body = await new Promise<string>((resolve) => {
+        let data = "";
+        req.on("data", (chunk) => (data += chunk));
+        req.on("end", () => resolve(data));
+      });
+      let input: Record<string, unknown>;
+      try {
+        input = (body ? JSON.parse(body) : {}) as Record<string, unknown>;
+      } catch {
+        throw new ApplicationError("VALIDATION_ERROR", "Invalid JSON request.");
+      }
+      if (
+        !Number.isSafeInteger(input.expected_version) ||
+        typeof input.requested_for !== "string" ||
+        typeof input.reason !== "string" ||
+        typeof input.expires_at !== "string"
+      )
+        throw new ApplicationError(
+          "VALIDATION_ERROR",
+          "expected_version, requested_for, reason and expires_at are required.",
+        );
+      await authorize(authorization, {
+        principal,
+        action: "asset.reserve",
+        resource: {
+          type: "asset",
+          id: reserveMatch[1]!,
+          tenant_id: principal.tenant_id,
+        },
+        scope: {},
+        context: { ...context },
+      });
+      const result = await uow.run(principal.tenant_id, (tx) =>
+        new PostgresIdempotencyStore(tx).execute(
+          {
+            principalId: principal.id,
+            operation: "ASSET.RESERVE",
+            businessScope: reserveMatch[1]!,
+            key,
+            semanticRequest: input as never,
+            expiresAt: new Date(Date.now() + 86400000),
+          },
+          async () => {
+            const reservation = await reserveAsset({
+              tx,
+              assetId: reserveMatch[1]!,
+              expectedVersion: input.expected_version as number,
+              requestedFor: input.requested_for as string,
+              reason: input.reason as string,
+              expiresAt: input.expires_at as string,
+              actorType: principal.actor_type,
+              actorId: principal.id,
+              correlationId: context.correlation_id,
+            });
+            const now = new Date().toISOString();
+            await new PostgresOutboxWriter(tx).append({
+              event_id: randomUUID(),
+              event_type: "ASSET.RESERVED",
+              schema_version: 1,
+              occurred_at: now,
+              producer: { service: config.serviceName, instance: "api" },
+              aggregate: {
+                type: "ASSET",
+                id: reservation.asset_id,
+                version: reservation.version,
+              },
+              actor: { type: principal.actor_type, id: principal.id },
+              correlation_id: context.correlation_id,
+              causation_id: context.causation_id,
+              tenant_id: principal.tenant_id,
+              organization_id: principal.tenant_id,
+              idempotency_key: key,
+              payload: reservation,
+            });
+            await new PostgresAudit(tx).append({
+              id: randomUUID(),
+              tenant_id: principal.tenant_id,
+              event_type: "ASSET.RESERVED",
+              occurred_at: now,
+              actor: { type: principal.actor_type, id: principal.id },
+              action: { command_type: "ASSET.RESERVE" },
+              subject: {
+                entity_type: "ASSET",
+                entity_id: reservation.asset_id,
+              },
+              correlation_id: context.correlation_id,
+              causation_id: context.causation_id,
+              reason: { code: "ASSET_RESERVED", text: input.reason as string },
+              before: { version: input.expected_version as number },
+              after: reservation,
+              outcome: { status: "SUCCESS" },
+              classification: "INTERNAL",
+              relations: [],
+              evidence: [],
+            });
+            return { status: 201, body: reservation };
+          },
+        ),
+      );
+      json(res, result.status, { data: result.body, meta: context });
+      return true;
+    }
     if (req.method === "POST" && retireMatch) {
       const principal = await authenticate(
         authentication,

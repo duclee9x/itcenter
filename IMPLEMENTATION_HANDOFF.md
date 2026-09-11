@@ -2,7 +2,7 @@
 
 ## Active Task
 
-TASK-011 — Asset Lifecycle + Canonical State Constraints
+TASK-012 — Basic Warehouse Receiving + Reservation
 
 Feature: F-005
 Workflow: WF-A01
@@ -12,8 +12,8 @@ Branch: master
 
 CODE_COMPLETE
 
-TASK-011 implemented canonical lifecycle constraints, transition history, and
-the authorized idempotent ASSET.RETIRE command with outbox and audit effects.
+TASK-012 has the reservation table, canonical transition logic, and HTTP
+ASSET.RESERVE command with authorization, idempotency, outbox and audit.
 
 ## Completed
 
