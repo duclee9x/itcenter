@@ -61,6 +61,14 @@ TASK-021 gate verification passed for the Phase 1 vertical slice.
 
 PASS: `npm test`, `typecheck`, `format:check`, `lint` and `build`.
 
+PASS: `./local serve` connected to the running PostgreSQL container on the
+published port `127.0.0.1:15432`; API readiness returned HTTP 200.
+
+MIGRATION_RISK: the existing local volume rejects `npm run db:migrate` because
+an applied migration checksum differs. Do not edit migration history or reset
+the volume automatically; restore the original migration or add a forward
+migration before applying schema changes.
+
 ## Exact Next Step
 
 Proceed to TASK-030 only through the task registry workflow.
