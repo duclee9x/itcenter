@@ -32,6 +32,19 @@ npm run local -- start
 
 Other commands: `npm run local -- up`, `status`, `restart`, and `down`.
 
+Backup and restore:
+
+```sh
+npm run local -- backup                         # backups/itcenter-<timestamp>.dump
+npm run local -- backup ./backups/manual.dump
+npm run local -- restore ./backups/manual.dump --confirm
+npm run local -- backup-loop 86400             # backup every 24 hours
+```
+
+`setup`, `up`, `start`, `status`, `restart`, and `down` preserve the PostgreSQL
+volume. `restore` is the only helper command that overwrites database objects,
+and it requires `--confirm` explicitly.
+
 Check the local API from another terminal:
 
 ```sh
