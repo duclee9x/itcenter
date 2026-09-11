@@ -1,0 +1,6 @@
+{
+  "name": "@itcenter/control-plane",
+  "private": true,
+  "type": "module",
+  "dependencies": {}
+}

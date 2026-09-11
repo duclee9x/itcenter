@@ -164,7 +164,7 @@ Only generate a detailed `TASK-xxx_*.md` when the task becomes `READY` or is the
 | `TASK-032` | `F-019/F-020` | `WF-020` | P2 | P0 | Incident Core + Incident State Machine | TASK-030, TASK-021 | **SATISFIED** | CODE_COMPLETE | `TASK-032_INCIDENT_CORE.md` |
 | `TASK-033` | `F-019` | `WF-020` | P2 | P0 | Root Incident Correlation + Ticket Linking | TASK-016, TASK-032 | **SATISFIED** | CODE_COMPLETE | `TASK-033_ROOT_INCIDENT_CORRELATION.md` |
 | `TASK-034` | `F-020` | `WF-020/WF-COM01` | P2 | P1 | Major Incident Communication + Status Flow | TASK-020, TASK-033 | **SATISFIED** | CODE_COMPLETE | `TASK-034_MAJOR_INCIDENT_COMMUNICATION.md` |
-| `TASK-035` | `F-021` | `WF-SLA01` | P2 | P0 | SLA Engine | TASK-016, TASK-032, TASK-004 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |
+| `TASK-035` | `F-021` | `WF-SLA01` | P2 | P0 | SLA Engine | TASK-016, TASK-032, TASK-004 | **SATISFIED** | CODE_COMPLETE | `TASK-035_SLA_ENGINE.md` |
 | `TASK-036` | `F-022` | `WF-APR01` | P2 | P0 | Approval Engine | TASK-003, TASK-004 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |
 | `TASK-037` | `PROBLEM/CHANGE/KNOWLEDGE` | `WF-PC-K` | P2 | P1 | Problem + Change + Knowledge Foundation | TASK-032, TASK-036 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |
 | `TASK-038` | `F-023/F-024` | `WF-009/WF-016` | P2 | P0 | Maintenance + Warranty Core | TASK-011, TASK-036 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |
