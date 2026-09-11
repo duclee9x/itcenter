@@ -1,12 +1,12 @@
 # CURRENT TASK
 
-Task: `TASK-004`
+Task: `TASK-005`
 
-Task specification: `tasks/TASK-004_COMMAND_IDEMPOTENCY_OUTBOX_INBOX_OPERATION.md`
+Task specification: `tasks/TASK-005_AUDIT_FOUNDATION_QUERY_INTEGRITY.md`
 
 Status: `CODE_COMPLETE`
 
 Branch: `master` (repository has no commits yet)
 
-TASK-002, TASK-003 and TASK-004 acceptance criteria pass. TASK-005 is next
-through the task registry workflow.
+TASK-000 through TASK-005 acceptance criteria pass. TASK-006 is next through
+the task registry workflow.

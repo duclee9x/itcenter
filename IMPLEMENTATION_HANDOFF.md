@@ -2,10 +2,10 @@
 
 ## Active Task
 
-TASK-004 — Command, Idempotency, Outbox, Inbox + Operation Hardening
+TASK-005 — Audit Foundation + Query + Integrity Controls
 
-Feature: FOUNDATION
-Workflow: PLATFORM-CONTROL
+Feature: AUDIT-FOUNDATION
+Workflow: AUDIT-CONTROL
 Branch: master
 
 ## Overall Status
@@ -43,16 +43,19 @@ CODE_COMPLETE
 - Added outbox claim/attempt and tenant-scoped publication marking.
 - Added explicit expired-idempotency-key conflict behavior.
 - Added PostgreSQL integration coverage for operation and outbox hardening.
+- Added audit checksum/hash-chain metadata, tenant-scoped audit queries and
+  integrity verification.
+- Added migration and integration coverage for audit query/integrity controls.
 
 ## Verification State
 
 PASS: `npm test`, `typecheck`, `format:check`, `lint` and `build`.
 
-NOT RUN: none for TASK-004 acceptance criteria.
+NOT RUN: none for TASK-005 acceptance criteria.
 
 ## Exact Next Step
 
-Proceed to TASK-005 only through the task registry workflow.
+Proceed to TASK-006 only through the task registry workflow.
 
 ## SPEC_CONFLICT
 
