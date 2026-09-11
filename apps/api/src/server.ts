@@ -33,6 +33,10 @@ import {
   transitionTicket,
 } from "../../../modules/ticket/index.js";
 import {
+  createTicketWorkItem,
+  resolveWorkItem,
+} from "../../../modules/work-queue/index.js";
+import {
   PostgresIdempotencyStore,
   PostgresOutboxWriter,
 } from "../../../packages/messaging/src/index.js";
@@ -69,6 +73,114 @@ export function apiServer(
     const ticketCreateMatch = req.url === "/api/v1/tickets";
     const ticketCommandMatch =
       /^\/api\/v1\/tickets\/([^/]+)\/commands\/([^/]+)$/.exec(req.url ?? "");
+    const workResolveMatch =
+      /^\/api\/v1\/work-items\/([^/]+)\/commands\/resolve$/.exec(req.url ?? "");
+    if (req.method === "POST" && workResolveMatch) {
+      const principal = await authenticate(
+        authentication,
+        req.headers.authorization,
+      );
+      const key = req.headers["idempotency-key"];
+      if (typeof key !== "string" || !key.trim())
+        throw new ApplicationError(
+          "VALIDATION_ERROR",
+          "Idempotency-Key is required.",
+        );
+      const body = await new Promise<string>((resolve) => {
+        let data = "";
+        req.on("data", (c) => (data += c));
+        req.on("end", () => resolve(data));
+      });
+      let input: Record<string, unknown>;
+      try {
+        input = (body ? JSON.parse(body) : {}) as Record<string, unknown>;
+      } catch {
+        throw new ApplicationError("VALIDATION_ERROR", "Invalid JSON request.");
+      }
+      if (
+        !Number.isSafeInteger(input.expected_version) ||
+        typeof input.reason !== "string"
+      )
+        throw new ApplicationError(
+          "VALIDATION_ERROR",
+          "expected_version and reason are required.",
+        );
+      await authorize(authorization, {
+        principal,
+        action: "work_item.resolve",
+        resource: {
+          type: "work_item",
+          id: workResolveMatch[1]!,
+          tenant_id: principal.tenant_id,
+        },
+        scope: {},
+        context: { ...context },
+      });
+      const result = await uow.run(principal.tenant_id, (tx) =>
+        new PostgresIdempotencyStore(tx).execute(
+          {
+            principalId: principal.id,
+            operation: "WORK_ITEM.RESOLVE",
+            businessScope: workResolveMatch[1]!,
+            key,
+            semanticRequest: input as never,
+            expiresAt: new Date(Date.now() + 86400000),
+          },
+          async () => {
+            const item = await resolveWorkItem({
+              tx,
+              workItemId: workResolveMatch[1]!,
+              expectedVersion: input.expected_version as number,
+              reason: input.reason as string,
+            });
+            const now = new Date().toISOString();
+            await new PostgresOutboxWriter(tx).append({
+              event_id: randomUUID(),
+              event_type: "WORK_ITEM.RESOLVED",
+              schema_version: 1,
+              occurred_at: now,
+              producer: { service: config.serviceName, instance: "api" },
+              aggregate: {
+                type: "WORK_ITEM",
+                id: item.id,
+                version: item.version,
+              },
+              actor: { type: principal.actor_type, id: principal.id },
+              correlation_id: context.correlation_id,
+              causation_id: context.causation_id,
+              tenant_id: principal.tenant_id,
+              organization_id: principal.tenant_id,
+              idempotency_key: key,
+              payload: item,
+            });
+            await new PostgresAudit(tx).append({
+              id: randomUUID(),
+              tenant_id: principal.tenant_id,
+              event_type: "WORK_ITEM.RESOLVED",
+              occurred_at: now,
+              actor: { type: principal.actor_type, id: principal.id },
+              action: { command_type: "WORK_ITEM.RESOLVE" },
+              subject: { entity_type: "WORK_ITEM", entity_id: item.id },
+              correlation_id: context.correlation_id,
+              causation_id: context.causation_id,
+              reason: {
+                code: "WORK_ITEM_RESOLVED",
+                text: input.reason as string,
+              },
+              before: { version: input.expected_version as number },
+              after: item,
+              outcome: { status: "SUCCESS" },
+              classification: "INTERNAL",
+              relations: [],
+              evidence: [],
+            });
+            return { status: 200, body: item };
+          },
+        ),
+      );
+      json(res, result.status, { data: result.body, meta: context });
+      return true;
+    }
     if (req.method === "POST" && (ticketCreateMatch || ticketCommandMatch)) {
       const principal = await authenticate(
         authentication,
@@ -176,6 +288,36 @@ export function apiServer(
                       ? { resolutionCode: input.resolution_code }
                       : {}),
                   });
+            let workItem:
+              Awaited<ReturnType<typeof createTicketWorkItem>> | undefined;
+            if (ticketCreateMatch) {
+              workItem = await createTicketWorkItem({
+                tx,
+                ticketId: value.id,
+                title: input.title as string,
+                priority: input.priority as string,
+              });
+              const createdAt = new Date().toISOString();
+              await new PostgresOutboxWriter(tx).append({
+                event_id: randomUUID(),
+                event_type: "WORK_ITEM.CREATED",
+                schema_version: 1,
+                occurred_at: createdAt,
+                producer: { service: config.serviceName, instance: "api" },
+                aggregate: {
+                  type: "WORK_ITEM",
+                  id: workItem.id,
+                  version: workItem.version,
+                },
+                actor: { type: principal.actor_type, id: principal.id },
+                correlation_id: context.correlation_id,
+                causation_id: context.causation_id,
+                tenant_id: principal.tenant_id,
+                organization_id: principal.tenant_id,
+                idempotency_key: key,
+                payload: workItem,
+              });
+            }
             const eventType = ticketCreateMatch
               ? "TICKET.CREATED"
               : ticketCommandMatch![2] === "enrich"

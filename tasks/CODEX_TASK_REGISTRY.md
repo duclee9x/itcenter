@@ -156,7 +156,7 @@ Only generate a detailed `TASK-xxx_*.md` when the task becomes `READY` or is the
 | `TASK-016` | `F-009/F-010/F-011` | `WF-002` | P1 | P0 | Ticket Core + Ticket State Machine + Commands | TASK-003, TASK-006 | **SATISFIED** | CODE_COMPLETE | `TASK-016_TICKET_CORE_STATE_COMMANDS.md` |
 | `TASK-017` | `F-009` | `WF-002/WF-COM01` | P1 | P0 | Ticket Intake — Portal + Email Normalization | TASK-016 | **SATISFIED** | CODE_COMPLETE | `TASK-017_TICKET_INTAKE.md` |
 | `TASK-018` | `F-009` | `WF-002` | P1 | P0 | Ticket Auto-Enrichment — User + Asset Context | TASK-010, TASK-016, TASK-017 | **SATISFIED** | CODE_COMPLETE | `TASK-018_TICKET_AUTO_ENRICHMENT.md` |
-| `TASK-019` | `F-012` | `WF-OPS01` | P1 | P0 | Work Queue Core | TASK-016, TASK-018 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |
+| `TASK-019` | `F-012` | `WF-OPS01` | P1 | P0 | Work Queue Core | TASK-016, TASK-018 | **SATISFIED** | CODE_COMPLETE | `TASK-019_WORK_QUEUE_CORE.md` |
 | `TASK-020` | `F-013/F-014/F-015` | `WF-OPS02/WF-COM01` | P1 | P1 | Timeline + Notification + Basic Search Foundations | TASK-005, TASK-010, TASK-016, TASK-019 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |
 | `TASK-021` | `PHASE-GATE` | `P1-E2E` | P1 | P0 | Phase 1 Vertical Slice + Integration Gate | TASK-012, TASK-013, TASK-014, TASK-015, TASK-017, TASK-018, TASK-019, TASK-020 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |
 | `TASK-030` | `F-017` | `WF-003` | P2 | P0 | Monitoring Ingestion + Normalization + Dedupe | TASK-021 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |

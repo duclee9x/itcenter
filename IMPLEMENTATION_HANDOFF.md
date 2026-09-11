@@ -2,7 +2,7 @@
 
 ## Active Task
 
-TASK-018 — Ticket Auto-Enrichment — User + Asset Context
+TASK-019 — Work Queue Core
 
 Feature: F-009/F-010/F-011
 Workflow: WF-002
@@ -12,7 +12,7 @@ Branch: master
 
 CODE_COMPLETE
 
-TASK-018 has canonical requester and asset context enrichment with full verification.
+TASK-019 has ticket-backed actionable work items, resolution commands, and full verification.
 
 ## Completed
 
@@ -63,7 +63,7 @@ PASS: `npm test`, `typecheck`, `format:check`, `lint` and `build`.
 
 ## Exact Next Step
 
-Proceed to TASK-019 only through the task registry workflow.
+Proceed to TASK-020 only through the task registry workflow.
 
 ## SPEC_CONFLICT
 

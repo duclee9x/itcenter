@@ -1,0 +1,6 @@
+{
+  "name": "@it-hub/work-queue",
+  "private": true,
+  "type": "module",
+  "exports": "./index.ts"
+}

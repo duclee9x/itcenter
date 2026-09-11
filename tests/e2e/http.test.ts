@@ -879,6 +879,45 @@ test("ticket core creates, transitions, resolves and replays idempotently", asyn
         }
       ).data;
       assert.equal(ticket.state, "NEW");
+      const workItem = (
+        await db.pool.query(
+          "SELECT id,state,version FROM operations.work_items WHERE source_type='TICKET' AND source_id=$1",
+          [ticket.id],
+        )
+      ).rows[0];
+      assert.equal(workItem.state, "NEW");
+      const resolveWork = await fetch(
+        `${url}/api/v1/work-items/${workItem.id}/commands/resolve`,
+        {
+          method: "POST",
+          headers: {
+            authorization: "Bearer verified",
+            "content-type": "application/json",
+            "idempotency-key": "work-item-resolve-key",
+          },
+          body: JSON.stringify({
+            expected_version: 1,
+            reason: "Ticket accepted",
+          }),
+        },
+      );
+      assert.equal(resolveWork.status, 200);
+      const resolveReplay = await fetch(
+        `${url}/api/v1/work-items/${workItem.id}/commands/resolve`,
+        {
+          method: "POST",
+          headers: {
+            authorization: "Bearer verified",
+            "content-type": "application/json",
+            "idempotency-key": "work-item-resolve-key",
+          },
+          body: JSON.stringify({
+            expected_version: 1,
+            reason: "Ticket accepted",
+          }),
+        },
+      );
+      assert.equal(resolveReplay.status, 200);
       assert.deepEqual(
         (
           await db.pool.query(
