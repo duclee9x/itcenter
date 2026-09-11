@@ -78,6 +78,52 @@ export function apiServer(
     const searchMatch = /^\/api\/v1\/search(?:\?q=([^&]+))?$/.exec(
       req.url ?? "",
     );
+    if (req.method === "GET" && req.url === "/api/v1/operations/overview") {
+      const principal = await authenticate(
+        authentication,
+        req.headers.authorization,
+      );
+      const overview = await uow.run(principal.tenant_id, async (tx) => {
+        const [work, incidents, sla, approvals, maintenance, automation] =
+          await Promise.all([
+            tx.query(
+              "SELECT COUNT(*)::int AS count FROM operations.work_items WHERE tenant_id=$1 AND state NOT IN ('RESOLVED','CLOSED')",
+              [principal.tenant_id],
+            ),
+            tx.query(
+              "SELECT COUNT(*)::int AS count FROM incident.incidents WHERE tenant_id=$1 AND state NOT IN ('RESOLVED','CLOSED','CANCELLED')",
+              [principal.tenant_id],
+            ),
+            tx.query(
+              "SELECT COUNT(*)::int AS count FROM control.sla_instances WHERE tenant_id=$1 AND state IN ('CRITICAL','BREACHED')",
+              [principal.tenant_id],
+            ),
+            tx.query(
+              "SELECT COUNT(*)::int AS count FROM control.approval_requests WHERE tenant_id=$1 AND state='PENDING'",
+              [principal.tenant_id],
+            ),
+            tx.query(
+              "SELECT COUNT(*)::int AS count FROM maintenance.orders WHERE tenant_id=$1 AND state NOT IN ('COMPLETED','CANCELLED','FAILED')",
+              [principal.tenant_id],
+            ),
+            tx.query(
+              "SELECT COUNT(*)::int AS count FROM automation.executions WHERE tenant_id=$1 AND state IN ('FAILED','WAITING_APPROVAL')",
+              [principal.tenant_id],
+            ),
+          ]);
+        return {
+          actionable_work: work.rows[0]!.count,
+          open_incidents: incidents.rows[0]!.count,
+          sla_at_risk: sla.rows[0]!.count,
+          pending_approvals: approvals.rows[0]!.count,
+          active_maintenance: maintenance.rows[0]!.count,
+          automation_attention: automation.rows[0]!.count,
+          generated_at: new Date().toISOString(),
+        };
+      });
+      json(res, 200, { data: overview, meta: context });
+      return true;
+    }
     const timelineMatch = /^\/api\/v1\/tickets\/([^/]+)\/timeline$/.exec(
       req.url ?? "",
     );

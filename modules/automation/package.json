@@ -1,0 +1,6 @@
+{
+  "name": "@itcenter/automation",
+  "private": true,
+  "type": "module",
+  "dependencies": {}
+}

@@ -8,7 +8,6 @@ Status: `CODE_COMPLETE`
 
 Branch: `master`
 
-TASK-000 through TASK-038 acceptance criteria pass. TASK-039 phase-gate
-assessment is in progress. Local API connectivity with
+TASK-000 through TASK-039 acceptance criteria pass. Local API connectivity with
 the running `itcenter-postgres` container is verified; use `./local serve` for
-the existing schema.
+the existing schema. TASK-050 is next through the task registry workflow.
