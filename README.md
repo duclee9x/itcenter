@@ -22,6 +22,16 @@ npm run db:seed
 npm run start:api
 ```
 
+CLI helper:
+
+```sh
+export ITCENTER_LOCAL_DB_PASSWORD='<local-only-password>'
+npm run local -- setup
+npm run local -- start
+```
+
+Other commands: `npm run local -- up`, `status`, `restart`, and `down`.
+
 Check the local API from another terminal:
 
 ```sh

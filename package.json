@@ -27,7 +27,8 @@
     "start:api": "tsx apps/api/src/main.ts",
     "start:worker": "tsx apps/worker/src/main.ts",
     "start:agent-gateway": "tsx apps/agent-gateway/src/main.ts",
-    "db:seed": "tsx database/seeds/permissions.ts"
+    "db:seed": "tsx database/seeds/permissions.ts",
+    "local": "./scripts/local-dev.sh"
   },
   "dependencies": {
     "pg": "^8.16.3",
