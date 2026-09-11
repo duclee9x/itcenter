@@ -36,6 +36,7 @@ import {
   createTicketWorkItem,
   resolveWorkItem,
 } from "../../../modules/work-queue/index.js";
+import { normalizeMonitoringEvent } from "../../../modules/monitoring/index.js";
 import {
   PostgresIdempotencyStore,
   PostgresOutboxWriter,
@@ -106,6 +107,132 @@ export function apiServer(
       /^\/api\/v1\/tickets\/([^/]+)\/commands\/([^/]+)$/.exec(req.url ?? "");
     const workResolveMatch =
       /^\/api\/v1\/work-items\/([^/]+)\/commands\/resolve$/.exec(req.url ?? "");
+    if (req.method === "POST" && req.url === "/api/v1/monitoring/events") {
+      const principal = await authenticate(
+        authentication,
+        req.headers.authorization,
+      );
+      const key = req.headers["idempotency-key"];
+      if (typeof key !== "string" || !key.trim())
+        throw new ApplicationError(
+          "VALIDATION_ERROR",
+          "Idempotency-Key is required.",
+        );
+      const body = await new Promise<string>((resolve) => {
+        let data = "";
+        req.on("data", (chunk) => (data += chunk));
+        req.on("end", () => resolve(data));
+      });
+      let input: Record<string, unknown>;
+      try {
+        input = (body ? JSON.parse(body) : {}) as Record<string, unknown>;
+      } catch {
+        throw new ApplicationError("VALIDATION_ERROR", "Invalid JSON request.");
+      }
+      const event = normalizeMonitoringEvent(input);
+      await authorize(authorization, {
+        principal,
+        action: "monitoring.event.write",
+        resource: {
+          type: "monitoring_event",
+          id: event.provider_event_id,
+          tenant_id: principal.tenant_id,
+        },
+        scope: {},
+        context: { ...context },
+      });
+      const result = await uow.run(principal.tenant_id, (tx) =>
+        new PostgresIdempotencyStore(tx).execute(
+          {
+            principalId: principal.id,
+            operation: "MONITORING.EVENT.WRITE",
+            businessScope: `${event.source}:${event.provider_event_id}`,
+            key,
+            semanticRequest: input as never,
+            expiresAt: new Date(Date.now() + 86400000),
+          },
+          async () => {
+            const inserted = await tx.query(
+              "INSERT INTO monitoring.events(id,tenant_id,source,provider_event_id,asset_id,service_id,metric,observed_value,threshold,severity,observed_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) ON CONFLICT (tenant_id,source,provider_event_id) DO NOTHING RETURNING id,source,provider_event_id,asset_id,service_id,metric,observed_value,threshold,severity,observed_at",
+              [
+                randomUUID(),
+                principal.tenant_id,
+                event.source,
+                event.provider_event_id,
+                event.asset_id,
+                event.service_id,
+                event.metric,
+                event.observed_value,
+                event.threshold,
+                event.severity,
+                event.observed_at,
+              ],
+            );
+            const observation =
+              inserted.rows[0] ??
+              (
+                await tx.query(
+                  "SELECT id,source,provider_event_id,asset_id,service_id,metric,observed_value,threshold,severity,observed_at FROM monitoring.events WHERE tenant_id=$1 AND source=$2 AND provider_event_id=$3",
+                  [principal.tenant_id, event.source, event.provider_event_id],
+                )
+              ).rows[0];
+            if (!observation)
+              throw new ApplicationError(
+                "BUSINESS_RULE_VIOLATION",
+                "Monitoring event could not be persisted.",
+              );
+            const eventType =
+              event.severity === "RECOVERED"
+                ? "MONITORING.RECOVERED"
+                : "MONITORING.CRITICAL";
+            const now = new Date().toISOString();
+            await new PostgresOutboxWriter(tx).append({
+              event_id: randomUUID(),
+              event_type: eventType,
+              schema_version: 1,
+              occurred_at: now,
+              producer: { service: config.serviceName, instance: "api" },
+              aggregate: {
+                type: "MONITORING_EVENT",
+                id: observation.id,
+                version: 1,
+              },
+              actor: { type: principal.actor_type, id: principal.id },
+              correlation_id: context.correlation_id,
+              causation_id: context.causation_id,
+              tenant_id: principal.tenant_id,
+              organization_id: principal.tenant_id,
+              idempotency_key: key,
+              payload: observation,
+            });
+            await new PostgresAudit(tx).append({
+              id: randomUUID(),
+              tenant_id: principal.tenant_id,
+              event_type: eventType,
+              occurred_at: now,
+              actor: { type: principal.actor_type, id: principal.id },
+              action: { command_type: "MONITORING.EVENT.WRITE" },
+              subject: {
+                entity_type: "MONITORING_EVENT",
+                entity_id: observation.id,
+              },
+              correlation_id: context.correlation_id,
+              causation_id: context.causation_id,
+              reason: { code: "MONITORING_INGESTED", text: event.source },
+              before: null,
+              after: observation,
+              outcome: { status: "SUCCESS" },
+              classification: "INTERNAL",
+              relations: [],
+              evidence: [],
+            });
+            return { status: 201, body: observation };
+          },
+        ),
+      );
+      json(res, result.status, { data: result.body, meta: context });
+      return true;
+    }
     if (req.method === "POST" && workResolveMatch) {
       const principal = await authenticate(
         authentication,

@@ -159,7 +159,7 @@ Only generate a detailed `TASK-xxx_*.md` when the task becomes `READY` or is the
 | `TASK-019` | `F-012` | `WF-OPS01` | P1 | P0 | Work Queue Core | TASK-016, TASK-018 | **SATISFIED** | CODE_COMPLETE | `TASK-019_WORK_QUEUE_CORE.md` |
 | `TASK-020` | `F-013/F-014/F-015` | `WF-OPS02/WF-COM01` | P1 | P1 | Timeline + Notification + Basic Search Foundations | TASK-005, TASK-010, TASK-016, TASK-019 | **SATISFIED** | CODE_COMPLETE | `TASK-020_TIMELINE_NOTIFICATION_SEARCH.md` |
 | `TASK-021` | `PHASE-GATE` | `P1-E2E` | P1 | P0 | Phase 1 Vertical Slice + Integration Gate | TASK-012, TASK-013, TASK-014, TASK-015, TASK-017, TASK-018, TASK-019, TASK-020 | **SATISFIED** | CODE_COMPLETE | `TASK-021_PHASE1_VERTICAL_SLICE_GATE.md` |
-| `TASK-030` | `F-017` | `WF-003` | P2 | P0 | Monitoring Ingestion + Normalization + Dedupe | TASK-021 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |
+| `TASK-030` | `F-017` | `WF-003` | P2 | P0 | Monitoring Ingestion + Normalization + Dedupe | TASK-021 | **SATISFIED** | IN_PROGRESS | `TASK-030_MONITORING_INGESTION.md` |
 | `TASK-031` | `F-018` | `WF-004` | P2 | P0 | Agent Enrollment + Status + Inventory Projection | TASK-010, TASK-021 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |
 | `TASK-032` | `F-019/F-020` | `WF-020` | P2 | P0 | Incident Core + Incident State Machine | TASK-030, TASK-021 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |
 | `TASK-033` | `F-019` | `WF-020` | P2 | P0 | Root Incident Correlation + Ticket Linking | TASK-016, TASK-032 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |

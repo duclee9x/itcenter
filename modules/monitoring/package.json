@@ -1,0 +1,6 @@
+{
+  "name": "@itcenter/monitoring",
+  "private": true,
+  "type": "module",
+  "dependencies": {}
+}

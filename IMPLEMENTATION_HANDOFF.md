@@ -2,7 +2,7 @@
 
 ## Active Task
 
-TASK-021 — Phase 1 Vertical Slice + Integration Gate
+TASK-030 — Monitoring Ingestion + Normalization + Dedupe
 
 Feature: F-009/F-010/F-011
 Workflow: WF-002
@@ -10,7 +10,7 @@ Branch: master
 
 ## Overall Status
 
-CODE_COMPLETE
+IN_PROGRESS
 
 TASK-021 gate verification passed for the Phase 1 vertical slice.
 
@@ -64,6 +64,11 @@ PASS: `npm test`, `typecheck`, `format:check`, `lint` and `build`.
 PASS: `./local serve` connected to the running PostgreSQL container on the
 published port `127.0.0.1:15432`; API readiness returned HTTP 200.
 
+TASK-030 progress: monitoring schema, normalization module, permission,
+ingestion endpoint, tenant/source/provider-event dedupe, idempotency, outbox
+and audit writes are implemented. Database-backed migration and API tests are
+still required before marking the task `CODE_COMPLETE`.
+
 MIGRATION_RISK: the existing local volume rejects `npm run db:migrate` because
 an applied migration checksum differs. Do not edit migration history or reset
 the volume automatically; restore the original migration or add a forward
@@ -71,7 +76,8 @@ migration before applying schema changes.
 
 ## Exact Next Step
 
-Proceed to TASK-030 only through the task registry workflow.
+Complete TASK-030 database-backed verification, then proceed to TASK-031 only
+through the task registry workflow.
 
 ## SPEC_CONFLICT
 

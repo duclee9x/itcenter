@@ -28,6 +28,11 @@ export const permissions: readonly Permission[] = [
   { code: "ticket.resolve", resource_type: "ticket", action: "resolve" },
   { code: "ticket.reopen", resource_type: "ticket", action: "reopen" },
   { code: "work_item.resolve", resource_type: "work_item", action: "resolve" },
+  {
+    code: "monitoring.event.write",
+    resource_type: "monitoring_event",
+    action: "write",
+  },
   { code: "session.revoke", resource_type: "session", action: "revoke" },
   {
     code: "authorization.evaluate",
