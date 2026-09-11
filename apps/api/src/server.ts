@@ -37,6 +37,7 @@ import {
   resolveWorkItem,
 } from "../../../modules/work-queue/index.js";
 import { normalizeMonitoringEvent } from "../../../modules/monitoring/index.js";
+import { issueEnrollmentToken } from "../../../modules/agent/index.js";
 import {
   PostgresIdempotencyStore,
   PostgresOutboxWriter,
@@ -107,6 +108,74 @@ export function apiServer(
       /^\/api\/v1\/tickets\/([^/]+)\/commands\/([^/]+)$/.exec(req.url ?? "");
     const workResolveMatch =
       /^\/api\/v1\/work-items\/([^/]+)\/commands\/resolve$/.exec(req.url ?? "");
+    if (req.method === "POST" && req.url === "/api/v1/agents/enroll") {
+      const principal = await authenticate(
+        authentication,
+        req.headers.authorization,
+      );
+      const body = await new Promise<string>((resolve) => {
+        let data = "";
+        req.on("data", (chunk) => (data += chunk));
+        req.on("end", () => resolve(data));
+      });
+      let input: Record<string, unknown>;
+      try {
+        input = (body ? JSON.parse(body) : {}) as Record<string, unknown>;
+      } catch {
+        throw new ApplicationError("VALIDATION_ERROR", "Invalid JSON request.");
+      }
+      if (
+        typeof input.asset_id !== "string" ||
+        typeof input.agent_version !== "string"
+      )
+        throw new ApplicationError(
+          "VALIDATION_ERROR",
+          "asset_id and agent_version are required.",
+        );
+      await authorize(authorization, {
+        principal,
+        action: "agent.enroll",
+        resource: {
+          type: "agent",
+          id: input.asset_id,
+          tenant_id: principal.tenant_id,
+        },
+        scope: {},
+        context: { ...context },
+      });
+      const result = await uow.run(principal.tenant_id, async (tx) => {
+        const enrollment = await issueEnrollmentToken({
+          tx,
+          assetId: input.asset_id as string,
+          agentVersion: input.agent_version as string,
+          expiresAt: new Date(Date.now() + 86400000).toISOString(),
+        });
+        const now = new Date().toISOString();
+        await new PostgresOutboxWriter(tx).append({
+          event_id: randomUUID(),
+          event_type: "AGENT.ENROLLED",
+          schema_version: 1,
+          occurred_at: now,
+          producer: { service: config.serviceName, instance: "api" },
+          aggregate: { type: "AGENT", id: enrollment.id, version: 1 },
+          actor: { type: principal.actor_type, id: principal.id },
+          correlation_id: context.correlation_id,
+          causation_id: context.causation_id,
+          tenant_id: principal.tenant_id,
+          organization_id: principal.tenant_id,
+          idempotency_key: randomUUID(),
+          payload: {
+            agent_id: enrollment.id,
+            asset_id: enrollment.asset_id,
+            agent_version: enrollment.agent_version,
+            enrolled_at: now,
+          },
+        });
+        return enrollment;
+      });
+      json(res, 201, { data: result, meta: context });
+      return true;
+    }
     if (req.method === "POST" && req.url === "/api/v1/monitoring/events") {
       const principal = await authenticate(
         authentication,

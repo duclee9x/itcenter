@@ -4,6 +4,8 @@ CREATE TABLE agent.agents (
   tenant_id text NOT NULL,
   asset_id uuid NOT NULL,
   agent_version text NOT NULL,
+  enrollment_token_hash text UNIQUE,
+  enrollment_token_expires_at timestamptz,
   status text NOT NULL DEFAULT 'ENROLLED',
   last_seen_at timestamptz,
   hardware_inventory jsonb,

@@ -10,7 +10,7 @@ Branch: master
 
 ## Overall Status
 
-IN_PROGRESS
+CODE_COMPLETE
 
 TASK-030 monitoring ingestion and normalization verification passed.
 
@@ -72,10 +72,8 @@ TASK-030 complete: monitoring schema, normalization module, permission,
 ingestion endpoint, tenant/source/provider-event dedupe, idempotency, outbox
 and audit writes are implemented.
 
-TASK-031 progress: added agent registry, heartbeat and inventory projection
-through the dedicated agent gateway. Token issuance and enrollment handshake
-are not implemented yet; the next step must add that command or explicitly
-split it into a remediation task.
+TASK-031 complete: added agent registry, one-time hashed enrollment tokens,
+heartbeat and inventory projection through the dedicated agent gateway.
 
 MIGRATION_RISK: the existing local volume rejects `npm run db:migrate` because
 an applied migration checksum differs. Do not edit migration history or reset
@@ -84,8 +82,7 @@ migration before applying schema changes.
 
 ## Exact Next Step
 
-TASK-031 remains active until enrollment token issuance and its verification
-coverage are implemented.
+TASK-032 is next; proceed only through the task registry workflow.
 
 ## SPEC_CONFLICT
 

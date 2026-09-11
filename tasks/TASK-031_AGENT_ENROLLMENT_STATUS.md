@@ -6,7 +6,7 @@ feature_id: F-018
 workflow_id: WF-004
 phase: P2
 priority: P0
-status: IN_PROGRESS
+status: CODE_COMPLETE
 owner_domain: agent
 ```
 
@@ -26,6 +26,7 @@ the dedicated agent gateway, preserving independent freshness timestamps.
 
 - Agent registry bound to an existing asset.
 - Authenticated agent heartbeat and inventory endpoints.
+- Admin enrollment token command with one-time plaintext response and hashed storage.
 - ONLINE/OFFLINE status and inventory snapshot projection.
 - `AGENT.ONLINE`, `AGENT.OFFLINE`, and `AGENT.INVENTORY_SYNCED` outbox facts.
 
@@ -45,8 +46,9 @@ scoped and cannot call administrative API commands.
 
 ## Acceptance criteria
 
-1. An enrolled agent can update heartbeat status and last-seen timestamp.
-2. Inventory sync updates only the agent projection and preserves dataset freshness.
-3. Unknown agent or wrong tenant is rejected.
-4. Each accepted heartbeat/inventory update writes its outbox event atomically.
-5. Existing unit, migration, integration, lint, typecheck and build gates pass.
+1. An authorized operator can issue one enrollment token for an eligible asset.
+2. An enrolled agent can update heartbeat status and last-seen timestamp.
+3. Inventory sync updates only the agent projection and preserves dataset freshness.
+4. Unknown agent or wrong tenant is rejected.
+5. Each accepted enrollment, heartbeat and inventory update writes its outbox event atomically.
+6. Existing unit, migration, integration, lint, typecheck and build gates pass.

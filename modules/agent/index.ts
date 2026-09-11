@@ -1,1 +1,5 @@
-export { recordHeartbeat, recordInventory } from "./application/agent.js";
+export {
+  issueEnrollmentToken,
+  recordHeartbeat,
+  recordInventory,
+} from "./application/agent.js";
