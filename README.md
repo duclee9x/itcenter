@@ -16,11 +16,19 @@ export APP_ENV=local
 export HOST=127.0.0.1
 export PORT=3000
 export DATABASE_SECRET_REF=env:ITCENTER_DATABASE_URL
-export ITCENTER_DATABASE_URL='postgres://itcenter:<URL-encoded-local-password>@127.0.0.1:5432/itcenter'
+export ITCENTER_DATABASE_URL='postgres://itcenter:<URL-encoded-local-password>@127.0.0.1:15432/itcenter'
 npm run db:migrate
 npm run db:seed
 npm run start:api
 ```
+
+The `./local` helper detects the published PostgreSQL port from the running
+`itcenter-postgres` container, so a mapping such as `127.0.0.1:15432` is used
+automatically when `ITCENTER_LOCAL_DB_PASSWORD` is set. You can also provide
+an explicit `ITCENTER_DATABASE_URL`.
+
+Use `./local serve` to start the API against an existing database schema. Use
+`./local start` when you want the helper to apply migrations and seed data first.
 
 CLI helper:
 
