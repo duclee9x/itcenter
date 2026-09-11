@@ -1,0 +1,46 @@
+{
+  "name": "it-operations-hub",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*",
+    "modules/*"
+  ],
+  "scripts": {
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "eslint . && tsx scripts/check-boundaries.ts",
+    "typecheck": "tsc --noEmit",
+    "build": "tsc && node scripts/copy-contracts.mjs",
+    "test:unit": "tsx --test tests/unit/*.test.ts tests/architecture/*.test.ts",
+    "test:contract": "tsx --test tests/contract/*.test.ts",
+    "test:migration": "tsx --test tests/migration/*.test.ts",
+    "test:integration": "tsx --test tests/integration/*.test.ts",
+    "test:e2e": "tsx --test tests/e2e/*.test.ts",
+    "test": "npm run test:unit && npm run test:contract && npm run test:migration && npm run test:integration && npm run test:e2e",
+    "db:migrate": "tsx database/scripts/migrate.ts",
+    "start:api": "tsx apps/api/src/main.ts",
+    "start:worker": "tsx apps/worker/src/main.ts",
+    "start:agent-gateway": "tsx apps/agent-gateway/src/main.ts",
+    "db:seed": "tsx database/seeds/permissions.ts"
+  },
+  "dependencies": {
+    "pg": "^8.16.3",
+    "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/pg": "^8.15.5",
+    "typescript": "^5.9.2",
+    "tsx": "^4.20.5",
+    "prettier": "^3.6.2",
+    "eslint": "^9.35.0",
+    "typescript-eslint": "^8.42.0"
+  }
+}

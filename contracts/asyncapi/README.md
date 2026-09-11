@@ -1,0 +1,1 @@
+The event envelope source is ../json-schema/event-envelope.v1.json. TASK-000 declares no business channels and installs no broker. Future owning modules register event type/version and payload schema here before enabling publishers or consumers.
