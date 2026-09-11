@@ -49,6 +49,11 @@ import {
   transitionRecord,
 } from "../../../modules/problem/index.js";
 import {
+  createMaintenance,
+  createWarranty,
+  transitionMaintenance,
+} from "../../../modules/maintenance/index.js";
+import {
   createIncident,
   correlateIncident,
   declareMajor,
@@ -159,6 +164,127 @@ export function apiServer(
           : req.url === "/api/v1/knowledge"
             ? "KNOWLEDGE"
             : null;
+    const maintenanceTransitionMatch =
+      /^\/api\/v1\/maintenance\/([^/]+)\/commands\/transition$/.exec(
+        req.url ?? "",
+      );
+    const isWarrantyCreate = req.url === "/api/v1/warranties";
+    const isMaintenanceCreate = req.url === "/api/v1/maintenance";
+    if (
+      req.method === "POST" &&
+      (maintenanceTransitionMatch || isWarrantyCreate || isMaintenanceCreate)
+    ) {
+      const principal = await authenticate(
+        authentication,
+        req.headers.authorization,
+      );
+      const key = req.headers["idempotency-key"];
+      if (typeof key !== "string" || !key.trim())
+        throw new ApplicationError(
+          "VALIDATION_ERROR",
+          "Idempotency-Key is required.",
+        );
+      const body = await new Promise<string>((resolve) => {
+        let data = "";
+        req.on("data", (chunk) => (data += chunk));
+        req.on("end", () => resolve(data));
+      });
+      let input: Record<string, unknown>;
+      try {
+        input = (body ? JSON.parse(body) : {}) as Record<string, unknown>;
+      } catch {
+        throw new ApplicationError("VALIDATION_ERROR", "Invalid JSON request.");
+      }
+      await authorize(authorization, {
+        principal,
+        action: "maintenance.manage",
+        resource: {
+          type: "maintenance",
+          id:
+            maintenanceTransitionMatch?.[1] ?? String(input.asset_id ?? "new"),
+          tenant_id: principal.tenant_id,
+        },
+        scope: {},
+        context: { ...context },
+      });
+      const result = await uow.run(principal.tenant_id, (tx) =>
+        new PostgresIdempotencyStore(tx).execute(
+          {
+            principalId: principal.id,
+            operation: maintenanceTransitionMatch
+              ? "MAINTENANCE.TRANSITION"
+              : isWarrantyCreate
+                ? "WARRANTY.CREATE"
+                : "MAINTENANCE.CREATE",
+            businessScope:
+              maintenanceTransitionMatch?.[1] ??
+              String(input.asset_id ?? "new"),
+            key,
+            semanticRequest: input as never,
+            expiresAt: new Date(Date.now() + 86400000),
+          },
+          async () => {
+            const value = maintenanceTransitionMatch
+              ? await transitionMaintenance({
+                  tx,
+                  id: maintenanceTransitionMatch[1]!,
+                  expectedVersion: input.expected_version as number,
+                  targetState: input.target_state as string,
+                  reason: input.reason as string,
+                })
+              : isWarrantyCreate
+                ? await createWarranty({
+                    tx,
+                    assetId: input.asset_id as string,
+                    provider: input.provider as string,
+                    contractRef: input.contract_ref as string | undefined,
+                    startsAt: input.starts_at as string,
+                    endsAt: input.ends_at as string,
+                    coverage: input.coverage as string,
+                  })
+                : await createMaintenance({
+                    tx,
+                    assetId: input.asset_id as string,
+                    title: input.title as string,
+                    description: input.description as string,
+                    warrantyId: input.warranty_id as string | undefined,
+                  });
+            const output = value as unknown as Record<string, unknown>;
+            const eventType = maintenanceTransitionMatch
+              ? "MAINTENANCE.STATE_CHANGED"
+              : isWarrantyCreate
+                ? "WARRANTY.CREATED"
+                : "MAINTENANCE.CREATED";
+            const now = new Date().toISOString();
+            await new PostgresOutboxWriter(tx).append({
+              event_id: randomUUID(),
+              event_type: eventType,
+              schema_version: 1,
+              occurred_at: now,
+              producer: { service: config.serviceName, instance: "api" },
+              aggregate: {
+                type: isWarrantyCreate ? "WARRANTY" : "MAINTENANCE",
+                id: value.id,
+                version: (output.version as number | undefined) ?? 1,
+              },
+              actor: { type: principal.actor_type, id: principal.id },
+              correlation_id: context.correlation_id,
+              causation_id: context.causation_id,
+              tenant_id: principal.tenant_id,
+              organization_id: principal.tenant_id,
+              idempotency_key: key,
+              payload: value,
+            });
+            return {
+              status: maintenanceTransitionMatch ? 200 : 201,
+              body: value,
+            };
+          },
+        ),
+      );
+      json(res, result.status, { data: result.body, meta: context });
+      return true;
+    }
     if (req.method === "POST" && (recordCreateKind || recordTransitionMatch)) {
       const principal = await authenticate(
         authentication,

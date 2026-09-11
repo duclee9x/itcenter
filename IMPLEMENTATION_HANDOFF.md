@@ -70,6 +70,8 @@ TASK-030 monitoring ingestion and normalization verification passed.
   create/approve/reject commands, self-approval protection and audit/outbox.
 - Added Problem, Change and Knowledge persistence with explicit create and
   transition APIs, validation, idempotency, outbox and audit effects.
+- Added maintenance orders, warranty coverage records and protected
+  maintenance transitions with tenant-scoped persistence, outbox and audit.
 
 ## Verification State
 
@@ -80,8 +82,8 @@ integration and E2E database gates used disposable databases.
 PASS: `./local serve` connected to the running PostgreSQL container on the
 published port `127.0.0.1:15432`; API readiness returned HTTP 200.
 
-TASK-037 complete: Problem, Change and Knowledge foundation APIs enforce
-documented initial states and protected transitions with tenant-scoped
+TASK-038 complete: maintenance and warranty APIs enforce asset-scoped records,
+valid coverage dates and protected maintenance transitions with tenant-scoped
 persistence, outbox and audit effects.
 
 MIGRATION_RISK: the existing local volume rejects `npm run db:migrate` because
@@ -91,7 +93,7 @@ migration before applying schema changes.
 
 ## Exact Next Step
 
-TASK-038 is next; proceed only through the task registry workflow.
+TASK-039 is next; proceed only through the task registry workflow.
 
 ## SPEC_CONFLICT
 

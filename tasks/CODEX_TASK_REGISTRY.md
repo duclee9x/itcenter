@@ -167,7 +167,7 @@ Only generate a detailed `TASK-xxx_*.md` when the task becomes `READY` or is the
 | `TASK-035` | `F-021` | `WF-SLA01` | P2 | P0 | SLA Engine | TASK-016, TASK-032, TASK-004 | **SATISFIED** | CODE_COMPLETE | `TASK-035_SLA_ENGINE.md` |
 | `TASK-036` | `F-022` | `WF-APR01` | P2 | P0 | Approval Engine | TASK-003, TASK-004 | **SATISFIED** | CODE_COMPLETE | `TASK-036_APPROVAL_ENGINE.md` |
 | `TASK-037` | `PROBLEM/CHANGE/KNOWLEDGE` | `WF-PC-K` | P2 | P1 | Problem + Change + Knowledge Foundation | TASK-032, TASK-036 | **SATISFIED** | CODE_COMPLETE | `TASK-037_PROBLEM_CHANGE_KNOWLEDGE.md` |
-| `TASK-038` | `F-023/F-024` | `WF-009/WF-016` | P2 | P0 | Maintenance + Warranty Core | TASK-011, TASK-036 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |
+| `TASK-038` | `F-023/F-024` | `WF-009/WF-016` | P2 | P0 | Maintenance + Warranty Core | TASK-011, TASK-036 | **SATISFIED** | CODE_COMPLETE | `TASK-038_MAINTENANCE_WARRANTY.md` |
 | `TASK-039` | `F-025/F-048/PHASE-GATE` | `WF-AUT01/WF-RPT01/P2-E2E` | P2 | P0 | Safe Automation + Operations Overview + Phase 2 Gate | TASK-019, TASK-031, TASK-033, TASK-034, TASK-035, TASK-036, TASK-037, TASK-038 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |
 | `TASK-050` | `F-026` | `WF-010` | P3 | P0 | Asset Audit — Expected vs Observed | TASK-020, TASK-039 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |
 | `TASK-051` | `F-027` | `WF-011` | P3 | P0 | Network Discovery + Current Topology Projection | TASK-010, TASK-031, TASK-039 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |
