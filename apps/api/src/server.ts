@@ -51,6 +51,37 @@ export function apiServer(
 ) {
   return createHttpServer(config, ready, async (req, res, context) => {
     if (req.method !== "GET" && req.method !== "POST") return false;
+    const searchMatch = /^\/api\/v1\/search(?:\?q=([^&]+))?$/.exec(
+      req.url ?? "",
+    );
+    const timelineMatch = /^\/api\/v1\/tickets\/([^/]+)\/timeline$/.exec(
+      req.url ?? "",
+    );
+    if (req.method === "GET" && (searchMatch || timelineMatch)) {
+      const principal = await authenticate(
+        authentication,
+        req.headers.authorization,
+      );
+      const result = await uow.run(principal.tenant_id, async (tx) => {
+        if (timelineMatch)
+          return (
+            await tx.query(
+              "SELECT id,event_type,summary,payload,occurred_at FROM operations.timeline_events WHERE tenant_id=$1 AND entity_type='TICKET' AND entity_id=$2 ORDER BY occurred_at DESC",
+              [principal.tenant_id, timelineMatch[1]!],
+            )
+          ).rows;
+        const q = decodeURIComponent(searchMatch?.[1] ?? "").trim();
+        if (!q) return [];
+        return (
+          await tx.query(
+            "SELECT entity_type,entity_id,exact_key,searchable_text,updated_at FROM operations.search_documents WHERE tenant_id=$1 AND (exact_key=$2 OR searchable_text LIKE $3) ORDER BY CASE WHEN exact_key=$2 THEN 0 ELSE 1 END, updated_at DESC LIMIT 50",
+            [principal.tenant_id, q, `${q}%`],
+          )
+        ).rows;
+      });
+      json(res, 200, { data: result, meta: context });
+      return true;
+    }
     const retireMatch = /^\/api\/v1\/assets\/([^/]+)\/commands\/retire$/.exec(
       req.url ?? "",
     );
@@ -317,6 +348,38 @@ export function apiServer(
                 idempotency_key: key,
                 payload: workItem,
               });
+              await tx.query(
+                "INSERT INTO operations.timeline_events(id,tenant_id,entity_type,entity_id,event_type,summary,payload,source_event_id) VALUES($1,$2,'TICKET',$3,'TICKET.CREATED',$4,$5,$6)",
+                [
+                  randomUUID(),
+                  principal.tenant_id,
+                  value.id,
+                  `Ticket ${input.ticket_code as string} created`,
+                  JSON.stringify(value),
+                  randomUUID(),
+                ],
+              );
+              await tx.query(
+                "INSERT INTO communication.notifications(id,tenant_id,recipient_user_id,event_type,subject,body,dedupe_key) VALUES($1,$2,$3,'TICKET.CREATED',$4,$5,$6) ON CONFLICT DO NOTHING",
+                [
+                  randomUUID(),
+                  principal.tenant_id,
+                  input.requester_user_id as string,
+                  "Ticket created",
+                  `Ticket ${input.ticket_code as string} was created.`,
+                  `ticket-created:${value.id}`,
+                ],
+              );
+              await tx.query(
+                "INSERT INTO operations.search_documents(id,tenant_id,entity_type,entity_id,exact_key,searchable_text) VALUES($1,$2,'TICKET',$3,$4,$5) ON CONFLICT (tenant_id,entity_type,entity_id) DO UPDATE SET exact_key=EXCLUDED.exact_key,searchable_text=EXCLUDED.searchable_text,updated_at=now()",
+                [
+                  randomUUID(),
+                  principal.tenant_id,
+                  value.id,
+                  input.ticket_code as string,
+                  `${input.ticket_code as string} ${input.title as string}`,
+                ],
+              );
             }
             const eventType = ticketCreateMatch
               ? "TICKET.CREATED"

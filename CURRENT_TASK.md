@@ -1,12 +1,12 @@
 # CURRENT TASK
 
-Task: `TASK-019`
+Task: `TASK-020`
 
-Task specification: `tasks/TASK-019_WORK_QUEUE_CORE.md`
+Task specification: `tasks/TASK-020_TIMELINE_NOTIFICATION_SEARCH.md`
 
 Status: `CODE_COMPLETE`
 
 Branch: `master` (repository has no commits yet)
 
-TASK-000 through TASK-019 acceptance criteria pass. TASK-020 is next through
+TASK-000 through TASK-020 acceptance criteria pass. TASK-021 is next through
 the task registry workflow.

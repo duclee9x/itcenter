@@ -879,6 +879,32 @@ test("ticket core creates, transitions, resolves and replays idempotently", asyn
         }
       ).data;
       assert.equal(ticket.state, "NEW");
+      const timeline = await fetch(
+        `${url}/api/v1/tickets/${ticket.id}/timeline`,
+        { headers: { authorization: "Bearer verified" } },
+      );
+      assert.equal(timeline.status, 200);
+      assert.equal(
+        ((await timeline.json()) as { data: unknown[] }).data.length,
+        1,
+      );
+      const search = await fetch(`${url}/api/v1/search?q=INC-1001`, {
+        headers: { authorization: "Bearer verified" },
+      });
+      assert.equal(search.status, 200);
+      assert.equal(
+        ((await search.json()) as { data: unknown[] }).data.length,
+        1,
+      );
+      assert.equal(
+        (
+          await db.pool.query(
+            "SELECT count(*)::int AS count FROM communication.notifications WHERE recipient_user_id=$1 AND event_type='TICKET.CREATED'",
+            [actorId],
+          )
+        ).rows[0].count,
+        1,
+      );
       const workItem = (
         await db.pool.query(
           "SELECT id,state,version FROM operations.work_items WHERE source_type='TICKET' AND source_id=$1",
