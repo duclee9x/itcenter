@@ -32,13 +32,22 @@ npm run local -- start
 
 Other commands: `npm run local -- up`, `status`, `restart`, and `down`.
 
+Có thể dùng wrapper ngắn hơn:
+
+```sh
+./local setup
+./local start
+./local status
+./local down
+```
+
 Backup and restore:
 
 ```sh
-npm run local -- backup                         # backups/itcenter-<timestamp>.dump
-npm run local -- backup ./backups/manual.dump
-npm run local -- restore ./backups/manual.dump --confirm
-npm run local -- backup-loop 86400             # backup every 24 hours
+./local backup                                  # backups/itcenter-<timestamp>.dump
+./local backup ./backups/manual.dump
+./local restore ./backups/manual.dump --confirm
+./local backup-loop 86400                       # backup every 24 hours
 ```
 
 `setup`, `up`, `start`, `status`, `restart`, and `down` preserve the PostgreSQL
