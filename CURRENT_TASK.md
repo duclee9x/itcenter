@@ -1,12 +1,12 @@
 # CURRENT TASK
 
-Task: `TASK-002`
+Task: `TASK-003`
 
-Task specification: `tasks/TASK-002_OIDC_AUTHENTICATION_SESSION.md`
+Task specification: `tasks/TASK-003_AUTHORIZATION_SCOPES_PRIVILEGED_ACCESS.md`
 
 Status: `CODE_COMPLETE`
 
 Branch: `master` (repository has no commits yet)
 
-All TASK-002 acceptance criteria pass. TASK-003 remains blocked until selected
-by the task workflow.
+TASK-002 and TASK-003 acceptance criteria pass. TASK-004 is next through the
+task registry workflow.

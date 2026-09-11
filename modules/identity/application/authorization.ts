@@ -23,21 +23,23 @@ export async function evaluateAuthorization(
   input: AuthorizationInput,
 ): Promise<AuthorizationDecision> {
   const at = input.at ?? new Date();
+  if (input.tenantId !== tx.tenantId)
+    return { result: "DENY", reason: "Tenant scope does not match" };
   const rows = await tx.query(
     `SELECT p.code, r.code AS role_code, rb.scope_type, rb.scope_id, rb.source,
             false AS temporary
  FROM identity.role_bindings rb JOIN identity.roles r ON r.id=rb.role_id AND r.tenant_id=rb.tenant_id
  JOIN identity.role_permissions rp ON rp.role_id=r.id AND rp.tenant_id=r.tenant_id JOIN identity.permissions p ON p.id=rp.permission_id
- WHERE rb.tenant_id=$1 AND rb.principal_id=$2 AND p.code=$3 AND rb.valid_from<= $4 AND (rb.valid_until IS NULL OR rb.valid_until>$4)
+ JOIN identity.users u ON u.tenant_id=rb.tenant_id AND u.id=rb.principal_id
+ WHERE rb.tenant_id=$1 AND rb.principal_id=$2 AND u.employment_status='ACTIVE' AND u.archived_at IS NULL AND p.code=$3 AND rb.valid_from<= $4 AND (rb.valid_until IS NULL OR rb.valid_until>$4)
  UNION ALL
  SELECT p.code, 'TEMPORARY_GRANT' AS role_code, tg.scope_type, tg.scope_id, 'Temporary Elevation' AS source,
         true AS temporary
  FROM identity.temporary_grants tg JOIN identity.permissions p ON p.id=tg.permission_id
- WHERE tg.tenant_id=$1 AND tg.principal_id=$2 AND p.code=$3 AND tg.valid_from<= $4 AND tg.valid_until>$4`,
+ JOIN identity.users u ON u.tenant_id=tg.tenant_id AND u.id=tg.principal_id
+ WHERE tg.tenant_id=$1 AND tg.principal_id=$2 AND u.employment_status='ACTIVE' AND u.archived_at IS NULL AND tg.revoked_at IS NULL AND p.code=$3 AND tg.valid_from<= $4 AND tg.valid_until>$4`,
     [input.tenantId, input.principalId, input.action, at],
   );
-  if (input.tenantId !== tx.tenantId)
-    return { result: "DENY", reason: "Tenant scope does not match" };
   const denied = rows.rows.find((r) => r.source === "EXPLICIT_DENY");
   if (denied)
     return {

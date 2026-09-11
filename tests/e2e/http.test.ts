@@ -136,3 +136,112 @@ test("operation API applies authorization and tenant filtering with real Postgre
     await db.close();
   }
 });
+
+test("temporary grant commands enforce idempotency, version and tenant scope", async () => {
+  const { testDatabase } = await import("../helpers.js");
+  const { seedPermissions } = await import("../../modules/identity/index.js");
+  const { randomUUID } = await import("node:crypto");
+  const db = await testDatabase();
+  const userId = randomUUID();
+  let tenant = "tenant-a";
+  try {
+    await db.pool.query(
+      "INSERT INTO identity.users(id,tenant_id,display_code,username,display_name,employment_status) VALUES($1,'tenant-a','U-1','user-a','User A','ACTIVE')",
+      [userId],
+    );
+    await db.uow.run("tenant-a", (tx) =>
+      seedPermissions(tx, [
+        { code: "asset.read", resource_type: "asset", action: "read" },
+      ]),
+    );
+    const permission = await db.pool.query(
+      "SELECT id FROM identity.permissions WHERE code='asset.read'",
+    );
+    const server = apiServer(
+      config,
+      async () => true,
+      {
+        async authenticate() {
+          return { id: userId, tenant_id: tenant, actor_type: "USER" };
+        },
+      },
+      {
+        async evaluate() {
+          return { result: "ALLOW", reason: "test" };
+        },
+      },
+      db.uow,
+    );
+    const url = await listen(server);
+    const request = (key: string, body: object) =>
+      fetch(url + "/api/v1/temporary-grants", {
+        method: "POST",
+        headers: {
+          authorization: "Bearer verified",
+          "content-type": "application/json",
+          "idempotency-key": key,
+        },
+        body: JSON.stringify(body),
+      });
+    const body = {
+      principal_id: userId,
+      permission_id: permission.rows[0].id,
+      scope_type: "SITE",
+      scope_id: "site-a",
+      valid_from: new Date(Date.now() - 1000).toISOString(),
+      valid_until: new Date(Date.now() + 60000).toISOString(),
+      reason: "incident response",
+    };
+    try {
+      const first = await request("grant-key", body);
+      assert.equal(first.status, 201);
+      const created = (
+        (await first.json()) as { data: { id: string; version: number } }
+      ).data;
+      const replay = await request("grant-key", body);
+      assert.equal(replay.status, 201);
+      assert.deepEqual(
+        ((await replay.json()) as { data: unknown }).data,
+        created,
+      );
+      const conflict = await request("grant-key", {
+        ...body,
+        reason: "changed",
+      });
+      assert.equal(conflict.status, 409);
+      const revoke = await fetch(
+        `${url}/api/v1/temporary-grants/${created.id}/commands/revoke`,
+        {
+          method: "POST",
+          headers: {
+            authorization: "Bearer verified",
+            "content-type": "application/json",
+            "idempotency-key": "revoke-key",
+          },
+          body: JSON.stringify({ expected_version: created.version }),
+        },
+      );
+      assert.equal(revoke.status, 200);
+      tenant = "tenant-b";
+      const crossTenant = await fetch(
+        `${url}/api/v1/temporary-grants/${created.id}/commands/revoke`,
+        {
+          method: "POST",
+          headers: {
+            authorization: "Bearer verified",
+            "content-type": "application/json",
+            "idempotency-key": "cross-tenant-key",
+          },
+          body: JSON.stringify({ expected_version: 2 }),
+        },
+      );
+      // The tenant-scoped command cannot see the other tenant's row and
+      // returns a conflict without disclosing its existence.
+      assert.equal(crossTenant.status, 409);
+    } finally {
+      await close(server);
+    }
+  } finally {
+    await db.close();
+  }
+});

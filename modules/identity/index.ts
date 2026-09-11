@@ -17,3 +17,4 @@ export {
   revokeSession,
   assertSessionActive,
 } from "./application/sessions.js";
+export { grantTemporary, revokeTemporary } from "./application/privilege.js";

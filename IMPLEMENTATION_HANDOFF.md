@@ -2,10 +2,10 @@
 
 ## Active Task
 
-TASK-002 — OIDC Authentication + Session Lifecycle
+TASK-003 — Authorization Scopes + Privileged Access
 
-Feature: F-001  
-Workflow: WF-ID01  
+Feature: F-002
+Workflow: WF-ID02
 Branch: master (repository has no commits yet)
 
 ## Overall Status
@@ -36,20 +36,27 @@ CODE_COMPLETE
 
 ## Remaining Work
 
-- No TASK-002 acceptance work remains. Provider discovery/token exchange stays
-  outside this task as specified.
+- TASK-002 is complete at commit `c518d48`.
+- TASK-003 task contract has been created from the registry and required specs.
+- Existing RBAC evaluator and temporary grant migration are the starting point.
+- Added tenant-first active-user authorization filtering.
+- Added versioned, revocable temporary grant persistence helpers and migration.
+- Added temporary grant validation/revocation unit coverage.
+- Added temporary-grant create/revoke API commands with `rbac.manage`,
+  idempotency, expected version, audit and outbox handling.
+- Added E2E coverage for create, replay, key conflict, revoke and cross-tenant
+  isolation.
 
 ## Verification State
 
-PASS: `npm test` (`test:unit` 16 tests, `test:contract`, `test:migration`,
-`test:integration`, `test:e2e`), `build`, `format:check`, `lint`, using
-PostgreSQL on port 15432.
+PASS: TASK-002 gates pass at commit `c518d48`; TASK-003 unit, migration,
+integration, E2E, typecheck, format, lint and build checks pass.
 
-NOT RUN: none for TASK-002 acceptance criteria.
+NOT RUN: none for TASK-003 acceptance criteria.
 
 ## Exact Next Step
 
-Proceed to the next task only through the task registry workflow.
+Proceed to TASK-004 only through the task registry workflow.
 
 ## SPEC_CONFLICT
 
