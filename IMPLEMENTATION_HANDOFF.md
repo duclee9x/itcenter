@@ -2,7 +2,7 @@
 
 ## Active Task
 
-TASK-020 — Timeline + Notification + Basic Search Foundations
+TASK-021 — Phase 1 Vertical Slice + Integration Gate
 
 Feature: F-009/F-010/F-011
 Workflow: WF-002
@@ -12,7 +12,7 @@ Branch: master
 
 CODE_COMPLETE
 
-TASK-020 has timeline, notification, and basic search projection foundations with full verification.
+TASK-021 gate verification passed for the Phase 1 vertical slice.
 
 ## Completed
 
@@ -63,7 +63,7 @@ PASS: `npm test`, `typecheck`, `format:check`, `lint` and `build`.
 
 ## Exact Next Step
 
-Proceed to TASK-021 only through the task registry workflow.
+Proceed to TASK-030 only through the task registry workflow.
 
 ## SPEC_CONFLICT
 
