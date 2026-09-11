@@ -2,15 +2,15 @@
 
 ## Active Task
 
-TASK-005 — Audit Foundation + Query + Integrity Controls
+TASK-006 — Phase 0 Integration Gate
 
-Feature: AUDIT-FOUNDATION
-Workflow: AUDIT-CONTROL
+Feature: PHASE-GATE
+Workflow: P0-GATE
 Branch: master
 
 ## Overall Status
 
-CODE_COMPLETE
+IN_PROGRESS
 
 ## Completed
 
@@ -51,11 +51,11 @@ CODE_COMPLETE
 
 PASS: `npm test`, `typecheck`, `format:check`, `lint` and `build`.
 
-NOT RUN: none for TASK-005 acceptance criteria.
+NOT RUN: none for TASK-006 acceptance criteria.
 
 ## Exact Next Step
 
-Proceed to TASK-006 only through the task registry workflow.
+Proceed to TASK-010 only through the task registry workflow.
 
 ## SPEC_CONFLICT
 
