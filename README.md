@@ -1,8 +1,8 @@
-# IT Operations Hub — TASK-000
+# IT Operations Hub
 
-Feature: FOUNDATION · Workflow: PLATFORM-BOOTSTRAP · Owner: Platform · Phase: P0.
+Current verified baseline: TASK-004 · Platform control foundations.
 
-Modular monolith with API, Worker and Agent Gateway processes. This repository implements TASK-000 only. Identity lifecycle, full OIDC/RBAC, domain workflows and TASK-001 are not implemented.
+Modular monolith with API, Worker and Agent Gateway processes. TASK-000 through TASK-004 are implemented according to their task contracts. Later business workflows remain governed by `tasks/CODEX_TASK_REGISTRY.md`.
 
 ## Development
 

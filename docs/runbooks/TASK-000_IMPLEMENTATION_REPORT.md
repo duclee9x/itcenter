@@ -2,7 +2,7 @@
 
 ### Status
 
-IMPLEMENTED — TASK-000 foundation scope only, including the two review regressions. Feature FOUNDATION; Workflow PLATFORM-BOOTSTRAP; Owner Platform; Phase P0. No TASK-001 or business-domain workflow was implemented. This status does not claim full Phase 0 authentication/RBAC or production readiness.
+IMPLEMENTED — TASK-000 foundation scope only, including the two review regressions. Feature FOUNDATION; Workflow PLATFORM-BOOTSTRAP; Owner Platform; Phase P0. Later TASK-001 through TASK-004 work is tracked separately and does not change the historical TASK-000 scope. This status does not claim production readiness.
 
 ### Repository Tree Added/Changed
 
@@ -27,7 +27,7 @@ package.json / package-lock.json / tsconfig.json / eslint.config.js
 .env.example / .gitignore / .prettierignore
 ```
 
-Each package and module has a boundary README; module public indexes expose purposeful extension points. Existing specifications remain the source of truth. No Git repository or commit was created.
+Each package and module has a boundary README; module public indexes expose purposeful extension points. Existing specifications remain the source of truth. Git repository history is present and the current baseline is committed.
 
 ### Architecture Decisions
 
@@ -96,7 +96,7 @@ TEST_DATABASE_URL pointed to an isolated PostgreSQL instance on localhost. Netwo
 
 ### Remaining Gaps
 
-- Real OIDC/agent authentication and full RBAC/high-risk policy adapters are deferred as permitted by TASK-000; runtime /me is not a working login integration.
+- Real external OIDC/agent provider adapters and full high-risk policy integrations remain outside TASK-000; later tasks provide the verified OIDC/RBAC application boundaries.
 - Broker publisher, delivery retries and actual consumers are not enabled; worker readiness is intentionally 503. The task's worker-skeleton option is implemented.
 - No production secret manager provisioning, dedicated runtime database roles, RLS, backup/restore drill, ingress TLS, metrics exporter/OpenTelemetry, object-store adapter or deployment has been performed.
 - Operation transitions, idempotency expiry cleanup/reconciliation, audit retention/integrity chains and business payload schemas require later scoped tasks. No automatic retry, key reuse or generic state mutation was invented.
@@ -109,7 +109,7 @@ No unresolved conflict blocks this scope. Task precedence determines the six ope
 
 ### SCOPE_DEPENDENCY
 
-No material scope expansion. Real OIDC/RBAC and broker integrations remain explicit follow-up dependencies; TASK-001 was not started.
+No material scope expansion. Real external provider and broker integrations remain explicit follow-up dependencies; TASK-001 through TASK-004 are tracked in the registry.
 
 ### IMPLEMENTATION_ASSUMPTION
 

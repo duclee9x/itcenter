@@ -140,7 +140,7 @@ Only generate a detailed `TASK-xxx_*.md` when the task becomes `READY` or is the
 
 | Task | Feature | Workflow | Phase | Priority | Title | Depends On | Readiness | Status | Task File |
 |---|---|---|---|---|---|---|---|---|---|
-| `TASK-000` | `FOUNDATION` | `PLATFORM-BOOTSTRAP` | P0 | P0 | Backend Repository Bootstrap | — | **READY** | NOT_STARTED | `TASK-000_PHASE0_BOOTSTRAP.md` |
+| `TASK-000` | `FOUNDATION` | `PLATFORM-BOOTSTRAP` | P0 | P0 | Backend Repository Bootstrap | — | **SATISFIED** | CODE_COMPLETE | `TASK-000_PHASE0_BOOTSTRAP.md` |
 | `TASK-001` | `F-001/F-002` | `WF-ID01/WF-ID02` | P0 | P0 | Identity + RBAC Foundation | TASK-000 | **SATISFIED** | CODE_COMPLETE | `TASK-001_IDENTITY_RBAC_FOUNDATION.md` |
 | `TASK-002` | `F-001` | `WF-ID01` | P0 | P0 | OIDC Authentication + Session Lifecycle | TASK-001 | **SATISFIED** | CODE_COMPLETE | `TASK-002_OIDC_AUTHENTICATION_SESSION.md` |
 | `TASK-003` | `F-002` | `WF-ID02` | P0 | P0 | Authorization Scopes + Privileged Access | TASK-001, TASK-002 | **SATISFIED** | CODE_COMPLETE | `TASK-003_AUTHORIZATION_SCOPES_PRIVILEGED_ACCESS.md` |
