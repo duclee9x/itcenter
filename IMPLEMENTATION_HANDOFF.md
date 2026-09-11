@@ -86,6 +86,10 @@ TASK-038 complete: maintenance and warranty APIs enforce asset-scoped records,
 valid coverage dates and protected maintenance transitions with tenant-scoped
 persistence, outbox and audit effects.
 
+TASK-039 assessment: TASK-030 through TASK-038 and all current verification
+gates pass. Safe automation execution/kill switch and the Operations Overview
+projection are still missing, so the Phase 2 gate remains `IN_PROGRESS`.
+
 MIGRATION_RISK: the existing local volume rejects `npm run db:migrate` because
 an applied migration checksum differs. Do not edit migration history or reset
 the volume automatically; restore the original migration or add a forward
@@ -93,7 +97,8 @@ migration before applying schema changes.
 
 ## Exact Next Step
 
-TASK-039 is next; proceed only through the task registry workflow.
+Continue TASK-039 by implementing the automation guardrail and Operations
+Overview projection before marking the Phase 2 gate complete.
 
 ## SPEC_CONFLICT
 
