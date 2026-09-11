@@ -39,6 +39,10 @@ import {
 import { normalizeMonitoringEvent } from "../../../modules/monitoring/index.js";
 import { issueEnrollmentToken } from "../../../modules/agent/index.js";
 import {
+  createIncident,
+  transitionIncident,
+} from "../../../modules/incident/index.js";
+import {
   PostgresIdempotencyStore,
   PostgresOutboxWriter,
 } from "../../../packages/messaging/src/index.js";
@@ -108,6 +112,136 @@ export function apiServer(
       /^\/api\/v1\/tickets\/([^/]+)\/commands\/([^/]+)$/.exec(req.url ?? "");
     const workResolveMatch =
       /^\/api\/v1\/work-items\/([^/]+)\/commands\/resolve$/.exec(req.url ?? "");
+    const incidentTransitionMatch =
+      /^\/api\/v1\/incidents\/([^/]+)\/commands\/transition$/.exec(
+        req.url ?? "",
+      );
+    if (
+      req.method === "POST" &&
+      (req.url === "/api/v1/incidents" || incidentTransitionMatch)
+    ) {
+      const principal = await authenticate(
+        authentication,
+        req.headers.authorization,
+      );
+      const key = req.headers["idempotency-key"];
+      if (typeof key !== "string" || !key.trim())
+        throw new ApplicationError(
+          "VALIDATION_ERROR",
+          "Idempotency-Key is required.",
+        );
+      const body = await new Promise<string>((resolve) => {
+        let data = "";
+        req.on("data", (chunk) => (data += chunk));
+        req.on("end", () => resolve(data));
+      });
+      let input: Record<string, unknown>;
+      try {
+        input = (body ? JSON.parse(body) : {}) as Record<string, unknown>;
+      } catch {
+        throw new ApplicationError("VALIDATION_ERROR", "Invalid JSON request.");
+      }
+      const isTransition = Boolean(incidentTransitionMatch);
+      const action = isTransition ? "incident.update" : "incident.create";
+      await authorize(authorization, {
+        principal,
+        action,
+        resource: {
+          type: "incident",
+          id:
+            incidentTransitionMatch?.[1] ??
+            String(input.incident_code ?? "new"),
+          tenant_id: principal.tenant_id,
+        },
+        scope: {},
+        context: { ...context },
+      });
+      const result = await uow.run(principal.tenant_id, (tx) =>
+        new PostgresIdempotencyStore(tx).execute(
+          {
+            principalId: principal.id,
+            operation: isTransition ? "INCIDENT.TRANSITION" : "INCIDENT.CREATE",
+            businessScope:
+              incidentTransitionMatch?.[1] ??
+              String(input.incident_code ?? "new"),
+            key,
+            semanticRequest: input as never,
+            expiresAt: new Date(Date.now() + 86400000),
+          },
+          async () => {
+            const value = isTransition
+              ? await transitionIncident({
+                  tx,
+                  incidentId: incidentTransitionMatch![1]!,
+                  expectedVersion: input.expected_version as number,
+                  targetState: input.target_state as string,
+                  reason: input.reason as string,
+                  verification: input.verification as string | undefined,
+                  resolutionSummary: input.resolution_summary as
+                    string | undefined,
+                  postChecks: input.post_checks as string | undefined,
+                })
+              : await createIncident({
+                  tx,
+                  incidentCode: input.incident_code as string,
+                  title: input.title as string,
+                  source: input.source as string,
+                  monitoringEventId: input.monitoring_event_id as
+                    string | undefined,
+                  priority: input.priority as string,
+                  serviceId: input.service_id as string | undefined,
+                });
+            const now = new Date().toISOString();
+            const eventType = isTransition
+              ? "INCIDENT.STATE_CHANGED"
+              : "INCIDENT.CREATED";
+            await new PostgresOutboxWriter(tx).append({
+              event_id: randomUUID(),
+              event_type: eventType,
+              schema_version: 1,
+              occurred_at: now,
+              producer: { service: config.serviceName, instance: "api" },
+              aggregate: {
+                type: "INCIDENT",
+                id: value.id,
+                version: value.version,
+              },
+              actor: { type: principal.actor_type, id: principal.id },
+              correlation_id: context.correlation_id,
+              causation_id: context.causation_id,
+              tenant_id: principal.tenant_id,
+              organization_id: principal.tenant_id,
+              idempotency_key: key,
+              payload: value,
+            });
+            await new PostgresAudit(tx).append({
+              id: randomUUID(),
+              tenant_id: principal.tenant_id,
+              event_type: eventType,
+              occurred_at: now,
+              actor: { type: principal.actor_type, id: principal.id },
+              action: { command_type: eventType },
+              subject: { entity_type: "INCIDENT", entity_id: value.id },
+              correlation_id: context.correlation_id,
+              causation_id: context.causation_id,
+              reason: {
+                code: eventType,
+                text: (input.reason as string) ?? "Incident created",
+              },
+              before: null,
+              after: value,
+              outcome: { status: "SUCCESS" },
+              classification: "INTERNAL",
+              relations: [],
+              evidence: [],
+            });
+            return { status: isTransition ? 200 : 201, body: value };
+          },
+        ),
+      );
+      json(res, result.status, { data: result.body, meta: context });
+      return true;
+    }
     if (req.method === "POST" && req.url === "/api/v1/agents/enroll") {
       const principal = await authenticate(
         authentication,

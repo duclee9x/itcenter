@@ -161,7 +161,7 @@ Only generate a detailed `TASK-xxx_*.md` when the task becomes `READY` or is the
 | `TASK-021` | `PHASE-GATE` | `P1-E2E` | P1 | P0 | Phase 1 Vertical Slice + Integration Gate | TASK-012, TASK-013, TASK-014, TASK-015, TASK-017, TASK-018, TASK-019, TASK-020 | **SATISFIED** | CODE_COMPLETE | `TASK-021_PHASE1_VERTICAL_SLICE_GATE.md` |
 | `TASK-030` | `F-017` | `WF-003` | P2 | P0 | Monitoring Ingestion + Normalization + Dedupe | TASK-021 | **SATISFIED** | CODE_COMPLETE | `TASK-030_MONITORING_INGESTION.md` |
 | `TASK-031` | `F-018` | `WF-004` | P2 | P0 | Agent Enrollment + Status + Inventory Projection | TASK-010, TASK-021 | **SATISFIED** | CODE_COMPLETE | `TASK-031_AGENT_ENROLLMENT_STATUS.md` |
-| `TASK-032` | `F-019/F-020` | `WF-020` | P2 | P0 | Incident Core + Incident State Machine | TASK-030, TASK-021 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |
+| `TASK-032` | `F-019/F-020` | `WF-020` | P2 | P0 | Incident Core + Incident State Machine | TASK-030, TASK-021 | **SATISFIED** | CODE_COMPLETE | `TASK-032_INCIDENT_CORE.md` |
 | `TASK-033` | `F-019` | `WF-020` | P2 | P0 | Root Incident Correlation + Ticket Linking | TASK-016, TASK-032 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |
 | `TASK-034` | `F-020` | `WF-020/WF-COM01` | P2 | P1 | Major Incident Communication + Status Flow | TASK-020, TASK-033 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |
 | `TASK-035` | `F-021` | `WF-SLA01` | P2 | P0 | SLA Engine | TASK-016, TASK-032, TASK-004 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |

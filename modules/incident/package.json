@@ -1,0 +1,6 @@
+{
+  "name": "@itcenter/incident",
+  "private": true,
+  "type": "module",
+  "dependencies": {}
+}

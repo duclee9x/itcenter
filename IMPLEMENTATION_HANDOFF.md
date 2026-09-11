@@ -58,6 +58,8 @@ TASK-030 monitoring ingestion and normalization verification passed.
 - Added immutable return documents, condition grades, return movement, and return E2E coverage.
 - Added monitoring event normalization, persistence, tenant/source/provider-event dedupe,
   idempotency, critical/recovered outbox events, audit and API permission enforcement.
+- Added incident persistence, create/state transition commands, state invariants,
+  idempotency, outbox and audit effects.
 
 ## Verification State
 
@@ -68,12 +70,8 @@ integration and E2E database gates used disposable databases.
 PASS: `./local serve` connected to the running PostgreSQL container on the
 published port `127.0.0.1:15432`; API readiness returned HTTP 200.
 
-TASK-030 complete: monitoring schema, normalization module, permission,
-ingestion endpoint, tenant/source/provider-event dedupe, idempotency, outbox
-and audit writes are implemented.
-
-TASK-031 complete: added agent registry, one-time hashed enrollment tokens,
-heartbeat and inventory projection through the dedicated agent gateway.
+TASK-032 complete: incident schema, create and transition API commands,
+canonical state validation, idempotency, outbox and audit writes are implemented.
 
 MIGRATION_RISK: the existing local volume rejects `npm run db:migrate` because
 an applied migration checksum differs. Do not edit migration history or reset
@@ -82,7 +80,7 @@ migration before applying schema changes.
 
 ## Exact Next Step
 
-TASK-032 is next; proceed only through the task registry workflow.
+TASK-033 is next; proceed only through the task registry workflow.
 
 ## SPEC_CONFLICT
 
