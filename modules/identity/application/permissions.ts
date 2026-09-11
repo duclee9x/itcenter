@@ -62,4 +62,6 @@ export const permissions: readonly Permission[] = [
     action: "communicate",
   },
   { code: "sla.manage", resource_type: "sla", action: "manage" },
+  { code: "approval.create", resource_type: "approval", action: "create" },
+  { code: "approval.decide", resource_type: "approval", action: "decide" },
 ];

@@ -39,6 +39,8 @@ import {
 import { normalizeMonitoringEvent } from "../../../modules/monitoring/index.js";
 import { issueEnrollmentToken } from "../../../modules/agent/index.js";
 import {
+  createApproval,
+  decideApproval,
   startSla,
   transitionSla,
 } from "../../../modules/control-plane/index.js";
@@ -137,6 +139,131 @@ export function apiServer(
       /^\/api\/v1\/sla-instances\/([^/]+)\/commands\/transition$/.exec(
         req.url ?? "",
       );
+    const approvalDecisionMatch =
+      /^\/api\/v1\/approvals\/([^/]+)\/commands\/(approve|reject)$/.exec(
+        req.url ?? "",
+      );
+    if (
+      req.method === "POST" &&
+      (req.url === "/api/v1/approvals" || approvalDecisionMatch)
+    ) {
+      const principal = await authenticate(
+        authentication,
+        req.headers.authorization,
+      );
+      const key = req.headers["idempotency-key"];
+      if (typeof key !== "string" || !key.trim())
+        throw new ApplicationError(
+          "VALIDATION_ERROR",
+          "Idempotency-Key is required.",
+        );
+      const body = await new Promise<string>((resolve) => {
+        let data = "";
+        req.on("data", (chunk) => (data += chunk));
+        req.on("end", () => resolve(data));
+      });
+      let input: Record<string, unknown>;
+      try {
+        input = (body ? JSON.parse(body) : {}) as Record<string, unknown>;
+      } catch {
+        throw new ApplicationError("VALIDATION_ERROR", "Invalid JSON request.");
+      }
+      const isDecision = Boolean(approvalDecisionMatch);
+      await authorize(authorization, {
+        principal,
+        action: isDecision ? "approval.decide" : "approval.create",
+        resource: {
+          type: "approval",
+          id: approvalDecisionMatch?.[1] ?? String(input.source_id ?? "new"),
+          tenant_id: principal.tenant_id,
+        },
+        scope: {},
+        context: { ...context },
+      });
+      const result = await uow.run(principal.tenant_id, (tx) =>
+        new PostgresIdempotencyStore(tx).execute(
+          {
+            principalId: principal.id,
+            operation: isDecision ? "APPROVAL.DECIDE" : "APPROVAL.CREATE",
+            businessScope:
+              approvalDecisionMatch?.[1] ?? String(input.source_id ?? "new"),
+            key,
+            semanticRequest: input as never,
+            expiresAt: new Date(Date.now() + 86400000),
+          },
+          async () => {
+            const value = isDecision
+              ? await decideApproval({
+                  tx,
+                  requestId: approvalDecisionMatch![1]!,
+                  expectedVersion: input.expected_version as number,
+                  actorId: principal.id,
+                  decision:
+                    approvalDecisionMatch![2] === "approve"
+                      ? "APPROVED"
+                      : "REJECTED",
+                  reason: input.reason as string,
+                })
+              : await createApproval({
+                  tx,
+                  sourceType: input.source_type as string,
+                  sourceId: input.source_id as string,
+                  policyId: input.policy_id as string,
+                  policyVersion: input.policy_version as number,
+                  requesterId: principal.id,
+                  context: input.context,
+                });
+            const now = new Date().toISOString();
+            const eventType = isDecision
+              ? `APPROVAL.${value.state}`
+              : "APPROVAL.CREATED";
+            await new PostgresOutboxWriter(tx).append({
+              event_id: randomUUID(),
+              event_type: eventType,
+              schema_version: 1,
+              occurred_at: now,
+              producer: { service: config.serviceName, instance: "api" },
+              aggregate: {
+                type: "APPROVAL",
+                id: value.id,
+                version: value.version,
+              },
+              actor: { type: principal.actor_type, id: principal.id },
+              correlation_id: context.correlation_id,
+              causation_id: context.causation_id,
+              tenant_id: principal.tenant_id,
+              organization_id: principal.tenant_id,
+              idempotency_key: key,
+              payload: value,
+            });
+            await new PostgresAudit(tx).append({
+              id: randomUUID(),
+              tenant_id: principal.tenant_id,
+              event_type: eventType,
+              occurred_at: now,
+              actor: { type: principal.actor_type, id: principal.id },
+              action: { command_type: eventType },
+              subject: { entity_type: "APPROVAL", entity_id: value.id },
+              correlation_id: context.correlation_id,
+              causation_id: context.causation_id,
+              reason: {
+                code: eventType,
+                text: (input.reason as string) ?? "Approval created",
+              },
+              before: null,
+              after: value,
+              outcome: { status: "SUCCESS" },
+              classification: "INTERNAL",
+              relations: [],
+              evidence: [],
+            });
+            return { status: isDecision ? 200 : 201, body: value };
+          },
+        ),
+      );
+      json(res, result.status, { data: result.body, meta: context });
+      return true;
+    }
     if (
       req.method === "POST" &&
       (req.url === "/api/v1/sla-instances" || slaTransitionMatch)

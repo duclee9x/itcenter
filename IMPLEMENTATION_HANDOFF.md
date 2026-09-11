@@ -66,6 +66,8 @@ TASK-030 monitoring ingestion and normalization verification passed.
   channel/audience validation, idempotency, outbox and audit effects.
 - Added SLA policies, targets, instances and append-only SLA events with
   engine-managed start and transition commands.
+- Added approval policies, requests and append-only decisions with explicit
+  create/approve/reject commands, self-approval protection and audit/outbox.
 
 ## Verification State
 
@@ -76,8 +78,9 @@ integration and E2E database gates used disposable databases.
 PASS: `./local serve` connected to the running PostgreSQL container on the
 published port `127.0.0.1:15432`; API readiness returned HTTP 200.
 
-TASK-035 complete: SLA start and transition APIs enforce duration, version and
-state rules with tenant-scoped persistence, outbox and audit effects.
+TASK-036 complete: approval create and decision APIs enforce pending state,
+expected version and requester/approver separation with tenant-scoped
+persistence, outbox and audit effects.
 
 MIGRATION_RISK: the existing local volume rejects `npm run db:migrate` because
 an applied migration checksum differs. Do not edit migration history or reset
@@ -86,7 +89,7 @@ migration before applying schema changes.
 
 ## Exact Next Step
 
-TASK-036 is next; proceed only through the task registry workflow.
+TASK-037 is next; proceed only through the task registry workflow.
 
 ## SPEC_CONFLICT
 
