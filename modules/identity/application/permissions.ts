@@ -72,4 +72,15 @@ export const permissions: readonly Permission[] = [
     resource_type: "maintenance",
     action: "manage",
   },
+  { code: "audit.start", resource_type: "audit", action: "start" },
+  {
+    code: "audit.record_observation",
+    resource_type: "audit",
+    action: "record_observation",
+  },
+  {
+    code: "audit.exception.resolve",
+    resource_type: "audit_exception",
+    action: "resolve",
+  },
 ];

@@ -2,10 +2,10 @@
 
 ## Active Task
 
-TASK-030 — Monitoring Ingestion + Normalization + Dedupe
+TASK-050 — Asset Audit — Expected vs Observed
 
-Feature: F-017
-Workflow: WF-003
+Feature: F-026
+Workflow: WF-010
 Branch: master
 
 ## Overall Status
@@ -90,6 +90,11 @@ TASK-039 complete: added durable automation rule safety metadata and kill-switch
 control plus an authorization-scoped Operations Overview projection covering
 work, incidents, SLA, approvals, maintenance and automation attention.
 
+TASK-050 complete: added tenant-scoped audit sessions, expected asset values,
+append-only observations, durable mismatch exceptions and explicit resolution
+commands with idempotency, outbox and audit effects. Observations do not mutate
+canonical asset state.
+
 MIGRATION_RISK: the existing local volume rejects `npm run db:migrate` because
 an applied migration checksum differs. Do not edit migration history or reset
 the volume automatically; restore the original migration or add a forward
@@ -97,7 +102,7 @@ migration before applying schema changes.
 
 ## Exact Next Step
 
-TASK-050 is next; proceed only through the task registry workflow.
+TASK-051 is next; proceed only through the task registry workflow.
 
 ## SPEC_CONFLICT
 

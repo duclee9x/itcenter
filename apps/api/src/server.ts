@@ -61,6 +61,11 @@ import {
   transitionIncident,
 } from "../../../modules/incident/index.js";
 import {
+  recordObservation,
+  resolveException,
+  startAudit,
+} from "../../../modules/asset-audit/index.js";
+import {
   PostgresIdempotencyStore,
   PostgresOutboxWriter,
 } from "../../../packages/messaging/src/index.js";
@@ -216,6 +221,172 @@ export function apiServer(
       );
     const isWarrantyCreate = req.url === "/api/v1/warranties";
     const isMaintenanceCreate = req.url === "/api/v1/maintenance";
+    const isAuditStart = req.url === "/api/v1/audits";
+    const observationMatch = /^\/api\/v1\/audits\/([^/]+)\/observations$/.exec(
+      req.url ?? "",
+    );
+    const exceptionResolveMatch =
+      /^\/api\/v1\/audit-exceptions\/([^/]+)\/commands\/resolve$/.exec(
+        req.url ?? "",
+      );
+    if (
+      req.method === "POST" &&
+      (isAuditStart || observationMatch || exceptionResolveMatch)
+    ) {
+      const principal = await authenticate(
+        authentication,
+        req.headers.authorization,
+      );
+      const key = req.headers["idempotency-key"];
+      if (typeof key !== "string" || !key.trim())
+        throw new ApplicationError(
+          "VALIDATION_ERROR",
+          "Idempotency-Key is required.",
+        );
+      const body = await new Promise<string>((resolve) => {
+        let data = "";
+        req.on("data", (chunk) => (data += chunk));
+        req.on("end", () => resolve(data));
+      });
+      let input: Record<string, unknown>;
+      try {
+        input = (body ? JSON.parse(body) : {}) as Record<string, unknown>;
+      } catch {
+        throw new ApplicationError("VALIDATION_ERROR", "Invalid JSON request.");
+      }
+      const permission = isAuditStart
+        ? "audit.start"
+        : observationMatch
+          ? "audit.record_observation"
+          : "audit.exception.resolve";
+      await authorize(authorization, {
+        principal,
+        action: permission,
+        resource: {
+          type: isAuditStart
+            ? "audit"
+            : observationMatch
+              ? "audit"
+              : "audit_exception",
+          id: isAuditStart
+            ? "new"
+            : observationMatch
+              ? observationMatch[1]!
+              : exceptionResolveMatch![1]!,
+          tenant_id: principal.tenant_id,
+        },
+        scope: {},
+        context: { ...context },
+      });
+      const result = await uow.run(principal.tenant_id, (tx) =>
+        new PostgresIdempotencyStore(tx).execute(
+          {
+            principalId: principal.id,
+            operation: isAuditStart
+              ? "AUDIT.START"
+              : observationMatch
+                ? "AUDIT.RECORD_OBSERVATION"
+                : "AUDIT.RESOLVE_EXCEPTION",
+            businessScope: isAuditStart
+              ? "new"
+              : observationMatch
+                ? observationMatch[1]!
+                : exceptionResolveMatch![1]!,
+            key,
+            semanticRequest: input as never,
+            expiresAt: new Date(Date.now() + 86400000),
+          },
+          async () => {
+            const value = (
+              isAuditStart
+                ? await startAudit({ tx, name: input.name as string })
+                : observationMatch
+                  ? await recordObservation({
+                      tx,
+                      auditId: observationMatch[1]!,
+                      assetId: input.asset_id as string,
+                      expected: input.expected,
+                      observed: input.observed,
+                      exceptionType:
+                        (input.exception_type as string) ?? "MISMATCH",
+                    })
+                  : await resolveException({
+                      tx,
+                      exceptionId: exceptionResolveMatch![1]!,
+                      reason: input.reason as string,
+                    })
+            ) as {
+              id?: string;
+              observation_id?: string;
+              [key: string]: unknown;
+            };
+            const eventType = isAuditStart
+              ? "AUDIT.STARTED"
+              : observationMatch
+                ? "AUDIT.OBSERVATION_RECORDED"
+                : "AUDIT.EXCEPTION_RESOLVED";
+            const now = new Date().toISOString();
+            await new PostgresOutboxWriter(tx).append({
+              event_id: randomUUID(),
+              event_type: eventType,
+              schema_version: 1,
+              occurred_at: now,
+              producer: { service: config.serviceName, instance: "api" },
+              aggregate: {
+                type: "AUDIT",
+                id: isAuditStart
+                  ? value.id!
+                  : observationMatch
+                    ? value.observation_id!
+                    : value.id!,
+                version: 1,
+              },
+              actor: { type: principal.actor_type, id: principal.id },
+              correlation_id: context.correlation_id,
+              causation_id: context.causation_id,
+              tenant_id: principal.tenant_id,
+              organization_id: principal.tenant_id,
+              idempotency_key: key,
+              payload: value as never,
+            });
+            await new PostgresAudit(tx).append({
+              id: randomUUID(),
+              tenant_id: principal.tenant_id,
+              event_type: eventType,
+              occurred_at: now,
+              actor: { type: principal.actor_type, id: principal.id },
+              action: { command_type: eventType },
+              subject: {
+                entity_type: "AUDIT",
+                entity_id: isAuditStart
+                  ? value.id!
+                  : observationMatch
+                    ? value.observation_id!
+                    : value.id!,
+              },
+              correlation_id: context.correlation_id,
+              causation_id: context.causation_id,
+              reason: {
+                code: eventType,
+                text: (input.reason as string) ?? eventType,
+              },
+              before: null,
+              after: value as never,
+              outcome: { status: "SUCCESS" },
+              classification: "INTERNAL",
+              relations: [],
+              evidence: [],
+            });
+            return {
+              status: isAuditStart ? 201 : 200,
+              body: value as never,
+            };
+          },
+        ),
+      );
+      json(res, result.status, { data: result.body, meta: context });
+      return true;
+    }
     if (
       req.method === "POST" &&
       (maintenanceTransitionMatch || isWarrantyCreate || isMaintenanceCreate)
@@ -323,7 +494,7 @@ export function apiServer(
             });
             return {
               status: maintenanceTransitionMatch ? 200 : 201,
-              body: value,
+              body: value as never,
             };
           },
         ),

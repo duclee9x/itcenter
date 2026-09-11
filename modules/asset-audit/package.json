@@ -1,0 +1,6 @@
+{
+  "name": "@itcenter/asset-audit",
+  "private": true,
+  "type": "module",
+  "dependencies": {}
+}

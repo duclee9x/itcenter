@@ -1,0 +1,6 @@
+CREATE SCHEMA audit_ops;
+CREATE TABLE audit_ops.audits (id uuid PRIMARY KEY, tenant_id text NOT NULL, name text NOT NULL, state text NOT NULL DEFAULT 'OPEN', created_at timestamptz NOT NULL DEFAULT now(), CHECK (state IN ('OPEN','COMPLETED','COMPLETED_WITH_EXCEPTIONS','CANCELLED')));
+CREATE TABLE audit_ops.audit_expected_assets (id uuid PRIMARY KEY, tenant_id text NOT NULL, audit_id uuid NOT NULL REFERENCES audit_ops.audits(id), asset_id uuid NOT NULL, expected jsonb NOT NULL, UNIQUE (tenant_id, audit_id, asset_id));
+CREATE TABLE audit_ops.audit_observations (id uuid PRIMARY KEY, tenant_id text NOT NULL, audit_id uuid NOT NULL REFERENCES audit_ops.audits(id), asset_id uuid NOT NULL, expected jsonb NOT NULL, observed jsonb NOT NULL, observed_at timestamptz NOT NULL DEFAULT now(), match boolean NOT NULL);
+CREATE TABLE audit_ops.audit_exceptions (id uuid PRIMARY KEY, tenant_id text NOT NULL, observation_id uuid NOT NULL REFERENCES audit_ops.audit_observations(id), asset_id uuid NOT NULL, exception_type text NOT NULL, expected jsonb NOT NULL, observed jsonb NOT NULL, state text NOT NULL DEFAULT 'OPEN', resolution_reason text, resolved_at timestamptz, CHECK (state IN ('OPEN','RESOLVED','ACCEPTED')));
+CREATE INDEX audit_exception_lookup ON audit_ops.audit_exceptions(tenant_id,state,asset_id);
