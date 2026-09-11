@@ -1,0 +1,6 @@
+{
+  "name": "@it-hub/ticket",
+  "private": true,
+  "type": "module",
+  "exports": "./index.ts"
+}

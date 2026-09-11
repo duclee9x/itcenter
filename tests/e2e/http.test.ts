@@ -807,3 +807,133 @@ test("asset return request and receipt close assignment with immutable document"
     await db.close();
   }
 });
+
+test("ticket core creates, transitions, resolves and replays idempotently", async () => {
+  const { testDatabase } = await import("../helpers.js");
+  const { randomUUID } = await import("node:crypto");
+  const db = await testDatabase();
+  const actorId = randomUUID();
+  try {
+    await db.pool.query(
+      "INSERT INTO identity.users(id,tenant_id,display_code,username,display_name,employment_status) VALUES($1,'tenant-a','T-A','ticket-actor','Ticket Actor','ACTIVE')",
+      [actorId],
+    );
+    const server = apiServer(
+      config,
+      async () => true,
+      {
+        async authenticate() {
+          return { id: actorId, tenant_id: "tenant-a", actor_type: "USER" };
+        },
+      },
+      {
+        async evaluate() {
+          return { result: "ALLOW", reason: "test" };
+        },
+      },
+      db.uow,
+    );
+    const url = await listen(server);
+    try {
+      const createBody = {
+        ticket_code: "INC-1001",
+        title: "Laptop cannot connect",
+        description: "Network unavailable",
+        requester_user_id: actorId,
+        priority: "P2",
+      };
+      const create = await fetch(`${url}/api/v1/tickets`, {
+        method: "POST",
+        headers: {
+          authorization: "Bearer verified",
+          "content-type": "application/json",
+          "idempotency-key": "ticket-create-key",
+        },
+        body: JSON.stringify(createBody),
+      });
+      assert.equal(create.status, 201);
+      const ticket = (
+        (await create.json()) as {
+          data: { id: string; version: number; state: string };
+        }
+      ).data;
+      assert.equal(ticket.state, "NEW");
+      const transition = async (
+        action: string,
+        key: string,
+        expected_version: number,
+        extra: Record<string, string> = {},
+      ) =>
+        fetch(`${url}/api/v1/tickets/${ticket.id}/commands/${action}`, {
+          method: "POST",
+          headers: {
+            authorization: "Bearer verified",
+            "content-type": "application/json",
+            "idempotency-key": key,
+          },
+          body: JSON.stringify({ expected_version, reason: action, ...extra }),
+        });
+      assert.equal((await transition("triage", "triage-key", 1)).status, 201);
+      assert.equal(
+        (
+          await transition("assign", "assign-ticket-key", 2, {
+            assignee_user_id: actorId,
+          })
+        ).status,
+        201,
+      );
+      assert.equal(
+        (await transition("start", "start-ticket-key", 3)).status,
+        201,
+      );
+      const resolved = await transition("resolve", "resolve-ticket-key", 4, {
+        resolution_code: "FIXED",
+      });
+      assert.equal(resolved.status, 201);
+      const replay = await transition("resolve", "resolve-ticket-key", 4, {
+        resolution_code: "FIXED",
+      });
+      assert.equal(replay.status, 201);
+      assert.equal(
+        (
+          await db.pool.query(
+            "SELECT state,resolution_code,version FROM helpdesk.tickets WHERE id=$1",
+            [ticket.id],
+          )
+        ).rows[0].state,
+        "RESOLVED",
+      );
+      assert.equal(
+        (
+          await db.pool.query(
+            "SELECT count(*)::int AS count FROM helpdesk.ticket_transitions WHERE ticket_id=$1",
+            [ticket.id],
+          )
+        ).rows[0].count,
+        4,
+      );
+      assert.equal(
+        (
+          await db.pool.query(
+            "SELECT count(*)::int AS count FROM platform.outbox_events WHERE aggregate_id=$1",
+            [ticket.id],
+          )
+        ).rows[0].count,
+        5,
+      );
+      assert.equal(
+        (
+          await db.pool.query(
+            "SELECT count(*)::int AS count FROM audit.audit_events WHERE subject->>'entity_id'=$1",
+            [ticket.id],
+          )
+        ).rows[0].count,
+        5,
+      );
+    } finally {
+      await close(server);
+    }
+  } finally {
+    await db.close();
+  }
+});

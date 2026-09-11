@@ -9,7 +9,7 @@ export async function migrate(
   const files: string[] = [];
   // Owners are ordered by schema dependencies. Asset migrations reference
   // identity.users, and audit/platform tables are independent foundations.
-  const owners = ["platform", "identity", "asset", "audit"];
+  const owners = ["platform", "identity", "asset", "helpdesk", "audit"];
   for (const owner of owners)
     for (const file of (await readdir(path.join(root, owner))).sort())
       if (file.endsWith(".sql")) files.push(path.join(owner, file));

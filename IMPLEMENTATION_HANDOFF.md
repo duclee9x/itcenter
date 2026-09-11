@@ -2,18 +2,17 @@
 
 ## Active Task
 
-TASK-015 — Asset Return + Handover/Return Documents
+TASK-016 — Ticket Core + Ticket State Machine + Commands
 
-Feature: F-008/F-016
-Workflow: WF-008
+Feature: F-009/F-010/F-011
+Workflow: WF-002
 Branch: master
 
 ## Overall Status
 
 CODE_COMPLETE
 
-TASK-015 has return request/receipt commands, return movement and document persistence,
-assignment closure, and authorization, idempotency, outbox, audit, and E2E verification.
+TASK-016 has ticket core, phase 1 state machine, command handlers, and full verification.
 
 ## Completed
 
@@ -64,7 +63,7 @@ PASS: `npm test`, `typecheck`, `format:check`, `lint` and `build`.
 
 ## Exact Next Step
 
-Proceed to TASK-016 only through the task registry workflow.
+Proceed to TASK-017 only through the task registry workflow.
 
 ## SPEC_CONFLICT
 

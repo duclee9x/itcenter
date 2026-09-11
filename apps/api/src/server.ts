@@ -28,6 +28,10 @@ import {
   transitionLifecycle,
 } from "../../../modules/asset/index.js";
 import {
+  createTicket,
+  transitionTicket,
+} from "../../../modules/ticket/index.js";
+import {
   PostgresIdempotencyStore,
   PostgresOutboxWriter,
 } from "../../../packages/messaging/src/index.js";
@@ -61,6 +65,162 @@ export function apiServer(
       /^\/api\/v1\/assets\/([^/]+)\/commands\/receive-return$/.exec(
         req.url ?? "",
       );
+    const ticketCreateMatch = req.url === "/api/v1/tickets";
+    const ticketCommandMatch =
+      /^\/api\/v1\/tickets\/([^/]+)\/commands\/([^/]+)$/.exec(req.url ?? "");
+    if (req.method === "POST" && (ticketCreateMatch || ticketCommandMatch)) {
+      const principal = await authenticate(
+        authentication,
+        req.headers.authorization,
+      );
+      const key = req.headers["idempotency-key"];
+      if (typeof key !== "string" || !key.trim())
+        throw new ApplicationError(
+          "VALIDATION_ERROR",
+          "Idempotency-Key is required.",
+        );
+      const body = await new Promise<string>((resolve) => {
+        let data = "";
+        req.on("data", (c) => (data += c));
+        req.on("end", () => resolve(data));
+      });
+      let input: Record<string, unknown>;
+      try {
+        input = (body ? JSON.parse(body) : {}) as Record<string, unknown>;
+      } catch {
+        throw new ApplicationError("VALIDATION_ERROR", "Invalid JSON request.");
+      }
+      const action = ticketCreateMatch
+        ? "ticket.create"
+        : ticketCommandMatch![2] === "resolve"
+          ? "ticket.resolve"
+          : ticketCommandMatch![2] === "reopen"
+            ? "ticket.reopen"
+            : ticketCommandMatch![2] === "assign"
+              ? "ticket.assign"
+              : "ticket.update";
+      const scopeId = ticketCreateMatch
+        ? principal.id
+        : ticketCommandMatch![1]!;
+      await authorize(authorization, {
+        principal,
+        action,
+        resource: {
+          type: "ticket",
+          id: scopeId,
+          tenant_id: principal.tenant_id,
+        },
+        scope: {},
+        context: { ...context },
+      });
+      const result = await uow.run(principal.tenant_id, (tx) =>
+        new PostgresIdempotencyStore(tx).execute(
+          {
+            principalId: principal.id,
+            operation: ticketCreateMatch
+              ? "TICKET.CREATE"
+              : `TICKET.${ticketCommandMatch![2]!.toUpperCase()}`,
+            businessScope: scopeId,
+            key,
+            semanticRequest: input as never,
+            expiresAt: new Date(Date.now() + 86400000),
+          },
+          async () => {
+            const value = ticketCreateMatch
+              ? await createTicket({
+                  tx,
+                  ticketCode: input.ticket_code as string,
+                  title: input.title as string,
+                  description: input.description as string,
+                  requesterUserId: input.requester_user_id as string,
+                  priority: input.priority as string,
+                })
+              : await transitionTicket({
+                  tx,
+                  ticketId: ticketCommandMatch![1]!,
+                  expectedVersion: input.expected_version as number,
+                  targetState:
+                    ticketCommandMatch![2] === "assign"
+                      ? "ASSIGNED"
+                      : ticketCommandMatch![2] === "start"
+                        ? "IN_PROGRESS"
+                        : ticketCommandMatch![2] === "request-info"
+                          ? "WAITING_USER"
+                          : ticketCommandMatch![2] === "resolve"
+                            ? "RESOLVED"
+                            : ticketCommandMatch![2] === "reopen"
+                              ? "REOPENED"
+                              : ticketCommandMatch![2]!.toUpperCase(),
+                  reason: input.reason as string,
+                  actorType: principal.actor_type,
+                  actorId: principal.id,
+                  correlationId: context.correlation_id,
+                  ...(typeof input.assignee_user_id === "string"
+                    ? { assigneeUserId: input.assignee_user_id }
+                    : {}),
+                  ...(typeof input.resolution_code === "string"
+                    ? { resolutionCode: input.resolution_code }
+                    : {}),
+                });
+            const eventType = ticketCreateMatch
+              ? "TICKET.CREATED"
+              : ticketCommandMatch![2] === "resolve"
+                ? "TICKET.RESOLVED"
+                : ticketCommandMatch![2] === "reopen"
+                  ? "TICKET.REOPENED"
+                  : "TICKET.STATE_CHANGED";
+            const now = new Date().toISOString();
+            await new PostgresOutboxWriter(tx).append({
+              event_id: randomUUID(),
+              event_type: eventType,
+              schema_version: 1,
+              occurred_at: now,
+              producer: { service: config.serviceName, instance: "api" },
+              aggregate: {
+                type: "TICKET",
+                id: value.id,
+                version: value.version,
+              },
+              actor: { type: principal.actor_type, id: principal.id },
+              correlation_id: context.correlation_id,
+              causation_id: context.causation_id,
+              tenant_id: principal.tenant_id,
+              organization_id: principal.tenant_id,
+              idempotency_key: key,
+              payload: value,
+            });
+            await new PostgresAudit(tx).append({
+              id: randomUUID(),
+              tenant_id: principal.tenant_id,
+              event_type: eventType,
+              occurred_at: now,
+              actor: { type: principal.actor_type, id: principal.id },
+              action: {
+                command_type: ticketCreateMatch
+                  ? "TICKET.CREATE"
+                  : `TICKET.${ticketCommandMatch![2]!.toUpperCase()}`,
+              },
+              subject: { entity_type: "TICKET", entity_id: value.id },
+              correlation_id: context.correlation_id,
+              causation_id: context.causation_id,
+              reason: {
+                code: eventType,
+                text: (input.reason as string) ?? "Ticket created",
+              },
+              before: null,
+              after: value,
+              outcome: { status: "SUCCESS" },
+              classification: "INTERNAL",
+              relations: [],
+              evidence: [],
+            });
+            return { status: 201, body: value };
+          },
+        ),
+      );
+      json(res, result.status, { data: result.body, meta: context });
+      return true;
+    }
     if (req.method === "POST" && (requestReturnMatch || receiveReturnMatch)) {
       const match = requestReturnMatch ?? receiveReturnMatch!;
       const principal = await authenticate(

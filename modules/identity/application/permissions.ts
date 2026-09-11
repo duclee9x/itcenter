@@ -22,6 +22,11 @@ export const permissions: readonly Permission[] = [
     resource_type: "asset",
     action: "receive_return",
   },
+  { code: "ticket.create", resource_type: "ticket", action: "create" },
+  { code: "ticket.assign", resource_type: "ticket", action: "assign" },
+  { code: "ticket.update", resource_type: "ticket", action: "update" },
+  { code: "ticket.resolve", resource_type: "ticket", action: "resolve" },
+  { code: "ticket.reopen", resource_type: "ticket", action: "reopen" },
   { code: "session.revoke", resource_type: "session", action: "revoke" },
   {
     code: "authorization.evaluate",
