@@ -10,6 +10,7 @@ import { createHttpServer } from "../../../packages/observability/src/index.js";
 import { WorkerHost } from "./host.js";
 import { PostgresUnitOfWork } from "../../../packages/persistence/src/index.js";
 import { licenseExpiryTask } from "./license-expiry.js";
+import { searchIndexerTask } from "./search-indexer.js";
 const config = loadConfig(process.env, "worker", 3002);
 const log = logger(config);
 const pool = createPool(
@@ -23,6 +24,11 @@ host.start([
     uow: new PostgresUnitOfWork(pool),
     config,
     reportFailure: () => log("error", "license.expiry.scan_failed"),
+  }),
+  searchIndexerTask({
+    pool,
+    uow: new PostgresUnitOfWork(pool),
+    reportFailure: () => log("error", "search.indexer.failed"),
   }),
 ]);
 const server = createHttpServer(config, async () => false);

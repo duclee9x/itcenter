@@ -1366,7 +1366,8 @@ Knowledge
 ### Update source
 
 ```text
-Domain Events
+Committed outbox events → inbox-deduped Search Indexer
+Bounded canonical reindex command for rebuild/reconciliation
 ```
 
 ### Guardrails
@@ -1375,6 +1376,8 @@ Domain Events
 search != canonical
 RBAC filter mandatory
 exact identifier > fuzzy
+per-result owning-domain read permission and resource scope
+source_version prevents stale overwrite; deletion uses tombstones
 ```
 
 ---
@@ -1645,8 +1648,9 @@ resolution
 | User | email, username, employee code | name, department |
 | Ticket | ticket code | summary, description |
 | Incident | incident code | title, service |
-| Network | IP, MAC | hostname/vendor |
-| Software | product/version | aliases/vendor |
+| Network observation | IP, MAC | hostname/vendor/model/switch |
+| Software product | product code, aliases | name/vendor/category |
+| License entitlement | product code, license type | product name/vendor |
 | PO | PO code | supplier/line |
 | Invoice | invoice number | supplier |
 | Contract | contract code | title/supplier |

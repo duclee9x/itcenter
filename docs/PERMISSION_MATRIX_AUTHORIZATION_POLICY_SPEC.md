@@ -1106,6 +1106,12 @@ report.export_sensitive
 dashboard.manage
 ```
 
+Search results use each source domain's read permission (`asset.read`,
+`ticket.read`, `incident.read`, `user.read`, `network.topology.read`,
+`software.read`, or `license.read`) and its resource scope. `search.reindex` is
+reserved for authorized operators rebuilding the derived search projection;
+it grants no read access to business resources.
+
 ---
 
 # 51. High-Risk Action Registry

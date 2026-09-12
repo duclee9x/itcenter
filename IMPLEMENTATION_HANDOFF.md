@@ -1,23 +1,44 @@
 # IMPLEMENTATION HANDOFF
 
-## Current Task — TASK-061
+## Current Task — TASK-070
 
-Advanced Search + Phase 3 Integration Gate
+Supplier + Procurement Request
 
-Feature: F-047 / Phase Gate
-Workflow: WF-SRCH01 / P3-E2E
-Phase/Priority: P3 / P1
-Readiness: READY
+Feature: F-039
+Workflow: WF-P01
+Phase/Priority: P4 / P0
+Readiness: BLOCKED
 Status: NOT_STARTED
 
-Task contract: `tasks/TASK-061_ADVANCED_SEARCH_PHASE3_INTEGRATION_GATE.md`
+Task contract: `tasks/TASK-070_SUPPLIER_PROCUREMENT_REQUEST.md`
 
-All declared dependencies are `CODE_COMPLETE`: TASK-050, TASK-051, TASK-052,
-TASK-053, TASK-055, TASK-056, TASK-058, TASK-059 and TASK-060. The registry
-reconciliation derived TASK-061 readiness as `READY`. Its contract is prepared;
-implementation has not started and requires an explicit user request.
+TASK-061 is `CODE_COMPLETE`, satisfying TASK-070's declared dependency. The
+TASK-070 contract is prepared, but implementation is blocked: procurement
+specifications enumerate Supplier states but do not define Supplier write
+permissions, allowed status transitions or Supplier master event contracts.
+The task contract records a proposed minimal resolution; no TASK-070 code has
+started.
 
-## Last Completed Task — TASK-059
+## Last Completed Task — TASK-061
+
+Advanced Search + Phase 3 Integration Gate (`CODE_COMPLETE`). See
+`tasks/TASK-061_ADVANCED_SEARCH_PHASE3_INTEGRATION_GATE.md` for the full report.
+
+- Added authorized, tenant-scoped search for Asset, User, Ticket, Incident,
+  Network observations, Software products and License entitlements, with exact
+  identifier ranking, prefix/fuzzy/full-text search and Vietnamese/IP/MAC/
+  serial normalization.
+- Added source-versioned outbox/inbox indexing, tombstones, durable retry
+  backoff, bounded reindex, cursor-bound result pagination and exact canonical
+  fallback. Search rechecks owning-domain read permissions and scopes.
+- Updated the search projection migration, API/worker wiring, permission
+  catalog, search/event/permission/traceability specifications and module docs.
+- Verification passed: `npm test` (77 tests), typecheck, lint, format check
+  and `git diff --check`.
+- TASK-070 is derived `BLOCKED` by a recorded Supplier policy SPEC_CONFLICT:
+  no Supplier write permission or normative status-transition/event contract.
+
+## Earlier Completed Task — TASK-059
 
 Replacement + Retirement + Disposal + Data Wipe (`CODE_COMPLETE`). See
 `tasks/TASK-059_REPLACEMENT_RETIREMENT_DISPOSAL_DATA_WIPE.md` for the full

@@ -8,8 +8,8 @@ feature_id: F-047/PHASE-GATE
 workflow_id: WF-SRCH01/P3-E2E
 phase: P3
 priority: P1
-readiness: READY
-status: NOT_STARTED
+readiness: SATISFIED
+status: CODE_COMPLETE
 owner_domain: search
 depends_on: TASK-050, TASK-051, TASK-052, TASK-053, TASK-055, TASK-056, TASK-058, TASK-059, TASK-060
 ```
@@ -234,7 +234,74 @@ service calls occur inside a database transaction.
 
 ## 20. Completion Rule
 
-TASK-061 may be marked `CODE_COMPLETE` only after all acceptance criteria and
-applicable verification gates pass, its completion report is recorded, and
-its implementation commit is created separately. This contract is planning
-only; implementation requires an explicit user request.
+TASK-061 is `CODE_COMPLETE`: the acceptance criteria and applicable
+verification gates passed, the implementation report is recorded, and the
+implementation is committed separately. TASK-070's dependency is now satisfied;
+TASK-070 is prepared but remains blocked by its recorded Supplier policy
+`SPEC_CONFLICT` and has not been implemented.
+
+## 21. Implementation Report
+
+### Delivered
+
+- Evolved the PostgreSQL search projection for Asset, User, Ticket, Incident,
+  Network observation, Software product and License entitlement sources.
+- Added exact identifier, prefix, Vietnamese normalization, safe structured
+  identifier normalization, trigram/full-text ranking, state/site filters,
+  bounded prefix autocomplete and cursor pagination.
+- Rechecked each candidate with its owning domain read permission and scope;
+  cursors bind query, filters, sort, tenant and principal. Search returns no
+  unfiltered result counts or facets.
+- Added committed-outbox indexing with inbox dedupe, canonical source reread,
+  version fencing, visibility/deletion tombstones and durable capped retry
+  backoff. Added bounded, resumable and idempotent reindex pages with audit.
+- Added bounded exact canonical fallback, applying filters, authorization and
+  cursor order; fuzzy and broad text fallback are not used.
+- Wired the search API and worker, registered the required read/reindex
+  permissions, evolved API/event/permission/traceability/search specifications
+  and documented the Search module boundary.
+
+### Database Changes
+
+- Added `pg_trgm` support and normalized exact/prefix/filter/scope/trigram/full-
+  text indexes for `operations.search_documents`.
+- Added `operations.search_index_state` freshness/failure metadata and
+  `operations.search_index_retries` durable retry schedule.
+
+### APIs / Commands
+
+- `GET /api/v1/search?q=...&types=...&state=...&site_id=...&limit=...&cursor=...`
+- `GET /api/v1/search/autocomplete?q=...&types=...` (prefix-only, max 10)
+- `POST /api/v1/search/reindex` (permission `search.reindex`, reason,
+  `Idempotency-Key`, one supported type, bounded page size and continuation
+  UUID)
+
+### Tests Run
+
+- `npm test`: 77 tests passed (24 unit/architecture, 2 contract, 1 migration,
+  21 integration and 29 E2E).
+- `npm run typecheck`: passed.
+- `npm run lint`: passed, including dependency boundary checks.
+- `npm run format:check`: passed.
+- `git diff --check`: passed.
+- New database-backed tests cover source projections, site scope, exact ranking,
+  cursor binding, denied-result filtering, reindex idempotency, canonical
+  fallback pagination/filtering, inbox dedupe, source-version ordering,
+  tombstones and durable retry backoff.
+
+### Remaining Gaps
+
+- No TASK-061 acceptance blocker remains. Procurement, contract and other
+  unimplemented entity types are outside this task's supported source set.
+
+### Spec Conflicts
+
+- None.
+
+### Assumptions
+
+- The nearest ancestor Asset Location with type `SITE` supplies the indexed
+  `site_id`; unknown or absent locations do not gain an inferred site scope.
+- Exact fallback is bounded to ten canonical candidates per supported source
+  type. Search output is only navigation context; owning commands remain
+  responsible for authoritative authorization and state validation.

@@ -792,6 +792,21 @@ Global:
 GET /search?q=AST-0042
 ```
 
+The operational API exposes `GET /api/v1/search` with entity/filter/cursor
+parameters and `GET /api/v1/search/autocomplete` as a bounded prefix-only query.
+Search applies tenant filtering before querying and evaluates each candidate
+using its owning-domain `*.read` permission and resource scope before returning
+any display field. Result counts/facets are omitted unless separately
+authorization-filtered. Cursor tokens bind the query, type/filter set, sort and
+authenticated tenant/user context; authorization is rechecked on every page.
+
+`POST /api/v1/search/reindex` is an idempotent, bounded projection-maintenance
+command requiring `search.reindex`, `Idempotency-Key` and a reason. It accepts
+one supported entity type and an optional UUID continuation cursor; it never
+mutates canonical business records. Exact identifier lookup may fall back to
+bounded canonical reads when the derived index is unavailable; fuzzy queries
+do not.
+
 Returns typed results:
 
 ```text

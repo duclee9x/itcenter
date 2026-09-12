@@ -2571,3 +2571,40 @@ Search + Indexing Spec đạt yêu cầu khi:
 - MVP PostgreSQL search và scale-out path sang dedicated engine rõ.
 - Semantic/vector search chỉ là optional derived layer.
 - Search guardrails chống stale action, data leakage và over-engineering được khóa.
+
+---
+
+# 155. TASK-061 PostgreSQL Implementation Profile
+
+The current PostgreSQL-backed implementation indexes only P3 canonical
+sources available in this repository:
+
+```text
+ASSET, USER, TICKET, INCIDENT, NETWORK_DEVICE,
+SOFTWARE_PRODUCT, LICENSE_ENTITLEMENT
+```
+
+Search documents are refreshed from canonical records after committed source
+events or through a tenant-scoped, bounded UUID-keyset reindex command. The
+worker uses the inbox for deduplication, rereads the current source row, fences
+updates by source version, records deletion/visibility tombstones, and stores
+retry attempts with capped exponential backoff. Procurement entities and
+other not-yet-implemented sources are not indexed by this profile.
+
+The query API filters by tenant and supported entity type/state/site before
+authorization. It ranks normalized exact identifiers first, followed by code
+prefix, title prefix, bounded trigram similarity, full text and substring
+matches. Unicode/diacritic normalization supports Vietnamese secondary
+matching; IP, MAC and safe structured serial forms normalize separators.
+Autocomplete uses a prefix-only query and returns at most ten authorized
+results. Result pages use keyset cursors bound to normalized query, type and
+filter set, sort, tenant and principal; authorization is reevaluated for every
+page. Results expose only the approved display fields and safe highlights; no
+counts or facets are returned.
+
+When the projection is unavailable, the API performs only bounded exact
+lookups in canonical relational tables (at most ten candidate IDs per source
+type). It applies the same state/site filters, cursor ordering and owning
+resource authorization. Fuzzy and broad text fallback is prohibited. Freshness
+metadata reports current, delayed, stale, rebuilding, failed or degraded
+operation, including lag when available.

@@ -21,6 +21,12 @@ export async function assertActiveLicenseUser(input: {
 }
 // Platform permission needed by the bootstrap operation query; no grant is implied.
 export const permissions: readonly Permission[] = [
+  { code: "asset.read", resource_type: "asset", action: "read" },
+  { code: "ticket.read", resource_type: "ticket", action: "read" },
+  { code: "incident.read", resource_type: "incident", action: "read" },
+  { code: "software.read", resource_type: "software", action: "read" },
+  { code: "license.read", resource_type: "license", action: "read" },
+  { code: "search.reindex", resource_type: "search", action: "reindex" },
   { code: "asset.create", resource_type: "asset", action: "create" },
   {
     code: "asset.lifecycle.change",

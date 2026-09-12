@@ -3531,7 +3531,7 @@ Producer ownership must remain singular for canonical domain events.
 | workflow-service | domain state events |
 | notification-service | approval/SLA/incident/user-facing events |
 | reporting-service | almost all business events |
-| search-indexer | user/asset/ticket/incident/software |
+| search-indexer | user/asset/ticket/incident/network observation/software/license entitlement |
 | timeline-projector | asset/user/incident operational events |
 | automation-service | trigger events |
 | work-queue-service | actionable exceptions/failures |
