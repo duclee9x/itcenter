@@ -2852,9 +2852,10 @@ new_state: AWARDED
 version:
 selected_quotation_id:
 selected_supplier_id:
-approval_reference: # required when approval policy requires approval
+approval_reference: # linked approved RFQ_AWARD request ID, or null when none is linked
 award_exception_reason: # required only when policy/score exception applies
 rejected_quotation_ids:
+voided_quotation_ids:
 ```
 
 ## `RFQ.CLOSED_NO_AWARD`
@@ -2865,6 +2866,7 @@ previous_state: EVALUATING
 new_state: CLOSED_NO_AWARD
 version:
 rejected_quotation_ids:
+voided_quotation_ids:
 ```
 
 ## `QUOTATION.CREATED`
@@ -2963,7 +2965,18 @@ previous_state: DRAFT | SUBMITTED
 new_state: VOID
 version:
 rfq_cancelled_event_id:
+rfq_decision_event_id:
+decision: RFQ_CANCELLED | RFQ_AWARDED | RFQ_CLOSED_NO_AWARD
 ```
+
+`RFQ.AWARDED` and `RFQ.CLOSED_NO_AWARD` include every affected child ID in
+`rejected_quotation_ids` and `voided_quotation_ids`. A parent award/no-award
+decision rejects SUBMITTED quotations and VOID-transitions remaining DRAFT
+quotations. The child `QUOTATION.VOIDED` fact references its parent event via
+`rfq_decision_event_id`; `rfq_cancelled_event_id` is populated only for
+`RFQ.CANCELLED`. An RFQ_AWARD approval request is optional. When one or more
+same-tenant requests target the RFQ, each must be APPROVED before award;
+otherwise the award does not require approval evidence.
 
 RFQ/Quotation lifecycle facts above replace the earlier draft names
 `RFQ.SENT`, `QUOTATION.RECEIVED` and `SUPPLIER.SELECTED` for this workflow.

@@ -41,11 +41,23 @@ States are `DRAFT`, `OPEN`, `EVALUATING`, `AWARDED`, `CLOSED_NO_AWARD` and
 
 Only DRAFT commercial terms and candidate membership are editable. Material
 change after ISSUE requires cancel/new RFQ; TASK-071 adds no OPEN amendment.
-Award validates the selected SUBMITTED quotation, current Supplier eligibility
-and any required approval, persists the decision, accepts the selected quote,
-rejects other active valid SUBMITTED quotes and transitions the RFQ atomically.
-Close-no-award rejects remaining valid SUBMITTED quotations. Cancel voids
-DRAFT/SUBMITTED child quotations and never rewrites terminal quotation history.
+Award validates the selected SUBMITTED quotation and current Supplier
+eligibility, accepts the selected quote, rejects every other SUBMITTED quote,
+voids remaining DRAFT quotations and transitions the RFQ atomically.
+Close-no-award rejects remaining SUBMITTED quotations and voids remaining
+DRAFT quotations. Cancel voids DRAFT/SUBMITTED child quotations. No terminal
+RFQ may retain a non-terminal quotation, and no parent action rewrites terminal
+quotation history.
+
+### Approval Clarification — TASK-071 Implementation Contract
+
+Approval is conditional. If one or more approval requests with the same tenant,
+`source_type=RFQ_AWARD` and `source_id` equal to the current RFQ ID are linked to
+an RFQ, every linked request must be `APPROVED`. `PENDING`, `REJECTED`,
+`EXPIRED` and `CANCELLED` requests block award. If no such request exists,
+`RFQ.AWARD` may proceed subject to its other guards. TASK-071 does not create
+approval requests or infer an approval threshold because the current platform
+has no award-policy selector.
 
 ### Quotation
 
@@ -63,6 +75,8 @@ States are `DRAFT`, `SUBMITTED`, `WITHDRAWN`, `DISQUALIFIED`, `ACCEPTED`,
 | selected SUBMITTED | parent `RFQ.AWARD` | `ACCEPTED` |
 | other active SUBMITTED | parent `RFQ.AWARD` | `REJECTED` |
 | active SUBMITTED | parent `RFQ.CLOSE_NO_AWARD` | `REJECTED` |
+| remaining DRAFT | parent `RFQ.AWARD` | `VOID` |
+| remaining DRAFT | parent `RFQ.CLOSE_NO_AWARD` | `VOID` |
 | DRAFT/SUBMITTED | parent `RFQ.CANCEL` | `VOID` |
 
 SUBMITTED quotations are immutable. Revision requires withdrawal, a new DRAFT

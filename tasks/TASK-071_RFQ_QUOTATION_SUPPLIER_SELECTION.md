@@ -8,8 +8,8 @@ feature_id: F-040
 workflow_id: WF-P02
 phase: P4
 priority: P1
-readiness: READY
-status: NOT_STARTED
+readiness: SATISFIED
+status: CODE_COMPLETE
 owner_domain: procurement
 depends_on: TASK-070, TASK-071-R1
 ```
@@ -90,7 +90,12 @@ specifications.
   award. A Prospect quotation can be evaluated, then awarded only after the
   supplier becomes APPROVED/PREFERRED.
 - RFQ cancellation VOID-transitions only DRAFT/SUBMITTED quotations and never
-  rewrites terminal quotation history.
+  rewrites terminal quotation history. Award and close-no-award reject all
+  SUBMITTED offers and VOID remaining DRAFT quotations; every quotation is
+  terminal when the RFQ becomes terminal.
+- RFQ award approval is conditional. When same-tenant `RFQ_AWARD` requests
+  target the current RFQ, every linked request must be APPROVED. No linked
+  request means no approval is required; TASK-071 does not create one.
 - Parent RFQ commands commit RFQ and affected quotation changes atomically.
 
 ## 8. State Transition
@@ -118,6 +123,8 @@ SUBMITTED → QUOTATION.DISQUALIFY → DISQUALIFIED
 selected SUBMITTED → parent RFQ.AWARD → ACCEPTED
 other active SUBMITTED → parent RFQ.AWARD → REJECTED
 active SUBMITTED → parent RFQ.CLOSE_NO_AWARD → REJECTED
+remaining DRAFT → parent RFQ.AWARD → VOID
+remaining DRAFT → parent RFQ.CLOSE_NO_AWARD → VOID
 DRAFT | SUBMITTED → parent RFQ.CANCEL → VOID
 ```
 
@@ -130,10 +137,13 @@ effects and concurrency rules.
   matches.
 - Quotation belongs to the tenant, RFQ and Supplier in the command.
 - Submission requires an OPEN RFQ and an eligible Supplier.
-- Award requires an EVALUATING RFQ, selected SUBMITTED quotation, current
-  APPROVED/PREFERRED Supplier and any policy-required approval.
+- Award requires an EVALUATING RFQ, selected SUBMITTED quotation and current
+  APPROVED/PREFERRED Supplier. If linked same-tenant `RFQ_AWARD` approval
+  requests target the RFQ, every one must be APPROVED; PENDING, REJECTED,
+  EXPIRED or CANCELLED blocks award. Do not create approval requests.
 - Request/source references are verified through their owning contract; do
-  not mutate another domain's tables.
+  not mutate another domain's tables. A linked Procurement Request must be in
+  `WAITING_RFQ`.
 - `expected_version`, idempotency, reason, and authorization are enforced
   where the command contract requires them.
 
@@ -282,10 +292,11 @@ business transaction.
   submit retains prior commercial values.
 - Supplier eligibility for participation, submission and award uses current
   canonical Supplier state, including Prospect evaluation without award.
-- Award atomically accepts selected, rejects other submitted offers and
-  records approval evidence where required.
-- Close-no-award rejects remaining SUBMITTED quotations; cancel voids only
-  DRAFT/SUBMITTED and preserves terminal history.
+- Award atomically accepts selected, rejects other SUBMITTED offers, VOID
+  transitions remaining DRAFT quotations and records linked approval evidence.
+- Close-no-award rejects remaining SUBMITTED quotations and VOID transitions
+  remaining DRAFT quotations; cancel voids DRAFT/SUBMITTED. All preserve
+  terminal history and no terminal RFQ retains a non-terminal quotation.
 - Tenant/resource/supplier scope, permission denial, reason, audit/outbox,
   idempotency replay and conflict, expected-version failure and DB unique
   constraint behavior.
@@ -300,8 +311,8 @@ business transaction.
 3. Submitted commercial quotation data is immutable; revision uses a linked
    new record.
 4. At most one current SUBMITTED quotation exists per tenant/RFQ/Supplier.
-5. Supplier eligibility and award approval policy are enforced at command
-   execution against canonical state.
+5. Supplier eligibility and conditional linked `RFQ_AWARD` approval are
+   enforced at command execution against canonical state.
 6. Award, close-no-award and cancel update RFQ and child quotations atomically
    with histories, audit and outbox.
 7. All commands enforce the normative permission, tenant/resource scope,
@@ -313,9 +324,11 @@ business transaction.
 
 ## 20. Blockers / Readiness
 
-TASK-070 is `CODE_COMPLETE`. TASK-071-R1 resolved the prior RFQ/Quotation
-`SPEC_CONFLICT`; this task is derived `READY` and remains `NOT_STARTED` until
-explicitly authorized.
+No unresolved TASK-071 `SPEC_CONFLICT` or implementation blocker remains.
+TASK-070 and TASK-071-R1 are `CODE_COMPLETE`; the user-confirmed terminal
+quotation and conditional award-approval clarifications are normative in the
+workflow, state-machine, event and task contracts. TASK-071 is
+`CODE_COMPLETE`.
 
 ## 21. Timeline Requirements
 
@@ -358,3 +371,28 @@ delivery policy.
 Carry `request_id`, `correlation_id`, `causation_id`, actor, entity type/id and
 aggregate version through command handling, audit, outbox and relevant logs.
 Do not log full sensitive supplier or quotation data unnecessarily.
+
+## 27. Completion Report
+
+Implemented Procurement-owned, tenant-scoped RFQ and Quotation persistence,
+versioned append-only histories, lifecycle commands, scoped API routes,
+permissions, durable idempotency, audit, outbox and Operations timeline facts.
+The migration enforces tenant-bound references, submitted-quotation
+immutability, one current `SUBMITTED` quotation per supplier/RFQ, and terminal
+RFQ child-state invariants. RFQ creation validates a linked Procurement
+Request in `WAITING_RFQ`; supplier eligibility is rechecked from canonical
+state at issue, submit and award.
+
+The explicit clarifications are enforced: award/no-award reject submitted
+quotations and void remaining drafts; cancellation voids draft/submitted
+quotations; terminal quotations retain their history. Award approval is
+conditional on linked same-tenant requests targeting this RFQ with purpose
+`RFQ_AWARD`; if any are linked, each must be `APPROVED`. The command neither
+requires an unlinked approval nor creates one.
+
+Database-backed E2E coverage verifies command guards, permissions and tenant
+scope, idempotency, audit/outbox/timeline, quotation revision and immutability,
+terminal child effects, supplier/approval eligibility, and submit-vs-close,
+award-vs-cancel and parallel same-supplier submission races. Verification
+passed: `npm test` (82 tests), `npm run typecheck`, `npm run lint`,
+`npm run format:check` and `git diff --check`. TASK-072 was not implemented.

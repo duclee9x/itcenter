@@ -111,6 +111,7 @@ import {
 import { refreshSearchEntity } from "../../../modules/search/index.js";
 import { handleSearchRoute } from "./search-routes.js";
 import { handleProcurementRoute } from "./procurement-routes.js";
+import { handleRfqRoute } from "./rfq-routes.js";
 
 const networkExceptionQueue = {
   createReference: createNetworkExceptionWorkItem,
@@ -319,6 +320,18 @@ export function apiServer(
       return true;
     if (
       await handleProcurementRoute({
+        req,
+        res,
+        context,
+        config,
+        authentication,
+        authorization,
+        uow,
+      })
+    )
+      return true;
+    if (
+      await handleRfqRoute({
         req,
         res,
         context,

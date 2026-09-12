@@ -2533,23 +2533,26 @@ Procurement owns RFQ state and state history. Terminal states are `AWARDED`,
 
 | From | Command | To | Permission | Guard/effect | Event(s) |
 |---|---|---|---|---|---|
-| none | `RFQ.CREATE` | `DRAFT` | `rfq.create` | Create RFQ under an eligible Procurement Request | `RFQ.CREATED` |
+| none | `RFQ.CREATE` | `DRAFT` | `rfq.create` | A linked Procurement Request must be in `WAITING_RFQ`; tenant-bound references only | `RFQ.CREATED` |
 | `DRAFT` | `RFQ.UPDATE_DRAFT` | `DRAFT` | `rfq.update` | Terms/candidates editable only in draft | `RFQ.UPDATED` |
 | `DRAFT` | `RFQ.ISSUE` | `OPEN` | `rfq.issue` | Revalidate candidate Supplier eligibility | `RFQ.ISSUED` |
 | `DRAFT`, `OPEN`, `EVALUATING` | `RFQ.CANCEL` | `CANCELLED` | `rfq.cancel` | VOID associated DRAFT/SUBMITTED quotations | `RFQ.CANCELLED`, `QUOTATION.VOIDED` per changed quotation |
 | `OPEN` | `RFQ.CLOSE_SUBMISSIONS` | `EVALUATING` | `rfq.close` | Fence subsequent quote submissions | `RFQ.SUBMISSIONS_CLOSED` |
-| `EVALUATING` | `RFQ.AWARD` | `AWARDED` | `rfq.award` | Atomically validate, record award, accept selected quote and reject other active submissions | `RFQ.AWARDED`, `QUOTATION.ACCEPTED`, `QUOTATION.REJECTED` per changed quotation |
-| `EVALUATING` | `RFQ.CLOSE_NO_AWARD` | `CLOSED_NO_AWARD` | `rfq.close` | Reject remaining valid SUBMITTED quotations | `RFQ.CLOSED_NO_AWARD`, `QUOTATION.REJECTED` per changed quotation |
+| `EVALUATING` | `RFQ.AWARD` | `AWARDED` | `rfq.award` | Atomically validate and record award; accept selected SUBMITTED, reject other SUBMITTED and VOID remaining DRAFT quotations | `RFQ.AWARDED`, `QUOTATION.ACCEPTED`, `QUOTATION.REJECTED`, `QUOTATION.VOIDED` per changed quotation |
+| `EVALUATING` | `RFQ.CLOSE_NO_AWARD` | `CLOSED_NO_AWARD` | `rfq.close` | Reject SUBMITTED and VOID remaining DRAFT quotations | `RFQ.CLOSED_NO_AWARD`, `QUOTATION.REJECTED`, `QUOTATION.VOIDED` per changed quotation |
 
 No other RFQ transition is valid. Commercial terms are editable only in
 `DRAFT`; material changes after issue require cancellation and a new RFQ. There
 is no OPEN amendment command in TASK-071.
 
 `RFQ.AWARD` requires an `EVALUATING` RFQ, a selected quotation in `SUBMITTED`,
-its Supplier currently `APPROVED` or `PREFERRED`, and any required approval
-policy decision. A `PROSPECT` Supplier's submission may be evaluated but is
-not award-eligible. `SUSPENDED`, `BLOCKED` and `INACTIVE` Suppliers cannot
-submit or be awarded. Approval remains distinct from `rfq.award` permission.
+and its Supplier currently `APPROVED` or `PREFERRED`. Approval is conditional:
+if one or more same-tenant `RFQ_AWARD` approval requests target the RFQ, every
+linked request must be `APPROVED`; with none linked, approval is not required.
+TASK-071 does not create approval requests or infer a policy threshold. A
+`PROSPECT` Supplier's submission may be evaluated but is not award-eligible.
+`SUSPENDED`, `BLOCKED` and `INACTIVE` Suppliers cannot submit or be awarded.
+Approval remains distinct from `rfq.award` permission.
 
 The parent RFQ version is the concurrency fence for `QUOTATION.SUBMIT` versus
 `RFQ.CLOSE_SUBMISSIONS`, and `RFQ.AWARD` versus `RFQ.CANCEL`. If close wins,
@@ -2582,6 +2585,8 @@ Quotation terminal states are `WITHDRAWN`, `DISQUALIFIED`, `ACCEPTED`,
 | other active `SUBMITTED` | parent `RFQ.AWARD` | `REJECTED` | `rfq.award` | One RFQ transaction with award | `QUOTATION.REJECTED` |
 | active `SUBMITTED` | parent `RFQ.CLOSE_NO_AWARD` | `REJECTED` | `rfq.close` | One RFQ transaction with close | `QUOTATION.REJECTED` |
 | `DRAFT`, `SUBMITTED` | parent `RFQ.CANCEL` | `VOID` | `rfq.cancel` | Terminal quotation history is untouched | `QUOTATION.VOIDED` |
+| remaining `DRAFT` | parent `RFQ.AWARD` | `VOID` | `rfq.award` | No non-terminal child remains when RFQ is terminal | `QUOTATION.VOIDED` |
+| remaining `DRAFT` | parent `RFQ.CLOSE_NO_AWARD` | `VOID` | `rfq.close` | No non-terminal child remains when RFQ is terminal | `QUOTATION.VOIDED` |
 
 To revise a submitted offer while the RFQ is OPEN, withdraw the old record,
 create a new DRAFT quotation linked through `replaces_quotation_id` and a

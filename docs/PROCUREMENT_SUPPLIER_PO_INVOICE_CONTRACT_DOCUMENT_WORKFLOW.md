@@ -561,24 +561,33 @@ only these commands:
 | `EVALUATING` | `RFQ.AWARD` | `AWARDED` | `rfq.award` |
 | `EVALUATING` | `RFQ.CLOSE_NO_AWARD` | `CLOSED_NO_AWARD` | `rfq.close` |
 
+When an RFQ references a Procurement Request, that request must be tenant-bound
+and in `WAITING_RFQ`. TASK-071 does not advance the Procurement Request state.
+
 RFQ commercial terms and its supplier candidate list may change only through
 `RFQ.UPDATE_DRAFT` while the RFQ is `DRAFT`. After `RFQ.ISSUE`, material
 changes require cancellation and creation of a new RFQ. TASK-071 defines no
 open-RFQ amendment workflow. `RFQ.ISSUE` revalidates candidate eligibility;
 `RFQ.AWARD` revalidates the selected Supplier's current state and required
-approval policy.
+approval policy. Approval is conditional: if one or more same-tenant approval
+requests with `source_type=RFQ_AWARD` target this RFQ, every linked request must
+be `APPROVED`; otherwise award may proceed without an approval request. TASK-071
+does not create approval requests or infer an approval threshold.
 
 `RFQ.AWARD` is one Procurement transaction. It requires an `EVALUATING` RFQ, a
 selected `SUBMITTED` quotation belonging to that RFQ, a currently
-`APPROVED`/`PREFERRED` Supplier, and any policy-required approval. It persists
-the award decision, transitions the RFQ to `AWARDED`, accepts the selected
-quotation and rejects every other active valid `SUBMITTED` quotation. If any
-guard fails, none of those writes, histories, audits or events commit.
+`APPROVED`/`PREFERRED` Supplier, and any linked approval request must be
+`APPROVED`. It persists the award decision, transitions the RFQ to `AWARDED`,
+accepts the selected quotation, rejects every other `SUBMITTED` quotation, and
+voids every remaining `DRAFT` quotation. If any guard fails, none of those
+writes, histories, audits or events commit.
 
-`RFQ.CLOSE_NO_AWARD` transitions each remaining valid `SUBMITTED` quotation
-to `REJECTED` in the same transaction. `RFQ.CANCEL` voids associated `DRAFT`
-and `SUBMITTED` quotations; it never changes already terminal quotation
-history. No terminal RFQ may transition again.
+`RFQ.CLOSE_NO_AWARD` transitions each remaining `SUBMITTED` quotation to
+`REJECTED` and each remaining `DRAFT` quotation to `VOID` in the same
+transaction. `RFQ.CANCEL` voids associated `DRAFT` and `SUBMITTED` quotations.
+Thus no terminal RFQ has a non-terminal child quotation. These parent actions
+never change already terminal quotation history. No terminal RFQ may transition
+again.
 
 ## 18.2 Normative Quotation Lifecycle
 
@@ -608,6 +617,8 @@ The state transitions and permissions are:
 | other active `SUBMITTED` | parent `RFQ.AWARD` | `REJECTED` | `rfq.award` |
 | active `SUBMITTED` | parent `RFQ.CLOSE_NO_AWARD` | `REJECTED` | `rfq.close` |
 | `DRAFT`, `SUBMITTED` | parent `RFQ.CANCEL` | `VOID` | `rfq.cancel` |
+| remaining `DRAFT` | parent `RFQ.AWARD` | `VOID` | `rfq.award` |
+| remaining `DRAFT` | parent `RFQ.CLOSE_NO_AWARD` | `VOID` | `rfq.close` |
 
 “Active” in the parent RFQ decisions means a quotation currently in
 `SUBMITTED`; already terminal quotation records are not rewritten. A

@@ -2026,7 +2026,11 @@ a partial unique constraint on `(tenant_id, rfq_id, supplier_id)` while
 `state = 'SUBMITTED'`. Keep all quotation transitions in append-only history.
 RFQ parent decisions update child quotation states and their versions in the
 same transaction; RFQ cancellation changes only child quotations currently in
-`DRAFT` or `SUBMITTED`, never terminal quotation history.
+`DRAFT` or `SUBMITTED`, never terminal quotation history. Award accepts the
+selected submission, rejects other `SUBMITTED` rows and changes remaining
+`DRAFT` rows to `VOID`. Close-no-award rejects `SUBMITTED` rows and changes
+remaining `DRAFT` rows to `VOID`. Every terminal RFQ therefore has only
+terminal child quotations.
 
 ---
 

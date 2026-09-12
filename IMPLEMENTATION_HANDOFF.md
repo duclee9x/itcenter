@@ -1,22 +1,43 @@
 # IMPLEMENTATION HANDOFF
 
-## Current Task — TASK-071 (Ready, Not Started)
+## Current Task — TASK-072 (Blocked, Not Started)
 
-RFQ + Quotation + Supplier Selection
+Purchase Order + Approval + Amendment
 
-Feature: F-040
-Workflow: WF-P02
-Phase/Priority: P4 / P1
-Readiness: READY
+Feature: F-041
+Workflow: WF-P03
+Phase/Priority: P4 / P0
+Readiness: BLOCKED
 Status: NOT_STARTED
 
-Task contract: `tasks/TASK-071_RFQ_QUOTATION_SUPPLIER_SELECTION.md`
+Task contract: `GENERATE_ON_READY` (not generated because readiness is
+blocked).
 
-Dependencies TASK-070 and TASK-071-R1 are `CODE_COMPLETE`. TASK-071-R1 resolved
-the RFQ/Quotation lifecycle `SPEC_CONFLICT` and made transitions, permissions,
-eligibility, events, revision/uniqueness constraints, atomic effects and
-concurrency normative. Runtime implementation remains `NOT_STARTED`; wait for
-explicit user authorization.
+TASK-036 and TASK-071 are `CODE_COMPLETE`. Registry reconciliation found a
+`SPEC_CONFLICT`: PO states are listed but there is no normative transition and
+command matrix; approval request linkage and whether approval is mandatory or
+conditional are unspecified; and the event catalog lacks a complete PO
+lifecycle contract. Do not infer business rules or begin implementation until
+these are resolved.
+
+## Last Completed Task — TASK-071
+
+RFQ + Quotation + Supplier Selection (`CODE_COMPLETE`). See
+`tasks/TASK-071_RFQ_QUOTATION_SUPPLIER_SELECTION.md` for the implementation
+report.
+
+- Added Procurement-owned RFQ and Quotation migrations, tenant-bound references,
+  versioned histories, DB invariants and one-current-submission uniqueness.
+- Implemented lifecycle commands and scoped APIs with permission checks,
+  idempotency, expected-version handling, audit, outbox and timeline facts.
+- Enforced both user clarifications: terminal RFQs terminalize all remaining
+  quotations; linked RFQ_AWARD approvals are validated when present, with no
+  automatic approval request creation or blanket approval requirement.
+- PostgreSQL E2E coverage exercises supplier eligibility, approval guards,
+  terminal child transitions, audit/outbox/timeline and the three specified
+  concurrency races.
+- Verification passed: `npm test` (82 tests), `npm run typecheck`,
+  `npm run lint`, `npm run format:check` and `git diff --check`.
 
 ## Last Completed Remediation — TASK-071-R1
 

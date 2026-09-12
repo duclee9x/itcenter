@@ -189,7 +189,7 @@ Only generate a detailed `TASK-xxx_*.md` when the task becomes `READY` or is the
 | `TASK-061` | `F-047/PHASE-GATE` | `WF-SRCH01/P3-E2E` | P3 | P1 | Advanced Search + Phase 3 Integration Gate | TASK-050, TASK-051, TASK-052, TASK-053, TASK-055, TASK-056, TASK-058, TASK-059, TASK-060 | **SATISFIED** | CODE_COMPLETE | `TASK-061_ADVANCED_SEARCH_PHASE3_INTEGRATION_GATE.md` |
 | `TASK-070` | `F-039` | `WF-P01` | P4 | P0 | Supplier + Procurement Request | TASK-061, TASK-070-R1 | **SATISFIED** | CODE_COMPLETE | `TASK-070_SUPPLIER_PROCUREMENT_REQUEST.md` |
 | `TASK-070-R1` | `F-039` | `WF-P01` | P4 | P0 | Supplier Lifecycle + Permission Contract | TASK-061 | **SATISFIED** | CODE_COMPLETE | `TASK-070-R1_SUPPLIER_LIFECYCLE_PERMISSION_CONTRACT.md` |
-| `TASK-071` | `F-040` | `WF-P02` | P4 | P1 | RFQ + Quotation + Supplier Selection | TASK-070, TASK-071-R1 | **READY** | NOT_STARTED | `TASK-071_RFQ_QUOTATION_SUPPLIER_SELECTION.md` |
+| `TASK-071` | `F-040` | `WF-P02` | P4 | P1 | RFQ + Quotation + Supplier Selection | TASK-070, TASK-071-R1 | **SATISFIED** | CODE_COMPLETE | `TASK-071_RFQ_QUOTATION_SUPPLIER_SELECTION.md` |
 | `TASK-071-R1` | `F-040` | `WF-P02` | P4 | P1 | RFQ + Quotation Lifecycle Contract | TASK-070 | **SATISFIED** | CODE_COMPLETE | `TASK-071-R1_RFQ_QUOTATION_LIFECYCLE_CONTRACT.md` |
 | `TASK-072` | `F-041` | `WF-P03` | P4 | P0 | Purchase Order + Approval + Amendment | TASK-036, TASK-071 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |
 | `TASK-073` | `F-042` | `WF-005` | P4 | P0 | Goods Receipt + Asset Creation + Partial Receipt | TASK-012, TASK-072 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |
@@ -271,11 +271,14 @@ Only generate a detailed `TASK-xxx_*.md` when the task becomes `READY` or is the
 - **TASK-071-R1 — RFQ + Quotation Lifecycle Contract:** `CODE_COMPLETE`;
   normative lifecycle, permission, event, data-model, eligibility, atomicity
   and concurrency rules are recorded in its remediation report.
-- **TASK-071 — RFQ + Quotation + Supplier Selection:** TASK-070 and TASK-071-R1
-  are `CODE_COMPLETE`; detailed implementation contract generated from
-  `CODEX_TASK_TEMPLATE.md`; derived readiness is `READY`. Runtime implementation
-  remains `NOT_STARTED` pending explicit user instruction.
-- **TASK-072 — Purchase Order + Approval + Amendment:** Approval engine and quotation selection available.
+- **TASK-071 — RFQ + Quotation + Supplier Selection:** `CODE_COMPLETE`; the
+  clarified lifecycle and conditional linked-approval behavior are implemented
+  and verified in its completion report.
+- **TASK-072 — Purchase Order + Approval + Amendment:** dependencies TASK-036
+  and TASK-071 are satisfied, but readiness is blocked by an unresolved
+  `SPEC_CONFLICT`: the PO lifecycle has no normative transition/command matrix,
+  approval-link/policy rules, or complete event contract. Do not implement
+  until those rules are made normative.
 - **TASK-073 — Goods Receipt + Asset Creation + Partial Receipt:** Warehouse receiving basics and PO available.
 - **TASK-074 — Invoice + Duplicate Protection + 3-Way Match:** PO and Goods Receipt available.
 - **TASK-075 — Contract + Renewal + Commercial Document Governance:** Supplier/procurement and invoice flow available.
@@ -297,7 +300,7 @@ Only generate a detailed `TASK-xxx_*.md` when the task becomes `READY` or is the
 # 11. Current Next Task
 
 TASK-060-R1, TASK-060, TASK-056, TASK-059, TASK-061, TASK-070-R1, TASK-070 and
-TASK-071-R1 are `CODE_COMPLETE`.
+TASK-071-R1 and TASK-071 are `CODE_COMPLETE`.
 TASK-056
 inventory, exception handling, safe removal flow, audit/outbox payloads, and
 verification are recorded in its completion report. Dependency implementation
@@ -305,14 +308,16 @@ reports and commits confirm TASK-015 (`32c3267`), TASK-036 (`e043c31`) and
 TASK-038 (`296336a`) are `CODE_COMPLETE`.
 
 ```text
-CURRENT = TASK-071 (READY; NOT_STARTED)
-NEXT = TASK-071 (implementation pending explicit user instruction)
+CURRENT = TASK-072 (BLOCKED; NOT_STARTED)
+NEXT = TASK-072 (blocked on normative PO lifecycle/approval contract)
 TASK-059 = SATISFIED (CODE_COMPLETE)
 TASK-061 = SATISFIED (CODE_COMPLETE)
 TASK-070-R1 = SATISFIED (CODE_COMPLETE)
 TASK-070 = SATISFIED (CODE_COMPLETE)
 TASK-071-R1 = SATISFIED (CODE_COMPLETE)
-TASK-071 = READY (NOT_STARTED)
+TASK-071 = SATISFIED (CODE_COMPLETE)
+TASK-072 = BLOCKED (NOT_STARTED; SPEC_CONFLICT: PO transitions/commands,
+approval linkage/policy, and event contract are incomplete)
 ```
 
 TASK-061's acceptance criteria and verification gates passed; its implementation
@@ -321,9 +326,13 @@ TASK-052, TASK-053, TASK-055, TASK-056, TASK-058, TASK-059 and TASK-060) are
 all `CODE_COMPLETE`. TASK-070's declared dependencies were satisfied, and its
 detailed contract and acceptance criteria are complete. Supplier
 lifecycle/permission/event conflict was resolved by TASK-070-R1. The RFQ and
-Quotation `SPEC_CONFLICT` was resolved by TASK-071-R1, so TASK-071 is derived
-`READY`. Its runtime implementation remains `NOT_STARTED`; do not begin it
-until the user explicitly authorizes continuation.
+Quotation `SPEC_CONFLICT` was resolved by TASK-071-R1, and TASK-071 is now
+`CODE_COMPLETE`. Although TASK-072 dependencies are satisfied, its PO workflow
+does not define a normative transition/command matrix or clarify approval
+request linkage and required-vs-conditional approval behavior. Existing event
+catalog entries cover only a subset of PO lifecycle facts. This is an explicit
+`SPEC_CONFLICT`; do not infer rules or start TASK-072 implementation until its
+contract is resolved.
 
 ---
 
