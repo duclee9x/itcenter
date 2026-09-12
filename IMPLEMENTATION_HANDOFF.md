@@ -10,9 +10,9 @@ Workflow: WF-ID04/WF-019
 
 Phase/Priority: P3 / P0
 
-Readiness: READY (TASK-003, TASK-015, TASK-058, TASK-058-R1 satisfied)
+Readiness: BLOCKED (SPEC_CONFLICT in offboarding state-machine transitions)
 
-Status: NOT_STARTED
+Status: BLOCKED
 
 Task contract: `tasks/TASK-060_USER_OFFBOARDING_ORCHESTRATION.md`
 
@@ -40,4 +40,11 @@ The previous `SPEC_CONFLICT` is resolved. Offboarding must route `ASSIGNED` to
 terminal/non-capacity states to no-op. Cancellation/reclaim failures must stay
 actionable and cannot count as completed License clearance.
 
-TASK-060 is ready but intentionally not started in this handoff, as requested.
+TASK-060 cannot safely start until the normative offboarding transition graph is
+defined. `docs/STATE_MACHINE_MASTER_SPEC.md` §69 lists the eight states but no
+allowed edges; §107 only states the `READY_TO_CLOSE → COMPLETED` dependency.
+The task contract requires enforcing normative transitions and forbids
+inferring transitions from the state list. License cancellation/reclaim routing
+is already resolved. Await the transition policy decision before implementing
+TASK-060. TASK-056 remains dependency-ready at P1, but TASK-060 is the P0 task
+currently blocked by this specification conflict.
