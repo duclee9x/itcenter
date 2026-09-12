@@ -43,3 +43,14 @@ export {
   type PurchaseOrderCommandResult,
   type PurchaseOrderEvent,
 } from "./application/purchase-orders.js";
+export {
+  executeGoodsReceiptCommand,
+  listGoodsReceipts,
+  readGoodsReceipt,
+  readReceivedUnitForAssetRegistration,
+  recordAssetization,
+  readPostedAcceptedQuantitiesForMatching,
+  type GoodsReceiptCommand,
+  type GoodsReceiptEvent,
+  type GoodsReceiptResult,
+} from "./application/goods-receipts.js";

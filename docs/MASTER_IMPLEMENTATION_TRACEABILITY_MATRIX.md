@@ -1271,6 +1271,9 @@ procurement.goods_receipts
 procurement.goods_receipt_lines
 procurement.goods_receipt_units
 procurement.receiving_exceptions
+procurement.goods_receipt_history
+procurement.receipt_assetization_state
+asset.received_unit_registrations
 ```
 
 ### State Dimensions
@@ -1343,8 +1346,9 @@ Normal receiving does not create Work Queue items. Procurement must not write
 Asset domain tables. Full service receipt/acceptance remains out of scope.
 
 Planning status: TASK-073-R1 is `CODE_COMPLETE` (specification only);
-TASK-073 is `READY / NOT_STARTED`. No TASK-073 runtime implementation has
-started.
+TASK-073 is `SATISFIED / CODE_COMPLETE`. Implementation status and
+PostgreSQL E2E coverage are recorded in
+`tasks/TASK-073_GOODS_RECEIPT_ASSETIZATION_PARTIAL_RECEIPT.md`.
 
 ---
 

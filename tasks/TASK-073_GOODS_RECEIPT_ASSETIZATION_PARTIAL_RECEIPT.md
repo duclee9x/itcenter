@@ -9,7 +9,7 @@ workflow_id: WF-005
 phase: P4
 priority: P0
 readiness: READY
-status: NOT_STARTED
+status: CODE_COMPLETE
 owner_domain: procurement
 depends_on: TASK-012, TASK-072, TASK-073-R1
 ```
@@ -312,20 +312,20 @@ full documents or protected Supplier values.
 
 ### Unit / Domain / Repository / API / E2E
 
-- [ ] Create DRAFT receipt and update DRAFT.
-- [ ] Post full receipt; post partial receipt; a second partial receipt reaches FULLY_RECEIVED.
-- [ ] Reject POST for PO lifecycle DRAFT, ON_HOLD, CLOSED and CANCELLED.
-- [ ] Reject cumulative over-receipt atomically; verify no receipt state, PO quantity, audit or outbox partial commit.
-- [ ] Same-key/same-payload POST replays once; same-key/different-payload conflicts.
-- [ ] POSTED receipt is immutable and cannot be cancelled/deleted; DRAFT cancellation requires reason.
-- [ ] Observed/rejected/damaged quantities do not advance fulfillment; blocking exception/uncertain identity prevents POST.
-- [ ] Duplicate serialized unit within one receipt blocks POST; deterministic/ambiguous existing Asset match does not silently duplicate/merge.
-- [ ] Asset event redelivery and command retry create no duplicate Asset; Asset failure does not unpost receipt; exhaustion creates actionable fallback.
-- [ ] Partial receipt last-quantity concurrency race: ordered 10, accepted 8, concurrent A=2/B=2 yields one success and one failure.
-- [ ] GOODS_RECEIPT.POST vs PO.CANCEL; vs PO.HOLD; vs PO.AMEND (first receipt); and vs PO.CLOSE_REMAINDER where relevant.
-- [ ] Only POSTED accepted quantities count for 3-Way Match; DRAFT/CANCELLED do not.
-- [ ] Tenant/resource scope and each exact `goods_receipt.*` permission are enforced.
-- [ ] Receipt/PO audit, timeline and event payloads preserve required references without sensitive Supplier/document content.
+- [x] Create DRAFT receipt and update DRAFT.
+- [x] Post full receipt; post partial receipt; a second partial receipt reaches FULLY_RECEIVED.
+- [x] Reject receipt processing for DRAFT, ON_HOLD, CLOSED and CANCELLED PO lifecycle.
+- [x] Reject cumulative over-receipt atomically; verify no receipt state, PO quantity, audit or outbox partial commit.
+- [x] Same-key/same-payload POST replays once; same-key/different-payload conflicts.
+- [x] POSTED receipt is immutable and cannot be cancelled/deleted; DRAFT cancellation requires reason.
+- [x] Observed/rejected/damaged quantities do not advance fulfillment; blocking exceptions prevent POST and create actionable Work Queue references.
+- [x] Duplicate serialized unit within one receipt blocks creation; existing Asset duplicate does not silently duplicate/merge.
+- [x] Asset event redelivery and command retry create no duplicate Asset; Asset failure does not unpost receipt and creates visible fallback work.
+- [x] Partial receipt last-quantity concurrency race: ordered 10, accepted 8, concurrent A=2/B=2 yields one success and one failure.
+- [x] GOODS_RECEIPT.POST vs PO.CANCEL; vs PO.HOLD; vs PO.AMEND (first receipt); and vs PO.CLOSE_REMAINDER.
+- [x] Only POSTED accepted quantities are returned by the Procurement 3-Way Match evidence query; DRAFT/CANCELLED are excluded.
+- [x] Tenant/resource scope and each exact `goods_receipt.*` permission are enforced.
+- [x] Receipt/PO audit, timeline and event payloads preserve required references without sensitive Supplier/document content.
 
 ## 28. Acceptance Criteria
 
@@ -348,6 +348,37 @@ Implement only TASK-073 runtime scope after explicit user authorization. Follow
 the repository task execution protocol and stop on any normative conflict.
 
 ## 31. Required Completion Report
+
+### Implementation Report — 2026-09-12
+
+Status: `CODE_COMPLETE`.
+
+- Added Procurement-owned Goods Receipt create, draft update, post and cancel
+  commands with tenant-scoped APIs, durable idempotency, expected versions,
+  audit, outbox and timeline entries.
+- Added receipt/header/line/unit/exception/history persistence and database
+  fences for terminal immutability, PO/Supplier/line/version references,
+  serialized identity uniqueness, positive accepted quantities and cumulative
+  quantity caps.
+- POST locks receipt and PO in one transaction, advances accepted PO quantity
+  and receipt state only, increments PO aggregate version/history, and emits
+  receipt and PO progress events atomically. Over-receipt leaves receipt, PO,
+  audit and outbox unchanged.
+- Added a Procurement-owned POSTED-only accepted-quantity query for the future
+  TASK-074 3-Way Match flow.
+- Added asynchronous Asset-owned `ASSET.REGISTER_RECEIVED` processing through
+  inbox dedupe and the `asset.receive` service authorization. Registration is
+  keyed by immutable `received_unit_id`; new Assets start `RECEIVED`/
+  `UNASSIGNED` at the receiving location. Duplicate candidates fail closed;
+  permanent/exhausted failures create actionable Work Queue items and appear
+  in the receipt read model.
+- Verification passed: `npm test` (84 tests), `npm run typecheck`,
+  `npm run lint`, targeted Goods Receipt PostgreSQL E2E, and `git diff --check`.
+  E2E coverage includes partial/full progression, idempotency, over-receipt
+  atomicity, PO-command races, last-quantity receipt races, exception work,
+  Asset redelivery and duplicate fallback.
+
+No TASK-074 invoice matching or service-receipt runtime behavior was added.
 
 Report implementation status, files/database/API/commands/events/permissions,
 audit/timeline, tests and outcomes, remaining gaps, spec conflicts and

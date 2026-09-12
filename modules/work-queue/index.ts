@@ -14,4 +14,6 @@ export {
   readEntityTimeline,
   upsertApprovalWorkItem,
   resolveApprovalWorkItem,
+  upsertGoodsReceiptWorkItem,
+  resolveGoodsReceiptWorkItem,
 } from "./application/work-queue.js";

@@ -159,6 +159,42 @@ export async function resolveAssetLifecycleWorkItem(input: {
   );
 }
 
+export async function upsertGoodsReceiptWorkItem(input: {
+  tx: Transaction;
+  receiptId: string;
+  title: string;
+  priority?: string;
+}): Promise<void> {
+  await input.tx.query(
+    `INSERT INTO operations.work_items
+       (id,tenant_id,source_type,source_id,title,priority,owner_team_id)
+     VALUES($1,$2,'GOODS_RECEIPT',$3,$4,$5,'PROCUREMENT')
+     ON CONFLICT(tenant_id,source_type,source_id) DO UPDATE SET
+       title=EXCLUDED.title,priority=EXCLUDED.priority,
+       state=CASE WHEN operations.work_items.state IN ('RESOLVED','CLOSED') THEN 'NEW' ELSE operations.work_items.state END,
+       resolved_at=CASE WHEN operations.work_items.state IN ('RESOLVED','CLOSED') THEN NULL ELSE operations.work_items.resolved_at END,
+       last_action_at=now(),version=operations.work_items.version+1`,
+    [
+      randomUUID(),
+      input.tx.tenantId,
+      input.receiptId,
+      input.title,
+      input.priority ?? "HIGH",
+    ],
+  );
+}
+
+export async function resolveGoodsReceiptWorkItem(input: {
+  tx: Transaction;
+  receiptId: string;
+}): Promise<void> {
+  await input.tx.query(
+    `UPDATE operations.work_items SET state='RESOLVED',resolved_at=now(),last_action_at=now(),version=version+1
+      WHERE tenant_id=$1 AND source_type='GOODS_RECEIPT' AND source_id=$2 AND state NOT IN ('RESOLVED','CLOSED')`,
+    [input.tx.tenantId, input.receiptId],
+  );
+}
+
 export async function recordAssetLifecycleTimelineEvent(input: {
   tx: Transaction;
   assetId: string;
@@ -185,7 +221,12 @@ export async function recordAssetLifecycleTimelineEvent(input: {
 export async function recordProcurementTimelineEvent(input: {
   tx: Transaction;
   entityType:
-    "SUPPLIER" | "PROCUREMENT_REQUEST" | "RFQ" | "QUOTATION" | "PURCHASE_ORDER";
+    | "SUPPLIER"
+    | "PROCUREMENT_REQUEST"
+    | "RFQ"
+    | "QUOTATION"
+    | "PURCHASE_ORDER"
+    | "GOODS_RECEIPT";
   entityId: string;
   eventType: string;
   payload: unknown;
@@ -202,7 +243,12 @@ export async function recordProcurementTimelineEvent(input: {
       input.entityType,
       input.entityId,
       input.eventType,
-      `${input.eventType} committed`,
+      input.eventType === "GOODS_RECEIPT.POSTED"
+        ? `Goods Receipt ${String((input.payload as Record<string, unknown>)?.receipt_code ?? input.entityId)} posted`
+        : input.eventType === "PO.PARTIALLY_RECEIVED" ||
+            input.eventType === "PO.FULLY_RECEIVED"
+          ? `PO ${String((input.payload as Record<string, unknown>)?.po_code ?? input.entityId)} is now ${input.eventType === "PO.FULLY_RECEIVED" ? "fully" : "partially"} received`
+          : `${input.eventType} committed`,
       JSON.stringify(input.payload ?? {}),
       input.sourceEventId,
     ],
@@ -212,7 +258,12 @@ export async function recordProcurementTimelineEvent(input: {
 export async function readEntityTimeline(input: {
   tx: Transaction;
   entityType:
-    "SUPPLIER" | "PROCUREMENT_REQUEST" | "RFQ" | "QUOTATION" | "PURCHASE_ORDER";
+    | "SUPPLIER"
+    | "PROCUREMENT_REQUEST"
+    | "RFQ"
+    | "QUOTATION"
+    | "PURCHASE_ORDER"
+    | "GOODS_RECEIPT";
   entityId: string;
   limit?: number;
 }) {

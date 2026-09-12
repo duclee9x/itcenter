@@ -2289,6 +2289,11 @@ identity uncertain prevents POST. TASK-073 does not define a full
 quarantine-resolution workflow. Only POSTED receipts contribute accepted
 quantities to invoice 3-Way Match; DRAFT and CANCELLED receipts do not.
 
+`procurement.receipt_assetization_state` may retain non-authoritative retry
+and projection status; it never changes a posted receipt fact. Asset owns
+`asset.received_unit_registrations`, an immutable mapping from each received
+unit ID to at most one Asset. Procurement never writes Asset tables.
+
 POST atomically changes receipt state to POSTED, freezes its snapshot/lines/
 units, updates PO accepted counters and receipt summaries/state/version/
 history, and writes audit/outbox. The PO row/aggregate lock and database

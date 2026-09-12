@@ -3,6 +3,7 @@ export {
   assertAssetEligibleForLicense,
   assertAssetEligibleForMaintenance,
   createAsset,
+  registerReceivedAsset,
 } from "./application/registry.js";
 export {
   assignAsset,

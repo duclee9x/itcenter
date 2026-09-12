@@ -31,12 +31,21 @@ export async function migrate(
       "automation",
       "operations",
       "network",
-    ].map((owner) => ({ owner })),
+    ].map((owner) =>
+      owner === "asset"
+        ? { owner, before: "20260912_010_received_unit_registration.sql" }
+        : { owner },
+    ),
     { owner: "software", before: "20260912_002_deployment.sql" },
     { owner: "artifact" },
     { owner: "software", after: "20260912_001_catalog.sql" },
     { owner: "license" },
     { owner: "procurement" },
+    // The Asset registration identity references immutable Procurement receipt units.
+    {
+      owner: "asset",
+      after: "20260912_009_replacement_retirement_disposal.sql",
+    },
   ];
   for (const step of plan)
     for (const file of (await readdir(path.join(root, step.owner))).sort())

@@ -1,23 +1,46 @@
 # IMPLEMENTATION HANDOFF
 
-## Current Task — TASK-073 (Ready, Not Started)
+## Current Task — TASK-074 (Blocked, Not Started)
 
-Goods Receipt + Asset Registration + Partial Receipt
+Invoice + Duplicate Protection + 3-Way Match
 
-Feature: F-042
-Workflow: WF-005
+Feature: F-043/F-044
+
+Workflow: WF-P04/WF-P05
+
 Phase/Priority: P4 / P0
-Readiness: READY (derived)
+
+Readiness: BLOCKED (`SPEC_GAP / PLANNING_REQUIRED`)
+
 Status: NOT_STARTED
 
-Task contract: `tasks/TASK-073_GOODS_RECEIPT_ASSETIZATION_PARTIAL_RECEIPT.md`
+Task contract: not generated; the detailed normative Invoice contract is
+incomplete. TASK-072 and TASK-073 are `CODE_COMPLETE`, but the existing
+workflow leaves material rules unresolved: matching tolerance policy,
+conditional approval and context/version binding, duplicate invoice-number
+normalization, partial/over-invoice concurrency, credit-note lifecycle, and
+exception resolution where posted receipts are immutable and PO amendments
+are forbidden after receiving begins. Reconcile these rules before marking
+TASK-074 READY or implementing runtime behavior.
 
-Dependencies TASK-012, TASK-072 and TASK-073-R1 are `CODE_COMPLETE`. The
-normative contract is reconciled and TASK-073 is implementation-ready, but
-runtime implementation still requires explicit user authorization. Its scope
-owns immutable Goods Receipt posting, accepted PO receipt progress, PO/receipt
-concurrency and async Asset registration via Asset-owned
-`ASSET.REGISTER_RECEIVED`. No TASK-073 runtime implementation has started.
+## Last Completed Task — TASK-073
+
+Goods Receipt + Asset Registration + Partial Receipt (`CODE_COMPLETE`). See
+`tasks/TASK-073_GOODS_RECEIPT_ASSETIZATION_PARTIAL_RECEIPT.md`.
+
+- Added tenant-scoped Goods Receipt create, draft update, post and cancel
+  commands with durable idempotency, expected-version checks, permissions,
+  audit, outbox and timeline integration.
+- Posting atomically validates and snapshots the receipt, accepted quantities,
+  PO receipt progress, history and events; immutable database fences and PO
+  row serialization protect over-receipt and PO-command races.
+- Added asynchronous Asset-owned registration keyed by immutable
+  `received_unit_id`, inbox deduplication, bounded retry and actionable
+  fallback. Assets start `RECEIVED`/`UNASSIGNED`; failed assetization does not
+  undo a posted receipt.
+- Verification: `npm test` passed all 84 tests, including the TASK-073
+  PostgreSQL E2E; `npm run typecheck`, `npm run lint`, `npm run format:check`
+  and `git diff --check` passed.
 
 ## Last Completed Remediation — TASK-073-R1
 
