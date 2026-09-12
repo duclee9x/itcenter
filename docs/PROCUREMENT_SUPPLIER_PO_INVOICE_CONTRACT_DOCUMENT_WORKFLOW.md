@@ -461,11 +461,15 @@ Select Supplier
 
 ```text
 DRAFT
-SENT
-PARTIALLY_RESPONDED
-CLOSED
+OPEN
+EVALUATING
+AWARDED
+CLOSED_NO_AWARD
 CANCELLED
 ```
+
+Terminal: `AWARDED`, `CLOSED_NO_AWARD`, `CANCELLED`. Normative commands and
+transition guards are defined in section 18.1.
 
 ---
 
@@ -483,7 +487,12 @@ quotation:
   delivery_terms:
   lines:
   attachments:
+  state:
 ```
+
+Quotation states are `DRAFT`, `SUBMITTED`, `WITHDRAWN`, `DISQUALIFIED`,
+`ACCEPTED`, `REJECTED` and `VOID`; terminal states are all except `DRAFT` and
+`SUBMITTED`. Normative commands and guards are defined in section 18.2.
 
 ---
 
@@ -525,6 +534,126 @@ Lowest price not selected because delivery time exceeds project deadline.
 ```
 
 ---
+
+## 18.1 Normative RFQ Lifecycle
+
+The Procurement domain owns the RFQ lifecycle. Its states are:
+
+```text
+DRAFT
+OPEN
+EVALUATING
+AWARDED
+CLOSED_NO_AWARD
+CANCELLED
+```
+
+`AWARDED`, `CLOSED_NO_AWARD` and `CANCELLED` are terminal. State changes use
+only these commands:
+
+| From | Command | To | Permission |
+|---|---|---|---|
+| none | `RFQ.CREATE` | `DRAFT` | `rfq.create` |
+| `DRAFT` | `RFQ.UPDATE_DRAFT` | `DRAFT` | `rfq.update` |
+| `DRAFT` | `RFQ.ISSUE` | `OPEN` | `rfq.issue` |
+| `DRAFT`, `OPEN`, `EVALUATING` | `RFQ.CANCEL` | `CANCELLED` | `rfq.cancel` |
+| `OPEN` | `RFQ.CLOSE_SUBMISSIONS` | `EVALUATING` | `rfq.close` |
+| `EVALUATING` | `RFQ.AWARD` | `AWARDED` | `rfq.award` |
+| `EVALUATING` | `RFQ.CLOSE_NO_AWARD` | `CLOSED_NO_AWARD` | `rfq.close` |
+
+RFQ commercial terms and its supplier candidate list may change only through
+`RFQ.UPDATE_DRAFT` while the RFQ is `DRAFT`. After `RFQ.ISSUE`, material
+changes require cancellation and creation of a new RFQ. TASK-071 defines no
+open-RFQ amendment workflow. `RFQ.ISSUE` revalidates candidate eligibility;
+`RFQ.AWARD` revalidates the selected Supplier's current state and required
+approval policy.
+
+`RFQ.AWARD` is one Procurement transaction. It requires an `EVALUATING` RFQ, a
+selected `SUBMITTED` quotation belonging to that RFQ, a currently
+`APPROVED`/`PREFERRED` Supplier, and any policy-required approval. It persists
+the award decision, transitions the RFQ to `AWARDED`, accepts the selected
+quotation and rejects every other active valid `SUBMITTED` quotation. If any
+guard fails, none of those writes, histories, audits or events commit.
+
+`RFQ.CLOSE_NO_AWARD` transitions each remaining valid `SUBMITTED` quotation
+to `REJECTED` in the same transaction. `RFQ.CANCEL` voids associated `DRAFT`
+and `SUBMITTED` quotations; it never changes already terminal quotation
+history. No terminal RFQ may transition again.
+
+## 18.2 Normative Quotation Lifecycle
+
+Quotation states are:
+
+```text
+DRAFT
+SUBMITTED
+WITHDRAWN
+DISQUALIFIED
+ACCEPTED
+REJECTED
+VOID
+```
+
+`WITHDRAWN`, `DISQUALIFIED`, `ACCEPTED`, `REJECTED` and `VOID` are terminal.
+The state transitions and permissions are:
+
+| From | Command | To | Permission |
+|---|---|---|---|
+| none | `QUOTATION.CREATE` | `DRAFT` | `quotation.create` |
+| `DRAFT` | `QUOTATION.UPDATE_DRAFT` | `DRAFT` | `quotation.update` |
+| `DRAFT` | `QUOTATION.SUBMIT` | `SUBMITTED` | `quotation.submit` |
+| `DRAFT`, `SUBMITTED` | `QUOTATION.WITHDRAW` | `WITHDRAWN` | `quotation.withdraw` |
+| `SUBMITTED` | `QUOTATION.DISQUALIFY` | `DISQUALIFIED` | `quotation.evaluate` |
+| selected `SUBMITTED` | parent `RFQ.AWARD` | `ACCEPTED` | `rfq.award` |
+| other active `SUBMITTED` | parent `RFQ.AWARD` | `REJECTED` | `rfq.award` |
+| active `SUBMITTED` | parent `RFQ.CLOSE_NO_AWARD` | `REJECTED` | `rfq.close` |
+| `DRAFT`, `SUBMITTED` | parent `RFQ.CANCEL` | `VOID` | `rfq.cancel` |
+
+“Active” in the parent RFQ decisions means a quotation currently in
+`SUBMITTED`; already terminal quotation records are not rewritten. A
+`SUBMITTED` quotation is immutable. While its parent RFQ remains `OPEN`, a
+supplier revises a submitted offer by withdrawing it, creating a new `DRAFT`
+quotation linked by `replaces_quotation_id` (and its revision reference), then
+submitting the new record. The referenced prior quotation must be `WITHDRAWN`
+and belong to the same tenant, RFQ and Supplier. Previously submitted
+commercial values are never overwritten.
+
+For one tenant, RFQ and Supplier, at most one current quotation may be
+`SUBMITTED`. Concurrent submissions serialize on the parent RFQ and enforce
+this invariant in application logic and a partial database unique constraint.
+On supplier-facing requests, `quotation.create`, `quotation.update`,
+`quotation.submit` and `quotation.withdraw` are additionally scoped to the
+principal's own `supplier_id`.
+
+## 18.3 Supplier Eligibility
+
+- `PROSPECT`, `APPROVED` and `PREFERRED` Suppliers may participate in an RFQ
+  and submit quotations.
+- A `PROSPECT` Supplier's quotation may be evaluated but cannot be awarded
+  until that Supplier is `APPROVED` or `PREFERRED`.
+- Only `APPROVED` and `PREFERRED` Suppliers are award-eligible. `SUSPENDED`,
+  `BLOCKED` and `INACTIVE` Suppliers cannot submit a new quotation or receive
+  an award.
+- Check canonical Supplier state at RFQ issue, quotation submission and
+  award. A state change does not rewrite a previously submitted quotation.
+
+## 18.4 Command Integrity and Concurrency
+
+Where applicable, every state-changing command carries `expected_version`,
+`Idempotency-Key`, tenant/resource-scope authorization, correlation ID and
+reason for cancellation, withdrawal, disqualification or an award exception.
+Every committed mutation records audit before/after evidence and writes its
+outbox event in the same transaction. Approval policy remains separate from
+`rfq.award`; command permission cannot bypass a required approval.
+
+Serialize `QUOTATION.SUBMIT` against `RFQ.CLOSE_SUBMISSIONS` on the RFQ
+aggregate: if submit wins, the quotation is included before the RFQ enters
+`EVALUATING`; if close wins, the later submit is rejected and creates no
+submission event. Serialize `RFQ.AWARD` against `RFQ.CANCEL` on RFQ version;
+exactly one may commit and a terminal RFQ cannot take the competing action.
+Parallel submissions for the same tenant/RFQ/Supplier produce at most one
+current `SUBMITTED` quotation; the losing command receives a conflict and
+must not emit a second submit event.
 
 # 19. WF-PROC03 — Create Purchase Order
 
@@ -1930,16 +2059,27 @@ related contract
 ## Procurement
 
 ```text
+RFQ.CREATED
+RFQ.UPDATED
+RFQ.ISSUED
+RFQ.SUBMISSIONS_CLOSED
+RFQ.CANCELLED
+RFQ.AWARDED
+RFQ.CLOSED_NO_AWARD
+QUOTATION.CREATED
+QUOTATION.UPDATED
+QUOTATION.SUBMITTED
+QUOTATION.WITHDRAWN
+QUOTATION.DISQUALIFIED
+QUOTATION.ACCEPTED
+QUOTATION.REJECTED
+QUOTATION.VOIDED
 PROCUREMENT.REQUEST_CREATED
 PROCUREMENT.REQUESTED
 PROCUREMENT.BUDGET_CHECKED
 PROCUREMENT.APPROVAL_REQUESTED
 PROCUREMENT.APPROVED
 PROCUREMENT.REJECTED
-RFQ.CREATED
-RFQ.SENT
-QUOTATION.RECEIVED
-SUPPLIER.SELECTED
 PO.CREATED
 PO.APPROVED
 PO.ISSUED

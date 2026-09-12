@@ -1,21 +1,40 @@
 # IMPLEMENTATION HANDOFF
 
-## Current Task — TASK-071 (Blocked)
+## Current Task — TASK-071 (Ready, Not Started)
 
 RFQ + Quotation + Supplier Selection
 
 Feature: F-040
 Workflow: WF-P02
 Phase/Priority: P4 / P1
-Readiness: BLOCKED by `SPEC_CONFLICT`
+Readiness: READY
 Status: NOT_STARTED
 
-Task contract has not been generated because the state/command contract is
-incomplete. The Procurement workflow enumerates RFQ states but does not define
-the normative transition commands, preconditions and authorization for them.
-Quotation lifecycle commands and RFQ send/close/cancel rules are also
-unspecified. Do not infer protected state changes; business rules are needed
-before TASK-071 can become READY.
+Task contract: `tasks/TASK-071_RFQ_QUOTATION_SUPPLIER_SELECTION.md`
+
+Dependencies TASK-070 and TASK-071-R1 are `CODE_COMPLETE`. TASK-071-R1 resolved
+the RFQ/Quotation lifecycle `SPEC_CONFLICT` and made transitions, permissions,
+eligibility, events, revision/uniqueness constraints, atomic effects and
+concurrency normative. Runtime implementation remains `NOT_STARTED`; wait for
+explicit user authorization.
+
+## Last Completed Remediation — TASK-071-R1
+
+RFQ + Quotation Lifecycle Contract (`CODE_COMPLETE`). See
+`tasks/TASK-071-R1_RFQ_QUOTATION_LIFECYCLE_CONTRACT.md`.
+
+- Defined the exact RFQ and Quotation state machines, terminal states,
+  supplier eligibility, granular command permissions and supplier scope.
+- Made award, close-no-award and cancellation side effects atomic; submitted
+  quotations are immutable and revisions retain prior values through a linked
+  new record.
+- Added event payloads, tenant/RFQ/Supplier current-submission uniqueness,
+  approval separation and required concurrency cases.
+- Generated the TASK-071 implementation contract from
+  `CODEX_TASK_TEMPLATE.md`; updated registry and current task. No TASK-071
+  runtime code was implemented.
+- Verification: cross-document consistency, targeted Prettier and
+  `git diff --check`.
 
 ## Last Completed Task — TASK-070
 

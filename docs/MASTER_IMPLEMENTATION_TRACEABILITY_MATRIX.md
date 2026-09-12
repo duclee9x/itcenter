@@ -2539,3 +2539,26 @@ Supplier state changes do not automatically cancel existing RFQ, Quotation,
 Purchase Order, Invoice or Contract records. Any future commercial remediation
 is a separate workflow/task. TASK-070 is eligible to implement only after all
 listed evidence and existing task acceptance criteria pass.
+
+---
+
+# 78. RFQ + Quotation Lifecycle Traceability — F-040 / WF-P02
+
+| Concern | Normative contract | TASK-071 verification evidence |
+|---|---|---|
+| Owner and canonical data | Procurement owns tenant-bound RFQ, Quotation, versions and append-only history | Tenant FK/constraint, history immutability and aggregate version tests |
+| RFQ commands | CREATE, UPDATE_DRAFT, ISSUE, CLOSE_SUBMISSIONS, AWARD, CLOSE_NO_AWARD, CANCEL; exact matrix in state-machine/workflow specs | Valid/invalid-state command tests, terminal-state tests |
+| Quotation commands | CREATE, UPDATE_DRAFT, SUBMIT, WITHDRAW, DISQUALIFY plus parent-RFQ award/close/cancel decisions | Every transition, parent-driven child effects and immutable submitted-value tests |
+| Permissions and scope | Granular `rfq.*`, `quotation.*`; DISQUALIFY uses `quotation.evaluate`; tenant/resource scope on all operations; conditional own-Supplier scope for supplier-facing principals | Permission/resource/supplier-scope denials and read-scope tests |
+| Supplier eligibility | Participation/submission: PROSPECT/APPROVED/PREFERRED; award: APPROVED/PREFERRED only | Submit/award tests across canonical Supplier states, including Prospect upgrade before award |
+| Revision and uniqueness | New revision links withdrawn prior quotation; one current SUBMITTED quote per tenant/RFQ/Supplier | Partial unique constraint and parallel submit test; submitted commercial values remain unchanged |
+| Atomic decisions and events | AWARD, CLOSE_NO_AWARD and CANCEL atomically update parent RFQ and applicable quotation states, audit, history and outbox | Rollback/atomicity tests and exact RFQ/Quotation event payload assertions |
+| Concurrency/idempotency | Submit vs close; award vs cancel; parallel same-supplier submissions; expected_version and durable idempotency | Three required DB-backed race tests; loser has no duplicate effects |
+| Events | `RFQ.CREATED`, `UPDATED`, `ISSUED`, `SUBMISSIONS_CLOSED`, `CANCELLED`, `AWARDED`, `CLOSED_NO_AWARD`; `QUOTATION.CREATED`, `UPDATED`, `SUBMITTED`, `WITHDRAWN`, `DISQUALIFIED`, `ACCEPTED`, `REJECTED`, `VOIDED` | Event contract validation and transactional outbox assertions; preliminary event names are not emitted |
+
+RFQ commercial terms are editable only in DRAFT. Material changes after issue
+require cancellation and a new RFQ; TASK-071 must not create an OPEN amendment
+workflow. A quotation in SUBMITTED is immutable; revision is a linked new
+record. Supplier eligibility is revalidated against canonical state at the
+relevant command boundary. Required approval remains separate from `rfq.award`
+permission.

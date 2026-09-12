@@ -2792,30 +2792,190 @@ currency:
 ```yaml
 rfq_id:
 procurement_request_id:
+state: DRAFT
+version: 1
 supplier_ids:
 due_at:
 ```
 
-## `QUOTATION.RECEIVED`
+## `RFQ.UPDATED`
+
+Emitted only for `RFQ.UPDATE_DRAFT`.
+
+```yaml
+rfq_id:
+state: DRAFT
+version:
+changed_fields:
+```
+
+## `RFQ.ISSUED`
+
+```yaml
+rfq_id:
+procurement_request_id:
+previous_state: DRAFT
+new_state: OPEN
+version:
+supplier_ids:
+issued_at:
+due_at:
+```
+
+## `RFQ.SUBMISSIONS_CLOSED`
+
+```yaml
+rfq_id:
+previous_state: OPEN
+new_state: EVALUATING
+version:
+```
+
+## `RFQ.CANCELLED`
+
+```yaml
+rfq_id:
+previous_state: DRAFT | OPEN | EVALUATING
+new_state: CANCELLED
+version:
+reason:
+voided_quotation_ids:
+```
+
+## `RFQ.AWARDED`
+
+```yaml
+rfq_id:
+procurement_request_id:
+previous_state: EVALUATING
+new_state: AWARDED
+version:
+selected_quotation_id:
+selected_supplier_id:
+approval_reference: # required when approval policy requires approval
+award_exception_reason: # required only when policy/score exception applies
+rejected_quotation_ids:
+```
+
+## `RFQ.CLOSED_NO_AWARD`
+
+```yaml
+rfq_id:
+previous_state: EVALUATING
+new_state: CLOSED_NO_AWARD
+version:
+rejected_quotation_ids:
+```
+
+## `QUOTATION.CREATED`
 
 ```yaml
 quotation_id:
 rfq_id:
 supplier_id:
-quote_number:
-total:
-currency:
-valid_until:
+state: DRAFT
+version: 1
+replaces_quotation_id:
+revision_number:
 ```
 
-## `SUPPLIER.SELECTED`
+## `QUOTATION.UPDATED`
+
+Emitted only for `QUOTATION.UPDATE_DRAFT`.
 
 ```yaml
-procurement_request_id:
-supplier_id:
 quotation_id:
-selection_reason:
+rfq_id:
+supplier_id:
+state: DRAFT
+version:
+changed_fields:
 ```
+
+## `QUOTATION.SUBMITTED`
+
+```yaml
+quotation_id:
+rfq_id:
+supplier_id:
+previous_state: DRAFT
+new_state: SUBMITTED
+version:
+revision_number:
+```
+
+## `QUOTATION.WITHDRAWN`
+
+```yaml
+quotation_id:
+rfq_id:
+supplier_id:
+previous_state: DRAFT | SUBMITTED
+new_state: WITHDRAWN
+version:
+reason:
+```
+
+## `QUOTATION.DISQUALIFIED`
+
+```yaml
+quotation_id:
+rfq_id:
+supplier_id:
+previous_state: SUBMITTED
+new_state: DISQUALIFIED
+version:
+reason:
+```
+
+## `QUOTATION.ACCEPTED`
+
+```yaml
+quotation_id:
+rfq_id:
+supplier_id:
+previous_state: SUBMITTED
+new_state: ACCEPTED
+version:
+award_event_id:
+```
+
+## `QUOTATION.REJECTED`
+
+```yaml
+quotation_id:
+rfq_id:
+supplier_id:
+previous_state: SUBMITTED
+new_state: REJECTED
+version:
+decision_event_id:
+decision: AWARD_OTHER_QUOTATION | RFQ_CLOSED_NO_AWARD
+```
+
+## `QUOTATION.VOIDED`
+
+```yaml
+quotation_id:
+rfq_id:
+supplier_id:
+previous_state: DRAFT | SUBMITTED
+new_state: VOID
+version:
+rfq_cancelled_event_id:
+```
+
+RFQ/Quotation lifecycle facts above replace the earlier draft names
+`RFQ.SENT`, `QUOTATION.RECEIVED` and `SUPPLIER.SELECTED` for this workflow.
+`RFQ.AWARDED` and its atomic `QUOTATION.ACCEPTED`/`QUOTATION.REJECTED` facts
+are authoritative for supplier selection. Do not emit the earlier draft names
+for TASK-071.
+
+Each state-changing command writes its canonical event(s), audit evidence and
+all affected aggregate histories in the same local transaction. Parent
+commands that transition quotations emit one quotation event per changed
+quotation with that quotation's committed version; all facts share the
+causation/correlation context of the RFQ command.
 
 ## Supplier Master Facts
 

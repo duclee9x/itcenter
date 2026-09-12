@@ -1950,11 +1950,41 @@ records are not hard-deleted; commercial foreign references remain valid.
 ```yaml
 rfqs:
   id:
+  tenant_id:
+  rfq_code:
   procurement_request_id:
   state:
+  version:
+  commercial_terms:
+  created_by:
+  created_at:
+  updated_at:
   issued_at:
   due_at:
 ```
+
+`state` is one of `DRAFT`, `OPEN`, `EVALUATING`, `AWARDED`,
+`CLOSED_NO_AWARD` or `CANCELLED`. `version` is positive, starts at 1 and
+increments for every committed change. Persist append-only RFQ history with
+actor, command, before/after state/terms, reason when required, version,
+correlation ID and timestamp. RFQ commercial terms and candidate membership
+are mutable only while `DRAFT`; after issue, material changes require a new
+RFQ. The RFQ row is the serialization root for submission-close,
+award-cancel and same-supplier submission races.
+
+## 27.2.1 `rfq_suppliers`
+
+```yaml
+rfq_suppliers:
+  tenant_id:
+  rfq_id:
+  supplier_id:
+  created_at:
+```
+
+Use a tenant-bound join table for RFQ supplier participation; enforce unique
+`(tenant_id, rfq_id, supplier_id)` and same-tenant foreign keys to the RFQ and
+Supplier. Revalidate current Supplier eligibility when the RFQ is issued.
 
 ---
 
@@ -1963,14 +1993,40 @@ rfqs:
 ```yaml
 quotations:
   id:
+  tenant_id:
   rfq_id:
   supplier_id:
   quote_number:
   currency:
   valid_until:
   lead_time_days:
+  payment_terms:
+  warranty:
+  delivery_terms:
+  lines:
+  attachments:
   state:
+  version:
+  revision_number:
+  replaces_quotation_id:
+  created_at:
+  submitted_at:
 ```
+
+`state` is one of `DRAFT`, `SUBMITTED`, `WITHDRAWN`, `DISQUALIFIED`,
+`ACCEPTED`, `REJECTED` or `VOID`. A submitted quotation is immutable. A
+revision is a new row linked to the withdrawn prior quotation through
+`replaces_quotation_id`; retain the prior commercial values and history. The
+revision link must remain within the same tenant, RFQ and Supplier, and
+`revision_number` is positive and unique within that tenant/RFQ/Supplier.
+The replaced quotation must be a prior `WITHDRAWN` revision.
+
+Enforce at most one current `SUBMITTED` quotation per tenant/RFQ/Supplier with
+a partial unique constraint on `(tenant_id, rfq_id, supplier_id)` while
+`state = 'SUBMITTED'`. Keep all quotation transitions in append-only history.
+RFQ parent decisions update child quotation states and their versions in the
+same transaction; RFQ cancellation changes only child quotations currently in
+`DRAFT` or `SUBMITTED`, never terminal quotation history.
 
 ---
 

@@ -668,9 +668,19 @@ Allow:
 
 ```text
 procurement.request.read
+rfq.read
 rfq.create
-rfq.send
-quotation.record
+rfq.update
+rfq.issue
+rfq.close
+rfq.cancel
+rfq.award
+quotation.create
+quotation.update
+quotation.submit
+quotation.withdraw
+quotation.evaluate
+quotation.read
 supplier.read
 supplier.select
 po.draft
@@ -1033,8 +1043,19 @@ procurement.read
 procurement.request.create
 procurement.request.review
 procurement.approve
+rfq.read
 rfq.create
-quotation.record
+rfq.update
+rfq.issue
+rfq.close
+rfq.cancel
+rfq.award
+quotation.create
+quotation.update
+quotation.submit
+quotation.withdraw
+quotation.evaluate
+quotation.read
 supplier.read
 supplier.create
 supplier.update
@@ -1050,6 +1071,34 @@ invoice.read
 invoice.match.resolve
 invoice.approve_exception
 ```
+
+The RFQ/Quotation command-to-permission mapping is normative:
+
+| Command | Permission |
+|---|---|
+| `RFQ.CREATE` | `rfq.create` |
+| `RFQ.UPDATE_DRAFT` | `rfq.update` |
+| `RFQ.ISSUE` | `rfq.issue` |
+| `RFQ.CLOSE_SUBMISSIONS`, `RFQ.CLOSE_NO_AWARD` | `rfq.close` |
+| `RFQ.CANCEL` | `rfq.cancel` |
+| `RFQ.AWARD` | `rfq.award` |
+| `QUOTATION.CREATE` | `quotation.create` |
+| `QUOTATION.UPDATE_DRAFT` | `quotation.update` |
+| `QUOTATION.SUBMIT` | `quotation.submit` |
+| `QUOTATION.WITHDRAW` | `quotation.withdraw` |
+| `QUOTATION.DISQUALIFY` | `quotation.evaluate` |
+| Parent `RFQ.AWARD` quotation decisions | `rfq.award` |
+| Parent `RFQ.CLOSE_NO_AWARD` quotation decisions | `rfq.close` |
+| Parent `RFQ.CANCEL` quotation voiding | `rfq.cancel` |
+
+RFQ and Quotation queries require `rfq.read` and `quotation.read` respectively
+and remain tenant/resource scoped.
+
+Every command remains subject to tenant/resource authorization and scope.
+Where supplier-facing principals are enabled, quotation creation, draft
+updates, submission and withdrawal are additionally restricted to the
+principal's own `supplier_id`. `rfq.award` does not bypass the separately
+configured approval policy.
 
 Supplier authorization is action-specific. `supplier.select` permits
 selection/use in the explicitly authorized procurement workflow; it does not
