@@ -8,31 +8,40 @@ export async function migrate(
 ): Promise<void> {
   const files: string[] = [];
   // Owners are ordered by schema dependencies. Network stays after Operations
-  // because its source-type compatibility migration extends the Work Queue.
-  // Every owner must be included so fresh databases receive all domain schemas.
-  const owners = [
-    "platform",
-    "identity",
-    "communication",
-    "control",
-    "asset",
-    "helpdesk",
-    "problem",
-    "audit",
-    "audit_ops",
-    "incident",
-    "maintenance",
-    "monitoring",
-    "agent",
-    "automation",
-    "operations",
-    "network",
-    "software",
-    "artifact",
+  // because its compatibility migration extends the Work Queue. Software's
+  // deployment migration references Artifact, so its catalog migration must
+  // precede Artifact while later Software migrations run after it.
+  const plan: { owner: string; before?: string; after?: string }[] = [
+    ...[
+      "platform",
+      "identity",
+      "communication",
+      "control",
+      "asset",
+      "helpdesk",
+      "problem",
+      "audit",
+      "audit_ops",
+      "incident",
+      "maintenance",
+      "monitoring",
+      "agent",
+      "automation",
+      "operations",
+      "network",
+    ].map((owner) => ({ owner })),
+    { owner: "software", before: "20260912_002_deployment.sql" },
+    { owner: "artifact" },
+    { owner: "software", after: "20260912_001_catalog.sql" },
   ];
-  for (const owner of owners)
-    for (const file of (await readdir(path.join(root, owner))).sort())
-      if (file.endsWith(".sql")) files.push(path.join(owner, file));
+  for (const step of plan)
+    for (const file of (await readdir(path.join(root, step.owner))).sort())
+      if (
+        file.endsWith(".sql") &&
+        (!step.before || file < step.before) &&
+        (!step.after || file > step.after)
+      )
+        files.push(path.join(step.owner, file));
   const client = await pool.connect();
   try {
     await client.query("SELECT pg_advisory_lock(70911000)");

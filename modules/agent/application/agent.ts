@@ -17,6 +17,34 @@ export async function recordHeartbeat(input: {
   return result.rows[0]!;
 }
 
+export async function resolveDeploymentAgentContext(input: {
+  tx: Transaction;
+  agentId: string;
+  now?: Date;
+  maxHeartbeatAgeSeconds?: number;
+}) {
+  const result = await input.tx.query(
+    "SELECT id,asset_id,status,last_seen_at FROM agent.agents WHERE tenant_id=$1 AND id=$2",
+    [input.tx.tenantId, input.agentId],
+  );
+  if (!result.rowCount)
+    throw new ApplicationError("NOT_FOUND", "Enrolled agent was not found.");
+  const row = result.rows[0]!;
+  const now = input.now ?? new Date();
+  const maxAge = (input.maxHeartbeatAgeSeconds ?? 300) * 1000;
+  if (
+    row.status !== "ONLINE" ||
+    !row.last_seen_at ||
+    now.getTime() - new Date(row.last_seen_at).getTime() > maxAge
+  )
+    throw new ApplicationError(
+      "DEPENDENCY_UNAVAILABLE",
+      "Agent must have a recent online heartbeat to receive deployment work.",
+      true,
+    );
+  return { agent_id: String(row.id), asset_id: String(row.asset_id) };
+}
+
 export async function recordInventory(input: {
   tx: Transaction;
   agentId: string;

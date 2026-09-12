@@ -14,12 +14,17 @@ import {
   recordInventory,
 } from "../../../modules/agent/index.js";
 import { randomUUID } from "node:crypto";
+import {
+  handleAgentSoftwareDeploymentRoute,
+  type AgentDeploymentAdapters,
+} from "./software-deployment-routes.js";
 // No user administration routes; dedicated adapter must authenticate enrolled agents.
 export function agentServer(
   config: Config,
   ready: () => Promise<boolean>,
   agentAuthentication: AuthenticationPort,
   uow?: UnitOfWork,
+  deploymentAdapters?: AgentDeploymentAdapters,
 ) {
   return createHttpServer(config, ready, async (req, res, context) => {
     if (!req.url?.startsWith("/api/v1/agent/")) return false;
@@ -27,10 +32,22 @@ export function agentServer(
       agentAuthentication,
       req.headers.authorization,
     );
+    if (!uow) return false;
     if (
-      !uow ||
-      (req.url !== "/api/v1/agent/heartbeat" &&
-        req.url !== "/api/v1/agent/inventory")
+      await handleAgentSoftwareDeploymentRoute({
+        req,
+        res,
+        context,
+        config,
+        principal,
+        uow,
+        ...(deploymentAdapters ? { adapters: deploymentAdapters } : {}),
+      })
+    )
+      return true;
+    if (
+      req.url !== "/api/v1/agent/heartbeat" &&
+      req.url !== "/api/v1/agent/inventory"
     )
       return false;
     const body = await new Promise<string>((resolve) => {

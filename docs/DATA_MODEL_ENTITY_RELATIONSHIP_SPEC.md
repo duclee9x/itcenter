@@ -1560,6 +1560,32 @@ Unique active:
 
 depending package behavior.
 
+## 23.4 `software.deployments`
+
+Tenant-owned campaign aggregate containing the published software version,
+active approved artifact, rollout stage, stop thresholds, retry limit, optional
+approved Change reference, actor, reason, state, and optimistic version.
+
+## 23.5 `software.deployment_targets`
+
+One target per campaign and asset. Stores deterministic cohort order, bounded
+attempt count, state, assigned enrolled-agent reference, expiring claim lease,
+security-failure flag, last normalized error code, and optimistic version.
+
+Required constraints:
+
+```text
+UNIQUE (tenant_id, campaign_id, asset_id)
+UNIQUE (tenant_id, campaign_id, cohort_order)
+```
+
+## 23.6 `software.deployment_attempts`
+
+Append-only normalized execution evidence per target attempt, including agent,
+lease, precheck, checksum/signature booleans, installer exit, observed product
+and version, reboot requirement, outcome, bounded error code, and redacted
+summary. Updates and deletes are prohibited.
+
 ---
 
 # 24. Artifact Domain

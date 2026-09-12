@@ -6,7 +6,7 @@ feature_id: F-032
 workflow_id: WF-014
 phase: P3
 priority: P0
-status: NOT_STARTED
+status: CODE_COMPLETE
 owner_domain: software
 ```
 
@@ -107,9 +107,12 @@ targets from being dispatched; it does not rewrite or erase in-flight results.
 POST /api/v1/software/deployment-campaigns
 POST /api/v1/software/deployment-campaigns/{id}/commands/start
 POST /api/v1/software/deployment-campaigns/{id}/commands/pause
+POST /api/v1/software/deployment-campaigns/{id}/commands/resume
+POST /api/v1/software/deployment-campaigns/{id}/commands/advance
 POST /api/v1/software/deployment-campaigns/{id}/commands/cancel
 GET  /api/v1/software/deployment-campaigns/{id}
 GET  /api/v1/software/deployment-campaigns/{id}/targets
+POST /api/v1/software/deployment-targets/{id}/commands/retry
 POST /api/v1/agent/deployments/claim
 POST /api/v1/agent/deployments/{job_id}/commands/report
 ```
@@ -117,7 +120,10 @@ POST /api/v1/agent/deployments/{job_id}/commands/report
 All mutations require `Idempotency-Key`; campaign and target changes require
 `expected_version`. Agent requests use enrollment authentication and are
 bound to the enrolled agent's asset. Report payloads contain normalized result
-fields and bounded summaries, not raw logs or arbitrary paths.
+fields, `precheck_passed`, and bounded summaries, not raw logs or arbitrary
+paths. Manual retry requires `software.retry_deployment` and a still-active
+campaign; automatic retries are limited to explicitly retryable precheck or
+installer failures.
 
 ## Events
 
@@ -201,3 +207,74 @@ commit.
   deployment path until trusted adapters exist.
 - TASK-057/TASK-058 own license entitlement and reservation. Licensed software
   remains non-dispatchable until that owner exposes an application contract.
+
+## Implementation Report
+
+### Status
+
+CODE_COMPLETE. Repository test, lint, typecheck, formatting, and migration gates
+passed. Production Agent authentication, signed artifact delivery, operating
+system installer, and License reservation providers remain unconfigured; their
+absence fails closed.
+
+### Files Changed
+
+- Added Software deployment application contracts, campaign/target/attempt/
+  installation schema, API routes, and Agent Gateway claim/report routes.
+- Added `tests/e2e/software-deployment.test.ts` covering unavailable delivery,
+  tenant and permission boundaries, idempotency, verified installation,
+  security stop, retry denial, audit/outbox, and immutable evidence.
+- Updated event actor contract to recognize authenticated enrolled `AGENT`
+  actors; documented deployment APIs, data model, permissions, events, and
+  traceability.
+- Updated task registry and handoff/current-task pointers.
+
+### Database Changes
+
+- Added `software.deployments`, `software.deployment_targets`,
+  `software.deployment_attempts`, and `software.software_installations` with
+  tenant-consistent foreign keys, bounded attempts, target uniqueness, leases,
+  and append-only attempt evidence.
+- Ordered the deployment migration after Software catalog and Artifact schemas.
+
+### APIs / Commands
+
+- Added campaign create/read/list, start, pause, resume, advance, cancel/stop,
+  and bounded manual retry routes.
+- Added enrolled-agent claim/lease and normalized report routes. Download grants
+  are HTTPS-only and short-lived; storage references are never returned.
+- Installation evidence is written only when installer result, checksum,
+  signature, observed product code, and observed version all match.
+
+### Events and Permissions
+
+- Added deployment campaign, job, precheck, artifact verification, installation,
+  failure, security stop, and completion event payload contracts.
+- Added `software.deploy`, `software.deployment.read`,
+  `software.deployment.cancel`, and `software.retry_deployment`.
+- Agent and manager mutations write audit and outbox records in the same
+  transaction as state changes.
+
+### Tests Run
+
+- `npm test`: passed (22 unit/architecture, 2 contract, 1 migration, 18
+  integration, 14 E2E tests).
+- Focused `tests/e2e/software-deployment.test.ts`: passed again after adding
+  security-stop and retry-denial coverage.
+- `npm run lint`, `npm run typecheck`, and `npm run format:check`: passed.
+
+### Remaining Gaps
+
+- Production Agent enrollment authentication, signed object-storage delivery,
+  and platform-specific installer execution require configured providers.
+- Licensed catalog products are rejected until TASK-058 exposes an authoritative
+  License reservation contract.
+- An expired uncertain installation lease is rejected for reconciliation; an
+  operator/agent recovery workflow is outside this task.
+
+### Spec Conflicts and Assumptions
+
+- The event envelope excluded `AGENT`, although this task requires authenticated
+  enrolled agents to be recorded as actors. The event schema and actor catalog
+  now include this distinct type.
+- No other blocking specification conflict was found.

@@ -103,6 +103,7 @@
           "type": "string",
           "enum": [
             "USER",
+            "AGENT",
             "SYSTEM",
             "AUTOMATION",
             "INTEGRATION",

@@ -611,6 +611,9 @@ Allow:
 software.catalog.manage
 software.request.review
 software.deploy
+software.deployment.read
+software.deployment.cancel
+software.retry_deployment
 software.remove
 artifact.read
 artifact.publish

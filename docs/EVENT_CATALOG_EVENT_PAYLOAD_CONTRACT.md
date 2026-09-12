@@ -213,7 +213,7 @@ event:
 | `aggregate.type` | Yes | Aggregate routing |
 | `aggregate.id` | Yes | Partition/order |
 | `aggregate.version` | Recommended | Concurrency/order |
-| `actor.type` | Yes | User/System/Integration |
+| `actor.type` | Yes | User/Agent/System/Integration |
 | `actor.id` | Conditional | May be null for system |
 | `correlation_id` | Yes | E2E tracing |
 | `causation_id` | Yes | Immediate cause |
@@ -227,6 +227,7 @@ event:
 
 ```text
 USER
+AGENT
 SYSTEM
 AUTOMATION
 INTEGRATION
@@ -234,6 +235,10 @@ BACKGROUND_JOB
 SERVICE_ACCOUNT
 EXTERNAL_USER
 ```
+
+`AGENT` identifies an enrolled endpoint agent authenticated at the Agent
+Gateway. It is distinct from a human user and is used for agent-originated
+deployment claim and result facts.
 
 Không dùng:
 
@@ -1886,6 +1891,131 @@ software_version_id:
 artifact_version_id:
 classification:
 reason:
+```
+
+## Software Deployment Events
+
+Deployment events are written only after the corresponding Software state
+commits. They contain metadata and normalized outcomes; download grants, raw
+installer output, credentials, and storage references are excluded.
+
+## `SOFTWARE.DEPLOYMENT_CAMPAIGN_CREATED`
+
+```yaml
+campaign_id:
+software_version_id:
+artifact_version_id:
+state:
+rollout_stage_percent:
+target_count:
+version:
+reason:
+```
+
+## `SOFTWARE.DEPLOYMENT_CAMPAIGN_STARTED`, `SOFTWARE.DEPLOYMENT_CAMPAIGN_PAUSED`, `SOFTWARE.DEPLOYMENT_CAMPAIGN_RESUMED`, `SOFTWARE.DEPLOYMENT_CAMPAIGN_ADVANCED`, `SOFTWARE.DEPLOYMENT_CAMPAIGN_COMPLETED`
+
+```yaml
+campaign_id:
+state:
+rollout_stage_percent:
+queued_count:
+version:
+reason:
+```
+
+## `SOFTWARE.DEPLOYMENT_CAMPAIGN_STOPPED`
+
+```yaml
+campaign_id:
+trigger:
+deployment_job_id:
+```
+
+## `SOFTWARE.DEPLOYMENT_JOB_QUEUED`
+
+```yaml
+campaign_id:
+rollout_stage_percent:
+queued_count:
+```
+
+## `SOFTWARE.DEPLOYMENT_JOB_CLAIMED`
+
+```yaml
+campaign_id:
+deployment_job_id:
+asset_id:
+agent_id:
+attempt_number:
+lease_expires_at:
+```
+
+## `SOFTWARE.DEPLOYMENT_JOB_RETRIED`
+
+```yaml
+deployment_job_id:
+campaign_id:
+state:
+version:
+reason:
+```
+
+## `SOFTWARE.DEPLOYMENT_PRECHECK_COMPLETED`
+
+```yaml
+campaign_id:
+deployment_job_id:
+asset_id:
+agent_id:
+passed:
+attempt_id:
+```
+
+## `SOFTWARE.DEPLOYMENT_ARTIFACT_VERIFIED`
+
+```yaml
+campaign_id:
+deployment_job_id:
+asset_id:
+checksum_verified:
+signature_verified:
+attempt_id:
+```
+
+## `SOFTWARE.INSTALLATION_REPORTED`
+
+```yaml
+campaign_id:
+deployment_job_id:
+asset_id:
+agent_id:
+attempt_id:
+attempt_number:
+outcome:
+retryable:
+error_code:
+```
+
+## `SOFTWARE.INSTALLATION_VERIFIED`
+
+```yaml
+deployment_job_id:
+asset_id:
+software_product_id:
+software_version_id:
+installation_id:
+verification:
+```
+
+## `SOFTWARE.DEPLOYMENT_FAILED`, `SOFTWARE.DEPLOYMENT_SECURITY_FAILURE`
+
+```yaml
+campaign_id:
+deployment_job_id:
+asset_id:
+attempt_id:
+error_code:
+retryable:
 ```
 
 ## `SOFTWARE.REQUESTED`

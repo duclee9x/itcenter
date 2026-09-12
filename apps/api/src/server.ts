@@ -98,6 +98,7 @@ import {
   handleSoftwareArtifactRoute,
   type SoftwareArtifactAdapters,
 } from "./software-artifact-routes.js";
+import { handleSoftwareDeploymentRoute } from "./software-deployment-routes.js";
 
 const networkExceptionQueue = {
   createReference: createNetworkExceptionWorkItem,
@@ -242,6 +243,18 @@ export function apiServer(
         ...(softwareArtifactAdapters
           ? { adapters: softwareArtifactAdapters }
           : {}),
+      })
+    )
+      return true;
+    if (
+      await handleSoftwareDeploymentRoute({
+        req,
+        res,
+        context,
+        config,
+        authentication,
+        authorization,
+        uow,
       })
     )
       return true;

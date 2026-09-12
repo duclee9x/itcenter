@@ -1345,11 +1345,27 @@ High-risk switch/VLAN execution should be Change-driven.
 POST /software-requests
 POST /deployments
 POST /deployments/{id}/commands/retry
+POST /software/deployment-campaigns
+POST /software/deployment-campaigns/{id}/commands/start
+POST /software/deployment-campaigns/{id}/commands/pause
+POST /software/deployment-campaigns/{id}/commands/resume
+POST /software/deployment-campaigns/{id}/commands/advance
+POST /software/deployment-campaigns/{id}/commands/cancel
+GET  /software/deployment-campaigns/{id}
+GET  /software/deployment-campaigns/{id}/targets
+POST /software/deployment-targets/{id}/commands/retry
 POST /software-exceptions/{id}/commands/approve
 POST /software-exceptions/{id}/commands/remove
 ```
 
 ---
+
+Deployment campaign and target writes require `Idempotency-Key` and
+`expected_version`. Campaign targets are tenant-scoped assets. Agent job claim
+and result reporting use the authenticated Agent Gateway, short-lived leases,
+and normalized results; signed artifact download grants are returned only to
+the enrolled agent and are never persisted in audit, events, or idempotency
+responses.
 
 # 64. License Commands
 
