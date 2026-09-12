@@ -554,8 +554,9 @@ incident.declare_major
 network.change_vlan
 software.deploy
 license.assign
-contract.approve
-document.sign
+contract.lifecycle
+contract.amend
+commercial_document.finalize
 rbac.manage
 ```
 

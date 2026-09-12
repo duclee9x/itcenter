@@ -1482,28 +1482,108 @@ See `tasks/TASK-074_IMPLEMENTATION_REPORT.md` and the task contract at
 ```text
 contract.contracts
 contract.contract_coverages
-contract.renewals
+contract.contract_versions
+contract.renewal_cases
+document.documents
+document.document_versions
+document.document_links
 ```
 
 ### Commands
 
 ```text
+CONTRACT.CREATE
+CONTRACT.UPDATE_DRAFT
+CONTRACT.SUBMIT_FOR_SIGNATURE
+CONTRACT.RECALL_SIGNATURE
+CONTRACT.RECORD_EXECUTION
 CONTRACT.ACTIVATE
-CONTRACT.START_RENEWAL
-CONTRACT.RENEW
+CONTRACT.HOLD
+CONTRACT.RESUME
+CONTRACT.AMEND
+CONTRACT.EXPIRE
 CONTRACT.TERMINATE
+CONTRACT.CANCEL
+RENEWAL.OPEN
+RENEWAL.UPDATE_PROPOSAL
+RENEWAL.COMPLETE
+RENEWAL.MARK_NOT_RENEWED
+RENEWAL.CANCEL
+COMMERCIAL_DOCUMENT.ADD / CREATE_VERSION
+COMMERCIAL_DOCUMENT.FINALIZE
+COMMERCIAL_DOCUMENT.SUPERSEDE
 ```
 
 ### Events
 
 ```text
 CONTRACT.CREATED
-CONTRACT.ACTIVE
+CONTRACT.UPDATED
+CONTRACT.SUBMITTED_FOR_SIGNATURE
+CONTRACT.SIGNATURE_RECALLED
+CONTRACT.EXECUTED
+CONTRACT.ACTIVATED
+CONTRACT.HELD
+CONTRACT.RESUMED
+CONTRACT.AMENDED
 CONTRACT.EXPIRING
-CONTRACT.RENEWAL_STARTED
-CONTRACT.RENEWED
 CONTRACT.TERMINATED
+CONTRACT.EXPIRED
+CONTRACT.CANCELLED
+CONTRACT.RENEWAL_OPENED
+CONTRACT.RENEWAL_UPDATED
+CONTRACT.RENEWAL_COMPLETED
+CONTRACT.RENEWAL_NOT_RENEWED
+CONTRACT.RENEWAL_CANCELLED
+COMMERCIAL_DOCUMENT.ADDED
+COMMERCIAL_DOCUMENT.FINALIZED
+COMMERCIAL_DOCUMENT.SUPERSEDED
 ```
+
+### Normative dimensions and invariants
+
+- Contract lifecycle, usage status, Renewal Case lifecycle, ContractVersion,
+  Commercial Document governance and signature/execution evidence are
+  independent. Approval remains an Approval Engine control gate.
+- Contract lifecycle is `DRAFT`, `PENDING_SIGNATURE`, `EXECUTED`, `ACTIVE`,
+  `EXPIRED`, `TERMINATED`, `CANCELLED`; usage is `ENABLED` or `ON_HOLD`.
+  `EXPIRING` is derived from explicit terms and never mutates lifecycle.
+- Submitted/executed ContractVersions and FINAL document content are
+  immutable. Amendments create versions; Renewal creates a successor Contract
+  and never rewrites predecessor terms/end date.
+- Renewal Case is `OPEN`, `COMPLETED`, `NOT_RENEWED` or `CANCELLED`; at most
+  one OPEN case and one canonical successor exist per predecessor/case.
+  Successor term starts at or after predecessor end. Completion requires an
+  EXECUTED/ACTIVE successor.
+- Supplier and approval links are validated against canonical, exact-version
+  context. Execution evidence must bind the immutable version; approval is
+  never evidence of signature/execution.
+- Commercial document bytes live in central immutable object storage;
+  database rows own metadata, governance, access references and hashes.
+  Events/timelines carry references only.
+
+### Permissions
+
+`contract.create`, `contract.update`, `contract.execute`,
+`contract.lifecycle`, `contract.amend`, `contract.renew`,
+`contract.terminate`, `commercial_document.read`,
+`commercial_document.write`, `commercial_document.finalize`; all are
+tenant/resource scoped. Approval decisions use `approval.decide`.
+
+### Required race/failure coverage
+
+- UPDATE_DRAFT vs SUBMIT_FOR_SIGNATURE; RECALL_SIGNATURE vs RECORD_EXECUTION.
+- ACTIVATE vs TERMINATE; AMEND vs TERMINATE.
+- Concurrent RENEWAL.OPEN for one predecessor; COMPLETE vs MARK_NOT_RENEWED.
+- Document finalization vs new/replacement version.
+- Stale version-bound execution/amendment/renewal approvals must not authorize
+  changed proposals. Durable uniqueness and optimistic concurrency are
+  required; application prechecks alone are insufficient.
+
+Planning status: TASK-075-R1 is `CODE_COMPLETE` (specification only). TASK-075
+has a detailed reconciled contract and is `READY / NOT_STARTED`; runtime work
+requires explicit user authorization. See
+`tasks/TASK-075_CONTRACT_RENEWAL_COMMERCIAL_DOCUMENT_GOVERNANCE.md`.
 
 ---
 

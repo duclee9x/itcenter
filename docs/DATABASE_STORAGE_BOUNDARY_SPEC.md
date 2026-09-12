@@ -625,6 +625,16 @@ New version:
 new object key
 ```
 
+Commercial Contract, amendment, renewal, termination and execution evidence
+uses this same document/object-storage boundary. Relational Contract and
+Document tables own canonical lifecycle, version references, governance,
+access metadata and SHA-256 checksums; object storage owns immutable bytes.
+Never overwrite a FINAL commercial document version. Replacement or
+supersession creates a new object key/version and keeps the historical object
+addressable under its retention policy. Do not create a parallel commercial
+file store. Access to bytes requires `commercial_document.read` plus tenant
+and resource scope; event/timeline references do not grant byte access.
+
 ---
 
 # 27. Object Integrity

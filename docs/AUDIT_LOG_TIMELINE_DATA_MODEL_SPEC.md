@@ -3472,3 +3472,24 @@ Credit Note CN-17 applied to Invoice INV-123
 
 Timeline projections are rebuildable and never become Invoice, match,
 allocation or Credit Note source of truth.
+
+---
+
+# 212. TASK-075 Contract, Renewal and Commercial Document Audit / Timeline
+
+Append audit evidence for Contract creation and material draft updates,
+signature submission/recall, execution evidence recording, activation,
+hold/resume, amendment, expiry, termination/cancellation, Renewal Case
+decisions, approval use and Commercial Document finalization/supersession.
+Preserve actor, tenant, Contract/Renewal Case/document IDs, immutable
+ContractVersion, before/after lifecycle and usage status, reason, linked
+approval reference, evidence document-version references, correlation ID and
+outcome. Audit remains append-only; an amendment or successor renewal adds
+history and never overwrites the predecessor's evidence.
+
+Timeline is a derived operator view and may show submission for signature,
+execution, activation, hold/resume, amendment version, renewal opened or
+completed, not-renewed decision, expiry, early termination and document
+finalization/supersession. Display protected references only, not document
+bytes or unrestricted commercial terms. Derived `EXPIRING` alerts use
+explicit notice/end-date terms and must not mutate Contract lifecycle.

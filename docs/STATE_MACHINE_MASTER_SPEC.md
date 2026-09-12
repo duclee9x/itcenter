@@ -1461,52 +1461,98 @@ invariants, not application pre-checks alone.
 
 # 63. Contract State Machine
 
-States:
+Contract legal/commercial lifecycle states:
 
 ```text
 DRAFT
-REVIEW
-APPROVED
+PENDING_SIGNATURE
+EXECUTED
 ACTIVE
-EXPIRING
-RENEWAL_IN_PROGRESS
 EXPIRED
 TERMINATED
-ARCHIVED
+CANCELLED
 ```
+
+Terminal: `EXPIRED`, `TERMINATED`, `CANCELLED`. Contract usage is independent:
+`ENABLED | ON_HOLD`. Approval is an independent Approval Engine state, not a
+Contract lifecycle state. Expiring/notice context is derived, not a lifecycle
+state. Signature/execution evidence is tracked separately from lifecycle.
 
 ---
 
 # 64. Contract Transitions
 
 ```text
-DRAFT → REVIEW
-REVIEW → APPROVED
-APPROVED → ACTIVE
-ACTIVE → EXPIRING
-EXPIRING → RENEWAL_IN_PROGRESS
-RENEWAL_IN_PROGRESS → ACTIVE
-EXPIRING → EXPIRED
-ACTIVE/EXPIRING → TERMINATED
-EXPIRED/TERMINATED → ARCHIVED
+none → CONTRACT.CREATE → DRAFT
+DRAFT → CONTRACT.UPDATE_DRAFT → DRAFT
+DRAFT → CONTRACT.SUBMIT_FOR_SIGNATURE → PENDING_SIGNATURE
+DRAFT → CONTRACT.CANCEL → CANCELLED
+PENDING_SIGNATURE → CONTRACT.RECALL_SIGNATURE → DRAFT
+PENDING_SIGNATURE → CONTRACT.RECORD_EXECUTION → EXECUTED
+PENDING_SIGNATURE → CONTRACT.CANCEL → CANCELLED
+EXECUTED → CONTRACT.ACTIVATE → ACTIVE
+EXECUTED → CONTRACT.TERMINATE → TERMINATED
+ACTIVE → CONTRACT.EXPIRE → EXPIRED
+ACTIVE → CONTRACT.TERMINATE → TERMINATED
 ```
+
+Forbidden: `EXECUTED/ACTIVE → CANCELLED`, `EXPIRED/TERMINATED → ACTIVE`,
+`CANCELLED → DRAFT`. Amendment is an explicit version-creating command only
+for EXECUTED/ACTIVE; it does not extend the term. HOLD/RESUME changes only
+usage status. Expiration is idempotent at/after end time. Activation requires
+EXECUTED, `effective_at <= now < end_at`, valid exact-version execution
+evidence and an APPROVED/PREFERRED Supplier.
+
+Contract usage transitions:
+
+```text
+ENABLED → CONTRACT.HOLD (reason required) → ON_HOLD
+ON_HOLD → CONTRACT.RESUME → ENABLED
+```
+
+Renewal Case states are independent:
+
+```text
+OPEN
+COMPLETED
+NOT_RENEWED
+CANCELLED
+```
+
+Terminal: COMPLETED, NOT_RENEWED, CANCELLED.
+
+```text
+none → RENEWAL.OPEN → OPEN
+OPEN → RENEWAL.UPDATE_PROPOSAL → OPEN
+OPEN → RENEWAL.COMPLETE → COMPLETED
+OPEN → RENEWAL.MARK_NOT_RENEWED → NOT_RENEWED
+OPEN → RENEWAL.CANCEL → CANCELLED
+```
+
+Renewal creates one DRAFT successor and does not mutate the predecessor.
+Only one OPEN Case and one canonical successor are allowed per predecessor.
+Completion requires successor EXECUTED or ACTIVE. Successor term starts at or
+after the predecessor end unless a future explicit overlap policy is defined.
 
 ---
 
 # 65. Document State Machine
 
-States:
+Commercial Document governance status:
 
 ```text
 DRAFT
-REVIEW
-APPROVED
-SIGNED
 FINAL
 SUPERSEDED
-EXPIRED
-ARCHIVED
+VOID
 ```
+
+Signature status is independent: `NONE | PENDING | PARTIALLY_SIGNED | SIGNED
+| DECLINED` (adapted only to repository-equivalent names). A FINAL+SIGNED
+document has two separate facts, not one combined status. Finalized content is
+immutable; replacement is a new version. SUPERSEDED requires a replacement
+reference. VOID is limited to erroneous pre-execution evidence where allowed;
+executed evidence is retained and never erased by termination.
 
 ---
 
@@ -1522,6 +1568,11 @@ FINAL
 SUPERSEDED
 → replacement version reference required
 ```
+
+ContractVersion is an immutable commercial snapshot with monotonically
+versioned identity and actor/time/source/reason/evidence references. Submitted
+or executed versions are never rewritten. A signature/execution reference must
+bind the exact version executed.
 
 ---
 
@@ -2278,7 +2329,8 @@ Ticket CLOSED → REOPENED
 Incident RESOLVED → INVESTIGATING
 Work Item RESOLVED → REOPENED
 User TERMINATED → REHIRE workflow only
-Contract EXPIRED → renewal/reactivation workflow if legally valid
+Contract EXPIRED/TERMINATED → create a successor Contract through an explicit
+  Renewal workflow where eligible; never reactivate/resurrect historical lifecycle
 ```
 
 ---

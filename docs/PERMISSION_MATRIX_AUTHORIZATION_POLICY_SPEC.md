@@ -765,13 +765,21 @@ Allow:
 
 ```text
 contract.read
-contract.review
-contract.start_renewal
-contract.renewal_decide
-contract.coverage.manage
+contract.create
+contract.update
+contract.execute
+contract.lifecycle
+contract.amend
+contract.renew
+contract.terminate
+commercial_document.read
+commercial_document.write
+commercial_document.finalize
 ```
 
-Final commercial approval may require Procurement/Finance.
+Approval decisions remain under `approval.decide`. Contract permissions are
+tenant/resource scoped. A Contract command permission does not grant approval
+decision authority or broaden resource scope.
 
 ---
 
@@ -1271,12 +1279,52 @@ normative command permission.
 contract.read
 contract.create
 contract.update
-contract.approve
-contract.start_renewal
+contract.execute
+contract.lifecycle
+contract.amend
 contract.renew
 contract.terminate
-contract.export
+
+commercial_document.read
+commercial_document.write
+commercial_document.finalize
 ```
+
+Normative command mapping:
+
+```text
+CONTRACT.CREATE
+  → contract.create
+CONTRACT.UPDATE_DRAFT
+CONTRACT.SUBMIT_FOR_SIGNATURE
+CONTRACT.RECALL_SIGNATURE
+CONTRACT.CANCEL (unexecuted only)
+  → contract.update
+CONTRACT.RECORD_EXECUTION
+  → contract.execute
+CONTRACT.ACTIVATE
+CONTRACT.EXPIRE
+CONTRACT.HOLD
+CONTRACT.RESUME
+  → contract.lifecycle
+CONTRACT.AMEND
+  → contract.amend
+RENEWAL.*
+  → contract.renew
+CONTRACT.TERMINATE
+  → contract.terminate
+Commercial document upload/version creation
+  → commercial_document.write
+Commercial document finalization
+  → commercial_document.finalize
+Document reads/download references
+  → commercial_document.read
+```
+
+Every permission remains tenant/resource scoped. Approval decisions use the
+existing Approval Engine permission (`approval.decide`); the command
+permission does not grant decision authority. Do not replace these granular
+permissions with `contract.manage`.
 
 ---
 

@@ -1464,19 +1464,25 @@ contract:
   type:
   supplier:
   title:
-  effective_from:
-  effective_to:
+  lifecycle_state:
+  usage_status:
+  current_contract_version_id:
+  effective_at:
+  end_at:
   auto_renew:
-  notice_period:
+  notice_period_days:
   currency:
   value:
   owner:
   business_owner:
   service_owner:
   terms:
-  documents:
-  status:
+  renewed_from_contract_id:
 ```
+
+Commercial proposal and execution terms are stored in immutable
+ContractVersions; document links reference governed document versions. Do not
+collapse usage, Approval or signature state into `lifecycle_state`.
 
 ---
 
@@ -1499,17 +1505,134 @@ OTHER
 
 # 46. Contract State Machine
 
+Contract legal/commercial lifecycle is independent from usage status,
+Renewal Case lifecycle, document governance and signature/execution evidence.
+Approval remains an independent Approval Engine control gate.
+
+Legal lifecycle:
+
 ```text
 DRAFT
-REVIEW
-APPROVED
+PENDING_SIGNATURE
+EXECUTED
 ACTIVE
-EXPIRING
 EXPIRED
-RENEWAL_IN_PROGRESS
 TERMINATED
-ARCHIVED
+CANCELLED
 ```
+
+Terminal states are `EXPIRED`, `TERMINATED` and `CANCELLED`.
+`EXPIRING` is derived operational context, never a Contract lifecycle state.
+
+Usage status is independently `ENABLED` or `ON_HOLD`. A legally ACTIVE or
+EXECUTED Contract may be ON_HOLD without changing its legal history.
+
+Renewal Cases have independent states `OPEN`, `COMPLETED`, `NOT_RENEWED` and
+`CANCELLED`; the last three are terminal. A Renewal creates a successor
+Contract and never extends or rewrites the predecessor's historical term.
+
+Commercial Documents have governance status `DRAFT`, `FINAL`, `SUPERSEDED` or
+`VOID`, independently from signature status (`NONE`, `PENDING`,
+`PARTIALLY_SIGNED`, `SIGNED`, `DECLINED`). A finalized signed document is
+`FINAL` plus `SIGNED`, not a combined status.
+
+Normative Contract transitions:
+
+```text
+none → CONTRACT.CREATE → DRAFT
+DRAFT → CONTRACT.UPDATE_DRAFT → DRAFT
+DRAFT → CONTRACT.SUBMIT_FOR_SIGNATURE → PENDING_SIGNATURE
+DRAFT → CONTRACT.CANCEL → CANCELLED
+PENDING_SIGNATURE → CONTRACT.RECALL_SIGNATURE → DRAFT
+PENDING_SIGNATURE → CONTRACT.RECORD_EXECUTION → EXECUTED
+PENDING_SIGNATURE → CONTRACT.CANCEL → CANCELLED
+EXECUTED → CONTRACT.ACTIVATE → ACTIVE
+EXECUTED → CONTRACT.TERMINATE → TERMINATED
+ACTIVE → CONTRACT.EXPIRE → EXPIRED
+ACTIVE → CONTRACT.TERMINATE → TERMINATED
+```
+
+Do not allow `EXECUTED/ACTIVE → CANCELLED`, `EXPIRED/TERMINATED → ACTIVE`,
+or `CANCELLED → DRAFT`. Recall is allowed only before final execution
+evidence is accepted. It returns the frozen proposal to DRAFT and invalidates
+approval/execution context bound to the recalled version.
+
+Usage commands are `CONTRACT.HOLD` (`ENABLED → ON_HOLD`, reason required) and
+`CONTRACT.RESUME` (`ON_HOLD → ENABLED`). An ON_HOLD Contract cannot authorize
+new downstream procurement where Contract eligibility is required; historical
+transactions remain unchanged.
+
+Activation requires lifecycle `EXECUTED`, current time at or after
+`effective_at` and before `end_at`, valid execution evidence for the exact
+immutable version, and an `APPROVED` or `PREFERRED` Supplier. Contract terms
+must satisfy `effective_at < end_at`. Execution/activation is forbidden for
+PROSPECT, SUSPENDED, BLOCKED or INACTIVE suppliers. A later Supplier state
+change does not silently terminate or rewrite the Contract.
+
+`CONTRACT.RECORD_EXECUTION` has the same `APPROVED`/`PREFERRED` Supplier
+eligibility guard. Each material DRAFT proposal update advances entity
+optimistic version and records a new immutable ContractVersion snapshot;
+submitted/executed snapshots remain independently addressable.
+
+`CONTRACT.EXPIRE` is idempotent and may run under an authorized scheduler or
+system principal once `end_at` is reached. Expiry preserves POs, Invoices,
+Goods Receipts, Contract versions and commercial documents.
+
+`CONTRACT.TERMINATE` requires a reason, termination effective time/date,
+authorization, `expected_version`, audit, outbox and correlation context. It
+does not delete or cancel Contract/Version/Document/PO/Invoice/Goods Receipt
+history. A later Supplier SUSPENDED/BLOCKED/INACTIVE state preserves legal
+Contract lifecycle and creates/reuses operational review or policy handling.
+
+Where a downstream workflow requires Contract eligibility, it checks
+canonical `lifecycle == ACTIVE` and `usage_status == ENABLED`. Expired,
+terminated, cancelled or ON_HOLD Contracts cannot authorize new commitments;
+historical transactions are not retroactively invalidated.
+
+After execution, in-term changes use `CONTRACT.AMEND`, create a new immutable
+ContractVersion, require a reason, preserve changed-field history and attach
+amendment evidence. Amendment is allowed only for EXECUTED/ACTIVE Contracts;
+Supplier identity and the existing end date cannot be changed by amendment.
+Term extension uses Renewal; early ending uses termination. A linked
+`CONTRACT_AMENDMENT` approval, when present, must be same-tenant, target the
+Contract, bind the exact base version and proposed snapshot, and be APPROVED.
+Material proposal changes make the approval stale.
+
+Execution approval is conditional: when no linked `CONTRACT_EXECUTION`
+request exists, recording execution may proceed subject to other guards. When
+one exists, it must be same-tenant, target the Contract, bind the exact
+submitted ContractVersion, have purpose `CONTRACT_EXECUTION`, and be APPROVED.
+Approval is never execution evidence. A rejected request does not mark a
+Renewal `NOT_RENEWED`.
+
+Renewal transitions:
+
+```text
+none → RENEWAL.OPEN → OPEN
+OPEN → RENEWAL.UPDATE_PROPOSAL → OPEN
+OPEN → RENEWAL.COMPLETE → COMPLETED
+OPEN → RENEWAL.MARK_NOT_RENEWED → NOT_RENEWED
+OPEN → RENEWAL.CANCEL → CANCELLED
+```
+
+`RENEWAL.CANCEL` is for an erroneous/abandoned process; `NOT_RENEWED` records
+an explicit business decision. At most one OPEN Renewal Case may exist per
+predecessor, and it owns at most one canonical DRAFT successor Contract.
+`RENEWAL.COMPLETE` requires the successor to be EXECUTED or ACTIVE. Renewal
+approval is optional unless linked; a linked `CONTRACT_RENEWAL` request must
+be same-tenant, target the Renewal Case and/or canonical successor under the
+repository's approval-link convention, bind the exact proposed snapshot, and
+be APPROVED before the governed completion/execution action. Proposal changes
+make it stale; PENDING, REJECTED, EXPIRED or CANCELLED requests block the
+governed action. A renewal successor must start at or after the predecessor's
+contractual end; overlap is forbidden absent a future explicit policy. If the
+predecessor remains ACTIVE, it continues under its original terms until its
+end or explicit termination; the successor activates under its own effective
+date and lifecycle.
+
+Automatic-renewal metadata does not automatically execute a new Contract. It
+may create an alert/candidate or a Renewal Case only where existing automation
+rules authorize that action. Actual commercial renewal remains explicit.
 
 ---
 
@@ -1559,16 +1682,9 @@ exclusions
 
 # 49. Contract Expiry Watch
 
-Threshold configurable:
-
-```text
-180d
-120d
-90d
-60d
-30d
-7d
-```
+`EXPIRING` is derived from explicit Contract terms/configuration, including
+the cancellation notice deadline when present. Do not apply a global default
+notice window when the Contract has no notice configuration.
 
 Events:
 
@@ -1637,6 +1753,11 @@ Nếu contract auto-renew:
 alert before cancellation notice deadline
 ```
 
+The clause may trigger a renewal candidate, notification, Work Queue item or
+an authorized Renewal Case creation. It never silently executes a successor
+Contract; execution remains explicit unless a separate normative automation
+policy authorizes it.
+
 Không chỉ alert trước expiry date.
 
 Ví dụ:
@@ -1695,6 +1816,24 @@ Renewal Value
 # 55. Document Management Principles
 
 Document không tồn tại như file rời không context.
+
+Mỗi document phải link đến một hoặc nhiều entity and use the central document
+storage/governance architecture. Commercial documents are typed evidence, not
+mutable file blobs attached ad hoc. Supported types include `CONTRACT`,
+`AMENDMENT`, `RENEWAL`, `TERMINATION_NOTICE`, `EXECUTION_EVIDENCE` and
+`OTHER_COMMERCIAL_EVIDENCE`.
+
+Each content version is immutable and preserves document identity/version,
+linked entity, storage reference, content hash, content type, size, actor,
+timestamp, classification/access metadata and finalization/signature metadata
+where applicable. Replacing bytes creates a new version. `FINAL` content is
+never replaced in place; amendment, renewal and termination add new evidence
+while preserving the old final document. Only permitted pre-execution evidence
+may be marked `VOID`; executed/signed evidence is not casually voided.
+
+Use `commercial_document.read`, `commercial_document.write` and
+`commercial_document.finalize`, with tenant/resource scope. Events and
+timelines carry protected references only, never raw document bytes.
 
 Mỗi document phải link đến một hoặc nhiều entity:
 
@@ -2267,7 +2406,11 @@ SaaS Agreement
 Maintenance Agreement
 ```
 
-Contract activation chỉ sau required approvals/documents.
+Contract activation requires valid execution evidence and all applicable
+guards. A linked `CONTRACT_EXECUTION` approval must be approved and bound to
+the exact submitted ContractVersion; absence of a linked request does not
+create a blanket approval requirement. Approval is not signature/execution
+evidence.
 
 ---
 
@@ -2359,27 +2502,32 @@ CREDIT_NOTE.CANCELLED
 
 ```text
 CONTRACT.CREATED
-CONTRACT.APPROVED
-CONTRACT.ACTIVE
+CONTRACT.UPDATED
+CONTRACT.SUBMITTED_FOR_SIGNATURE
+CONTRACT.SIGNATURE_RECALLED
+CONTRACT.EXECUTED
+CONTRACT.ACTIVATED
+CONTRACT.HELD
+CONTRACT.RESUMED
+CONTRACT.AMENDED
 CONTRACT.EXPIRING
-CONTRACT.RENEWAL_STARTED
-CONTRACT.RENEWED
 CONTRACT.EXPIRED
 CONTRACT.SLA_BREACH
 CONTRACT.TERMINATED
+CONTRACT.CANCELLED
+CONTRACT.RENEWAL_OPENED
+CONTRACT.RENEWAL_UPDATED
+CONTRACT.RENEWAL_COMPLETED
+CONTRACT.RENEWAL_NOT_RENEWED
+CONTRACT.RENEWAL_CANCELLED
 ```
 
 ## Document
 
 ```text
-DOCUMENT.CREATED
-DOCUMENT.VERSION_CREATED
-DOCUMENT.APPROVED
-DOCUMENT.SIGNED
-DOCUMENT.EXPIRING
-DOCUMENT.EXPIRED
-DOCUMENT.SUPERSEDED
-DOCUMENT.ARCHIVED
+COMMERCIAL_DOCUMENT.ADDED
+COMMERCIAL_DOCUMENT.FINALIZED
+COMMERCIAL_DOCUMENT.SUPERSEDED
 ```
 
 ---

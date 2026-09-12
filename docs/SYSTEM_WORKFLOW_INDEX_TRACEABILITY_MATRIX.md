@@ -284,7 +284,7 @@ USER / SYSTEM / AGENT / MONITORING / INTEGRATION
 | Procurement need | WF-PROC01 | Procurement Request | DRAFT → SUBMITTED | Yes | Procurement SLA | Stock/budget check | Requester/approver | Request | RFQ / PO |
 | Approved procurement | WF-PROC03 | Purchase Order | DRAFT → ISSUED | Yes | Delivery timer | Copy approved lines | Supplier/Procurement | PO | Receipt |
 | Invoice received | WF-PROC05 | Invoice | RECEIVED → MATCHING | Exception approval | Match SLA | 3-way match | Finance/Procurement | Invoice | Payment |
-| Contract expiring | WF-CON02 | Contract | ACTIVE → EXPIRING | Renewal approval | Renewal deadline | Usage/performance recommendation | Owner/procurement | Contract | Renewal |
+| Contract approaching configured notice/end date | WF-CON02 | Contract | ACTIVE; EXPIRING is derived context | Conditional linked CONTRACT_RENEWAL approval | Explicit Contract notice/end term | Usage/performance recommendation | Owner/procurement | Contract | Renewal successor |
 | `APPROVAL.CREATED` | WF-APP01 | Approval Request | PENDING | n/a | Approval SLA | Route/escalate | Approver | Context snapshot | Resume source workflow |
 | SLA threshold reached | SLA Engine | SLA Instance | RUNNING → WARNING/CRITICAL | No | n/a | Escalate | Assignee/lead | n/a | Work Queue |
 | Rule matched | Automation Engine | Rule Execution | STARTED | Sometimes | Action timeout | Execute | Operator if failure | Execution evidence | Business workflow |
@@ -585,7 +585,15 @@ INVOICE.MISMATCHED
 INVOICE.APPROVED
 CREDIT_NOTE.APPLIED
 CONTRACT.EXPIRING
-CONTRACT.RENEWED
+CONTRACT.SUBMITTED_FOR_SIGNATURE
+CONTRACT.EXECUTED
+CONTRACT.ACTIVATED
+CONTRACT.AMENDED
+CONTRACT.TERMINATED
+CONTRACT.RENEWAL_OPENED
+CONTRACT.RENEWAL_COMPLETED
+CONTRACT.RENEWAL_NOT_RENEWED
+COMMERCIAL_DOCUMENT.FINALIZED
 ```
 
 ## Control Plane
@@ -1112,7 +1120,7 @@ Examples:
 ASSET.ASSIGNMENT.CREATED
 INCIDENT.ROOT.CREATED
 LICENSE.ASSIGNMENT.RECLAIMED
-CONTRACT.RENEWAL.STARTED
+CONTRACT.RENEWAL_OPENED
 ```
 
 For backward compatibility, existing simpler events may remain aliases.

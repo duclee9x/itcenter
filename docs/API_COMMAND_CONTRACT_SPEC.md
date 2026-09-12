@@ -1595,12 +1595,37 @@ supplier document identity returns `INVOICE_DUPLICATE`.
 # 66. Contract Commands
 
 ```text
-POST /contracts
-POST /contracts/{id}/commands/activate
-POST /contracts/{id}/commands/start-renewal
-POST /contracts/{id}/commands/renew
-POST /contracts/{id}/commands/terminate
+POST /api/v1/contracts
+POST /api/v1/contracts/{id}/commands/update-draft
+POST /api/v1/contracts/{id}/commands/submit-for-signature
+POST /api/v1/contracts/{id}/commands/recall-signature
+POST /api/v1/contracts/{id}/commands/record-execution
+POST /api/v1/contracts/{id}/commands/activate
+POST /api/v1/contracts/{id}/commands/hold
+POST /api/v1/contracts/{id}/commands/resume
+POST /api/v1/contracts/{id}/commands/amend
+POST /api/v1/contracts/{id}/commands/expire
+POST /api/v1/contracts/{id}/commands/terminate
+POST /api/v1/contracts/{id}/commands/cancel
+
+POST /api/v1/renewal-cases
+POST /api/v1/renewal-cases/{id}/commands/update-proposal
+POST /api/v1/renewal-cases/{id}/commands/complete
+POST /api/v1/renewal-cases/{id}/commands/mark-not-renewed
+POST /api/v1/renewal-cases/{id}/commands/cancel
+
+POST /api/v1/commercial-documents
+POST /api/v1/commercial-documents/{id}/versions
+POST /api/v1/commercial-documents/{id}/commands/finalize
+POST /api/v1/commercial-documents/{id}/commands/supersede
 ```
+
+These are explicit command endpoints; lifecycle/status fields are not
+generically PATCHed. State-changing requests use `expected_version`,
+`Idempotency-Key`, tenant/resource authorization and `correlation_id` where
+applicable. Commands that require a reason carry it in the command payload.
+Document bytes use the existing governed object-storage upload/reference
+flow; this API does not introduce a parallel file store.
 
 ---
 

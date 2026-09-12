@@ -1405,7 +1405,11 @@ procurement.invoice_match_results
 ```text
 contract.contracts
 contract.contract_coverages
-contract.renewals
+contract.contract_versions
+contract.renewal_cases
+document.documents
+document.document_versions
+document.document_links
 ```
 
 ---

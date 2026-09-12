@@ -1,6 +1,6 @@
 # IMPLEMENTATION HANDOFF
 
-## Current Task — TASK-075 (Blocked; Planning Required)
+## Current Task — TASK-075 (Ready, Not Started)
 
 Contract + Renewal + Commercial Document Governance
 
@@ -10,16 +10,32 @@ Workflow: WF-P06/WF-016
 
 Phase/Priority: P4 / P1
 
-Readiness: BLOCKED — `SPEC_GAP / PLANNING_REQUIRED`
+Readiness: READY
 
 Status: NOT_STARTED
 
-Task contract: `GENERATE_ON_READY` (missing)
+Task contract: `tasks/TASK-075_CONTRACT_RENEWAL_COMMERCIAL_DOCUMENT_GOVERNANCE.md`
 
-Dependencies TASK-070 and TASK-074 are complete. TASK-075 cannot be
-implemented without inventing rules because its detailed normative Contract,
-Renewal and Commercial Document Governance contract is missing. Resolve this
-planning gap before runtime implementation; no TASK-075 runtime work has begun.
+Dependencies TASK-070, TASK-074 and TASK-075-R1 are complete. The normative
+Contract, Renewal and Commercial Document Governance contract is reconciled.
+TASK-075 remains NOT_STARTED; do not begin runtime implementation until the
+user explicitly asks to continue.
+
+## Last Completed Remediation — TASK-075-R1
+
+Contract Lifecycle + Renewal + Commercial Document Governance Contract
+(`CODE_COMPLETE`, specification only). See
+`tasks/TASK-075-R1_CONTRACT_LIFECYCLE_RENEWAL_DOCUMENT_GOVERNANCE_CONTRACT.md`.
+
+- Separated Contract lifecycle, usage, Renewal Case, immutable ContractVersion,
+  document governance and signature/execution evidence; Approval remains an
+  independent control gate.
+- Defined version-bound signature execution, conditional approval, explicit
+  amendment, successor-based Renewal, durable uniqueness, document byte
+  immutability, scope permissions, reference-only events, audit and race tests.
+- Reconciled workflow/state/data/API/permission/event/storage/audit/retry and
+  traceability specifications, generated the detailed TASK-075 contract and
+  marked it READY / NOT_STARTED. No runtime code was implemented.
 
 ## Last Completed Task — TASK-074
 

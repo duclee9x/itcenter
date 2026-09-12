@@ -103,7 +103,7 @@ Ví dụ:
 ASSET.ASSIGNMENT.CREATED
 INCIDENT.ROOT.CREATED
 LICENSE.ASSIGNMENT.RECLAIMED
-CONTRACT.RENEWAL.STARTED
+CONTRACT.RENEWAL_OPENED
 ```
 
 Đối với event đơn giản có thể dùng:
@@ -3330,43 +3330,163 @@ contract_id:
 contract_code:
 supplier_id:
 contract_type:
-effective_from:
-effective_to:
+contract_version_id:
+effective_at:
+end_at:
 ```
 
-## `CONTRACT.ACTIVE`
+## `CONTRACT.UPDATED`
+
+```yaml
+contract_id:
+contract_version_id:
+version:
+changed_field_names:
+```
+
+## `CONTRACT.SUBMITTED_FOR_SIGNATURE`
+
+```yaml
+contract_id:
+contract_version_id:
+snapshot_fingerprint:
+```
+
+## `CONTRACT.SIGNATURE_RECALLED`
+
+```yaml
+contract_id:
+recalled_contract_version_id:
+new_draft_version_id:
+reason_reference:
+```
+
+## `CONTRACT.EXECUTED`
+
+```yaml
+contract_id:
+contract_version_id:
+execution_evidence_document_version_ids:
+executed_at:
+```
+
+## `CONTRACT.ACTIVATED`
 
 ```yaml
 contract_id:
 activated_at:
+contract_version_id:
+usage_status:
+```
+
+## `CONTRACT.HELD`
+
+```yaml
+contract_id:
+usage_status: ON_HOLD
+reason_reference:
+```
+
+## `CONTRACT.RESUMED`
+
+```yaml
+contract_id:
+usage_status: ENABLED
+```
+
+## `CONTRACT.AMENDED`
+
+```yaml
+contract_id:
+base_contract_version_id:
+contract_version_id:
+changed_field_names:
+amendment_evidence_document_version_ids:
+```
+
+## `CONTRACT.EXPIRED`
+
+```yaml
+contract_id:
+contract_version_id:
+expired_at:
+end_at:
+```
+
+## `CONTRACT.CANCELLED`
+
+```yaml
+contract_id:
+contract_version_id:
+reason_reference:
+```
+
+## `CONTRACT.RENEWAL_OPENED`
+
+```yaml
+renewal_case_id:
+predecessor_contract_id:
+successor_contract_id:
+successor_contract_version_id:
+```
+
+## `CONTRACT.RENEWAL_UPDATED`
+
+```yaml
+renewal_case_id:
+successor_contract_id:
+proposal_fingerprint:
+version:
+```
+
+## `CONTRACT.RENEWAL_COMPLETED`
+
+```yaml
+renewal_case_id:
+predecessor_contract_id:
+successor_contract_id:
+successor_contract_version_id:
+```
+
+## `CONTRACT.RENEWAL_NOT_RENEWED`
+
+```yaml
+renewal_case_id:
+predecessor_contract_id:
+reason_reference:
+```
+
+## `CONTRACT.RENEWAL_CANCELLED`
+
+```yaml
+renewal_case_id:
+predecessor_contract_id:
+reason_reference:
+```
+
+## `CONTRACT.TERMINATED`
+
+```yaml
+contract_id:
+contract_version_id:
+terminated_at:
+effective_at:
+reason_reference:
+termination_evidence_document_version_ids:
 ```
 
 ## `CONTRACT.EXPIRING`
 
 ```yaml
 contract_id:
-effective_to:
+end_at:
 days_remaining:
 notice_deadline:
 ```
 
-## `CONTRACT.RENEWAL_STARTED`
-
-```yaml
-contract_id:
-renewal_id:
-target_end_date:
-```
-
-## `CONTRACT.RENEWED`
-
-```yaml
-contract_id:
-previous_end_date:
-new_end_date:
-new_value:
-currency:
-```
+`CONTRACT.EXPIRING` is derived operational context and never changes
+Contract lifecycle. Notice timing comes from explicit Contract terms; no
+global default notice interval is implied.
 
 ## `CONTRACT.SLA_BREACH`
 
@@ -3378,13 +3498,40 @@ source_entity_type:
 source_entity_id:
 ```
 
-## `CONTRACT.TERMINATED`
+## `COMMERCIAL_DOCUMENT.ADDED`
 
 ```yaml
-contract_id:
-terminated_at:
-reason:
+document_id:
+document_version_id:
+document_type:
+linked_entity_type:
+linked_entity_id:
+content_hash:
 ```
+
+## `COMMERCIAL_DOCUMENT.FINALIZED`
+
+```yaml
+document_id:
+document_version_id:
+linked_entity_type:
+linked_entity_id:
+content_hash:
+signature_status:
+```
+
+## `COMMERCIAL_DOCUMENT.SUPERSEDED`
+
+```yaml
+document_id:
+document_version_id:
+replacement_document_version_id:
+linked_entity_type:
+linked_entity_id:
+```
+
+Commercial document events contain references and minimal metadata only.
+Never embed raw document bytes or unnecessary sensitive commercial terms.
 
 ---
 

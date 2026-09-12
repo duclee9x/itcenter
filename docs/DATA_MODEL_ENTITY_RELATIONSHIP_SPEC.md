@@ -235,7 +235,7 @@ Notification / Reporting / Audit
 | Artifact | ArtifactVersion | ScanResult, SignatureResult |
 | License | LicenseEntitlement | LicenseAssignment |
 | Procurement | ProcurementRequest / PurchaseOrder | Lines, Amendments |
-| Contract | Contract | Coverage, Renewal |
+| Contract | Contract | ContractVersion, Coverage, RenewalCase |
 | Invoice | Invoice | InvoiceLine, MatchResult |
 | Approval | ApprovalRequest | ApprovalStep, Decision |
 | SLA | SLAInstance | SLAEvent |
@@ -2574,20 +2574,66 @@ contracts:
   contract_code:
   supplier_id:
   type:
-  state:
-  effective_from:
-  effective_to:
+  lifecycle_state: # DRAFT | PENDING_SIGNATURE | EXECUTED | ACTIVE | EXPIRED | TERMINATED | CANCELLED
+  usage_status: # ENABLED | ON_HOLD; independent from lifecycle
+  current_version_id:
+  effective_at:
+  end_at:
   auto_renew:
   notice_period_days:
   owner_user_id:
   business_owner_user_id:
   value:
   currency:
+  renewed_from_contract_id:
+  version:
+  created_at:
+  updated_at:
+```
+
+Invariants:
+
+```text
+effective_at < end_at
+supplier_id is immutable after execution
+terminal lifecycle: EXPIRED | TERMINATED | CANCELLED
+only EXECUTED or ACTIVE Contracts may be amended
 ```
 
 ---
 
-## 30.2 `contract_coverages`
+## 30.2 `contract_versions`
+
+Each material commercial proposal is an immutable version. Contract identity
+stores a current-version reference; versions preserve the exact terms that
+were submitted, executed or amended.
+
+```yaml
+contract_versions:
+  id:
+  tenant_id:
+  contract_id:
+  version_number:
+  commercial_snapshot:
+  snapshot_fingerprint:
+  base_version_id:
+  changed_field_names:
+  source: # DRAFT | EXECUTION | AMENDMENT | RENEWAL
+  reason:
+  created_by:
+  created_at:
+  evidence_document_version_ids:
+```
+
+Unique `(tenant_id, contract_id, version_number)`. A version submitted for
+signature or executed is never rewritten. Execution evidence and approval
+context reference the exact version ID/fingerprint. Amendment creates a new
+version and append-only changed-field history; renewal creates a successor
+Contract instead of modifying the predecessor's end date.
+
+---
+
+## 30.3 `contract_coverages`
 
 Generic relation:
 
@@ -2601,6 +2647,36 @@ contract_coverages:
   valid_to:
 ```
 
+## 30.4 `renewal_cases`
+
+```yaml
+renewal_cases:
+  id:
+  tenant_id:
+  predecessor_contract_id:
+  successor_contract_id:
+  lifecycle_state: # OPEN | COMPLETED | NOT_RENEWED | CANCELLED
+  proposal_snapshot:
+  proposal_fingerprint:
+  version:
+  reason:
+  created_by:
+  created_at:
+  updated_at:
+```
+
+Durably enforce at most one OPEN Renewal Case per predecessor and at most one
+canonical successor Contract per Renewal Case. `CANCELLED` means erroneous or
+abandoned process; `NOT_RENEWED` means explicit business decision. Completion
+requires successor Contract lifecycle EXECUTED or ACTIVE. The successor stores
+`renewed_from_contract_id`; its term starts at or after predecessor `end_at`
+unless an explicit future policy permits overlap.
+
+Execution evidence must bind the exact ContractVersion and be stored as
+governed document references. Approval requests remain independently owned by
+Approval Engine and bind Contract/Version/Renewal proposal context; they are
+not execution evidence.
+
 ---
 
 # 31. Document Domain
@@ -2613,7 +2689,8 @@ documents:
   document_code:
   type:
   title:
-  state:
+  governance_status: # DRAFT | FINAL | SUPERSEDED | VOID
+  signature_status: # NONE | PENDING | PARTIALLY_SIGNED | SIGNED | DECLINED
   confidentiality:
   owner_user_id:
   effective_date:
@@ -2631,11 +2708,16 @@ document_versions:
   document_id:
   version:
   storage_object_key:
-  checksum:
+  checksum_sha256:
+  content_type:
+  size_bytes:
   created_by:
   created_at:
-  is_final:
-  is_signed:
+  classification:
+  access_policy_ref:
+  governance_status:
+  signature_status:
+  finalized_at:
 ```
 
 Unique:
@@ -2643,6 +2725,13 @@ Unique:
 ```text
 (document_id, version)
 ```
+
+Document governance and signature/execution are independent dimensions.
+FINAL content is immutable; content replacement creates a new version and
+storage object key. SUPERSEDED retains the prior version and references its
+replacement. VOID is only for eligible erroneous pre-execution evidence.
+Commercial documents use the central document metadata/object-storage model;
+they do not introduce a parallel file store.
 
 ---
 

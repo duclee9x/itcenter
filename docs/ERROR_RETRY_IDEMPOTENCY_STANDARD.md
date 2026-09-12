@@ -2693,3 +2693,23 @@ Error + Retry + Idempotency Standard đạt yêu cầu khi:
 - Human fallback có chuẩn context.
 - Error observability và metrics đầy đủ.
 - MVP → Phase 3 implementation path rõ.
+
+---
+
+# 166. Contract, Renewal and Commercial Document Concurrency
+
+Contract, amendment, Renewal and commercial-document commands use the normal
+durable idempotency ledger and `expected_version` concurrency contract. A
+replay must not create an additional ContractVersion, Renewal Case, successor
+Contract, document version or outbox event. A changed semantic payload under
+the same key returns `IDEMPOTENCY_KEY_CONFLICT`.
+
+Durably enforce at most one OPEN Renewal Case per predecessor and one
+canonical successor per Renewal Case. Concurrent `RENEWAL.OPEN` must resolve
+through a DB uniqueness/invariant failure mapped to a canonical domain
+conflict; do not rely on SELECT-then-INSERT. Serialize conflicting versioned
+commands (draft update/submit, signature recall/execution, activate/terminate,
+amend/terminate, renewal complete/not-renewed and document finalize/version
+replacement). On `VERSION_CONFLICT`, stale approval context or uniqueness
+conflict, reload canonical state and re-evaluate intent; do not blindly retry
+or reuse approval bound to another immutable version/snapshot.
