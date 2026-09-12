@@ -178,9 +178,9 @@ Only generate a detailed `TASK-xxx_*.md` when the task becomes `READY` or is the
 | `TASK-056` | `F-033` | `WF-013` | P3 | P1 | Unauthorized Software Detection + Resolution | TASK-019, TASK-054, TASK-055 | **SATISFIED** | NOT_STARTED | `GENERATE_ON_READY` |
 | `TASK-057` | `F-034` | `WF-L01` | P3 | P0 | License Entitlement + Pool Model | TASK-054 | **SATISFIED** | CODE_COMPLETE | `TASK-057_LICENSE_ENTITLEMENT_POOL_MODEL.md` |
 | `TASK-058` | `F-035/F-036` | `WF-015` | P3 | P0 | License Assignment + Reclaim + Compliance | TASK-031, TASK-057 | **SATISFIED** | CODE_COMPLETE | `TASK-058_LICENSE_ASSIGNMENT_RECLAIM_COMPLIANCE.md` |
-| `TASK-058-R1` | `F-035` | `WF-015` | P3 | P0 | Cancel Unactivated License Assignment | TASK-058 | **SATISFIED** | IN_PROGRESS | `TASK-058-R1_CANCEL_UNACTIVATED_LICENSE_ASSIGNMENT.md` |
+| `TASK-058-R1` | `F-035` | `WF-015` | P3 | P0 | Cancel Unactivated License Assignment | TASK-058 | **SATISFIED** | CODE_COMPLETE | `TASK-058-R1_CANCEL_UNACTIVATED_LICENSE_ASSIGNMENT.md` |
 | `TASK-059` | `F-037/F-038` | `WF-017/WF-018` | P3 | P1 | Replacement + Retirement + Disposal + Data Wipe | TASK-015, TASK-036, TASK-038 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |
-| `TASK-060` | `F-004/OFFBOARDING` | `WF-ID04/WF-019` | P3 | P0 | User Offboarding Orchestration | TASK-003, TASK-015, TASK-058 | **SATISFIED** | BLOCKED | `TASK-060_USER_OFFBOARDING_ORCHESTRATION.md` |
+| `TASK-060` | `F-004/OFFBOARDING` | `WF-ID04/WF-019` | P3 | P0 | User Offboarding Orchestration | TASK-003, TASK-015, TASK-058, TASK-058-R1 | **SATISFIED** | NOT_STARTED | `TASK-060_USER_OFFBOARDING_ORCHESTRATION.md` |
 | `TASK-061` | `F-047/PHASE-GATE` | `WF-SRCH01/P3-E2E` | P3 | P1 | Advanced Search + Phase 3 Integration Gate | TASK-050, TASK-051, TASK-052, TASK-053, TASK-055, TASK-056, TASK-058, TASK-059, TASK-060 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |
 | `TASK-070` | `F-039` | `WF-P01` | P4 | P0 | Supplier + Procurement Request | TASK-061 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |
 | `TASK-071` | `F-040` | `WF-P02` | P4 | P1 | RFQ + Quotation + Supplier Selection | TASK-070 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |
@@ -280,16 +280,15 @@ Only generate a detailed `TASK-xxx_*.md` when the task becomes `READY` or is the
 
 # 11. Current Next Task
 
-TASK-058 is `CODE_COMPLETE`. TASK-058-R1 formalizes and implements cancellation
-of unactivated License assignments. TASK-060 remains blocked until this
-remediation is complete and its handoff is updated.
+TASK-058-R1 is `CODE_COMPLETE`; all TASK-060 prerequisites, including the
+explicit unactivated-assignment cancellation command, are satisfied. TASK-060
+is the next ready task but has not been started.
 
 ```text
-CURRENT = TASK-058-R1 (IN_PROGRESS)
-NEXT = TASK-060 (blocked on TASK-058-R1)
+NEXT = TASK-060 (ready, not started)
 ```
 
-TASK-056 is also dependency-ready at P1, but TASK-058-R1 is P0 and takes precedence.
+TASK-056 is also dependency-ready at P1, but TASK-060 is P0 and takes precedence.
 
 ---
 

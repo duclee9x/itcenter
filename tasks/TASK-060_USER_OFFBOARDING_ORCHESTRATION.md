@@ -50,6 +50,12 @@ of their assignments and state transitions.
   case blocked unless the applicable exception is approved.
 - Complete the case and set the user `TERMINATED` only when required clearances
   pass; preserve user records and immutable audit history.
+- License cleanup routes `ASSIGNED` through `LICENSE.CANCEL_ASSIGNMENT`,
+  `ACTIVE`/`SUSPENDED` through `LICENSE.RECLAIM`, and terminal/non-capacity
+  states to no-op through the License application boundary.
+- A failed cancellation or reclaim leaves License clearance incomplete and
+  creates or retains actionable work for human resolution; the case cannot
+  complete while that failure is unresolved.
 - Transactional audit/outbox, stable permissions, tenant/scope checks,
   observability, migration, traceability, and focused E2E tests.
 
@@ -88,21 +94,6 @@ WAITING_OWNER_TRANSFER, READY_TO_CLOSE, COMPLETED, CANCELLED
 - A case may not mark an Asset disposed or silently release an uncertain
   License allocation.
 
-## SPEC_CONFLICT — License Assignment State
-
-TASK-058 only permits reclaim from `ACTIVE` or `SUSPENDED` assignments, while
-offboarding requires reclaim/release of the user's License allocations and the
-assignment model also contains `ASSIGNED` (not yet activated). Completing
-offboarding with an `ASSIGNED` allocation would either leave capacity held or
-require an unapproved lifecycle transition.
-
-Safe implementation boundary: keep the offboarding case blocked and report the
-unactivated assignment as unresolved. Smallest proposed resolution: define an
-explicit, audited License command for cancelling an unactivated `ASSIGNED`
-allocation (with expected version and reason), then use it from offboarding.
-Do not add this transition or treat the assignment as reclaimed until the
-specification owner resolves the conflict.
-
 ## Acceptance Criteria
 
 1. Identity owns a durable, tenant-scoped offboarding case and its state machine.
@@ -115,8 +106,9 @@ specification owner resolves the conflict.
 5. Commands enforce permission, tenant/scope, idempotency, versions, audit, and
    outbox contracts; user and audit records remain retained.
 6. Cross-domain E2E tests cover successful close, missing Asset, partial failure
-   and retry, duplicate start, authorization denial, and the unresolved
-   `ASSIGNED` License conflict.
+   and retry, duplicate start, authorization denial, cancellation of unactivated
+   License assignments, reclaim of active/suspended assignments, and actionable
+   cleanup failure without false completion.
 
 ## Completion Report
 
