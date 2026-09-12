@@ -1,12 +1,17 @@
 # CURRENT TASK
 
-No task is currently in progress.
+Task: `TASK-059` — Replacement + Retirement + Disposal + Data Wipe
 
-Last completed task: `TASK-056` — Unauthorized Software Detection + Resolution
-(`CODE_COMPLETE`; implementation and verification are recorded in
-`tasks/TASK-056_UNAUTHORIZED_SOFTWARE_DETECTION_RESOLUTION.md`).
+Task specification: `tasks/TASK-059_REPLACEMENT_RETIREMENT_DISPOSAL_DATA_WIPE.md`
 
-Next registry item: `TASK-059` — Replacement + Retirement + Disposal + Data
-Wipe. Status: `BLOCKED`. The registry does not record the blocker even though
-its declared dependencies are satisfied. Resolve that registry blocker before
-generating or starting TASK-059. `TASK-061` remains blocked on TASK-059.
+Readiness: `READY`
+
+Status: `NOT_STARTED`
+
+Dependencies `TASK-015`, `TASK-036`, and `TASK-038` are `CODE_COMPLETE` in the
+registry and implementation reports. No explicit TASK-059 blocker or
+unresolved `SPEC_CONFLICT` is recorded. This is a planning/readiness transition
+only; implementation has not started and requires an explicit user request.
+
+`TASK-061` remains `BLOCKED` until every dependency, including TASK-059, is at
+least `CODE_COMPLETE`.
