@@ -1572,6 +1572,15 @@ creditable line quantity/amount and writes its one-time application. It
 releases invoiceable quantity only for explicitly credited quantity that had
 consumed that capacity. These commands never mutate PO commercial history or a
 POSTED Goods Receipt.
+`INVOICE.CANCEL` and `CREDIT_NOTE.CANCEL` are explicit command endpoints,
+allowed only while the respective document is `DRAFT`; they are forbidden
+after submission and must not be implemented as generic status updates. Each
+uses the normal command transaction and envelope, including
+`expected_version`, idempotency, tenant/resource authorization, audit, outbox
+and correlation context. Reason is required only if the existing command or
+audit standard requires it. A future post-submission cancellation/reversal is
+a distinct financial command requiring its own permission and compensation or
+reversal contract.
 
 Canonical outcomes include `INVOICE_DUPLICATE` (409),
 `INVOICE_MATCH_EXCEPTION_REQUIRED` (409 when a MISMATCHED invoice is

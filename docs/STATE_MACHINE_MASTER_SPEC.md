@@ -1402,6 +1402,11 @@ Terminal lifecycle states are `APPROVED`, `REJECTED` and `CANCELLED`.
 `SUBMITTED` commercial snapshot is immutable. There is no transition from a
 submitted or terminal invoice back to DRAFT. Approval does not represent
 payment and TASK-074 has no `PAID` transition.
+`INVOICE.CANCEL` is an explicit domain command valid only in `DRAFT`; it is
+forbidden after `SUBMITTED` and cannot be represented by a generic status
+update. Any future post-submission/post-approval cancellation or reversal is a
+separate command and requires its own permission and compensating/reversal
+contract.
 
 ## 61.1 Independent Invoice Match State
 
@@ -1435,6 +1440,11 @@ Terminal Credit Note states are `APPLIED`, `REJECTED` and `CANCELLED`.
 Submitted Credit Note evidence is immutable. Credit Note application never
 rewrites the original Invoice or its lifecycle. An Invoice's derived credit
 status is independent: `NONE`, `PARTIALLY_CREDITED` or `FULLY_CREDITED`.
+`CREDIT_NOTE.CANCEL` is an explicit domain command valid only in `DRAFT`; it
+is forbidden after `SUBMITTED` and cannot be represented by a generic status
+update. Any future post-submission/post-application cancellation or reversal
+is a separate command and requires its own permission and
+compensating/reversal contract.
 
 ---
 

@@ -1248,6 +1248,14 @@ credit_note.reject
 | `CREDIT_NOTE.REJECT` | `credit_note.reject` |
 | Credit Note queries | `credit_note.read` |
 
+The two DRAFT-only `CANCEL` commands remain explicit lifecycle commands. They
+use the existing draft-mutation permission because they operate only on
+unsubmitted drafts; they are not generic status updates. Do not introduce
+`invoice.cancel` or `credit_note.cancel` for TASK-074. A future cancellation
+or reversal after submission/approval is a materially different financial
+operation and requires its own command, permission and compensating/reversal
+rules.
+
 Approval decisions continue to require the Approval Engine permission
 `approval.decide`; invoice command permission does not grant approval-decision
 authority. `INVOICE_MATCH_EXCEPTION` is a linked Approval Request purpose, not

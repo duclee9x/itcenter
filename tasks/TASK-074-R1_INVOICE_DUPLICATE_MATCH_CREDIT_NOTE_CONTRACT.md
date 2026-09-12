@@ -50,7 +50,12 @@ remediation; it does not implement TASK-074 behavior.
   or erases failed comparisons.
 - Permission mapping is explicit for every write. DRAFT-only
   `INVOICE.CANCEL` uses `invoice.update`; DRAFT-only `CREDIT_NOTE.CANCEL` uses
-  `credit_note.update`. Approval decisions remain `approval.decide`.
+  `credit_note.update`. Both remain explicit domain commands, are forbidden
+  after submission and cannot use generic status updates. They retain normal
+  version, idempotency, scope, audit, outbox and correlation requirements;
+  reason follows the existing command/audit standard. Any later cancellation
+  or reversal requires a distinct command, permission and compensation or
+  reversal contract. Approval decisions remain `approval.decide`.
 - Credit Note application can release only explicitly credited quantity that
   previously consumed invoiceable capacity, once. Amount-only credits do not
   release quantity or change PO quantity, Goods Receipt facts or the original

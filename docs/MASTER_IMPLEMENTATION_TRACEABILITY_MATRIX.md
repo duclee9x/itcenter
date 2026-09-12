@@ -1421,6 +1421,11 @@ CREDIT_NOTE.REJECT          → credit_note.reject
 
 Reads use `invoice.read` / `credit_note.read`; Approval Engine decisions use
 `approval.decide`. No broad procurement write permission is introduced.
+Draft cancellation remains an explicit lifecycle command restricted to DRAFT,
+uses the existing `update` permission and command integrity controls, and
+cannot be represented as a generic status update. Post-submission cancellation
+or reversal is outside TASK-074 and requires a separate command/permission
+contract.
 
 ### Events
 

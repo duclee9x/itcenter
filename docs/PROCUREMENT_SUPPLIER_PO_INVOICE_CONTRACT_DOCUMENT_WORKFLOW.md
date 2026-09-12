@@ -1127,6 +1127,14 @@ does not implement payment settlement or a `PAID` state.
 
 No transition exists from a submitted or terminal Invoice back to `DRAFT`;
 `APPROVED → CANCELLED` and any transition out of `REJECTED` are forbidden.
+`INVOICE.CANCEL` is an explicit domain command allowed only from `DRAFT`;
+after submission it is forbidden. It must not be implemented as a generic
+status update. Any future cancellation or reversal after submission or
+approval requires a separate command, permission and compensating/reversal
+rules. Cancellation uses the normal command envelope, including
+`expected_version`, idempotency, tenant/resource authorization, audit, outbox
+and correlation context. A reason is required only where the existing
+command/audit standard requires one; TASK-074 adds no separate reason rule.
 
 ## 27.1 Independent Match State
 
@@ -1282,6 +1290,15 @@ quantity. Credit changes net billed values but never changes PO
 ordered quantity, accepted Goods Receipt quantity/history or original Invoice
 snapshot. Invoice lifecycle remains `APPROVED`; derived credit status is
 independently `NONE`, `PARTIALLY_CREDITED` or `FULLY_CREDITED`.
+`CREDIT_NOTE.CANCEL` is an explicit domain command allowed only from `DRAFT`;
+after submission it is forbidden. It must not be implemented as a generic
+status update. Any future cancellation or reversal after submission or
+application requires a separate command, permission and
+compensating/reversal rules. Cancellation uses the normal command envelope,
+including `expected_version`, idempotency, tenant/resource authorization,
+audit, outbox and correlation context. A reason is required only where the
+existing command/audit standard requires one; TASK-074 adds no separate reason
+rule.
 
 ## 27.8 Canonical Mismatch Reasons and Boundaries
 

@@ -161,6 +161,15 @@ SUBMITTED → CREDIT_NOTE.REJECT → REJECTED
 
 No submitted or terminal document transitions to DRAFT. Match re-evaluation
 does not change Invoice lifecycle or immutable Invoice fields.
+`INVOICE.CANCEL` and `CREDIT_NOTE.CANCEL` are explicit domain commands valid
+only from `DRAFT`; they are forbidden from `SUBMITTED` and later states. They
+must not be implemented through generic status updates. Both use the normal
+command requirements, including `expected_version`, idempotency,
+tenant/resource authorization, audit, outbox and correlation context. A
+reason is required when the existing command/audit standard requires it; this
+task adds no separate reason requirement. Any future post-submission or
+post-approval cancellation/reversal requires a separate command, permission
+and compensating/reversal rules.
 
 ## 9. Preconditions
 
@@ -418,6 +427,9 @@ rejections. Do not log protected document values.
   field and reject all edits/reopen attempts.
 - [ ] DRAFT-only Invoice and Credit Note cancellation use `invoice.update`
   and `credit_note.update`; no separate cancel permissions are required.
+- [ ] CANCEL is rejected after SUBMITTED and cannot be reached through a
+  generic status-update operation; successful draft cancellation records its
+  audit and outbox effects once under idempotent/version-checked execution.
 - [ ] Exact normalized duplicate Invoice/Credit Note fails durably; concurrent
   duplicate submission has one winner and maps DB uniqueness to
   `INVOICE_DUPLICATE`; candidate duplicate is advisory only.
