@@ -2040,50 +2040,146 @@ terminal child quotations.
 
 ```yaml
 purchase_orders:
+  tenant_id:
   id:
   po_code:
-  supplier_id:
   procurement_request_id:
-  contract_id:
-  version:
-  state:
+  supplier_id:
+  rfq_id:
+  accepted_quotation_id:
+  lifecycle_state: DRAFT | ISSUED | ON_HOLD | CLOSED | CANCELLED
+  receipt_state: NOT_RECEIVED | PARTIALLY_RECEIVED | FULLY_RECEIVED
+  aggregate_version:
+  current_commercial_version: # null until issue; 1 at initial issue
+  issue_approval_request_id: # nullable authoritative current PO_ISSUE link
   currency:
+  contract_id:
   issued_at:
   expected_delivery:
+  created_at:
+  updated_at:
 ```
 
----
+`lifecycle_state` and `receipt_state` are independent dimensions. Approval is
+not a lifecycle state. `CLOSED` and `CANCELLED` are terminal lifecycle states;
+`PARTIALLY_RECEIVED` and `FULLY_RECEIVED` exist only in `receipt_state`.
+Initial creation sets `DRAFT` and `NOT_RECEIVED`. Existing-aggregate commands
+increment `aggregate_version`; expected-version checks fence all writes.
 
-## 28.2 `purchase_order_lines`
+Tenant-bound RFQ/Quotation relationships are optional. If `rfq_id` is
+present, `accepted_quotation_id` must be from that RFQ, be the accepted award
+quotation, and have the same Supplier as the PO. `issue_approval_request_id`
+is the authoritative current link for the optional PO_ISSUE approval gate;
+the Approval Engine sets/replaces that link through its application contract.
+Superseded approval records remain in approval history and are not rewritten.
+PO, Supplier, Procurement Request, RFQ, Quotation and current Approval Request
+references use tenant-bound composite keys. Enforce the enumerated lifecycle
+and receipt-state values at the storage boundary. PO records are never
+hard-deleted.
+
+## 28.2 `purchase_order_versions` — Immutable Commercial History
+
+Each issued commercial version is immutable and is never updated or deleted.
+`PO.ISSUE` creates version 1; each permitted `PO.AMEND` creates the next
+version. Aggregate lifecycle/receipt transitions increment
+`purchase_orders.aggregate_version` but do not create a commercial version.
+
+```yaml
+purchase_order_versions:
+  tenant_id:
+  purchase_order_id:
+  commercial_version:
+  base_aggregate_version:
+  change_kind: INITIAL_ISSUE | AMENDMENT
+  canonical_snapshot:
+  snapshot_hash:
+  approval_request_id:
+  actor_id:
+  reason:
+  correlation_id:
+  created_at:
+```
+
+Unique key: `(tenant_id, purchase_order_id, commercial_version)`. The
+canonical snapshot includes Supplier and source references, currency, all
+commercial terms/delivery fields, and complete PO line data. `snapshot_hash`
+is computed from normalized canonical content and binds Approval Engine
+context. An amendment version records the base aggregate/commercial version
+and proposed resulting snapshot. Historical snapshots and their hashes remain
+append-only.
+
+Database invariants require the PO current-version pointer to reference an
+existing immutable version once the PO has been issued; it may remain null
+only for a PO that has never been issued (including a cancelled draft).
+Prohibit update/delete of committed version snapshots/lines and lifecycle
+transitions out of `CLOSED` or `CANCELLED`. Receipt state is monotonic and
+cannot regress. PO cancellation checks the canonical Goods Receipt ledger
+while serialized on the PO aggregate; the denormalized `NOT_RECEIVED` value
+alone is insufficient.
+
+## 28.3 `purchase_order_lines`
 
 ```yaml
 purchase_order_lines:
+  tenant_id:
   id:
   purchase_order_id:
+  commercial_version: # null only for mutable DRAFT working lines
   line_no:
   item_type:
   item_reference_id:
   description:
+  unit:
   quantity:
   unit_price:
   tax_amount:
-  received_quantity:
-  invoiced_quantity:
+  discount_amount:
+  expected_delivery:
 ```
 
----
+Draft working lines may change only through `PO.UPDATE_DRAFT`. Once an issued
+commercial version is committed, its line set is immutable and version-bound.
+An amendment adds lines to the new commercial version; it never rewrites old
+version lines. Receipt/invoice quantities belong to their owning receipt and
+invoice ledgers/projections and must not mutate commercial version lines.
 
-## 28.3 PO amendments
+## 28.4 `purchase_order_history` and Receipt Relationship
 
-Preferred:
+PO lifecycle, amendment and receipt-state changes require append-only history
+with this minimum shape:
 
-```text
-purchase_order_versions
+```yaml
+purchase_order_history:
+  id:
+  tenant_id:
+  purchase_order_id:
+  aggregate_version:
+  command:
+  previous_lifecycle_state:
+  lifecycle_state:
+  previous_receipt_state:
+  receipt_state:
+  before_snapshot:
+  after_snapshot:
+  actor_id:
+  reason:
+  correlation_id:
+  occurred_at:
 ```
 
-or append-only amendments.
+Unique key: `(tenant_id, purchase_order_id, aggregate_version)`. Updates and
+deletes are forbidden. Every committed state-changing PO command appends one
+history row in the same transaction as the PO mutation and outbox/audit
+references. A short close preserves every receipt record and quantity; it only
+records that the remaining balance was intentionally closed.
 
-Never overwrite issued commercial terms without history.
+Goods Receipt records remain owned by Warehouse/Procurement receiving under
+TASK-073. Each receipt line references the tenant, PO, committed commercial
+version and PO line version it fulfills. Receipt events update the PO
+`receipt_state` projection through the owning application contract. Receipt
+state progression is `NOT_RECEIVED → PARTIALLY_RECEIVED → FULLY_RECEIVED`;
+it never rewrites a commercial version or PO lifecycle state.
+
 
 ---
 

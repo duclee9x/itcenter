@@ -666,137 +666,197 @@ Parallel submissions for the same tenant/RFQ/Supplier produce at most one
 current `SUBMITTED` quotation; the losing command receives a conflict and
 must not emit a second submit event.
 
-# 19. WF-PROC03 — Create Purchase Order
+# 19. WF-PROC03 — Create and Manage Purchase Order
 
-Preconditions:
+Preconditions for issue:
 
 ```text
-Procurement approved
-Supplier selected
-Budget valid if required
-Quote/contract available if required
+PO is DRAFT and expected_version matches
+Supplier is APPROVED or PREFERRED
+PO has at least one valid line and all required commercial fields
+If linked to an RFQ, that RFQ is AWARDED, the PO Supplier is the winning
+Supplier, and the source quotation is the ACCEPTED quotation
+Any linked PO_ISSUE approval is valid for the current PO version/context
 ```
 
 Flow:
 
 ```text
-Approved Request
-↓
-Create PO
-↓
-Copy Approved Lines
-↓
-Set Supplier
-↓
-Delivery Location
-↓
-Terms
-↓
-Approval if required
-↓
-Issue PO
+Approved Procurement Request / accepted RFQ quotation
+→ PO.CREATE (DRAFT; receipt_state NOT_RECEIVED)
+→ PO.UPDATE_DRAFT as needed
+→ PO.ISSUE (freeze commercial version 1)
+→ PO.HOLD / PO.RESUME as operationally required
+→ Goods Receipt updates receipt_state through the Warehouse-owned workflow
+→ PO.CLOSE when fully received, or PO.CLOSE_REMAINDER when intentionally
+  short-closed after partial receipt
 ```
 
----
+Approval is a control gate, not a PO lifecycle state. TASK-072 does not infer
+an approval threshold or require approval for every issue: no linked
+`PO_ISSUE` approval request means `PO.ISSUE` may proceed subject to other
+guards. A linked request must belong to the same tenant, target this PO, have
+purpose/type `PO_ISSUE`, be `APPROVED`, and bind to the current aggregate and
+commercial version plus the canonical context snapshot. An approval for an
+older version or different context cannot authorize issue. Pending, rejected,
+expired, cancelled or stale linked approval blocks issue. Material draft
+changes after approval require approval re-evaluation under the Approval
+Engine context-snapshot rules.
 
-# 20. PO Model
+The PO's nullable `issue_approval_request_id` is the authoritative current
+link. The Approval Engine owns setting/replacing this link through its
+application contract; prior approval requests remain immutable history but
+are no longer the current link after replacement. A stale current link blocks
+issue until re-evaluation replaces it with a request bound to the current
+snapshot. TASK-072 neither creates approval requests nor lets the caller clear
+an existing current link to bypass its gate.
+
+## 19.1 Independent PO State Dimensions
+
+Purchase Order has two independent dimensions:
+
+```text
+Lifecycle: DRAFT | ISSUED | ON_HOLD | CLOSED | CANCELLED
+Receipt:   NOT_RECEIVED | PARTIALLY_RECEIVED | FULLY_RECEIVED
+```
+
+`CLOSED` and `CANCELLED` are terminal lifecycle states. Receipt states are not
+lifecycle states. Receipt state progresses only from `NOT_RECEIVED` to
+`PARTIALLY_RECEIVED` and then, when all ordered quantities are received, to
+`FULLY_RECEIVED`. TASK-073 owns Goods Receipt writes and these receipt-state
+transitions. Closing an incomplete order preserves `PARTIALLY_RECEIVED`; it
+does not pretend the order was fully received. Invoice state is independent.
+
+## 19.2 Normative PO Lifecycle Commands
+
+| From | Command | To | Guard / effect |
+|---|---|---|---|
+| none | `PO.CREATE` | `DRAFT` | Start at `receipt_state=NOT_RECEIVED`; persist draft and initial history. |
+| `DRAFT` | `PO.UPDATE_DRAFT` | `DRAFT` | Draft fields/lines may change; increment aggregate version. |
+| `DRAFT` | `PO.ISSUE` | `ISSUED` | Validate Supplier/RFQ/Quotation and linked approval; freeze commercial version 1. |
+| `DRAFT` | `PO.CANCEL` | `CANCELLED` | No committed Goods Receipt; record reason. |
+| `ISSUED` | `PO.HOLD` | `ON_HOLD` | Reason required; no new receipt may be posted while held. |
+| `ON_HOLD` | `PO.RESUME` | `ISSUED` | Preserve receipt state. |
+| `ISSUED`, `ON_HOLD` | `PO.CANCEL` | `CANCELLED` | Allowed only when receipt state is `NOT_RECEIVED` and no committed receipt exists; reason required. |
+| `ISSUED`, `ON_HOLD` | `PO.CLOSE` | `CLOSED` | Requires `receipt_state=FULLY_RECEIVED`. |
+| `ISSUED`, `ON_HOLD` | `PO.CLOSE_REMAINDER` | `CLOSED` | Requires `receipt_state=PARTIALLY_RECEIVED`; reason required; preserve received quantities and history. |
+
+Once any Goods Receipt has committed, `PO.CANCEL` is forbidden, including
+when a data inconsistency reports `NOT_RECEIVED`. Use `CANCELLED` for an
+unfulfilled order and `CLOSED` for a fulfilled or intentionally short-closed
+order. No transition out of `CLOSED` or `CANCELLED` is valid.
+
+## 19.3 Draft Update and Issued-PO Amendment
+
+`PO.UPDATE_DRAFT` is the only edit command while lifecycle is `DRAFT`. It
+increments the optimistic aggregate version and does not create an issued-PO
+amendment.
+
+After issue, commercial changes use explicit `PO.AMEND`, only when lifecycle
+is `ISSUED` or `ON_HOLD` and receipt state is `NOT_RECEIVED`. `PO.AMEND`
+requires a reason, preserves the previous immutable commercial version, and
+creates a new immutable version with its own before/after snapshot, actor,
+reason, approval reference if applicable and timestamp. Supplier cannot be
+changed after issue; changing Supplier requires cancelling the unreceived PO
+and creating a new one.
+
+If receipt state is `PARTIALLY_RECEIVED` or `FULLY_RECEIVED`, TASK-072 cannot
+amend Supplier, quantity, unit price or any other commercial term. Use
+`PO.CLOSE_REMAINDER` for an unreceived balance when appropriate. A future
+explicit post-receipt amendment contract may extend this rule.
+
+If a `PO_AMENDMENT` approval is linked, it must be same-tenant, target this PO,
+be `APPROVED`, bind to the current base PO version and proposed change context
+snapshot, and remain valid under Approval Engine re-evaluation rules. If none
+is linked, the amendment may proceed subject to other guards. A material
+change after approval invalidates that approval and requires re-evaluation;
+an approval for an older base version or different proposed snapshot cannot
+authorize the amendment. `PO.AMEND` accepts an optional approval request
+reference; when supplied, it is persisted in the new immutable version. An
+existing linked request that is pending, rejected, expired, cancelled or bound
+to different amendment context blocks the command. A caller cannot bypass a
+linked gate by omitting the reference.
+
+## 19.4 Concurrency Ownership
+
+All PO commands use optimistic aggregate-version checks and serialize writes
+on the PO aggregate.
+
+- `PO.UPDATE_DRAFT` vs `PO.ISSUE`: only a command based on the current DRAFT
+  version may commit; after issue, a draft update is invalid.
+- `PO.AMEND` vs `PO.CANCEL`: both fence on the same PO version; at most one
+  competing command based on that version commits. The winner's state/version
+  determines whether the other command is rejected.
+- `PO.HOLD` vs Goods Receipt posting and `PO.CANCEL` vs Goods Receipt posting
+  serialize on the PO identity. While `ON_HOLD` or `CANCELLED`, receipt posting
+  is rejected. If a receipt commits first, cancellation is rejected. TASK-073
+  owns implementation and integration tests for both Goods Receipt races;
+  TASK-072 implements the PO-side locking, version and invariant contract.
+
+State-changing commands require `expected_version` for existing POs,
+idempotency, tenant/resource authorization, correlation, audit before/after
+and a transactional outbox event. `PO.HOLD`, `PO.CANCEL`, `PO.AMEND` and
+`PO.CLOSE_REMAINDER` require a non-empty reason. Approval waits and external
+calls remain outside the PO transaction.
+
+## 20. PO Model
+
+The canonical PO stores independent lifecycle and receipt dimensions, an
+aggregate version and the current commercial version. The lifecycle fields
+are independent of approval request state and Goods Receipt records.
 
 ```yaml
 purchase_order:
+  tenant_id:
   id:
-  supplier:
+  po_code:
+  procurement_request_id:
+  supplier_id:
+  rfq_id:
+  accepted_quotation_id:
+  lifecycle_state: DRAFT | ISSUED | ON_HOLD | CLOSED | CANCELLED
+  receipt_state: NOT_RECEIVED | PARTIALLY_RECEIVED | FULLY_RECEIVED
+  aggregate_version:
+  current_commercial_version: # null before issue; starts at 1 on issue
   currency:
-  order_date:
-  delivery_location:
+  issued_at:
   expected_delivery:
-  payment_terms:
-  cost_center:
-  project:
-  source_request:
-  contract:
-  status:
-  lines:
 ```
 
----
+If `rfq_id` is set, `accepted_quotation_id` must belong to that RFQ and
+reference the winning Supplier. The PO Supplier must equal that winning
+Supplier. Cross-tenant references are forbidden.
 
-# 21. PO Line
+## 21. PO Commercial Lines and Immutable Versions
 
 ```yaml
-po_line:
-  item_type:
-  product_or_service:
-  description:
-  quantity:
-  unit:
-  unit_price:
-  tax:
-  discount:
-  expected_delivery:
-  asset_model:
-  license_product:
-  spare_part:
+purchase_order_version:
+  tenant_id:
+  purchase_order_id:
+  commercial_version:
+  base_aggregate_version:
+  canonical_snapshot:
+  snapshot_hash:
+  created_by:
+  reason:
+  approval_request_id:
+  correlation_id:
+  created_at:
 ```
 
----
+The DRAFT working copy is mutable only through `PO.UPDATE_DRAFT`. `PO.ISSUE`
+creates immutable commercial version 1. Each allowed `PO.AMEND` creates the
+next immutable version; it never updates an earlier version or its lines.
+Store a canonical snapshot of Supplier/source references, currency, terms,
+delivery fields and every line's item, description, quantity, unit, unit
+price, tax, discount and references. Persist its stable hash for approval
+binding. Keep immutable version records/lines append-only; aggregate state
+history records lifecycle, receipt-state observations, before/after,
+expected/resulting aggregate version, actor, reason and correlation.
 
-# 22. PO State Machine
-
-```text
-DRAFT
-↓
-PENDING_APPROVAL
-├─ REJECTED
-└─ APPROVED
-      ↓
-ISSUED
-      ↓
-PARTIALLY_RECEIVED
-      ↓
-FULLY_RECEIVED
-      ↓
-INVOICED
-      ↓
-CLOSED
-```
-
-Alternatives:
-
-```text
-CANCELLED
-ON_HOLD
-```
-
----
-
-# 23. PO Amendment
-
-Không sửa silently PO đã issue.
-
-Nếu cần đổi:
-
-```text
-quantity
-price
-delivery
-supplier terms
-```
-
-thì tạo:
-
-```text
-PO Amendment / Version
-```
-
-Lưu:
-
-```text
-before
-after
-reason
-approver
-timestamp
-```
+Goods Receipt lines must refer to the PO and the commercial version/line they
+received. TASK-073 owns the receipt ledger and receipt-state progression. A
+receipt does not rewrite a PO commercial version.
 
 ---
 
@@ -835,9 +895,15 @@ System:
 
 ```text
 PO line received = 40/100
-status = PARTIALLY_RECEIVED
+receipt_state = PARTIALLY_RECEIVED
+PO lifecycle_state is unchanged (ISSUED or ON_HOLD)
 remaining = 60
 ```
+
+This receipt projection is not a PO lifecycle transition. A held PO cannot
+accept a new receipt; a partial PO may be intentionally closed using
+`PO.CLOSE_REMAINDER`, which preserves the 40 received units and partial receipt
+history.
 
 ---
 
@@ -2092,13 +2158,17 @@ PROCUREMENT.APPROVAL_REQUESTED
 PROCUREMENT.APPROVED
 PROCUREMENT.REJECTED
 PO.CREATED
-PO.APPROVED
+PO.UPDATED
 PO.ISSUED
+PO.HELD
+PO.RESUMED
 PO.AMENDED
+PO.CANCELLED
+PO.CLOSED
+PO.REMAINDER_CLOSED
 PO.PARTIALLY_RECEIVED
 PO.FULLY_RECEIVED
 PO.DELIVERY_OVERDUE
-PO.CLOSED
 ```
 
 ## Invoice
@@ -2425,7 +2495,8 @@ Goods Receipt GR-001
 ↓
 12 Asset records created
 ↓
-PO = PARTIALLY_RECEIVED
+PO.receipt_state = PARTIALLY_RECEIVED
+PO.lifecycle_state remains ISSUED
 ↓
 Invoice for 12 units received
 ↓
@@ -2439,7 +2510,9 @@ Second Goods Receipt
 ↓
 Second Invoice
 ↓
-PO fully received/invoiced
+PO receipt_state = FULLY_RECEIVED
+PO lifecycle_state = ISSUED until PO.CLOSE; Invoice state is independent
+PO.CLOSE → lifecycle_state = CLOSED
 ↓
 PO closed
 ```

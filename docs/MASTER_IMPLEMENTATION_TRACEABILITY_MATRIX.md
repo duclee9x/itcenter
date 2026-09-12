@@ -1206,14 +1206,49 @@ procurement.quotations
 ```text
 procurement.purchase_orders
 procurement.purchase_order_lines
+procurement.purchase_order_versions
+append-only PO lifecycle/receipt history
+```
+
+Feature: F-041; Workflow: WF-P03; normative specification remediation:
+`tasks/TASK-072-R1_PURCHASE_ORDER_LIFECYCLE_APPROVAL_AMENDMENT_CONTRACT.md`.
+
+PO lifecycle (`DRAFT`, `ISSUED`, `ON_HOLD`, `CLOSED`, `CANCELLED`) and receipt
+state (`NOT_RECEIVED`, `PARTIALLY_RECEIVED`, `FULLY_RECEIVED`) are independent.
+Approval is a conditional control gate, not a PO state. Issue validates
+Supplier eligibility and, when RFQ-linked, the awarded RFQ and accepted
+winning quotation. Issued commercial versions are immutable; allowed
+pre-receipt amendments append a new version. TASK-072 owns lifecycle,
+conditional issue/amend approval validation, version/history, and
+`UPDATE_DRAFT`/`ISSUE` plus `AMEND`/`CANCEL` concurrency. TASK-073 owns receipt
+progression and the `HOLD`/Goods Receipt and `CANCEL`/Goods Receipt races.
+
+Commands:
+
+```text
+PO.CREATE
+PO.UPDATE_DRAFT
+PO.ISSUE
+PO.HOLD
+PO.RESUME
+PO.AMEND
+PO.CANCEL
+PO.CLOSE
+PO.CLOSE_REMAINDER
 ```
 
 Events:
 
 ```text
 PO.CREATED
+PO.UPDATED
 PO.ISSUED
+PO.HELD
+PO.RESUMED
 PO.AMENDED
+PO.CANCELLED
+PO.CLOSED
+PO.REMAINDER_CLOSED
 ```
 
 ---
@@ -1237,6 +1272,10 @@ GOODS.RECEIVING_EXCEPTION
 PO.PARTIALLY_RECEIVED
 PO.FULLY_RECEIVED
 ```
+
+These two PO receipt events update only the independent receipt-state
+projection and are produced by TASK-073; they do not change PO lifecycle or
+commercial version.
 
 ### Downstream
 

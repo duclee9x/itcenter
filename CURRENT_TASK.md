@@ -2,20 +2,19 @@
 
 Task: `TASK-072` — Purchase Order + Approval + Amendment
 
-Task contract: `GENERATE_ON_READY` (not generated; TASK-072 is blocked)
+Task specification: `tasks/TASK-072_PURCHASE_ORDER_APPROVAL_AMENDMENT.md`
 
-Readiness: `BLOCKED`
+Readiness: `READY`
 
 Status: `NOT_STARTED`
 
-Dependencies TASK-036 and TASK-071 are `CODE_COMPLETE`. Registry reconciliation
-found a genuine `SPEC_CONFLICT`: the Purchase Order workflow does not define a
-normative transition/command matrix, approval-request linkage and
-required-versus-conditional approval behavior, or a complete lifecycle event
-contract. No TASK-072 implementation has started.
+Dependencies TASK-036, TASK-071 and remediation TASK-072-R1 are
+`CODE_COMPLETE`. TASK-072-R1 made the Purchase Order lifecycle and receipt
+dimensions independent, defined conditional approval and immutable amendment
+rules, and reconciled permissions, events, data model and concurrency
+ownership.
 
-Last completed task: `TASK-071` — RFQ + Quotation + Supplier Selection
-(`CODE_COMPLETE`; commit recorded separately).
+Last completed remediation: `TASK-072-R1` — Purchase Order Lifecycle +
+Approval + Amendment Contract (`CODE_COMPLETE`; specification only).
 
-Do not begin TASK-072 until its Purchase Order lifecycle and approval rules
-are made normative.
+Do not implement TASK-072 until the user explicitly authorizes continuation.

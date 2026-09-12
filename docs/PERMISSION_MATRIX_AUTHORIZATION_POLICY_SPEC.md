@@ -683,8 +683,14 @@ quotation.evaluate
 quotation.read
 supplier.read
 supplier.select
-po.draft
-po.issue_after_approval
+po.read
+po.create
+po.update
+po.issue
+po.hold
+po.cancel
+po.amend
+po.close
 goods_receipt.read
 invoice.read
 ```
@@ -699,7 +705,7 @@ Allow:
 
 ```text
 procurement.approve
-po.approve
+approval.decide
 supplier_exception.approve
 ```
 
@@ -1064,9 +1070,13 @@ supplier.status.change
 supplier.block
 supplier.select
 po.create
-po.approve
 po.issue
 po.amend
+po.read
+po.update
+po.hold
+po.cancel
+po.close
 invoice.read
 invoice.match.resolve
 invoice.approve_exception
@@ -1116,6 +1126,38 @@ grant Supplier master mutation. Do not define or use a broad
 All grants remain subject to tenant isolation and resource scope. The backend
 rechecks permission and scope on every command. A caller that may block or
 unblock a Supplier does not thereby gain profile-edit or approval rights.
+
+The Purchase Order permission catalog is:
+
+```text
+po.read
+po.create
+po.update
+po.issue
+po.hold
+po.cancel
+po.amend
+po.close
+```
+
+Normative command mapping:
+
+| Command | Permission |
+|---|---|
+| `PO.CREATE` | `po.create` |
+| `PO.UPDATE_DRAFT` | `po.update` |
+| `PO.ISSUE` | `po.issue` |
+| `PO.HOLD`, `PO.RESUME` | `po.hold` |
+| `PO.CANCEL` | `po.cancel` |
+| `PO.AMEND` | `po.amend` |
+| `PO.CLOSE`, `PO.CLOSE_REMAINDER` | `po.close` |
+| PO reads | `po.read` |
+| Approval request decisions | `approval.decide` |
+
+Approval is not a PO permission and `po.issue` does not imply approval-decision
+authority. The previous draft identifiers `po.draft`,
+`po.issue_after_approval` and `po.approve` are not normative permissions.
+Every command also requires tenant/resource scope authorization.
 
 ---
 

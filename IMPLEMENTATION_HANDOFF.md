@@ -1,24 +1,40 @@
 # IMPLEMENTATION HANDOFF
 
-## Current Task — TASK-072 (Blocked, Not Started)
+## Current Task — TASK-072 (Ready, Not Started)
 
 Purchase Order + Approval + Amendment
 
 Feature: F-041
 Workflow: WF-P03
 Phase/Priority: P4 / P0
-Readiness: BLOCKED
+Readiness: READY
 Status: NOT_STARTED
 
-Task contract: `GENERATE_ON_READY` (not generated because readiness is
-blocked).
+Task contract: `tasks/TASK-072_PURCHASE_ORDER_APPROVAL_AMENDMENT.md`
 
-TASK-036 and TASK-071 are `CODE_COMPLETE`. Registry reconciliation found a
-`SPEC_CONFLICT`: PO states are listed but there is no normative transition and
-command matrix; approval request linkage and whether approval is mandatory or
-conditional are unspecified; and the event catalog lacks a complete PO
-lifecycle contract. Do not infer business rules or begin implementation until
-these are resolved.
+Dependencies TASK-036, TASK-071 and TASK-072-R1 are `CODE_COMPLETE`.
+TASK-072-R1 resolved the PO lifecycle/approval/amendment `SPEC_CONFLICT` and
+made its state dimensions, transition guards, conditional approvals, immutable
+versions, permissions, events, data model and concurrency ownership normative.
+TASK-072 remains `NOT_STARTED`; wait for explicit user authorization.
+
+## Last Completed Remediation — TASK-072-R1
+
+Purchase Order Lifecycle + Approval + Amendment Contract (`CODE_COMPLETE`,
+specification only). See
+`tasks/TASK-072-R1_PURCHASE_ORDER_LIFECYCLE_APPROVAL_AMENDMENT_CONTRACT.md`.
+
+- Separated PO lifecycle from receipt state and made full/short close,
+  cancellation, hold/resume, Supplier and RFQ award guards normative.
+- Defined conditional PO_ISSUE/PO_AMENDMENT approval snapshot binding, with no
+  blanket approval requirement or automatic request creation.
+- Made issued commercial versions immutable, bounded amendments to
+  pre-receipt POs, and assigned receipt concurrency tests to TASK-073.
+- Updated PO workflow, state machine, permission matrix, event catalog,
+  data-model and traceability contracts; generated the TASK-072 implementation
+  contract. No TASK-072 or TASK-073 runtime code was implemented.
+- Verification: cross-document contract reconciliation, format check and
+  `git diff --check`.
 
 ## Last Completed Task — TASK-071
 

@@ -3030,32 +3030,131 @@ purchase_order_id:
 po_code:
 supplier_id:
 procurement_request_id:
-version:
+rfq_id:
+accepted_quotation_id:
+lifecycle_state: DRAFT
+receipt_state: NOT_RECEIVED
+aggregate_version: 1
+```
+
+## `PO.UPDATED`
+
+Emitted only for `PO.UPDATE_DRAFT`.
+
+```yaml
+purchase_order_id:
+previous_lifecycle_state: DRAFT
+lifecycle_state: DRAFT
+receipt_state: NOT_RECEIVED
+aggregate_version:
+changed_fields:
 ```
 
 ## `PO.ISSUED`
 
 ```yaml
 purchase_order_id:
-version:
+previous_lifecycle_state: DRAFT
+lifecycle_state: ISSUED
+receipt_state: NOT_RECEIVED
+aggregate_version:
+commercial_version: 1
+supplier_id:
 issued_at:
 expected_delivery:
+approval_reference: # approved linked PO_ISSUE request ID, or null when none is linked
+commercial_snapshot_hash:
+```
+
+## `PO.HELD`
+
+```yaml
+purchase_order_id:
+previous_lifecycle_state: ISSUED
+lifecycle_state: ON_HOLD
+receipt_state:
+aggregate_version:
+reason:
+```
+
+## `PO.RESUMED`
+
+```yaml
+purchase_order_id:
+previous_lifecycle_state: ON_HOLD
+lifecycle_state: ISSUED
+receipt_state:
+aggregate_version:
+reason:
 ```
 
 ## `PO.AMENDED`
 
 ```yaml
 purchase_order_id:
-previous_version:
-new_version:
+previous_lifecycle_state: ISSUED | ON_HOLD
+lifecycle_state:
+receipt_state: NOT_RECEIVED
+aggregate_version:
+base_commercial_version:
+new_commercial_version:
+approval_reference: # approved linked PO_AMENDMENT request ID, or null when none is linked
+commercial_snapshot_hash:
 material_changes:
+reason:
 ```
+
+## `PO.CANCELLED`
+
+```yaml
+purchase_order_id:
+previous_lifecycle_state: DRAFT | ISSUED | ON_HOLD
+lifecycle_state: CANCELLED
+receipt_state: NOT_RECEIVED
+aggregate_version:
+reason:
+```
+
+## `PO.CLOSED`
+
+```yaml
+purchase_order_id:
+previous_lifecycle_state: ISSUED | ON_HOLD
+lifecycle_state: CLOSED
+receipt_state: FULLY_RECEIVED
+aggregate_version:
+completed_at:
+```
+
+## `PO.REMAINDER_CLOSED`
+
+```yaml
+purchase_order_id:
+previous_lifecycle_state: ISSUED | ON_HOLD
+lifecycle_state: CLOSED
+receipt_state: PARTIALLY_RECEIVED
+aggregate_version:
+received_quantities:
+remaining_quantities:
+reason:
+```
+
+## PO Receipt-State Events — TASK-073
+
+Producer/owner: Goods Receipt workflow under TASK-073. These events update
+only the independent PO receipt state; they do not change `lifecycle_state`
+or a PO commercial version. Goods Receipt posting is forbidden while
+`lifecycle_state=ON_HOLD` or `CANCELLED`.
 
 ## `PO.PARTIALLY_RECEIVED`
 
 ```yaml
 purchase_order_id:
 goods_receipt_id:
+previous_receipt_state: NOT_RECEIVED | PARTIALLY_RECEIVED
+receipt_state: PARTIALLY_RECEIVED
+aggregate_version:
+commercial_version:
 received_summary:
 remaining_summary:
 ```
@@ -3064,7 +3163,13 @@ remaining_summary:
 
 ```yaml
 purchase_order_id:
+goods_receipt_id:
+previous_receipt_state: NOT_RECEIVED | PARTIALLY_RECEIVED
+receipt_state: FULLY_RECEIVED
+aggregate_version:
+commercial_version:
 completed_at:
+received_summary:
 ```
 
 ## `PO.DELIVERY_OVERDUE`
