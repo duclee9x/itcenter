@@ -396,3 +396,8 @@ terminal child effects, supplier/approval eligibility, and submit-vs-close,
 award-vs-cancel and parallel same-supplier submission races. Verification
 passed: `npm test` (82 tests), `npm run typecheck`, `npm run lint`,
 `npm run format:check` and `git diff --check`. TASK-072 was not implemented.
+
+Final review also verified RFQ history snapshots preserve the candidate Supplier
+IDs on creation and draft updates. The submit-vs-close test races an actual
+`QUOTATION.SUBMIT` against `RFQ.CLOSE_SUBMISSIONS` and checks that a losing
+submission leaves the quotation in `DRAFT` with no submit outbox event.

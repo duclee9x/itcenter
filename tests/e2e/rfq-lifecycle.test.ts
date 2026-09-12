@@ -186,6 +186,14 @@ test("TASK-071 RFQ and Quotation commands preserve revisions, eligibility, atomi
         data: { id: string; version: number; state: string };
       }
     ).data;
+    const createHistory = await db.pool.query(
+      "SELECT after_snapshot FROM procurement.rfq_history WHERE tenant_id=$1 AND rfq_id=$2 AND entity_version=1",
+      [tenantId, rfq.id],
+    );
+    assert.deepEqual(
+      createHistory.rows[0]!.after_snapshot.supplier_ids,
+      suppliers.slice(0, 3).sort(),
+    );
     const replay = await post("/api/v1/rfqs", "rfq-create", createBody);
     assert.equal(replay.status, 201);
     assert.equal(
@@ -331,31 +339,17 @@ test("TASK-071 RFQ and Quotation commands preserve revisions, eligibility, atomi
     assert.equal(submitOther.status, 200, await submitOther.clone().text());
     const awardDraft = await createQuote("award-draft", rfq.id, suppliers[2]!);
 
-    const closing = await Promise.all([
-      command(
-        `/api/v1/quotations/${otherQuote.id}/commands/withdraw`,
-        "race-submit-close-quote",
-        2,
-      ),
-      command(
-        `/api/v1/rfqs/${rfq.id}/commands/close-submissions`,
-        "race-submit-close-rfq",
-        2,
-      ),
-    ]);
-    assert.ok(
-      closing.every(
-        (response) => response.status === 200 || response.status === 422,
-      ),
+    const closeMainRfq = await command(
+      `/api/v1/rfqs/${rfq.id}/commands/close-submissions`,
+      "close-main-rfq",
+      2,
     );
-    assert.equal(closing[1]!.status, 200, await closing[1]!.clone().text());
+    assert.equal(closeMainRfq.status, 200, await closeMainRfq.clone().text());
     const afterClose = await db.pool.query(
       "SELECT state FROM procurement.quotations WHERE tenant_id=$1 AND id=$2",
       [tenantId, otherQuote.id],
     );
-    assert.ok(
-      ["WITHDRAWN", "SUBMITTED"].includes(String(afterClose.rows[0]!.state)),
-    );
+    assert.equal(afterClose.rows[0]!.state, "SUBMITTED");
 
     const awardRace = await Promise.all([
       command(`/api/v1/rfqs/${rfq.id}/commands/award`, "race-award", 3, {
@@ -389,7 +383,7 @@ test("TASK-071 RFQ and Quotation commands preserve revisions, eligibility, atomi
       );
       assert.equal(
         finalQuotes.rows.find((row) => row.id === otherQuote.id)!.state,
-        afterClose.rows[0]!.state === "SUBMITTED" ? "REJECTED" : "WITHDRAWN",
+        "REJECTED",
       );
       assert.equal(
         finalQuotes.rows.find((row) => row.id === awardDraft.id)!.state,
@@ -400,10 +394,7 @@ test("TASK-071 RFQ and Quotation commands preserve revisions, eligibility, atomi
         "SELECT count(*)::int AS count FROM procurement.quotations WHERE tenant_id=$1 AND rfq_id=$2 AND state='VOID'",
         [tenantId, rfq.id],
       );
-      assert.equal(
-        voided.rows[0]!.count,
-        afterClose.rows[0]!.state === "SUBMITTED" ? 3 : 2,
-      );
+      assert.equal(voided.rows[0]!.count, 3);
     }
 
     const noAwardRfq = await createRfq("rfq-no-award", [
@@ -631,6 +622,14 @@ test("TASK-071 RFQ and Quotation commands preserve revisions, eligibility, atomi
       { title: "Updated cancellation RFQ" },
     );
     assert.equal(updateCancelDraft.status, 200);
+    const updateHistory = await db.pool.query(
+      "SELECT after_snapshot FROM procurement.rfq_history WHERE tenant_id=$1 AND rfq_id=$2 AND entity_version=2",
+      [tenantId, cancelRfq.id],
+    );
+    assert.deepEqual(
+      updateHistory.rows[0]!.after_snapshot.supplier_ids,
+      [suppliers[0]!, suppliers[1]!].sort(),
+    );
     assert.equal(
       (
         await command(
@@ -701,6 +700,58 @@ test("TASK-071 RFQ and Quotation commands preserve revisions, eligibility, atomi
       cancelledQuotes.rows.map((row) => String(row.id)).sort(),
       [cancelDraft.id, cancelQuote.id].sort(),
     );
+
+    const closeRaceRfq = await createRfq("rfq-submit-close-race", [
+      suppliers[2]!,
+    ]);
+    assert.equal(
+      (
+        await command(
+          `/api/v1/rfqs/${closeRaceRfq.id}/commands/issue`,
+          "submit-close-race-issue",
+          1,
+        )
+      ).status,
+      200,
+    );
+    const closeRaceQuote = await createQuote(
+      "submit-close-race-quote",
+      closeRaceRfq.id,
+      suppliers[2]!,
+    );
+    const submitVersusClose = await Promise.all([
+      command(
+        `/api/v1/quotations/${closeRaceQuote.id}/commands/submit`,
+        "submit-close-race-submit",
+        1,
+      ),
+      command(
+        `/api/v1/rfqs/${closeRaceRfq.id}/commands/close-submissions`,
+        "submit-close-race-close",
+        2,
+      ),
+    ]);
+    assert.equal(
+      submitVersusClose[1]!.status,
+      200,
+      await submitVersusClose[1]!.clone().text(),
+    );
+    assert.ok([200, 422].includes(submitVersusClose[0]!.status));
+    const raceQuoteState = await db.pool.query(
+      "SELECT state FROM procurement.quotations WHERE tenant_id=$1 AND id=$2",
+      [tenantId, closeRaceQuote.id],
+    );
+    const raceSubmitEvents = await db.pool.query(
+      "SELECT count(*)::int AS count FROM platform.outbox_events WHERE tenant_id=$1 AND aggregate_id=$2::text AND event_type='QUOTATION.SUBMITTED'",
+      [tenantId, closeRaceQuote.id],
+    );
+    if (submitVersusClose[0]!.status === 200) {
+      assert.equal(raceQuoteState.rows[0]!.state, "SUBMITTED");
+      assert.equal(raceSubmitEvents.rows[0]!.count, 1);
+    } else {
+      assert.equal(raceQuoteState.rows[0]!.state, "DRAFT");
+      assert.equal(raceSubmitEvents.rows[0]!.count, 0);
+    }
 
     const timeline = await get(`/api/v1/rfqs/${noAwardRfq.id}/timeline`);
     assert.equal(timeline.status, 200);

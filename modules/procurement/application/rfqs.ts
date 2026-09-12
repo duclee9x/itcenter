@@ -85,10 +85,6 @@ function safeQuotation(row: Record<string, unknown>) {
   };
 }
 
-function snapshot(row: Record<string, unknown>, kind: "RFQ" | "QUOTATION") {
-  return kind === "RFQ" ? safeRfq(row) : safeQuotation(row);
-}
-
 async function suppliersFor(tx: Transaction, rfqId: string) {
   const result = await tx.query(
     "SELECT supplier_id FROM procurement.rfq_suppliers WHERE tenant_id=$1 AND rfq_id=$2 ORDER BY supplier_id",
@@ -177,7 +173,10 @@ async function appendStateEvent(input: {
   correlationId: string;
   before: Record<string, unknown> | null;
 }) {
-  const after = snapshot(input.row, input.kind);
+  const after =
+    input.kind === "RFQ"
+      ? safeRfq(input.row, await suppliersFor(input.tx, input.id))
+      : safeQuotation(input.row);
   await writeHistory({
     tx: input.tx,
     kind: input.kind,

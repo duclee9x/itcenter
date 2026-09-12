@@ -36,6 +36,9 @@ report.
 - PostgreSQL E2E coverage exercises supplier eligibility, approval guards,
   terminal child transitions, audit/outbox/timeline and the three specified
   concurrency races.
+- RFQ history snapshots retain candidate Supplier IDs; the submit-vs-close
+  case races actual submission against close and verifies no event/effect when
+  the submission loses.
 - Verification passed: `npm test` (82 tests), `npm run typecheck`,
   `npm run lint`, `npm run format:check` and `git diff --check`.
 
