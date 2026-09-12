@@ -1,28 +1,27 @@
 # CURRENT TASK
 
-Task: `TASK-075` — Contract + Renewal + Commercial Document Governance
+Task: `TASK-076-R1` — Reconcile Phase 4 Gate Evidence and Unresolved
+Requirements
 
-Task specification: `tasks/TASK-075_CONTRACT_RENEWAL_COMMERCIAL_DOCUMENT_GOVERNANCE.md`
+Task specification:
+`tasks/TASK-076-R1_PHASE4_INTEGRATION_GATE_CONTRACT.md`
 
-Readiness: `READY`
+Readiness: `READY` (planning/remediation only)
 
 Status: `NOT_STARTED`
 
-Dependencies TASK-070, TASK-074 and TASK-075-R1 are `CODE_COMPLETE`. TASK-075-R1
-defined and reconciled normative Contract lifecycle, usage status, immutable
-versions, execution evidence, amendments, successor renewal, document
-governance, permissions, events, storage, audit and concurrency requirements.
-TASK-075 is ready but remains `NOT_STARTED`; runtime implementation requires
-explicit user authorization.
+TASK-075 — Contract + Renewal + Commercial Document Governance is
+`CODE_COMPLETE`; see `tasks/TASK-075_IMPLEMENTATION_REPORT.md`.
 
-Last completed task: `TASK-074` — Invoice, Duplicate Protection, 3-Way Match
-and Credit Note (`CODE_COMPLETE`); see
-`tasks/TASK-074_IMPLEMENTATION_REPORT.md`.
+The Phase 4 Definition of Done exists. TASK-076 remains `BLOCKED / NOT_STARTED`
+by `SPEC_GAP / PLANNING_REQUIRED` for two explicit unmet requirements:
+Contract expiry/renewal alert configuration has no normative notice field or
+implemented alert flow, and Asset/License costs have no canonical links to
+procurement/Contract sources (including undefined relationship/allocation and
+historical semantics). TASK-076-R1 reconciles existing gate evidence and
+resolves those planning gaps without inventing rules or starting TASK-076
+runtime work.
 
-Last completed remediation: `TASK-074-R1` — Invoice + Duplicate Protection +
-3-Way Match + Credit Note Contract (`CODE_COMPLETE`, specification only); see
-`tasks/TASK-074-R1_INVOICE_DUPLICATE_MATCH_CREDIT_NOTE_CONTRACT.md`.
-
-Latest completed remediation: `TASK-075-R1` — Contract Lifecycle + Renewal +
-Commercial Document Governance Contract (`CODE_COMPLETE`, specification only);
-see `tasks/TASK-075-R1_CONTRACT_LIFECYCLE_RENEWAL_DOCUMENT_GOVERNANCE_CONTRACT.md`.
+Operational follow-up: configure a central `ObjectStore` adapter for
+commercial-document finalization; the API fails closed while the provider is
+unavailable.

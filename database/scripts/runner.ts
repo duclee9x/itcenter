@@ -34,7 +34,9 @@ export async function migrate(
     ].map((owner) =>
       owner === "asset"
         ? { owner, before: "20260912_010_received_unit_registration.sql" }
-        : { owner },
+        : owner === "operations"
+          ? { owner, before: "20260914_001_contract_document_sources.sql" }
+          : { owner },
     ),
     { owner: "software", before: "20260912_002_deployment.sql" },
     { owner: "artifact" },
@@ -46,6 +48,9 @@ export async function migrate(
       owner: "asset",
       after: "20260912_009_replacement_retirement_disposal.sql",
     },
+    { owner: "contract" },
+    { owner: "document" },
+    { owner: "operations", after: "20260912_006_asset_lifecycle_source.sql" },
   ];
   for (const step of plan)
     for (const file of (await readdir(path.join(root, step.owner))).sort())

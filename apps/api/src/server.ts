@@ -116,6 +116,8 @@ import { handleRfqRoute } from "./rfq-routes.js";
 import { handlePurchaseOrderRoute } from "./purchase-order-routes.js";
 import { handleGoodsReceiptRoute } from "./goods-receipt-routes.js";
 import { handleInvoiceRoute } from "./invoice-routes.js";
+import { handleContractRoute } from "./contract-routes.js";
+import type { ObjectStore } from "../../../packages/object-storage/src/index.js";
 
 const networkExceptionQueue = {
   createReference: createNetworkExceptionWorkItem,
@@ -246,6 +248,7 @@ export function apiServer(
   authorization: AuthorizationPort,
   uow: UnitOfWork,
   softwareArtifactAdapters?: SoftwareArtifactAdapters,
+  objectStore?: ObjectStore,
 ) {
   return createHttpServer(config, ready, async (req, res, context) => {
     if (
@@ -319,6 +322,19 @@ export function apiServer(
         authentication,
         authorization,
         uow,
+      })
+    )
+      return true;
+    if (
+      await handleContractRoute({
+        req,
+        res,
+        context,
+        config,
+        authentication,
+        authorization,
+        uow,
+        ...(objectStore ? { objectStore } : {}),
       })
     )
       return true;

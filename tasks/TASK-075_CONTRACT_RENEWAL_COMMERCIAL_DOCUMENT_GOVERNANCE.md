@@ -8,8 +8,8 @@ feature_id: F-045/F-046
 workflow_id: WF-P06/WF-016
 phase: P4
 priority: P1
-readiness: READY
-status: NOT_STARTED
+readiness: SATISFIED
+status: CODE_COMPLETE
 owner_domain: contract
 depends_on: TASK-070, TASK-074, TASK-075-R1
 ```
@@ -56,8 +56,8 @@ integration or payment settlement.
 
 ## 5. Out of Scope
 
-- TASK-075 runtime work is not part of TASK-075-R1. This file defines the
-  implementation contract only.
+- TASK-075-R1 defined the normative contract. Runtime behavior is implemented
+  by TASK-075 and recorded in `TASK-075_IMPLEMENTATION_REPORT.md`.
 - Electronic-signature provider integration; support recording externally
   signed/offline evidence.
 - Legal advice, automatic legal execution, automatic renewal execution or a
@@ -361,6 +361,6 @@ migration, integration and E2E commands; do not invent command names.
 
 ## 22. Implementation Report
 
-Runtime implementation is not part of TASK-075-R1. Record implementation
-evidence and any remaining gaps when TASK-075 is explicitly started and
-completed.
+TASK-075 is `CODE_COMPLETE`; see
+`tasks/TASK-075_IMPLEMENTATION_REPORT.md` for delivered APIs, persistence,
+verification and the object-storage adapter deployment dependency.

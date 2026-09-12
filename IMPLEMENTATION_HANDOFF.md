@@ -1,25 +1,38 @@
 # IMPLEMENTATION HANDOFF
 
-## Current Task — TASK-075 (Ready, Not Started)
+## Current Task — TASK-076-R1 (Ready, Not Started; Planning Only)
 
-Contract + Renewal + Commercial Document Governance
+Reconcile Phase 4 Gate Evidence and Unresolved Requirements
 
-Feature: F-045/F-046
+Feature: PHASE-GATE
 
-Workflow: WF-P06/WF-016
+Workflow: P4-E2E
 
-Phase/Priority: P4 / P1
+Phase/Priority: P4 / P0
 
-Readiness: READY
+Readiness: READY (planning/remediation only)
 
 Status: NOT_STARTED
 
-Task contract: `tasks/TASK-075_CONTRACT_RENEWAL_COMMERCIAL_DOCUMENT_GOVERNANCE.md`
+Task: `tasks/TASK-076-R1_PHASE4_INTEGRATION_GATE_CONTRACT.md`
 
-Dependencies TASK-070, TASK-074 and TASK-075-R1 are complete. The normative
-Contract, Renewal and Commercial Document Governance contract is reconciled.
-TASK-075 remains NOT_STARTED; do not begin runtime implementation until the
-user explicitly asks to continue.
+TASK-075 is `CODE_COMPLETE`; its implementation report is
+`tasks/TASK-075_IMPLEMENTATION_REPORT.md`. The Phase 4 Definition of Done is
+present. TASK-076 remains `BLOCKED / NOT_STARTED` by
+`SPEC_GAP / PLANNING_REQUIRED`: Contract expiry/renewal alert configuration
+has no normative notice field or implemented alert flow, and Asset/License
+costs lack canonical procurement/Contract links with defined relationship,
+allocation and historical semantics. TASK-076-R1 reconciles completed-task
+evidence and resolves these gaps without inventing rules or implementing
+TASK-076 runtime behavior.
+
+Operational follow-up: the API fails closed on commercial-document finalize
+until deployment injects a central `ObjectStore` adapter.
+
+## Last Completed Task — TASK-075
+
+Contract + Renewal + Commercial Document Governance (`CODE_COMPLETE`). See
+`tasks/TASK-075_IMPLEMENTATION_REPORT.md`.
 
 ## Last Completed Remediation — TASK-075-R1
 

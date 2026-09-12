@@ -1483,10 +1483,15 @@ See `tasks/TASK-074_IMPLEMENTATION_REPORT.md` and the task contract at
 contract.contracts
 contract.contract_coverages
 contract.contract_versions
+contract.execution_evidence
+contract.history
+contract.amendment_changes
 contract.renewal_cases
+contract.renewal_history
 document.documents
 document.document_versions
 document.document_links
+document.document_relationships
 ```
 
 ### Commands
@@ -1526,7 +1531,6 @@ CONTRACT.ACTIVATED
 CONTRACT.HELD
 CONTRACT.RESUMED
 CONTRACT.AMENDED
-CONTRACT.EXPIRING
 CONTRACT.TERMINATED
 CONTRACT.EXPIRED
 CONTRACT.CANCELLED
@@ -1580,10 +1584,21 @@ tenant/resource scoped. Approval decisions use `approval.decide`.
   changed proposals. Durable uniqueness and optimistic concurrency are
   required; application prechecks alone are insufficient.
 
-Planning status: TASK-075-R1 is `CODE_COMPLETE` (specification only). TASK-075
-has a detailed reconciled contract and is `READY / NOT_STARTED`; runtime work
-requires explicit user authorization. See
+Implementation status: TASK-075-R1 is `CODE_COMPLETE` (specification only);
+TASK-075 is `SATISFIED / CODE_COMPLETE`. Runtime persistence, commands, API,
+permissions, conditional approvals, immutable ContractVersions, renewal
+successors, document governance, audit/outbox/timeline and renewal Work Queue
+integration are implemented and exercised by PostgreSQL E2E tests. See
+`tasks/TASK-075_IMPLEMENTATION_REPORT.md` and
 `tasks/TASK-075_CONTRACT_RENEWAL_COMMERCIAL_DOCUMENT_GOVERNANCE.md`.
+
+The API uses the central `ObjectStore` boundary and verifies object metadata
+outside the database transaction. Deployment must inject a configured storage
+adapter before commercial documents can be finalized; the default unavailable
+adapter fails closed. The Phase 4 Definition of Done exists. TASK-076 remains
+blocked because Contract expiry/renewal alert configuration is not implemented
+and canonical Asset/License cost source links and their semantics are missing;
+TASK-076-R1 reconciles evidence and resolves these planning gaps.
 
 ---
 

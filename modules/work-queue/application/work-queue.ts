@@ -4,6 +4,31 @@ import {
   ApplicationError,
   assertVersion,
 } from "../../../packages/api-contracts/src/index.js";
+
+export async function upsertRenewalWorkItem(input: {
+  tx: Transaction;
+  renewalCaseId: string;
+}) {
+  await input.tx.query(
+    `INSERT INTO operations.work_items(id,tenant_id,source_type,source_id,title,priority,owner_team_id)
+     VALUES($1,$2,'RENEWAL',$3,'Renewal successor Contract requires action','MEDIUM','PROCUREMENT')
+     ON CONFLICT(tenant_id,source_type,source_id) DO UPDATE SET
+       title=EXCLUDED.title,state=CASE WHEN operations.work_items.state IN ('RESOLVED','CLOSED') THEN 'NEW' ELSE operations.work_items.state END,
+       resolved_at=CASE WHEN operations.work_items.state IN ('RESOLVED','CLOSED') THEN NULL ELSE operations.work_items.resolved_at END,
+       last_action_at=now(),version=operations.work_items.version+1`,
+    [randomUUID(), input.tx.tenantId, input.renewalCaseId],
+  );
+}
+
+export async function resolveRenewalWorkItem(input: {
+  tx: Transaction;
+  renewalCaseId: string;
+}) {
+  await input.tx.query(
+    "UPDATE operations.work_items SET state='RESOLVED',resolved_at=now(),last_action_at=now(),version=version+1 WHERE tenant_id=$1 AND source_type='RENEWAL' AND source_id=$2 AND state NOT IN ('RESOLVED','CLOSED')",
+    [input.tx.tenantId, input.renewalCaseId],
+  );
+}
 export async function createTicketWorkItem(input: {
   tx: Transaction;
   ticketId: string;
