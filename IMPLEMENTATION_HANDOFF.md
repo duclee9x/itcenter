@@ -1,22 +1,22 @@
 # IMPLEMENTATION HANDOFF
 
-## Current Task — TASK-073 (Ready, Not Started)
+## Current Task — TASK-073-R1 (Blocked, Not Started)
 
-Goods Receipt + Asset Creation + Partial Receipt
+Goods Receipt + Partial Receipt + PO Receipt Integration Contract
 
 Feature: F-042
 Workflow: WF-005
 Phase/Priority: P4 / P0
-Readiness: READY (derived)
+Readiness: BLOCKED
 Status: NOT_STARTED
 
 Task contract: `GENERATE_ON_READY`
 
-Dependencies TASK-012 and TASK-072 are `CODE_COMPLETE`; registry readiness
-has been reconciled. Generate and reconcile the detailed TASK-073 contract
-before implementation. TASK-073 owns canonical Goods Receipt writes,
-receipt-state progression, and the PO.HOLD-vs-receipt and PO.CANCEL-vs-receipt
-concurrency tests. No TASK-073 runtime code has started.
+TASK-073 is `NOT_STARTED` and blocked by `SPEC_GAP / PLANNING_REQUIRED`: its
+normative Goods Receipt, partial receipt and PO integration contract is
+incomplete. TASK-073-R1 tracks that planning gap. Do not define missing
+business rules until explicitly asked. No TASK-073 runtime implementation has
+started.
 
 ## Last Completed Task — TASK-072
 

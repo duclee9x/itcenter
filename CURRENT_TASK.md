@@ -1,22 +1,22 @@
 # CURRENT TASK
 
-Task: `TASK-073` — Goods Receipt + Asset Creation + Partial Receipt
+Task: `TASK-073-R1` — Goods Receipt + Partial Receipt + PO Receipt Integration Contract
 
-Readiness: `READY`
+Readiness: `BLOCKED`
 
 Status: `NOT_STARTED`
 
-Dependencies TASK-012 and TASK-072 are `CODE_COMPLETE`. Registry readiness
-has been reconciled from those actual dependency reports.
+Planning/remediation task for the missing normative TASK-073 contract.
+Business-rule definition is deferred pending explicit user instruction.
 
-The detailed TASK-073 contract is generated when the task is selected, before
-implementation. TASK-073 owns canonical Goods Receipt creation, receipt-state
-progression and both PO-vs-receipt concurrency races. TASK-072's report
-defines the required same-transaction PO lock, receipt counter, state,
-quantity summaries, aggregate-version and history updates.
+TASK-073 remains `NOT_STARTED` and `BLOCKED` by
+`SPEC_GAP / PLANNING_REQUIRED`: the normative Goods Receipt, partial receipt
+and PO receipt integration contract is incomplete. Dependency completion
+alone does not make TASK-073 implementation-ready.
 
 Last completed task: `TASK-072` — Purchase Order + Approval + Amendment
 (`CODE_COMPLETE`); see
 `tasks/TASK-072_PURCHASE_ORDER_APPROVAL_AMENDMENT.md`.
 
-No TASK-073 runtime implementation has started.
+No TASK-073 runtime implementation has started. This state correction does
+not define Goods Receipt business rules.
