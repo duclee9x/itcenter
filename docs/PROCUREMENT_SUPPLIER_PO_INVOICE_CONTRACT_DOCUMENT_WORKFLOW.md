@@ -1374,18 +1374,29 @@ Goods Receipt
 Asset
 ```
 
-Asset có thể lưu:
+Asset read models may expose derived summaries such as:
 
 ```text
-purchase_cost
-invoice_reference
-supplier
-purchase_date
-cost_center
-depreciation_reference if integrated
+committed_cost
+actual_cost
+net_cost
+currency
+cost_source_summary
 ```
 
-Không duplicate accounting logic nếu ERP là source-of-truth.
+These summaries are not canonical financial history. Immutable cost
+provenance/allocation records retain the source document/version/line, amount,
+currency and allocation basis. Preserve PO-derived COMMITTED cost when an
+effective Invoice creates ACTUAL cost; an applied Credit Note creates a new
+ADJUSTMENT and never mutates the Invoice allocation. Goods Receipt proves
+physical receiving, not financial cost. Do not duplicate accounting logic if
+an ERP is the financial source of truth.
+
+Example: an Asset receives COMMITTED cost `1,000` from its PO line. An
+effective Invoice allocation of `980` appends ACTUAL cost `980`; both facts
+remain. The current acquisition-cost projection may prefer `980`. A later
+applied Credit Note appends a separate positive-amount CREDIT adjustment; it
+does not change either prior source fact.
 
 ---
 
@@ -1404,6 +1415,11 @@ Invoice
 ↓
 License Entitlement Created/Updated
 ```
+
+Entitlement update must retain canonical commercial cost provenance rather
+than only a free-form cost or reference. Cost provenance attaches to the
+License Entitlement or License Pool/commercial entitlement unit, not to each
+user assignment unless an explicit allocation policy requires that.
 
 Entitlement update phải dựa trên:
 
@@ -1470,7 +1486,8 @@ contract:
   effective_at:
   end_at:
   auto_renew:
-  notice_period_days:
+  renewal_notice_date:
+  renewal_notice_period_days:
   currency:
   value:
   owner:
@@ -1682,16 +1699,34 @@ exclusions
 
 # 49. Contract Expiry Watch
 
-`EXPIRING` is derived from explicit Contract terms/configuration, including
-the cancellation notice deadline when present. Do not apply a global default
-notice window when the Contract has no notice configuration.
+Proactive renewal/expiry action is derived only from explicit contract-specific
+configuration. Supported trigger sources are `renewal_notice_date`, or an
+explicit renewal notice period combined with `end_at`. If both are present,
+`renewal_notice_date` is authoritative. If neither exists, do not create a
+proactive warning from a global threshold; natural expiry at `end_at` remains
+independent and must proceed normally. Invalid/impossible configuration
+creates a configuration/data-integrity exception rather than a guessed date.
+
+Alert configuration binds to the applicable immutable ContractVersion and
+term context. Material changes to renewal terms schedule future alerts from
+the new applicable version; prior alert facts remain immutable. Alert identity
+includes tenant, Contract, ContractVersion, trigger type and trigger time, so
+repeated scheduler runs create one logical alert. The alert may create an
+actionable Work Item/notification or an authorized renewal candidate. It never
+executes or extends a Contract. Auto-renew metadata alone grants no authority
+to execute a renewal.
 
 Events:
 
 ```text
-CONTRACT.EXPIRING
+CONTRACT.RENEWAL_NOTICE_DUE
+CONTRACT.EXPIRY_ACTION_DUE
 CONTRACT.EXPIRED
 ```
+
+Due events reference Contract, ContractVersion, trigger type and `trigger_at`;
+they carry no confidential Contract body. `CONTRACT.EXPIRED` remains a
+separate lifecycle fact.
 
 ---
 
@@ -1700,7 +1735,7 @@ CONTRACT.EXPIRED
 Flow:
 
 ```text
-Contract Expiring
+Explicit Contract Renewal/Expiry Action Due
 ↓
 Evaluate Usage/Performance
 ↓
@@ -2180,7 +2215,7 @@ Delivery Overdue
 Quantity Mismatch
 Invoice Mismatch
 Duplicate Invoice
-Contract Expiring
+Contract Renewal/Expiry Action Due (explicit trigger only)
 Supplier SLA Breach
 ```
 
@@ -2510,7 +2545,8 @@ CONTRACT.ACTIVATED
 CONTRACT.HELD
 CONTRACT.RESUMED
 CONTRACT.AMENDED
-CONTRACT.EXPIRING
+CONTRACT.RENEWAL_NOTICE_DUE
+CONTRACT.EXPIRY_ACTION_DUE
 CONTRACT.EXPIRED
 CONTRACT.SLA_BREACH
 CONTRACT.TERMINATED
@@ -2702,7 +2738,7 @@ Average Match Time
 ## Contract
 
 ```text
-Contracts Expiring
+Configured Renewal/Expiry Actions Due
 Renewal Completion Rate
 Auto-renewal Risk
 Contract Utilization
@@ -2982,6 +3018,9 @@ Cụm workflow này đạt yêu cầu khi:
 - Spare part purchase nối Maintenance.
 - Contract có lifecycle + coverage + expiry + notice deadline.
 - Contract renewal dùng actual usage/performance.
+- Contract alerts use only explicit version-bound notice/action terms; no
+  global threshold. Asset/License cost provenance links to immutable
+  PO/Invoice/Credit Note/Contract source versions and lines.
 - Document có metadata/version/status/permission/retention.
 - Signed/final document immutable.
 - Auto-generated documents lấy dữ liệu từ workflow context.

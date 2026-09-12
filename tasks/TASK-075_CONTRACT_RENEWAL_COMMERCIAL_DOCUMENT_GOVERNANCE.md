@@ -92,6 +92,13 @@ canonical implementation are not supplied by the remediation.
   EXECUTED; activation enters ACTIVE; active contracts naturally expire or
   may be explicitly terminated. Only unexecuted DRAFT/PENDING_SIGNATURE may
   be cancelled. Never resurrect a terminal Contract.
+- Renewal alert fields `renewal_notice_date` and/or
+  `renewal_notice_period_days` are version-bound Contract terms. If both are
+  present, the explicit date wins; otherwise derive `end_at - period`. No
+  global default exists. Missing configuration suppresses proactive alerts
+  but never natural expiry. Material renewal-term changes recalculate only
+  future alert scheduling; historical alert facts remain. Auto-renew metadata
+  never authorizes automatic Contract execution.
 - Signature recall requires PENDING_SIGNATURE and no accepted final execution
   evidence. It invalidates approval/execution contexts bound to the recalled
   proposal. Frozen pending terms are not edited directly.
@@ -251,6 +258,7 @@ contract.
 `CONTRACT.TERMINATED`, `CONTRACT.CANCELLED`, `CONTRACT.RENEWAL_OPENED`,
 `CONTRACT.RENEWAL_UPDATED`, `CONTRACT.RENEWAL_COMPLETED`,
 `CONTRACT.RENEWAL_NOT_RENEWED`, `CONTRACT.RENEWAL_CANCELLED`,
+`CONTRACT.RENEWAL_NOTICE_DUE`, `CONTRACT.EXPIRY_ACTION_DUE`,
 `COMMERCIAL_DOCUMENT.ADDED`, `COMMERCIAL_DOCUMENT.FINALIZED` and
 `COMMERCIAL_DOCUMENT.SUPERSEDED`. Emit through outbox after atomic commit;
 payloads contain minimal references, not document bytes/sensitive terms.

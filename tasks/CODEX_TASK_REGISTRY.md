@@ -199,8 +199,8 @@ Only generate a detailed `TASK-xxx_*.md` when the task becomes `READY` or is the
 | `TASK-074` | `F-043/F-044` | `WF-P04/WF-P05` | P4 | P0 | Invoice + Duplicate Protection + 3-Way Match + Credit Note | TASK-072, TASK-073, TASK-074-R1 | **SATISFIED** | CODE_COMPLETE | `TASK-074_INVOICE_DUPLICATE_PROTECTION_3_WAY_MATCH.md` |
 | `TASK-075-R1` | `F-045/F-046` | `WF-P06/WF-016` | P4 | P1 | Contract Lifecycle + Renewal + Commercial Document Governance Contract | TASK-070, TASK-074 | **SATISFIED** | CODE_COMPLETE | `TASK-075-R1_CONTRACT_LIFECYCLE_RENEWAL_DOCUMENT_GOVERNANCE_CONTRACT.md` |
 | `TASK-075` | `F-045/F-046` | `WF-P06/WF-016` | P4 | P1 | Contract + Renewal + Commercial Document Governance | TASK-070, TASK-074, TASK-075-R1 | **SATISFIED** | CODE_COMPLETE | `TASK-075_CONTRACT_RENEWAL_COMMERCIAL_DOCUMENT_GOVERNANCE.md` |
-| `TASK-076-R1` | `PHASE-GATE` | `P4-E2E` | P4 | P0 | Reconcile Phase 4 Gate Evidence and Unresolved Requirements | TASK-071, TASK-072, TASK-073, TASK-074, TASK-075 | **READY** | NOT_STARTED | `TASK-076-R1_PHASE4_INTEGRATION_GATE_CONTRACT.md` |
-| `TASK-076` | `PHASE-GATE` | `P4-E2E` | P4 | P0 | Phase 4 Procurement-to-Asset Integration Gate | TASK-071, TASK-072, TASK-073, TASK-074, TASK-075, TASK-076-R1 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |
+| `TASK-076-R1` | `PHASE-GATE` | `P4-E2E` | P4 | P0 | Contract Alert + Asset/License Cost Provenance Integration Contract | TASK-071, TASK-072, TASK-073, TASK-074, TASK-075 | **SATISFIED** | CODE_COMPLETE | `TASK-076-R1_PHASE4_INTEGRATION_GATE_CONTRACT.md` |
+| `TASK-076` | `PHASE-GATE` | `P4-E2E` | P4 | P0 | Phase 4 Procurement-to-Asset Integration Gate | TASK-071, TASK-072, TASK-073, TASK-074, TASK-075, TASK-076-R1 | **READY** | NOT_STARTED | `TASK-076_PHASE4_PROCUREMENT_TO_ASSET_INTEGRATION_GATE.md` |
 | `TASK-090` | `F-049` | `WF-AUT02` | P5 | P1 | Advanced Rules Engine + Policy-Gated Automation | TASK-039, TASK-061, TASK-076 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |
 | `TASK-091` | `F-049` | `WF-AUT02` | P5 | P1 | Controlled Self-Healing + Compensation | TASK-031, TASK-053, TASK-090 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |
 | `TASK-092` | `F-050` | `WF-INT01` | P5 | P2 | Advanced Incident Correlation | TASK-033, TASK-051, TASK-090 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |
@@ -307,16 +307,14 @@ Only generate a detailed `TASK-xxx_*.md` when the task becomes `READY` or is the
   dependencies TASK-070, TASK-074 and TASK-075-R1 are satisfied. Runtime
   implementation and verification are complete; see
   `TASK-075_IMPLEMENTATION_REPORT.md`.
-- **TASK-076-R1 — Reconcile Phase 4 Gate Evidence and Unresolved
-  Requirements:** planning/remediation only. The Phase 4 Definition of Done
-  exists. Reconcile evidence and resolve the explicit Contract alert and cost
-  lineage gaps; do not invent notice thresholds or source-link semantics.
-- **TASK-076 — Phase 4 Procurement-to-Asset Integration Gate:** BLOCKED by
-  `SPEC_GAP / PLANNING_REQUIRED`: Contract expiry/renewal alert configuration
-  is not implemented and cannot use an invented global threshold; Asset and
-  License cost source links are not canonical and their relationship,
-  allocation and historical semantics remain undefined. Do not mark the gate
-  passed until both requirements have normative rules and verification.
+- **TASK-076-R1 — Contract Alert + Asset/License Cost Provenance Integration
+  Contract:** `SATISFIED / CODE_COMPLETE` as a specification-only remediation.
+  Version-bound alert triggers, immutable cost provenance/allocation,
+  cross-domain ownership and gate evidence are normative.
+- **TASK-076 — Phase 4 Procurement-to-Asset Integration Gate:** dependencies
+  TASK-071 through TASK-075 and TASK-076-R1 are satisfied. Detailed task
+  contract is generated; derived readiness is `READY`, status remains
+  `NOT_STARTED` until explicitly started.
 
 ## P5 — Automation + Intelligence + Advanced Reporting
 
@@ -335,15 +333,16 @@ Only generate a detailed `TASK-xxx_*.md` when the task becomes `READY` or is the
 
 TASK-060-R1, TASK-060, TASK-056, TASK-059, TASK-061, TASK-070-R1, TASK-070,
 TASK-071-R1, TASK-071, TASK-072-R1, TASK-072, TASK-073-R1, TASK-073,
-TASK-074-R1, TASK-074, TASK-075-R1 and TASK-075 are `CODE_COMPLETE`.
+TASK-074-R1, TASK-074, TASK-075-R1, TASK-075 and TASK-076-R1 are
+`CODE_COMPLETE`.
 TASK-056's inventory, exception handling, safe removal flow, audit/outbox
 payloads and verification are recorded in its completion report. Dependency implementation
 reports and commits confirm TASK-015 (`32c3267`), TASK-036 (`e043c31`) and
 TASK-038 (`296336a`) are `CODE_COMPLETE`.
 
 ```text
-CURRENT = TASK-076-R1 (READY; NOT_STARTED; planning/remediation only)
-NEXT = Reconcile Phase 4 gate evidence and resolve the explicit alert/cost-lineage gaps
+CURRENT = TASK-076 (READY; NOT_STARTED)
+NEXT = Implement the Phase 4 Procurement-to-Asset integration gate
 TASK-059 = SATISFIED (CODE_COMPLETE)
 TASK-061 = SATISFIED (CODE_COMPLETE)
 TASK-070-R1 = SATISFIED (CODE_COMPLETE)
@@ -358,8 +357,8 @@ TASK-074-R1 = SATISFIED (CODE_COMPLETE; specification only)
 TASK-074 = SATISFIED (CODE_COMPLETE; see TASK-074_IMPLEMENTATION_REPORT.md)
 TASK-075-R1 = SATISFIED (CODE_COMPLETE; specification only)
 TASK-075 = SATISFIED (CODE_COMPLETE; see TASK-075_IMPLEMENTATION_REPORT.md)
-TASK-076-R1 = READY (NOT_STARTED; reconcile DoD evidence and specify the two open requirements)
-TASK-076 = BLOCKED (SPEC_GAP / PLANNING_REQUIRED; Contract alert configuration and canonical Asset/License cost lineage unresolved)
+TASK-076-R1 = SATISFIED (CODE_COMPLETE; specification only)
+TASK-076 = READY (NOT_STARTED; detailed gate contract generated)
 ```
 
 TASK-061's acceptance criteria and verification gates passed; its implementation
@@ -384,12 +383,12 @@ Credit Note release, permissions, events and required concurrency cases.
 TASK-074 implementation and verification are complete and recorded in its
 implementation report. TASK-075-R1 resolved the Contract/Renewal/Commercial
 Document Governance `SPEC_GAP` as a specification-only remediation. TASK-075
-runtime implementation and its PostgreSQL E2E are complete. The Phase 4
-Definition of Done exists, but TASK-076 cannot pass while Contract
-expiry/renewal alert configuration and canonical Asset/License cost lineage
-remain unresolved. TASK-076-R1 is the current planning task. The shared
-object-storage provider remains a deployment dependency for commercial-document
-finalization.
+runtime implementation and its PostgreSQL E2E are complete. TASK-076-R1 has
+resolved the Contract alert and Asset/License cost-provenance `SPEC_GAP` as a
+specification-only remediation. TASK-076 has a detailed reconciled contract
+and is `READY / NOT_STARTED`; runtime implementation has not started. The
+shared object-storage provider remains a deployment capability to report for
+commercial-document finalization.
 
 ---
 

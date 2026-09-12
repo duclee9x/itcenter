@@ -1,8 +1,8 @@
 # IMPLEMENTATION HANDOFF
 
-## Current Task — TASK-076-R1 (Ready, Not Started; Planning Only)
+## Current Task — TASK-076 (Ready, Not Started)
 
-Reconcile Phase 4 Gate Evidence and Unresolved Requirements
+Phase 4 Procurement-to-Asset Integration Gate
 
 Feature: PHASE-GATE
 
@@ -10,31 +10,43 @@ Workflow: P4-E2E
 
 Phase/Priority: P4 / P0
 
-Readiness: READY (planning/remediation only)
+Readiness: READY
 
 Status: NOT_STARTED
 
-Task: `tasks/TASK-076-R1_PHASE4_INTEGRATION_GATE_CONTRACT.md`
+Task: `tasks/TASK-076_PHASE4_PROCUREMENT_TO_ASSET_INTEGRATION_GATE.md`
 
-TASK-075 is `CODE_COMPLETE`; its implementation report is
-`tasks/TASK-075_IMPLEMENTATION_REPORT.md`. The Phase 4 Definition of Done is
-present. TASK-076 remains `BLOCKED / NOT_STARTED` by
-`SPEC_GAP / PLANNING_REQUIRED`: Contract expiry/renewal alert configuration
-has no normative notice field or implemented alert flow, and Asset/License
-costs lack canonical procurement/Contract links with defined relationship,
-allocation and historical semantics. TASK-076-R1 reconciles completed-task
-evidence and resolves these gaps without inventing rules or implementing
-TASK-076 runtime behavior.
+Dependencies TASK-071 through TASK-075 and TASK-076-R1 are `CODE_COMPLETE`.
+TASK-076-R1 normatively defines explicit version-bound Contract alert
+configuration, immutable Asset/License cost provenance, cross-domain
+ownership, event/idempotency/concurrency rules and the gate evidence matrix.
+The detailed implementation contract is ready; runtime work remains unstarted
+pending explicit user instruction.
 
-Operational follow-up: the API fails closed on commercial-document finalize
-until deployment injects a central `ObjectStore` adapter.
+The integration environment must report central ObjectStore as configured or
+explicitly unavailable/not-ready. A fake adapter is test evidence only.
 
 ## Last Completed Task — TASK-075
 
 Contract + Renewal + Commercial Document Governance (`CODE_COMPLETE`). See
 `tasks/TASK-075_IMPLEMENTATION_REPORT.md`.
 
-## Last Completed Remediation — TASK-075-R1
+## Last Completed Remediation — TASK-076-R1
+
+Contract Alert + Asset/License Cost Provenance Integration Contract
+(`CODE_COMPLETE`, specification only). See
+`tasks/TASK-076-R1_PHASE4_INTEGRATION_GATE_CONTRACT.md`.
+
+- Established explicit-date precedence and period-derived Contract alert
+  triggers, immutable ContractVersion binding, durable alert identity and
+  natural expiry independent from notice configuration.
+- Defined immutable committed/actual/adjustment cost provenance, canonical
+  source/version/line links, deterministic allocation, Credit Note adjustment,
+  recurring periods and domain-owned event/projection boundaries.
+- Created the detailed TASK-076 gate contract and required E2E evidence. No
+  TASK-076 runtime code was changed.
+
+## Prior Completed Remediation — TASK-075-R1
 
 Contract Lifecycle + Renewal + Commercial Document Governance Contract
 (`CODE_COMPLETE`, specification only). See

@@ -1531,6 +1531,8 @@ CONTRACT.ACTIVATED
 CONTRACT.HELD
 CONTRACT.RESUMED
 CONTRACT.AMENDED
+CONTRACT.RENEWAL_NOTICE_DUE
+CONTRACT.EXPIRY_ACTION_DUE
 CONTRACT.TERMINATED
 CONTRACT.EXPIRED
 CONTRACT.CANCELLED
@@ -1539,6 +1541,8 @@ CONTRACT.RENEWAL_UPDATED
 CONTRACT.RENEWAL_COMPLETED
 CONTRACT.RENEWAL_NOT_RENEWED
 CONTRACT.RENEWAL_CANCELLED
+COST_PROVENANCE.RECORDED
+COST_ADJUSTMENT.RECORDED
 COMMERCIAL_DOCUMENT.ADDED
 COMMERCIAL_DOCUMENT.FINALIZED
 COMMERCIAL_DOCUMENT.SUPERSEDED
@@ -1595,10 +1599,11 @@ integration are implemented and exercised by PostgreSQL E2E tests. See
 The API uses the central `ObjectStore` boundary and verifies object metadata
 outside the database transaction. Deployment must inject a configured storage
 adapter before commercial documents can be finalized; the default unavailable
-adapter fails closed. The Phase 4 Definition of Done exists. TASK-076 remains
-blocked because Contract expiry/renewal alert configuration is not implemented
-and canonical Asset/License cost source links and their semantics are missing;
-TASK-076-R1 reconciles evidence and resolves these planning gaps.
+adapter fails closed. TASK-076-R1 has made Contract trigger scheduling and
+canonical Asset/License cost provenance normative. TASK-076 is
+`READY / NOT_STARTED`; it must verify the cross-domain path and environment
+capability against
+`tasks/TASK-076_PHASE4_PROCUREMENT_TO_ASSET_INTEGRATION_GATE.md`.
 
 ---
 
@@ -2854,3 +2859,35 @@ workflow. A quotation in SUBMITTED is immutable; revision is a linked new
 record. Supplier eligibility is revalidated against canonical state at the
 relevant command boundary. Required approval remains separate from `rfq.award`
 permission.
+
+---
+
+# 79. Phase 4 Procurement-to-Asset Integration Gate — TASK-076
+
+TASK-076 verifies the Phase 4 Definition of Done in
+`docs/MVP_PHASED_IMPLEMENTATION_PLAN.md` §90 as one traceable system flow, not
+as isolated CRUD checks.
+
+| Gate criterion | Canonical path/evidence | Required gate result |
+|---|---|---|
+| Procurement Request to PO | Supplier → Procurement Request → RFQ/Quotation where used → issued PO; PO source quotation and winning Supplier are preserved | One authorized, tenant-scoped request produces a valid PO under TASK-070/071/072 guards |
+| Receiving creates Assets | Issued PO → POSTED Goods Receipt → outbox → Asset-owned registration per `received_unit_id` | Accepted serialized units register idempotently in RECEIVED/UNASSIGNED state; procurement does not write Asset tables |
+| Partial receiving | Multiple posted receipts update accepted PO quantities and receipt state | No over-receipt; last-quantity race serializes; PO lifecycle does not auto-close |
+| Invoice duplicate prevention and 3-Way Match | Immutable submitted Invoice + PO version + POSTED accepted Goods Receipt evidence + durable allocations | Exact duplicate is blocked; partial invoices allocate without double consumption; draft/cancelled receipts do not count |
+| Contract alert / renewal | Version-bound explicit notice date/period → stable alert fact → event/Work Queue/notification | No global threshold; date precedence/period derivation/version recalc/idempotency pass; alert never executes or extends Contract |
+| Commercial documents | central governed metadata/version/ObjectStore boundary | Content versions/hash/governance are immutable; environment reports configured ObjectStore or explicit unavailable/not-ready; test fake is not production proof |
+| Asset cost provenance | received unit → receipt/PO line and version → committed allocation → effective Invoice actual allocation → Credit Note adjustment; Contract source where applicable | Source amount/currency and history remain immutable; allocation reconciles exactly and no direct cross-domain writes occur |
+| License cost provenance | License Entitlement/Pool → Contract/ContractVersion and applicable PO/Invoice/Credit Note line | Canonical IDs/version/period and basis are queryable; renewals add new period records; assignment does not rewrite cost |
+
+Cost source types are `PURCHASE_ORDER`, `INVOICE`, `CREDIT_NOTE`, `CONTRACT`
+and `CONTRACT_VERSION`. Cost bases are `COMMITTED`, `ACTUAL` and
+`ADJUSTMENT`. Summary fields are projections only. Non-line charges remain at
+source unless an explicit allocation method exists. Contract alert identity
+is tenant + Contract + ContractVersion + trigger type + trigger time. Both
+alert and cost consumers are idempotent under event redelivery.
+
+TASK-076 must record gate evidence for each row, cross-domain ownership and
+failure/retry outcome, then set the phase gate to passed only if every
+criterion is verified and environment capability is reported. It must not
+weaken TASK-070 through TASK-075 rules, introduce silent commercial
+corrections, or count fake ObjectStore configuration as production readiness.

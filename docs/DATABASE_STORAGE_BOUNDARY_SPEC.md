@@ -3070,3 +3070,40 @@ Database + Storage Boundary Spec đạt yêu cầu khi:
 - Projection freshness và rebuild strategy rõ.
 - High-volume observation data không làm nghẽn OLTP.
 - Storage guardrails chống over-engineering và data ownership violation được khóa.
+
+---
+
+# 175. TASK-076 — Contract Alert and Cost Provenance Storage
+
+Contract alert schedule/facts are canonical relational records owned by the
+Contract domain and bound to immutable ContractVersion IDs. Enforce the
+logical identity `(tenant, contract, contract_version, trigger_type,
+trigger_at)` durably. Scheduler retries and concurrent runs cannot duplicate
+the fact, outbox event, Work Item or notification reference. A new applicable
+ContractVersion changes future schedules only; old alert facts remain
+append-only. A missing notice configuration produces no proactive warning
+and does not prevent natural expiration.
+
+The immutable CostProvenance/CostAllocation ledger is Procurement-owned
+commercial allocation evidence in relational OLTP. It contains canonical
+source IDs/version/line, target reference, amount/currency, basis, allocation
+identity, effective period and audit/correlation references. It must not
+become a mutable copy of Asset or License financial state. Asset and License
+domains own their entities and derived cost projections. They consume
+provenance events through idempotent application workflows; no domain writes
+another domain's canonical tables. Use a transactional outbox and inbox for
+provenance projections. No distributed cross-domain database transaction is
+allowed.
+
+Cost rows are append-only. Corrections, adjustments and Credit Note effects
+create additional records. Preserve source currency/amount; reporting-currency
+conversion is a derived projection under an explicit FX policy. Do not store
+large commercial documents or raw protected contents in provenance, events or
+projection tables; link governed source records by ID.
+
+The Phase 4 integration environment must report commercial-document storage
+capability explicitly. A configured central ObjectStore adapter or an
+explicit capability/health result of unavailable/not-ready satisfies the
+environment check. A fake adapter is valid only for automated tests and is
+not evidence that production storage is configured. Never fall back to an
+unintended domain-specific binary store.

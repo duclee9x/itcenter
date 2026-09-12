@@ -787,6 +787,20 @@ Renewal In Progress
 Supplier SLA Breaches
 ```
 
+Contract alert Work Items are created only from explicit version-bound
+`renewal_notice_date` or `renewal_notice_period_days` triggers. No global
+warning threshold is allowed. Stable alert identity prevents duplicate Work
+Items across scheduler runs; version changes recalculate future scheduling
+without rewriting alert history. Auto-renew metadata never creates an executed
+renewal. Invalid/impossible configuration creates actionable
+configuration/data-integrity work without a guessed date.
+
+Cost-provenance Work Items are exceptional and actionable: missing or
+ambiguous canonical source, unresolved allocation, amount reconciliation
+failure or data-integrity conflict. Successful cost linkage is not queue work.
+Work Queue references the canonical Contract alert or CostProvenance record;
+it never becomes that record's source of truth.
+
 ---
 
 # 40. Automation KPI

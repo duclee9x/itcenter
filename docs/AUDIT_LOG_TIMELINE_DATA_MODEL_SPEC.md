@@ -3493,3 +3493,25 @@ completed, not-renewed decision, expiry, early termination and document
 finalization/supersession. Display protected references only, not document
 bytes or unrestricted commercial terms. Derived `EXPIRING` alerts use
 explicit notice/end-date terms and must not mutate Contract lifecycle.
+
+---
+
+# 213. TASK-076 Contract Alert and Cost Provenance Audit
+
+Append audit evidence for material Contract renewal-alert configuration
+changes, renewal/expiry action due facts, cost provenance creation/source
+linkage, Credit Note cost adjustments/corrections, and authorized manual
+allocation. Preserve actor/system principal, tenant, Contract and immutable
+ContractVersion or target/source IDs, source line/version, trigger identity,
+cost basis, amount/currency only where authorized, allocation method,
+correlation, outcome and event/Work Item references. Audit is append-only;
+correction adds evidence and never rewrites the source transaction.
+
+Timeline and Work Queue are derived/operator-facing. Timeline may state that
+a Contract renewal action became due or that a cost source was linked, using
+protected references. Do not expose contract terms, raw invoice/document
+contents or protected Supplier bank/tax information. Normal successful cost
+linkage creates no Work Item. Create actionable work only for configured
+renewal action, invalid/missing/ambiguous source, deterministic-allocation
+failure, total reconciliation failure or integrity exception. Resolving a
+Work Item does not mutate canonical cost provenance.

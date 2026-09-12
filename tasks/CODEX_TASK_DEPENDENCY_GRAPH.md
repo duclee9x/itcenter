@@ -225,7 +225,7 @@ flowchart TD
   TASK_073["TASK-073<br/>Goods Receipt + Asset Registration + Partial Receipt"]
   TASK_074["TASK-074<br/>Invoice + Duplicate Protection + 3-Way Match"]
   TASK_075["TASK-075<br/>Contract + Renewal + Commercial Document Governance"]
-  TASK_076_R1["TASK-076-R1<br/>Reconcile Phase 4 Gate Evidence and Unresolved Requirements"]
+  TASK_076_R1["TASK-076-R1<br/>Contract Alert + Asset/License Cost Provenance Integration Contract"]
   TASK_076["TASK-076<br/>Phase 4 Procurement-to-Asset Integration Gate"]
   TASK_061["TASK-061<br/>Advanced Search + Phase 3 Integration Gate"]
   TASK_061 --> TASK_070

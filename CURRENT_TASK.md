@@ -1,27 +1,28 @@
 # CURRENT TASK
 
-Task: `TASK-076-R1` — Reconcile Phase 4 Gate Evidence and Unresolved
-Requirements
+Task: `TASK-076` — Phase 4 Procurement-to-Asset Integration Gate
 
 Task specification:
-`tasks/TASK-076-R1_PHASE4_INTEGRATION_GATE_CONTRACT.md`
+`tasks/TASK-076_PHASE4_PROCUREMENT_TO_ASSET_INTEGRATION_GATE.md`
 
-Readiness: `READY` (planning/remediation only)
+Readiness: `READY`
 
 Status: `NOT_STARTED`
 
-TASK-075 — Contract + Renewal + Commercial Document Governance is
-`CODE_COMPLETE`; see `tasks/TASK-075_IMPLEMENTATION_REPORT.md`.
+Dependencies TASK-071, TASK-072, TASK-073, TASK-074, TASK-075 and TASK-076-R1
+are `CODE_COMPLETE`. TASK-076-R1 normatively defines version-bound Contract
+alert triggers, immutable Asset/License cost provenance, domain ownership,
+events, idempotency, concurrency cases and Phase 4 gate evidence.
 
-The Phase 4 Definition of Done exists. TASK-076 remains `BLOCKED / NOT_STARTED`
-by `SPEC_GAP / PLANNING_REQUIRED` for two explicit unmet requirements:
-Contract expiry/renewal alert configuration has no normative notice field or
-implemented alert flow, and Asset/License costs have no canonical links to
-procurement/Contract sources (including undefined relationship/allocation and
-historical semantics). TASK-076-R1 reconciles existing gate evidence and
-resolves those planning gaps without inventing rules or starting TASK-076
-runtime work.
+Last completed remediation: `TASK-076-R1` — Contract Alert + Asset/License
+Cost Provenance Integration Contract (`CODE_COMPLETE`, specification only).
+See `tasks/TASK-076-R1_PHASE4_INTEGRATION_GATE_CONTRACT.md`.
 
-Operational follow-up: configure a central `ObjectStore` adapter for
-commercial-document finalization; the API fails closed while the provider is
-unavailable.
+Last completed implementation task: `TASK-075` — Contract + Renewal +
+Commercial Document Governance (`CODE_COMPLETE`). See
+`tasks/TASK-075_IMPLEMENTATION_REPORT.md`.
+
+TASK-076 runtime integration remains unstarted pending explicit user
+instruction. The central ObjectStore provider must be reported by the
+integration environment as configured or explicitly unavailable/not-ready;
+a fake adapter proves automated tests only.

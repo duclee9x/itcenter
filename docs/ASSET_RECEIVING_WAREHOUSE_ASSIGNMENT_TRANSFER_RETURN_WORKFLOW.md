@@ -1926,3 +1926,42 @@ Cụm workflow này đạt yêu cầu khi:
 - Documents gắn đúng context.
 - Unified Timeline phản ánh mọi movement.
 - Tất cả action có idempotency và audit trail.
+
+---
+
+# 65. TASK-076 — Procurement Cost Provenance for Assets
+
+Asset `purchase_cost`/cost API fields are derived summaries only. Canonical
+history is immutable CostProvenance/CostAllocation linked by canonical IDs to
+the source commercial document, version and line. For a received Asset the
+trace is:
+
+```text
+Asset
+→ received_unit_id
+→ POSTED Goods Receipt line/unit
+→ PO line + immutable PO commercial version
+→ effective Invoice allocation where available
+→ Contract/ContractVersion where applicable
+```
+
+Goods Receipt records physical receipt and never becomes cost authority. A
+PO allocation may create COMMITTED cost. An effective Invoice allocation adds
+ACTUAL cost without changing the committed record. An applied Credit Note adds
+an ADJUSTMENT without mutating the Invoice-derived record. Source amount and
+currency remain unchanged; any reporting-currency conversion is an additional
+derived value under an explicit FX policy.
+
+For homogeneous multi-unit lines, allocation is deterministic and reconciles
+exactly to the source line total. Convert source total to currency minor units,
+divide by the target-unit count covered by the durable source-line/receipt-line
+quantity allocation, allocate the quotient to each unit, then assign one
+extra minor unit to the first remainder units ordered by stable
+`received_unit_id`. Invoice targets use TASK-074 receipt-line evidence and
+stable received-unit identity. Header-level freight, tax, fees, discounts and other charges
+remain at source unless an explicit allocation policy exists. Normal cost
+linkage creates no Work Item; ambiguous/missing sources or reconciliation
+failures create actionable exception work. Asset owns Asset state and cost
+summary projections; Procurement/Contract sources remain owned by their
+source domains. Cross-domain linkage uses application commands/events and
+idempotent projections, never direct cross-domain table writes.

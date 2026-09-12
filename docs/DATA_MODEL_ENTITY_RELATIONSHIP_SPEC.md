@@ -595,6 +595,12 @@ assets:
   disposed_at:
 ```
 
+`purchase_cost` and `currency` are derived read-model summaries, not canonical
+financial history. Asset cost history is represented by immutable
+CostProvenance/CostAllocation records linked to canonical commercial source
+IDs, source versions and lines. Goods Receipt/received-unit references explain
+physical lineage and are not cost authorities.
+
 ### Unique constraints
 
 ```text
@@ -1805,8 +1811,8 @@ license_entitlements:
   valid_from:
   valid_until:
   pool_id:
-  cost:
-  currency:
+  cost_summary: # derived from immutable CostProvenance/CostAllocation
+  currency_summary:
   # effective_state is derived from valid_from/valid_until; never manually stored.
   # Compliance state is a separate calculated projection (State Machine §56).
 ```
@@ -1816,6 +1822,10 @@ snapshots in append-only License-owned history. `effective_state` is derived
 using the validity interval defined in the Software/License workflow. It is not
 the assignment state and is not the compliance projection. Do not add a
 manually mutable generic `state` field to the canonical entitlement record.
+License Entitlement and Pool cost summaries are projections from immutable
+cost provenance; they are not overwritten financial source records. Keep
+provenance at the Entitlement/Pool or commercial entitlement-unit level unless
+an explicit policy allocates cost to assignments.
 
 ---
 
@@ -2580,7 +2590,8 @@ contracts:
   effective_at:
   end_at:
   auto_renew:
-  notice_period_days:
+  renewal_notice_date:
+  renewal_notice_period_days:
   owner_user_id:
   business_owner_user_id:
   value:
@@ -2630,6 +2641,15 @@ signature or executed is never rewritten. Execution evidence and approval
 context reference the exact version ID/fingerprint. Amendment creates a new
 version and append-only changed-field history; renewal creates a successor
 Contract instead of modifying the predecessor's end date.
+
+The immutable `commercial_snapshot` binds `renewal_notice_date`,
+`renewal_notice_period_days`, auto-renew semantics and other renewal terms to
+the exact version. If both explicit date and period are present, the date is
+authoritative. Otherwise derive the trigger from `end_at -
+renewal_notice_period_days`. No global threshold is inferred. Material term
+changes schedule future alerts against the new version; prior alert facts are
+retained. TASK-075 amendment scope remains authoritative and is not expanded
+by this alert rule.
 
 ---
 
@@ -4315,3 +4335,99 @@ Data Model Spec đạt yêu cầu khi:
 - Cross-domain write ownership rõ.
 - Retention, archive, soft-delete và versioning có nguyên tắc.
 - Có phased implementation path cho MVP → full platform.
+
+---
+
+# 97. TASK-076-R1 — Contract Alert Facts and Cost Provenance
+
+## 97.1 Contract alert facts
+
+```yaml
+contract_alert_facts:
+  id:
+  tenant_id:
+  contract_id:
+  contract_version_id:
+  trigger_type: RENEWAL_NOTICE | EXPIRY_ACTION
+  trigger_source: EXPLICIT_DATE | NOTICE_PERIOD
+  trigger_at:
+  logical_identity:
+  event_id:
+  work_item_id:
+  notification_reference:
+  created_at:
+```
+
+The durable logical identity is equivalent to tenant + Contract + applicable
+ContractVersion + trigger type + trigger time. A unique constraint/invariant
+prevents repeated scheduler runs from creating duplicate alert facts, Work
+Items or notifications. Alert facts are append-only; a later version
+recalculates only future scheduling and never rewrites an old fact. Invalid
+configuration creates a distinct configuration/data-integrity exception.
+Absence of notice configuration creates no proactive alert fact and does not
+block natural Contract expiration.
+
+## 97.2 Cost provenance ledger
+
+```yaml
+cost_provenance:
+  id:
+  tenant_id:
+  target_type: ASSET | LICENSE_ENTITLEMENT | LICENSE_POOL
+  target_id:
+  source_type: PURCHASE_ORDER | INVOICE | CREDIT_NOTE | CONTRACT | CONTRACT_VERSION
+  source_document_id:
+  source_document_version_ref: # immutable version ID, number or snapshot fingerprint
+  source_document_version_id: # nullable if source has no separate version row
+  source_line_id:
+  cost_basis: COMMITTED | ACTUAL | ADJUSTMENT
+  adjustment_direction: CREDIT | DEBIT | null
+  source_amount:
+  source_currency:
+  quantity_basis:
+  allocation_method:
+  allocation_role:
+  effective_from:
+  effective_to:
+  idempotency_identity:
+  correlation_id:
+  audit_reference:
+  created_at:
+```
+
+Each row is an immutable canonical allocation/provenance fact. Source amount
+and currency are retained without base-currency overwrite. Enforce tenant
+scope and a durable unique idempotency identity based on tenant + target
+type/id + source type/document/version-reference/line + allocation role + cost basis,
+with stable null handling for source-level facts. Polymorphic source/target
+references are validated through owning-domain application contracts; do not
+add cross-domain direct table writes or rely on display codes. A
+source-line-specific allocation stores the applicable immutable commercial
+version. Where a source has no separate version row, the reference is its
+immutable snapshot identity/fingerprint or version number under that source's
+normative model; do not fabricate a mutable version ID. Header-level charges
+remain at source unless a normative allocation policy exists.
+
+Procurement owns the commercial cost-allocation ledger and source allocation
+commands. Asset and License domains own their entities and consume provenance
+events through idempotent application/projection workflows to maintain derived
+cost summaries. No domain mutates another domain's tables. Asset lineage can
+traverse received unit → posted receipt line → PO line/version → Invoice line
+allocation → Contract/ContractVersion where applicable. License lineage
+attaches to Entitlement/Pool or the commercial entitlement unit, not an
+assignment by default.
+
+Keep COMMITTED PO-derived cost, ACTUAL effective-Invoice cost and ADJUSTMENT
+Credit Note facts as separate records. Credit Note adjustment uses semantic
+positive amount plus direction; replay cannot apply it twice. For homogeneous
+multi-unit lines, deterministic per-unit allocation must reconcile exactly to
+the source-line allocation total: take target units from the durable
+source-line/receipt-line quantity allocation, convert total to currency minor
+units, assign the quotient to each target unit, then assign one additional
+minor unit to the first remainder units ordered by stable `received_unit_id`.
+Invoice targets use TASK-074 receipt-line evidence and stable received-unit
+identity. Do not silently allocate header freight/tax/fees/discounts. Cost corrections append
+adjustment/superseding records; they never edit history.
+
+Derived Asset/License summaries may expose committed, actual, net cost,
+currency and source summary, but never become the financial source of truth.

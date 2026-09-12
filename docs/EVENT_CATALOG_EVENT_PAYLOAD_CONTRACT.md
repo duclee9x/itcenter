@@ -3475,18 +3475,77 @@ reason_reference:
 termination_evidence_document_version_ids:
 ```
 
-## `CONTRACT.EXPIRING`
+## `CONTRACT.RENEWAL_NOTICE_DUE`
 
 ```yaml
 contract_id:
-end_at:
-days_remaining:
-notice_deadline:
+contract_version_id:
+trigger_type: RENEWAL_NOTICE
+trigger_source: EXPLICIT_DATE | NOTICE_PERIOD
+trigger_at:
 ```
 
-`CONTRACT.EXPIRING` is derived operational context and never changes
-Contract lifecycle. Notice timing comes from explicit Contract terms; no
-global default notice interval is implied.
+## `CONTRACT.EXPIRY_ACTION_DUE`
+
+```yaml
+contract_id:
+contract_version_id:
+trigger_type: EXPIRY_ACTION
+trigger_source: EXPLICIT_DATE | NOTICE_PERIOD
+trigger_at:
+```
+
+These are idempotent operational alert facts, not lifecycle transitions. They
+are emitted only for explicit version-bound Contract trigger configuration;
+no global notice threshold is implied. Stable alert identity includes tenant,
+Contract, ContractVersion, trigger type and trigger time. The scheduler/outbox
+must not emit recurring duplicates. `CONTRACT.EXPIRED` remains independent
+and is emitted when the Contract naturally expires even when no alert config
+exists. `CONTRACT.RENEWAL_NOTICE_DUE` is used for an explicit renewal notice;
+`CONTRACT.EXPIRY_ACTION_DUE` is used only when the explicit Contract terms
+designate an expiry action. Do not infer an action type. Contract is the
+producer. Due events contain references only, never Contract content.
+
+## `COST_PROVENANCE.RECORDED`
+
+```yaml
+cost_provenance_id:
+target_type: ASSET | LICENSE_ENTITLEMENT | LICENSE_POOL
+target_id:
+source_type: PURCHASE_ORDER | INVOICE | CREDIT_NOTE | CONTRACT | CONTRACT_VERSION
+source_document_id:
+source_document_version_ref:
+source_line_id:
+cost_basis: COMMITTED | ACTUAL | ADJUSTMENT
+amount: # only when authorized and necessary for this consumer
+currency: # only when authorized and necessary for this consumer
+effective_from:
+effective_to:
+```
+
+## `COST_ADJUSTMENT.RECORDED`
+
+```yaml
+cost_provenance_id:
+target_type:
+target_id:
+source_type: CREDIT_NOTE | other explicit adjustment source
+source_document_id:
+source_document_version_ref:
+source_line_id:
+adjustment_direction: CREDIT | DEBIT
+amount: # positive semantic amount; only when authorized and necessary
+currency:
+```
+
+Cost events are emitted after the canonical provenance transaction commits.
+They carry source references and only the minimum authorized financial
+metadata; never embed invoices, contract contents or protected Supplier
+financial/tax data. Consumers use inbox/idempotency and the immutable
+provenance identity to prevent duplicate allocations or adjustments. The
+Procurement-owned cost-provenance ledger is the producer for recorded
+allocation/adjustment facts; Asset and License consumers update only their
+own derived projections through application/event contracts.
 
 ## `CONTRACT.SLA_BREACH`
 

@@ -1067,7 +1067,7 @@ license_entitlement:
   valid_until:
   contract:
   supplier:
-  cost:
+  cost_summary: # derived from immutable CostProvenance/CostAllocation records
   renewal:
   restrictions:
 ```
@@ -1089,6 +1089,16 @@ an explicit, versioned change to contractual terms. The previous and new terms
 must remain in append-only entitlement history. Expiration is the validity
 window ending, not a manual lifecycle command; any `LICENSE.EXPIRED` fact is
 keyed to the entitlement term/version so it can be emitted once per term.
+
+License Entitlement financial history is held in immutable CostProvenance /
+CostAllocation records, not by overwriting `cost` on the entitlement. Link
+canonical Contract/ContractVersion, PO line, Invoice line and applied Credit
+Note sources where applicable. Preserve source amount/currency and effective
+commercial period. Renewal creates new period/source provenance and never
+rewrites predecessor Contract or entitlement-period cost history. Cost
+attaches primarily to the Entitlement or Pool/commercial entitlement unit;
+assignment and seat use do not change commercial cost. Entitlement cost fields
+are derived read-model summaries.
 
 The `UNKNOWN`, `COMPLIANT`, `AT_RISK`, `OVERUSED`, `UNDERUSED`, and `EXPIRED`
 values in the License Compliance State section are a separate calculated
@@ -1368,6 +1378,11 @@ Scheduled thresholds:
 30 days
 7 days
 ```
+
+These configured thresholds govern License Entitlement expiry only. They do
+not define Contract notice or renewal-alert thresholds. Contract alerts use
+the explicit Contract-specific trigger rules in the Procurement/Contract
+workflow.
 
 Context:
 
