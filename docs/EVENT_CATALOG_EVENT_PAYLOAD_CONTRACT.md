@@ -2797,6 +2797,39 @@ quotation_id:
 selection_reason:
 ```
 
+## Supplier Master Facts
+
+Producer and aggregate owner: Procurement / Supplier. These events are emitted
+from the transaction outbox only after the corresponding Supplier mutation
+commits. The common envelope carries `event_id`, `event_type`,
+`schema_version`, `occurred_at`, producer, aggregate type/id/version, actor,
+`correlation_id`, `causation_id`, tenant and payload.
+
+All event payloads include `supplier_id`, committed `version`, and `reason`.
+Payloads must not contain tax/banking secrets, raw bank details, or full
+sensitive identity values. `SUPPLIER.UPDATED` carries changed field names, not
+field values for protected fields. Lifecycle events include `previous_state`
+and `new_state`; creation uses `previous_state: null`.
+
+| Event | Trigger | Additional minimum payload |
+|---|---|---|
+| `SUPPLIER.CREATED` | `SUPPLIER.CREATE` | `previous_state: null`, `new_state: PROSPECT` |
+| `SUPPLIER.UPDATED` | `SUPPLIER.UPDATE_PROFILE` | `changed_fields` |
+| `SUPPLIER.APPROVED` | `SUPPLIER.APPROVE` | `previous_state: PROSPECT`, `new_state: APPROVED`, `reason` |
+| `SUPPLIER.PREFERRED` | `SUPPLIER.MARK_PREFERRED` | `previous_state: APPROVED`, `new_state: PREFERRED`, `reason` |
+| `SUPPLIER.PREFERRED_REMOVED` | `SUPPLIER.REMOVE_PREFERRED` | `previous_state: PREFERRED`, `new_state: APPROVED`, `reason` |
+| `SUPPLIER.SUSPENDED` | `SUPPLIER.SUSPEND` | `previous_state`, `new_state: SUSPENDED`, `reason` |
+| `SUPPLIER.RESUMED` | `SUPPLIER.RESUME` | `previous_state: SUSPENDED`, `new_state: APPROVED`, `reason` |
+| `SUPPLIER.BLOCKED` | `SUPPLIER.BLOCK` | `previous_state`, `new_state: BLOCKED`, `reason` |
+| `SUPPLIER.UNBLOCKED` | `SUPPLIER.UNBLOCK` | `previous_state: BLOCKED`, `new_state: PROSPECT`, `reason` |
+| `SUPPLIER.DEACTIVATED` | `SUPPLIER.DEACTIVATE` | `previous_state`, `new_state: INACTIVE`, `reason` |
+| `SUPPLIER.REACTIVATED` | `SUPPLIER.REACTIVATE` | `previous_state: INACTIVE`, `new_state: PROSPECT`, `reason` |
+
+`previous_state` for `SUPPLIER.SUSPENDED`, `SUPPLIER.BLOCKED` and
+`SUPPLIER.DEACTIVATED` is the actual committed source state listed in the
+Supplier lifecycle state machine. A retry of a committed command returns its
+idempotent result and does not emit a second event.
+
 ## `PO.CREATED`
 
 ```yaml

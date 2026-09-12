@@ -8,10 +8,10 @@ feature_id: F-039
 workflow_id: WF-P01
 phase: P4
 priority: P0
-readiness: BLOCKED
+readiness: READY
 status: NOT_STARTED
 owner_domain: procurement
-depends_on: TASK-061
+depends_on: TASK-061, TASK-070-R1
 ```
 
 ## 2. Objective
@@ -79,9 +79,12 @@ RFQ and purchasing tasks.
   mutated directly.
 - Procurement Request keeps requester, source type/id, reason, lines, target
   date, cost center/project and estimates when supplied.
-- Supplier statuses are the enumerated `PROSPECT`, `APPROVED`, `PREFERRED`,
-  `SUSPENDED`, `BLOCKED` and `INACTIVE` values. A blocked/suspended/inactive
-  Supplier must not be selected for a new purchase when policy prohibits it.
+- Supplier lifecycle follows the normative commands, transitions, permissions,
+  events and eligibility rules in sections 10/13 and the referenced workflow,
+  state-machine, permission and event specifications.
+- `INACTIVE` is reactivatable; Supplier rows are never hard-deleted. Lifecycle
+  changes do not cancel or rewrite existing RFQ, Quotation, PO, Invoice or
+  Contract records.
 - Retries with the same idempotency key and semantics replay the result;
   changed semantics conflict. Duplicate demand must not be silently merged.
 - Sensitive banking data is represented only by a protected reference and is
@@ -120,6 +123,11 @@ outcomes.
 permissions_from_spec:
   procurement_request: procurement.request.create, procurement.request.review
   supplier_read_select: supplier.read, supplier.select
+  supplier_create: supplier.create
+  supplier_profile_update: supplier.update
+  supplier_qualification: supplier.approve
+  supplier_status: supplier.status.change
+  supplier_block: supplier.block
 resource: tenant-scoped supplier or procurement request
 scope: organization, business unit, cost center, project or tenant as policy allows
 high_risk: conditional for supplier/payment-sensitive fields
@@ -128,21 +136,11 @@ mfa_required: as policy requires
 approval_required: procurement approval remains separate from command permission
 ```
 
-**SPEC_CONFLICT — Supplier write policy is not normative:** the
-permission catalog does not define Supplier create/update/status-change
-permission codes, and the Supplier status transition matrix is not normative.
-Do not substitute `supplier.select` or `procurement.request.review` for those
-missing write permissions. The Procurement workflow enumerates statuses but
-does not define allowed transitions or Supplier master events. This leaves the
-Supplier write portion of TASK-070 without an authorized, auditable command
-contract.
-
-Smallest proposed resolution: add one `supplier.manage` permission for Supplier
-create/update/status commands; require `expected_version`, reason, audit and
-outbox for status changes; define the allowed transitions among the six
-catalogued statuses and add `SUPPLIER.CREATED` / `SUPPLIER.STATUS_CHANGED`
-payload contracts. Keep `supplier.read` and `supplier.select` separate from
-Supplier mutation permission.
+Supplier mutation permissions are action-specific and mapped exactly as
+defined in the permission specification; `supplier.select` is not a Supplier
+master write grant. Do not define or use `supplier.manage`. Tenant isolation
+and resource scope apply to every Supplier command. Approval permission is
+separate from any procurement approval gate.
 
 ## 11. Database / Data Model
 
@@ -150,8 +148,11 @@ Supplier mutation permission.
   procurement requests, request lines and append-only transition history.
 - Tenant-scoped unique codes and uniqueness constraints for applicable tax
   identifiers; preserve source references and currency/amount precision.
-- Enforce request/line tenant consistency, positive quantities, valid state and
-  optimistic versions.
+- Enforce request/line tenant consistency, positive quantities, valid Supplier
+  and request states and optimistic versions. Supplier lifecycle/profile
+  mutations share one monotonic Supplier `version`; never persist a duplicate
+  `preferred` flag separate from `state = PREFERRED`.
+- Do not hard-delete Supplier records or rewrite Supplier/commercial history.
 - Store only `bank_info_reference`, never bank account credentials or raw
   payment secrets.
 - Index tenant/state/requester/source and supplier lookup fields needed by
@@ -168,27 +169,55 @@ GET  /api/v1/procurement-requests/{id}
 GET  /api/v1/procurement-requests
 ```
 
-Supplier routes and write actions must be added only after the Supplier write
-permission and status-transition gap in section 10 is resolved. DTOs must not
-expose restricted banking references by default.
+Supplier reads and writes use Procurement-owned APIs and explicit commands;
+protected writes follow `POST /api/v1/suppliers/{id}/commands/{action}` (create
+may use the collection command endpoint). Every Supplier mutation request
+carries `Idempotency-Key`, a non-empty reason and `correlation_id`; existing-
+record mutations also carry `expected_version`. DTOs must not expose
+restricted banking references by default.
 
 ## 13. Commands / Events
 
+- Implement these Procurement-owned Supplier commands:
+
+  ```text
+  SUPPLIER.CREATE
+  SUPPLIER.UPDATE_PROFILE
+  SUPPLIER.APPROVE
+  SUPPLIER.MARK_PREFERRED
+  SUPPLIER.REMOVE_PREFERRED
+  SUPPLIER.SUSPEND
+  SUPPLIER.RESUME
+  SUPPLIER.BLOCK
+  SUPPLIER.UNBLOCK
+  SUPPLIER.DEACTIVATE
+  SUPPLIER.REACTIVATE
+  ```
+
+- Create/update Supplier and execute each lifecycle command through
+  Procurement application contracts.
 - Create and submit Procurement Request through explicit commands.
-- Emit catalogued Procurement events such as `PROCUREMENT.REQUESTED` and
-  applicable state/approval events only after commit through the outbox.
-- Add supplier master events only after their payload and state semantics are
-  normative; do not fabricate events from database row changes.
+- Emit all applicable Supplier master facts (`SUPPLIER.CREATED`,
+  `SUPPLIER.UPDATED`, `SUPPLIER.APPROVED`, `SUPPLIER.PREFERRED`,
+  `SUPPLIER.PREFERRED_REMOVED`, `SUPPLIER.SUSPENDED`, `SUPPLIER.RESUMED`,
+  `SUPPLIER.BLOCKED`, `SUPPLIER.UNBLOCKED`, `SUPPLIER.DEACTIVATED`,
+  `SUPPLIER.REACTIVATED`) and catalogued Procurement events only after commit
+  through the transactional outbox.
 - Commands use the owning Procurement module and never mutate Asset, License,
   Approval or Finance tables directly.
 
 ## 14. Idempotency and Concurrency
 
-- Create/submit use durable idempotency with canonical semantic request hashes.
+- Procurement Request create/submit and every Supplier mutation use durable
+  idempotency with canonical semantic request hashes.
 - Same key/same semantics returns the saved result; same key/different
   semantics returns `409 IDEMPOTENCY_KEY_CONFLICT`.
 - Protected state changes require `expected_version`; stale versions return
   `409 VERSION_CONFLICT`.
+- Supplier profile and lifecycle mutations share aggregate version fencing.
+  Concurrent transitions/profile changes based on the same version cannot both
+  commit. A failed competing transition emits no transition event and adds no
+  second transition history record.
 - Enforce duplicate-source protection in the database where a source type/id
   represents one active request; broader duplicate-demand detection only warns
   or links according to an explicit policy.
@@ -231,8 +260,14 @@ transaction and use durable workflow/reconciliation boundaries.
 - Event/audit contract tests for committed facts and rollback behavior.
 - E2E request creation/submission with an owning source reference and preserved
   Work Queue/timeline behavior where applicable.
-- Supplier write tests only after its permission, event and transition gap has
-  been resolved normatively.
+- Tests for every Supplier lifecycle transition and explicitly forbidden
+  transition; command-to-permission mapping and tenant/resource-scope denial.
+- RFQ candidate eligibility for `PROSPECT`, `APPROVED`, `PREFERRED`; PO issue
+  eligibility only for `APPROVED`, `PREFERRED`.
+- Concurrent competing Supplier state transitions (and profile-update versus
+  lifecycle transition), stale-version rejection, idempotent retry without
+  duplicate audit/history/outbox, and preservation of referenced commercial
+  records.
 
 ## 19. Acceptance Criteria
 
@@ -248,9 +283,13 @@ transaction and use durable workflow/reconciliation boundaries.
    authorized response shape.
 6. No procurement command directly writes Asset, License, Approval or Finance
    owned state.
-7. Supplier write capabilities pass only after section 10's missing
-   authorization and status-transition semantics are made normative.
-8. Registry, implementation report, CURRENT_TASK and handoff reconcile after
+7. All Supplier commands enforce the normative transition/permission matrix,
+   tenant/resource scope, version, idempotency, audit and outbox contracts.
+8. RFQ/PO supplier eligibility and preservation of historical commercial
+   records match the procurement workflow.
+9. Competing state commands cannot double-transition and produce one committed
+   history/audit/outbox result; required Supplier events have contract tests.
+10. Registry, implementation report, CURRENT_TASK and handoff reconcile after
    all verification gates pass.
 
 ## 20. Assumptions To Validate
@@ -265,13 +304,13 @@ transaction and use durable workflow/reconciliation boundaries.
 
 ## 21. Blocker / Readiness
 
-TASK-061 is satisfied, but TASK-070 remains `BLOCKED` until the Supplier write
-permission, allowed status transitions and event facts become normative. The
-Procurement Request-only safe slice can be implemented separately only if the
-user explicitly authorizes splitting the current task contract.
+TASK-061 is `CODE_COMPLETE` and satisfies the declared dependency. The
+Supplier lifecycle/permission/event conflict was resolved normatively by
+TASK-070-R1. TASK-070 is derived `READY` and remains `NOT_STARTED`; no
+implementation has begun. Begin implementation only after explicit user
+instruction.
 
 ## 22. Completion Rule
 
-This is a planning contract only. Implementation has not started. Resolve the
-recorded SPEC_CONFLICT before implementing TASK-070; do not silently select a
-permission or invent a transition matrix.
+This is a planning contract. The Supplier business rules are normative in the
+referenced specifications and TASK-070-R1. Implementation has not started.

@@ -357,7 +357,59 @@ BLOCKED
 INACTIVE
 ```
 
-Blocked supplier không được chọn cho PO mới nếu policy không cho phép.
+`INACTIVE` is not terminal. Supplier records must not be hard-deleted because
+they may be referenced by RFQs, Quotations, Purchase Orders, Invoices or
+Contracts. Lifecycle changes never delete or rewrite those commercial records.
+
+## 12.1 Normative Supplier Lifecycle Commands
+
+The Procurement domain owns the Supplier state machine. State is changed only
+through the following explicit commands; clients must not write Supplier state
+through generic update/PATCH operations.
+
+| Command | From | To | Permission |
+|---|---|---|---|
+| `SUPPLIER.CREATE` | none | `PROSPECT` | `supplier.create` |
+| `SUPPLIER.APPROVE` | `PROSPECT` | `APPROVED` | `supplier.approve` |
+| `SUPPLIER.MARK_PREFERRED` | `APPROVED` | `PREFERRED` | `supplier.approve` |
+| `SUPPLIER.REMOVE_PREFERRED` | `PREFERRED` | `APPROVED` | `supplier.approve` |
+| `SUPPLIER.SUSPEND` | `APPROVED`, `PREFERRED` | `SUSPENDED` | `supplier.status.change` |
+| `SUPPLIER.RESUME` | `SUSPENDED` | `APPROVED` | `supplier.status.change` |
+| `SUPPLIER.BLOCK` | `PROSPECT`, `APPROVED`, `PREFERRED`, `SUSPENDED` | `BLOCKED` | `supplier.block` |
+| `SUPPLIER.UNBLOCK` | `BLOCKED` | `PROSPECT` | `supplier.block` |
+| `SUPPLIER.DEACTIVATE` | any non-`INACTIVE` state | `INACTIVE` | `supplier.status.change` |
+| `SUPPLIER.REACTIVATE` | `INACTIVE` | `PROSPECT` | `supplier.status.change` |
+
+Profile changes use `SUPPLIER.UPDATE_PROFILE` and `supplier.update`; this
+command cannot change lifecycle state. The following transitions are
+forbidden: `BLOCKED -> APPROVED`, `BLOCKED -> PREFERRED`,
+`INACTIVE -> APPROVED`, and `INACTIVE -> PREFERRED`. Such Suppliers must return
+to `PROSPECT` and complete re-qualification first. A Supplier that was
+`PREFERRED`, then `SUSPENDED`, becomes `APPROVED` on `SUPPLIER.RESUME`; previous
+preference is not restored implicitly.
+
+Every mutating command is tenant- and resource-scope authorized, idempotent,
+audited and committed with its outbox event. Existing-record profile and
+lifecycle changes require `expected_version`; every Supplier write requires a
+non-empty reason. `Idempotency-Key` is required for retryable writes. Audit
+records capture actor, reason, before/after state or changed-field names,
+expected/new version, correlation and outcome. Events publish only after
+commit. Competing lifecycle commands use optimistic concurrency against the
+same Supplier version; at most one command based on a version may succeed, and
+the loser receives `VERSION_CONFLICT` without a second history/audit/outbox
+transition.
+
+## 12.2 Supplier Eligibility and Commercial History
+
+- RFQ candidates may be in `PROSPECT`, `APPROVED` or `PREFERRED`.
+- New Purchase Orders may be issued only to `APPROVED` or `PREFERRED`
+  Suppliers. `SUSPENDED`, `BLOCKED` and `INACTIVE` Suppliers are ineligible.
+- State changes do not automatically cancel or mutate an existing RFQ,
+  Quotation, Purchase Order, Invoice or Contract. TASK-070 does not implement
+  such commercial cancellation behavior.
+- The Supplier state is authoritative for new RFQ candidate and PO issue
+  decisions; candidate/issue commands revalidate canonical Supplier state at
+  execution time.
 
 ---
 

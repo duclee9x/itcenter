@@ -187,7 +187,8 @@ Only generate a detailed `TASK-xxx_*.md` when the task becomes `READY` or is the
 | `TASK-060` | `F-004/OFFBOARDING` | `WF-ID04/WF-019` | P3 | P0 | User Offboarding Orchestration | TASK-003, TASK-015, TASK-058, TASK-058-R1, TASK-060-R1 | **SATISFIED** | CODE_COMPLETE | `TASK-060_USER_OFFBOARDING_ORCHESTRATION.md` |
 | `TASK-060-R1` | `F-004/OFFBOARDING` | `WF-ID04/WF-019` | P3 | P0 | Define Normative Offboarding State Machine | TASK-003, TASK-015, TASK-058, TASK-058-R1 | **SATISFIED** | CODE_COMPLETE | `TASK-060-R1_NORMATIVE_OFFBOARDING_STATE_MACHINE.md` |
 | `TASK-061` | `F-047/PHASE-GATE` | `WF-SRCH01/P3-E2E` | P3 | P1 | Advanced Search + Phase 3 Integration Gate | TASK-050, TASK-051, TASK-052, TASK-053, TASK-055, TASK-056, TASK-058, TASK-059, TASK-060 | **SATISFIED** | CODE_COMPLETE | `TASK-061_ADVANCED_SEARCH_PHASE3_INTEGRATION_GATE.md` |
-| `TASK-070` | `F-039` | `WF-P01` | P4 | P0 | Supplier + Procurement Request | TASK-061 | **BLOCKED** | NOT_STARTED | `TASK-070_SUPPLIER_PROCUREMENT_REQUEST.md` |
+| `TASK-070` | `F-039` | `WF-P01` | P4 | P0 | Supplier + Procurement Request | TASK-061, TASK-070-R1 | **READY** | NOT_STARTED | `TASK-070_SUPPLIER_PROCUREMENT_REQUEST.md` |
+| `TASK-070-R1` | `F-039` | `WF-P01` | P4 | P0 | Supplier Lifecycle + Permission Contract | TASK-061 | **SATISFIED** | CODE_COMPLETE | `TASK-070-R1_SUPPLIER_LIFECYCLE_PERMISSION_CONTRACT.md` |
 | `TASK-071` | `F-040` | `WF-P02` | P4 | P1 | RFQ + Quotation + Supplier Selection | TASK-070 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |
 | `TASK-072` | `F-041` | `WF-P03` | P4 | P0 | Purchase Order + Approval + Amendment | TASK-036, TASK-071 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |
 | `TASK-073` | `F-042` | `WF-005` | P4 | P0 | Goods Receipt + Asset Creation + Partial Receipt | TASK-012, TASK-072 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |
@@ -263,8 +264,9 @@ Only generate a detailed `TASK-xxx_*.md` when the task becomes `READY` or is the
 ## P4 — Procurement + Contract + Financial Control
 
 - **TASK-070 — Supplier + Procurement Request:** TASK-061 is `CODE_COMPLETE`
-  and the Supplier write permission/status/event `SPEC_CONFLICT` recorded in
-  its task contract is normatively resolved.
+  and TASK-070-R1 is `CODE_COMPLETE`; Supplier lifecycle, permissions,
+  eligibility, versioning and event contracts are normative. Implementation
+  remains `NOT_STARTED` pending explicit user instruction.
 - **TASK-071 — RFQ + Quotation + Supplier Selection:** Procurement request and supplier model available.
 - **TASK-072 — Purchase Order + Approval + Amendment:** Approval engine and quotation selection available.
 - **TASK-073 — Goods Receipt + Asset Creation + Partial Receipt:** Warehouse receiving basics and PO available.
@@ -287,7 +289,8 @@ Only generate a detailed `TASK-xxx_*.md` when the task becomes `READY` or is the
 
 # 11. Current Next Task
 
-TASK-060-R1, TASK-060, TASK-056, TASK-059 and TASK-061 are `CODE_COMPLETE`.
+TASK-060-R1, TASK-060, TASK-056, TASK-059, TASK-061 and TASK-070-R1 are
+`CODE_COMPLETE`.
 TASK-056
 inventory, exception handling, safe removal flow, audit/outbox payloads, and
 verification are recorded in its completion report. Dependency implementation
@@ -295,20 +298,21 @@ reports and commits confirm TASK-015 (`32c3267`), TASK-036 (`e043c31`) and
 TASK-038 (`296336a`) are `CODE_COMPLETE`.
 
 ```text
-CURRENT = TASK-070 (BLOCKED / NOT_STARTED)
-NEXT = TASK-070 (blocked by Supplier master policy SPEC_CONFLICT)
+CURRENT = TASK-070 (READY / NOT_STARTED)
+NEXT = TASK-070 (ready; await explicit implementation instruction)
 TASK-059 = SATISFIED (CODE_COMPLETE)
 TASK-061 = SATISFIED (CODE_COMPLETE)
+TASK-070-R1 = SATISFIED (CODE_COMPLETE)
 ```
 
 TASK-061's acceptance criteria and verification gates passed; its implementation
 report and commit are recorded. Its declared dependencies (TASK-050, TASK-051,
 TASK-052, TASK-053, TASK-055, TASK-056, TASK-058, TASK-059 and TASK-060) are
-all `CODE_COMPLETE`. TASK-070's sole declared dependency is now satisfied and
-its detailed contract has been generated. TASK-070 remains `BLOCKED` because
-the Procurement workflow lists Supplier statuses but does not define Supplier
-write permissions, allowed status transitions or Supplier master event
-contracts. See TASK-070 section 10 for the smallest proposed resolution.
+all `CODE_COMPLETE`. TASK-070's declared dependencies are satisfied and its
+detailed contract has been generated. The Supplier lifecycle/permission/
+event SPEC_CONFLICT was resolved by TASK-070-R1. TASK-070 is now derived
+`READY`; its implementation status remains `NOT_STARTED`. Do not implement
+TASK-070 without an explicit user instruction.
 
 ---
 

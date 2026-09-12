@@ -7,17 +7,33 @@ Supplier + Procurement Request
 Feature: F-039
 Workflow: WF-P01
 Phase/Priority: P4 / P0
-Readiness: BLOCKED
+Readiness: READY
 Status: NOT_STARTED
 
 Task contract: `tasks/TASK-070_SUPPLIER_PROCUREMENT_REQUEST.md`
 
-TASK-061 is `CODE_COMPLETE`, satisfying TASK-070's declared dependency. The
-TASK-070 contract is prepared, but implementation is blocked: procurement
-specifications enumerate Supplier states but do not define Supplier write
-permissions, allowed status transitions or Supplier master event contracts.
-The task contract records a proposed minimal resolution; no TASK-070 code has
-started.
+TASK-061 and remediation TASK-070-R1 are `CODE_COMPLETE`. The Supplier
+`SPEC_CONFLICT` is resolved normatively: lifecycle transitions, granular
+permission mappings, RFQ/PO eligibility, safe event payloads, append-only
+history and optimistic concurrency are specified. TASK-070 is derived `READY`
+and stays `NOT_STARTED`. No implementation has started; wait for explicit user
+instruction before coding TASK-070.
+
+## Last Completed Remediation — TASK-070-R1
+
+Supplier Lifecycle + Permission Contract (`CODE_COMPLETE`). See
+`tasks/TASK-070-R1_SUPPLIER_LIFECYCLE_PERMISSION_CONTRACT.md`.
+
+- Made the exact Supplier state machine and forbidden transitions normative;
+  `INACTIVE` is reactivatable and Supplier records are never hard-deleted.
+- Added granular command permissions, RFQ candidate and PO issue eligibility,
+  eleven Supplier master event contracts, versioned append-only history and
+  competing-transition concurrency requirements.
+- Updated TASK-070 acceptance criteria, registry readiness, CURRENT_TASK and
+  handoff. TASK-070 runtime implementation was not started.
+- Verification: cross-document consistency review, formatting and
+  `git diff --check`; runtime tests are not applicable to this
+  specification-only remediation.
 
 ## Last Completed Task — TASK-061
 
@@ -35,8 +51,8 @@ Advanced Search + Phase 3 Integration Gate (`CODE_COMPLETE`). See
   catalog, search/event/permission/traceability specifications and module docs.
 - Verification passed: `npm test` (77 tests), typecheck, lint, format check
   and `git diff --check`.
-- TASK-070 is derived `BLOCKED` by a recorded Supplier policy SPEC_CONFLICT:
-  no Supplier write permission or normative status-transition/event contract.
+- TASK-070 is now derived `READY` after TASK-070-R1; implementation remains
+  `NOT_STARTED` pending explicit user instruction.
 
 ## Earlier Completed Task — TASK-059
 

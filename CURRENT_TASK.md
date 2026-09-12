@@ -4,17 +4,16 @@ Task: `TASK-070` — Supplier + Procurement Request
 
 Task specification: `tasks/TASK-070_SUPPLIER_PROCUREMENT_REQUEST.md`
 
-Readiness: `BLOCKED`
+Readiness: `READY`
 
 Status: `NOT_STARTED`
 
-Dependency `TASK-061` is `CODE_COMPLETE`. The task contract is prepared, but
-Supplier master mutation cannot start until the permission catalog defines
-Supplier write authorization and the procurement specifications define allowed
-Supplier status transitions and event contracts. See the recorded
-`SPEC_CONFLICT` and proposed smallest resolution in section 10 of the task
-contract. No TASK-070 implementation has started.
+Dependencies `TASK-061` and `TASK-070-R1` are `CODE_COMPLETE`. TASK-070-R1
+resolved the Supplier lifecycle/permission/event `SPEC_CONFLICT` and updated
+the normative contracts. TASK-070 is derived `READY` and remains
+`NOT_STARTED`. No TASK-070 implementation has started; wait for explicit user
+instruction before implementing it.
 
-Last completed: `TASK-061` — Advanced Search + Phase 3 Integration Gate
-(`CODE_COMPLETE`; implementation and verification report are recorded in its
-task contract).
+Last completed: `TASK-070-R1` — Supplier Lifecycle + Permission Contract
+(`CODE_COMPLETE`; normative specifications and planning state updated; no
+TASK-070 runtime code was implemented).

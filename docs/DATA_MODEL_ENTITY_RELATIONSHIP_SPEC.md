@@ -1929,9 +1929,19 @@ suppliers:
   legal_name:
   tax_identifier:
   state:
-  preferred:
+  version:  # optimistic concurrency across profile and lifecycle changes
   risk_state:
+  created_at:
+  updated_at:
 ```
+
+`state` is one of `PROSPECT`, `APPROVED`, `PREFERRED`, `SUSPENDED`, `BLOCKED`
+or `INACTIVE`. Do not persist a separate `preferred` boolean; preference is
+derived from `state = PREFERRED`. `version` starts at 1 and increments on every
+successful mutation. Supplier state/profile history is append-only and records
+actor, before/after values (or changed-field names for protected fields),
+reason where required, versions, correlation and command identity. Supplier
+records are not hard-deleted; commercial foreign references remain valid.
 
 ---
 

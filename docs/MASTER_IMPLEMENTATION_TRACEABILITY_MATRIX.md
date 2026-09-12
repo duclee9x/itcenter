@@ -2522,3 +2522,20 @@ Master Implementation Traceability Matrix đạt yêu cầu khi:
 - Vertical slices are traceable end-to-end.
 - Change-control impact rules are explicit.
 - Implementation status can be tracked from this document.
+
+# 77. Supplier Lifecycle Traceability — F-039 / WF-P01
+
+| Concern | Normative contract | TASK-070 verification evidence |
+|---|---|---|
+| Owner and canonical data | Procurement owns tenant-scoped Supplier state; no hard delete; shared `version`; append-only change history | DB tenant constraints, no-delete behavior, version/history integration tests |
+| Commands and transitions | `SUPPLIER.CREATE`, `UPDATE_PROFILE`, `APPROVE`, `MARK_PREFERRED`, `REMOVE_PREFERRED`, `SUSPEND`, `RESUME`, `BLOCK`, `UNBLOCK`, `DEACTIVATE`, `REACTIVATE`; exact transitions in state-machine spec | One success and invalid-state test per command/transition |
+| Authorization | `supplier.read`, `supplier.create`, `supplier.update`, `supplier.approve`, `supplier.status.change`, `supplier.block`; tenant and resource scope checked server-side; no `supplier.manage` | Permission and scope denial tests for command mappings |
+| Concurrency/idempotency | `expected_version` and durable `Idempotency-Key`; competing profile/state writes cannot both commit from one version | Concurrent conflicting-transition test, stale version test, duplicate replay/no duplicate event test |
+| Audit and events | Before/after audit and transactional outbox; eleven Supplier master events have payload contracts and exclude protected values | Atomic commit/rollback tests, event schema tests, no sensitive value assertions |
+| Commercial eligibility/history | RFQ candidates: PROSPECT/APPROVED/PREFERRED; PO issue: APPROVED/PREFERRED; state change preserves historical commercial records | RFQ/PO canonical-state eligibility tests; referenced history remains unchanged |
+| Procurement Request vertical slice | Request create/review lifecycle stays within its existing explicit normative transitions | Request integration tests, tenant and source-boundary tests |
+
+Supplier state changes do not automatically cancel existing RFQ, Quotation,
+Purchase Order, Invoice or Contract records. Any future commercial remediation
+is a separate workflow/task. TASK-070 is eligible to implement only after all
+listed evidence and existing task acceptance criteria pass.

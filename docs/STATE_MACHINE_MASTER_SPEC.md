@@ -2482,3 +2482,44 @@ State Machine Master đạt yêu cầu khi:
 - Illegal transition/error behavior rõ.
 - Bulk/manual override guardrails rõ.
 - MVP → Phase 3 implementation path rõ.
+
+# 126. Supplier Lifecycle State Machine
+
+Supplier lifecycle is owned by Procurement. The canonical states are
+`PROSPECT`, `APPROVED`, `PREFERRED`, `SUSPENDED`, `BLOCKED` and `INACTIVE`.
+`INACTIVE` is reactivatable and is not terminal. Supplier records are never
+hard-deleted because commercial records may reference them.
+
+| From | Command | To | Permission |
+|---|---|---|---|
+| none | `SUPPLIER.CREATE` | `PROSPECT` | `supplier.create` |
+| `PROSPECT` | `SUPPLIER.APPROVE` | `APPROVED` | `supplier.approve` |
+| `APPROVED` | `SUPPLIER.MARK_PREFERRED` | `PREFERRED` | `supplier.approve` |
+| `PREFERRED` | `SUPPLIER.REMOVE_PREFERRED` | `APPROVED` | `supplier.approve` |
+| `APPROVED`, `PREFERRED` | `SUPPLIER.SUSPEND` | `SUSPENDED` | `supplier.status.change` |
+| `SUSPENDED` | `SUPPLIER.RESUME` | `APPROVED` | `supplier.status.change` |
+| `PROSPECT`, `APPROVED`, `PREFERRED`, `SUSPENDED` | `SUPPLIER.BLOCK` | `BLOCKED` | `supplier.block` |
+| `BLOCKED` | `SUPPLIER.UNBLOCK` | `PROSPECT` | `supplier.block` |
+| any non-`INACTIVE` state | `SUPPLIER.DEACTIVATE` | `INACTIVE` | `supplier.status.change` |
+| `INACTIVE` | `SUPPLIER.REACTIVATE` | `PROSPECT` | `supplier.status.change` |
+
+`SUPPLIER.UPDATE_PROFILE` uses `supplier.update` and cannot change state.
+Explicitly invalid are `BLOCKED -> APPROVED`, `BLOCKED -> PREFERRED`,
+`INACTIVE -> APPROVED`, and `INACTIVE -> PREFERRED`; these paths require
+`PROSPECT` and re-qualification. `RESUME` always produces `APPROVED`, including
+when the Supplier was previously `PREFERRED`.
+
+Existing Supplier updates and all state transitions require
+`expected_version`, durable idempotency, tenant/resource-scope authorization,
+audit before/after, correlation and a transactional outbox fact. Every
+Supplier write requires a non-empty reason. Concurrent transitions based on the same version
+must be serialized by compare-and-swap/optimistic concurrency or an equivalent
+database invariant. Only one can commit; the losing command returns
+`VERSION_CONFLICT`. No duplicate transition history or event may be produced.
+Creation starts at version 1. Profile updates may increment the same aggregate
+version and therefore conflict with a concurrent lifecycle transition.
+
+Changing Supplier state does not delete or rewrite RFQ, Quotation, Purchase
+Order, Invoice or Contract history. Eligibility is checked against canonical
+state when selecting an RFQ candidate (`PROSPECT`, `APPROVED`, `PREFERRED`) or
+issuing a new PO (`APPROVED`, `PREFERRED`).

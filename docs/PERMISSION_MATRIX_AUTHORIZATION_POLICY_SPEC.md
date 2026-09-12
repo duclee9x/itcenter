@@ -1035,6 +1035,12 @@ procurement.request.review
 procurement.approve
 rfq.create
 quotation.record
+supplier.read
+supplier.create
+supplier.update
+supplier.approve
+supplier.status.change
+supplier.block
 supplier.select
 po.create
 po.approve
@@ -1044,6 +1050,23 @@ invoice.read
 invoice.match.resolve
 invoice.approve_exception
 ```
+
+Supplier authorization is action-specific. `supplier.select` permits
+selection/use in the explicitly authorized procurement workflow; it does not
+grant Supplier master mutation. Do not define or use a broad
+`supplier.manage` permission.
+
+| Command | Permission |
+|---|---|
+| `SUPPLIER.CREATE` | `supplier.create` |
+| `SUPPLIER.UPDATE_PROFILE` | `supplier.update` |
+| `SUPPLIER.APPROVE`, `SUPPLIER.MARK_PREFERRED`, `SUPPLIER.REMOVE_PREFERRED` | `supplier.approve` |
+| `SUPPLIER.SUSPEND`, `SUPPLIER.RESUME`, `SUPPLIER.DEACTIVATE`, `SUPPLIER.REACTIVATE` | `supplier.status.change` |
+| `SUPPLIER.BLOCK`, `SUPPLIER.UNBLOCK` | `supplier.block` |
+
+All grants remain subject to tenant isolation and resource scope. The backend
+rechecks permission and scope on every command. A caller that may block or
+unblock a Supplier does not thereby gain profile-edit or approval rights.
 
 ---
 
