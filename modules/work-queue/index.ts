@@ -10,6 +10,8 @@ export {
   upsertAssetLifecycleWorkItem,
   resolveAssetLifecycleWorkItem,
   recordAssetLifecycleTimelineEvent,
+  recordProcurementTimelineEvent,
+  readEntityTimeline,
   upsertApprovalWorkItem,
   resolveApprovalWorkItem,
 } from "./application/work-queue.js";

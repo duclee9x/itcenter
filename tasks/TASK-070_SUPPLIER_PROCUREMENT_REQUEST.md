@@ -8,8 +8,8 @@ feature_id: F-039
 workflow_id: WF-P01
 phase: P4
 priority: P0
-readiness: READY
-status: NOT_STARTED
+readiness: SATISFIED
+status: CODE_COMPLETE
 owner_domain: procurement
 depends_on: TASK-061, TASK-070-R1
 ```
@@ -103,8 +103,8 @@ APPROVED → ORDERED → PARTIALLY_FULFILLED → FULFILLED
 
 `REJECTED` and `CANCELLED` are also enumerated states. Implement only
 transitions with explicit command/precondition/authorization rules in the
-normative specifications. Do not infer Supplier status transitions or budget
-outcomes.
+normative specifications. TASK-070 implements `DRAFT → SUBMITTED`; it does not
+infer a review command or budget outcome.
 
 ## 9. Preconditions
 
@@ -203,6 +203,12 @@ restricted banking references by default.
   `SUPPLIER.BLOCKED`, `SUPPLIER.UNBLOCKED`, `SUPPLIER.DEACTIVATED`,
   `SUPPLIER.REACTIVATED`) and catalogued Procurement events only after commit
   through the transactional outbox.
+- Emit `PROCUREMENT.REQUEST_CREATED` for the committed `DRAFT` creation and
+  `PROCUREMENT.REQUESTED` when submission commits; payloads follow the event
+  catalog.
+- Project committed Supplier and Procurement Request events into the
+  Operations timeline through its application contract; timeline reads require
+  the same source-resource permission and scope.
 - Commands use the owning Procurement module and never mutate Asset, License,
   Approval or Finance tables directly.
 
@@ -304,13 +310,43 @@ transaction and use durable workflow/reconciliation boundaries.
 
 ## 21. Blocker / Readiness
 
-TASK-061 is `CODE_COMPLETE` and satisfies the declared dependency. The
-Supplier lifecycle/permission/event conflict was resolved normatively by
-TASK-070-R1. TASK-070 is derived `READY` and remains `NOT_STARTED`; no
-implementation has begun. Begin implementation only after explicit user
-instruction.
+TASK-061 and TASK-070-R1 are `CODE_COMPLETE`. The Supplier lifecycle,
+permission and event contracts are normative under TASK-070-R1. No unresolved
+TASK-070 blocker or `SPEC_CONFLICT` remains. TASK-070 is `CODE_COMPLETE` after
+all acceptance criteria and verification gates passed.
 
 ## 22. Completion Rule
 
-This is a planning contract. The Supplier business rules are normative in the
-referenced specifications and TASK-070-R1. Implementation has not started.
+The Supplier business rules are normative in the referenced specifications
+and TASK-070-R1. Implementation report and verification evidence are recorded
+below.
+
+## 23. Implementation Report
+
+- Added Procurement-owned Supplier and Procurement Request domain/application
+  modules, PostgreSQL migration, tenant constraints, monotonic versions,
+  append-only history, request line validation and duplicate-source protection.
+- Added Supplier create/read/list/profile update and all normative lifecycle
+  commands. Supplier DTO, audit, event and timeline snapshots omit tax and
+  banking reference values; mutation reasons containing protected values are
+  rejected. RFQ candidate and PO issue eligibility are derived from canonical
+  Supplier state.
+- Added Procurement Request create/read/list and `DRAFT → SUBMITTED`; no review
+  or budget transition was inferred because no corresponding normative
+  command/precondition contract exists.
+- Added authenticated tenant-scoped APIs, granular permissions, durable
+  idempotency, expected-version fencing, transactional audit/outbox writes and
+  timeline projection/read authorization.
+- Added `PROCUREMENT.REQUEST_CREATED` for persisted drafts and retained
+  `PROCUREMENT.REQUESTED` for submission; updated event/workflow and traceability
+  contracts accordingly.
+- PostgreSQL E2E covers Supplier transitions and forbidden transitions,
+  permission denial, safe sensitive-field handling, idempotency, stale version,
+  concurrent transition, immutable history, request submission/replay,
+  duplicate-source rejection, timeline and tenant isolation.
+- Verification passed: `npm test` (81 tests: 27 unit/architecture, 2 contract,
+  1 migration, 21 integration, 30 E2E), `npm run typecheck`, `npm run lint`,
+  targeted Prettier check and `git diff --check`.
+- Remaining boundary: source/cost-center/project references are tenant-scoped
+  opaque IDs until their owning-domain integrations provide authoritative
+  verification. Requester identity is verified through Identity.

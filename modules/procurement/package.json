@@ -1,0 +1,6 @@
+{
+  "name": "@itcenter/procurement",
+  "private": true,
+  "type": "module",
+  "dependencies": {}
+}

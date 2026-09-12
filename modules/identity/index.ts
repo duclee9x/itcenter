@@ -5,6 +5,7 @@ export {
 } from "./application/authentication.js";
 export {
   permissions,
+  assertActiveUser,
   assertActiveLicenseUser,
 } from "./application/permissions.js";
 export { seedPermissions } from "./infrastructure/seed-permissions.js";

@@ -1,23 +1,41 @@
 # IMPLEMENTATION HANDOFF
 
-## Current Task — TASK-070
+## Current Task — TASK-071 (Blocked)
 
-Supplier + Procurement Request
+RFQ + Quotation + Supplier Selection
 
-Feature: F-039
-Workflow: WF-P01
-Phase/Priority: P4 / P0
-Readiness: READY
+Feature: F-040
+Workflow: WF-P02
+Phase/Priority: P4 / P1
+Readiness: BLOCKED by `SPEC_CONFLICT`
 Status: NOT_STARTED
 
-Task contract: `tasks/TASK-070_SUPPLIER_PROCUREMENT_REQUEST.md`
+Task contract has not been generated because the state/command contract is
+incomplete. The Procurement workflow enumerates RFQ states but does not define
+the normative transition commands, preconditions and authorization for them.
+Quotation lifecycle commands and RFQ send/close/cancel rules are also
+unspecified. Do not infer protected state changes; business rules are needed
+before TASK-071 can become READY.
 
-TASK-061 and remediation TASK-070-R1 are `CODE_COMPLETE`. The Supplier
-`SPEC_CONFLICT` is resolved normatively: lifecycle transitions, granular
-permission mappings, RFQ/PO eligibility, safe event payloads, append-only
-history and optimistic concurrency are specified. TASK-070 is derived `READY`
-and stays `NOT_STARTED`. No implementation has started; wait for explicit user
-instruction before coding TASK-070.
+## Last Completed Task — TASK-070
+
+Supplier + Procurement Request (`CODE_COMPLETE`). See
+`tasks/TASK-070_SUPPLIER_PROCUREMENT_REQUEST.md` for the implementation report.
+
+- Added tenant-scoped Procurement-owned Supplier and Procurement Request
+  persistence, history, constraints, application contracts and APIs.
+- Implemented all normative Supplier lifecycle commands and Procurement
+  Request draft creation/submission with permissions, durable idempotency,
+  expected-version concurrency, audit, outbox and Operations timeline.
+- Protected tax and bank-reference fields from default DTOs, audit, event and
+  timeline payloads; mutation reasons containing protected values are rejected.
+  Requalified Suppliers are subject to canonical RFQ/PO eligibility.
+- Verification passed: 81 tests (`npm test`), typecheck, lint, targeted format
+  check and `git diff --check`.
+- Procurement Request review/budget transitions remain out of scope because
+  the normative commands are unspecified. Cross-domain source and
+  cost-center/project references remain tenant-scoped opaque IDs until their
+  owning integrations exist.
 
 ## Last Completed Remediation — TASK-070-R1
 
@@ -51,8 +69,6 @@ Advanced Search + Phase 3 Integration Gate (`CODE_COMPLETE`). See
   catalog, search/event/permission/traceability specifications and module docs.
 - Verification passed: `npm test` (77 tests), typecheck, lint, format check
   and `git diff --check`.
-- TASK-070 is now derived `READY` after TASK-070-R1; implementation remains
-  `NOT_STARTED` pending explicit user instruction.
 
 ## Earlier Completed Task — TASK-059
 

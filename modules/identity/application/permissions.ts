@@ -2,7 +2,7 @@ import type { Permission } from "../domain/model.js";
 import type { Transaction } from "../../../packages/persistence/src/index.js";
 import { ApplicationError } from "../../../packages/api-contracts/src/index.js";
 
-export async function assertActiveLicenseUser(input: {
+export async function assertActiveUser(input: {
   tx: Transaction;
   userId: string;
 }) {
@@ -18,6 +18,13 @@ export async function assertActiveLicenseUser(input: {
       "Active user was not found in this tenant.",
     );
   return true;
+}
+
+export async function assertActiveLicenseUser(input: {
+  tx: Transaction;
+  userId: string;
+}) {
+  return assertActiveUser(input);
 }
 // Platform permission needed by the bootstrap operation query; no grant is implied.
 export const permissions: readonly Permission[] = [
@@ -162,5 +169,31 @@ export const permissions: readonly Permission[] = [
     code: "network.vlan.change",
     resource_type: "network_vlan_change",
     action: "change",
+  },
+  { code: "supplier.read", resource_type: "supplier", action: "read" },
+  { code: "supplier.select", resource_type: "supplier", action: "select" },
+  { code: "supplier.create", resource_type: "supplier", action: "create" },
+  { code: "supplier.update", resource_type: "supplier", action: "update" },
+  { code: "supplier.approve", resource_type: "supplier", action: "approve" },
+  {
+    code: "supplier.status.change",
+    resource_type: "supplier",
+    action: "status.change",
+  },
+  { code: "supplier.block", resource_type: "supplier", action: "block" },
+  {
+    code: "procurement.request.read",
+    resource_type: "procurement_request",
+    action: "read",
+  },
+  {
+    code: "procurement.request.create",
+    resource_type: "procurement_request",
+    action: "create",
+  },
+  {
+    code: "procurement.request.review",
+    resource_type: "procurement_request",
+    action: "review",
   },
 ];

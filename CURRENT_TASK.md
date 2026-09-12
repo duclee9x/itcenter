@@ -1,19 +1,17 @@
 # CURRENT TASK
 
-Task: `TASK-070` — Supplier + Procurement Request
+Task: `TASK-071` — RFQ + Quotation + Supplier Selection
 
-Task specification: `tasks/TASK-070_SUPPLIER_PROCUREMENT_REQUEST.md`
-
-Readiness: `READY`
+Task contract: not generated; readiness is blocked by an unresolved
+`SPEC_CONFLICT` recorded in `tasks/CODEX_TASK_REGISTRY.md`.
 
 Status: `NOT_STARTED`
 
-Dependencies `TASK-061` and `TASK-070-R1` are `CODE_COMPLETE`. TASK-070-R1
-resolved the Supplier lifecycle/permission/event `SPEC_CONFLICT` and updated
-the normative contracts. TASK-070 is derived `READY` and remains
-`NOT_STARTED`. No TASK-070 implementation has started; wait for explicit user
-instruction before implementing it.
+The RFQ workflow lists states but does not define their normative command,
+precondition, authorization and transition matrix. Quotation lifecycle
+commands and RFQ send/close/cancel rules are also missing. Do not implement
+protected transitions until these business rules are normative.
 
-Last completed: `TASK-070-R1` — Supplier Lifecycle + Permission Contract
-(`CODE_COMPLETE`; normative specifications and planning state updated; no
-TASK-070 runtime code was implemented).
+Last completed: `TASK-070` — Supplier + Procurement Request
+(`CODE_COMPLETE`; implementation report and verification evidence are in
+`tasks/TASK-070_SUPPLIER_PROCUREMENT_REQUEST.md`).

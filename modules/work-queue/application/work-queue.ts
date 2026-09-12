@@ -182,6 +182,48 @@ export async function recordAssetLifecycleTimelineEvent(input: {
   );
 }
 
+export async function recordProcurementTimelineEvent(input: {
+  tx: Transaction;
+  entityType: "SUPPLIER" | "PROCUREMENT_REQUEST";
+  entityId: string;
+  eventType: string;
+  payload: unknown;
+  sourceEventId: string;
+}): Promise<void> {
+  await input.tx.query(
+    `INSERT INTO operations.timeline_events
+       (id,tenant_id,entity_type,entity_id,event_type,summary,payload,source_event_id)
+     VALUES($1,$2,$3,$4,$5,$6,$7,$8)
+     ON CONFLICT(tenant_id,source_event_id) DO NOTHING`,
+    [
+      randomUUID(),
+      input.tx.tenantId,
+      input.entityType,
+      input.entityId,
+      input.eventType,
+      `${input.eventType} committed`,
+      JSON.stringify(input.payload ?? {}),
+      input.sourceEventId,
+    ],
+  );
+}
+
+export async function readEntityTimeline(input: {
+  tx: Transaction;
+  entityType: "SUPPLIER" | "PROCUREMENT_REQUEST";
+  entityId: string;
+  limit?: number;
+}) {
+  const result = await input.tx.query(
+    `SELECT id,event_type,summary,payload,occurred_at
+       FROM operations.timeline_events
+      WHERE tenant_id=$1 AND entity_type=$2 AND entity_id=$3
+      ORDER BY occurred_at DESC,id DESC LIMIT $4`,
+    [input.tx.tenantId, input.entityType, input.entityId, input.limit ?? 100],
+  );
+  return result.rows;
+}
+
 export async function upsertApprovalWorkItem(input: {
   tx: Transaction;
   approvalId: string;

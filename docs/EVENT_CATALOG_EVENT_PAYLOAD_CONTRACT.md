@@ -2747,6 +2747,26 @@ source_type:
 source_id:
 estimated_total:
 currency:
+state: SUBMITTED
+version:
+reason:
+```
+
+## `PROCUREMENT.REQUEST_CREATED`
+
+Emitted when the Procurement domain commits a new `DRAFT` request.
+
+```yaml
+procurement_request_id:
+request_code:
+requester_user_id:
+source_type:
+source_id:
+state: DRAFT
+version: 1
+estimated_total:
+currency:
+reason:
 ```
 
 ## `PROCUREMENT.BUDGET_CHECKED`

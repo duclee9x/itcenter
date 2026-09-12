@@ -8,7 +8,7 @@ export interface AuditRecord {
   event_type: string;
   occurred_at: string;
   actor: ActorContext;
-  action: { command_type: string };
+  action: { command_type: string; idempotency_key?: string };
   subject: { entity_type: string; entity_id: string };
   correlation_id: string;
   causation_id: string;
