@@ -367,7 +367,7 @@ LICENSE.EXPIRED
 ```text
 PO.CREATED
 PO.APPROVED
-GOODS.RECEIVED
+GOODS_RECEIPT.POSTED
 INVOICE.UPLOADED
 INVOICE.MATCHED
 INVOICE.MISMATCH
@@ -597,7 +597,7 @@ Agent heartbeat restored hoặc trạng thái offline được xác nhận hợp
 
 ### Trigger
 ```text
-GOODS.RECEIVED
+GOODS_RECEIPT.POSTED
 ```
 
 ### Entities
@@ -613,15 +613,13 @@ Scan/Import Serial
 ↓
 Validate Quantity
 ↓
-Create Asset Records
+Post immutable Goods Receipt + PO accepted progress + audit/outbox
 ↓
-Generate Asset Tags/QR
+Asynchronous Asset-owned registration by received_unit_id
 ↓
-Assign Warehouse Location
+Lifecycle = RECEIVED; Assignment = UNASSIGNED; Location = receiving warehouse
 ↓
-Attach Invoice/Receipt
-↓
-Lifecycle = Available
+Asset validation/put-away → AVAILABLE
 ```
 
 ### Rules
@@ -629,7 +627,7 @@ Quantity mismatch, Unknown serial, Duplicate serial, Missing invoice, Damaged it
 
 ### State Changes
 ```text
-Lifecycle = Available
+Lifecycle = RECEIVED until validated/put away
 Assignment = Unassigned
 Location = Warehouse
 Warranty = Valid/Unknown

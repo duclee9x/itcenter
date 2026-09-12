@@ -687,7 +687,7 @@ Approved Procurement Request / accepted RFQ quotation
 → PO.UPDATE_DRAFT as needed
 → PO.ISSUE (freeze commercial version 1)
 → PO.HOLD / PO.RESUME as operationally required
-→ Goods Receipt updates receipt_state through the Warehouse-owned workflow
+→ Goods Receipt updates receipt_state through the Procurement/Warehouse-owned TASK-073 workflow
 → PO.CLOSE when fully received, or PO.CLOSE_REMAINDER when intentionally
   short-closed after partial receipt
 ```
@@ -721,11 +721,12 @@ Receipt:   NOT_RECEIVED | PARTIALLY_RECEIVED | FULLY_RECEIVED
 ```
 
 `CLOSED` and `CANCELLED` are terminal lifecycle states. Receipt states are not
-lifecycle states. Receipt state progresses only from `NOT_RECEIVED` to
-`PARTIALLY_RECEIVED` and then, when all ordered quantities are received, to
-`FULLY_RECEIVED`. TASK-073 owns Goods Receipt writes and these receipt-state
-transitions. Closing an incomplete order preserves `PARTIALLY_RECEIVED`; it
-does not pretend the order was fully received. Invoice state is independent.
+lifecycle states. TASK-073 Goods Receipt POST may transition
+`NOT_RECEIVED → PARTIALLY_RECEIVED`, `NOT_RECEIVED → FULLY_RECEIVED`,
+`PARTIALLY_RECEIVED → PARTIALLY_RECEIVED`, or
+`PARTIALLY_RECEIVED → FULLY_RECEIVED`. Only accepted quantity counts.
+Closing an incomplete order preserves `PARTIALLY_RECEIVED`; it does not
+pretend the order was fully received. Invoice state is independent.
 
 ## 19.2 Normative PO Lifecycle Commands
 
@@ -787,11 +788,13 @@ on the PO aggregate.
 - `PO.AMEND` vs `PO.CANCEL`: both fence on the same PO version; at most one
   competing command based on that version commits. The winner's state/version
   determines whether the other command is rejected.
-- `PO.HOLD` vs Goods Receipt posting and `PO.CANCEL` vs Goods Receipt posting
-  serialize on the PO identity. While `ON_HOLD` or `CANCELLED`, receipt posting
-  is rejected. If a receipt commits first, cancellation is rejected. TASK-073
-  owns implementation and integration tests for both Goods Receipt races;
-  TASK-072 implements the PO-side locking, version and invariant contract.
+- `GOODS_RECEIPT.POST` vs `PO.HOLD`, `PO.CANCEL`, `PO.AMEND` (especially the
+  first receipt), relevant `PO.CLOSE_REMAINDER`, and parallel receipt posts
+  competing for remaining line quantity serialize on the PO identity/version.
+  POST is allowed only while `ISSUED`; if receipt wins, the PO command must
+  revalidate receipt state/progress; if hold/cancel/close wins, POST fails.
+  TASK-073 owns these integration races; TASK-072 provides the PO-side
+  locking/version/invariant boundary.
 
 State-changing commands require `expected_version` for existing POs,
 idempotency, tenant/resource authorization, correlation, audit before/after
@@ -862,24 +865,196 @@ receipt does not rewrite a PO commercial version.
 
 # 24. WF-PROC04 — Goods Receipt Integration
 
-Physical asset receipt dùng workflow Warehouse, nhưng procurement phải nhận result.
+TASK-073 owns canonical Goods Receipt creation/posting and PO accepted-quantity
+progress. A Goods Receipt is a posted fact of physical receiving; it is not a
+PO lifecycle state and does not create Asset records inside the Procurement
+transaction. Procurement/Warehouse owns the receipt aggregate and snapshot;
+Asset owns asset registration.
 
 Flow:
 
 ```text
-PO
-↓
-Goods Arrive
-↓
-Goods Receipt
-↓
-Serial/Quantity Validation
-↓
-Asset Creation
-↓
-PO Received Quantity Updated
+GOODS_RECEIPT.CREATE → DRAFT
+GOODS_RECEIPT.UPDATE_DRAFT → DRAFT
+GOODS_RECEIPT.POST → POSTED + PO accepted-quantity/receipt-state update
+commit receipt, PO progress, audit and outbox atomically
+GOODS_RECEIPT.POSTED → asynchronous Asset registration for accepted tracked units
 ```
 
+## 24.1 Goods Receipt Lifecycle
+
+```text
+DRAFT → POST → POSTED
+DRAFT → CANCEL → CANCELLED
+```
+
+`POSTED` and `CANCELLED` are terminal. `POSTED` is immutable and represents
+an actual receiving fact. Never delete a receipt or transition `POSTED` back
+to `DRAFT`/`CANCELLED`. Corrections or reversals require a future explicit
+compensating workflow and are out of scope for TASK-073. Draft edits and
+cancellation do not change PO receipt progress. Cancellation requires a
+reason.
+
+## 24.2 PO Receipt Progress and Eligibility
+
+PO lifecycle remains independent:
+
+```text
+Lifecycle: DRAFT | ISSUED | ON_HOLD | CLOSED | CANCELLED
+Receipt:   NOT_RECEIVED | PARTIALLY_RECEIVED | FULLY_RECEIVED
+```
+
+Only `GOODS_RECEIPT.POST` changes PO receipt state. The transitions are:
+
+```text
+NOT_RECEIVED → PARTIALLY_RECEIVED
+NOT_RECEIVED → FULLY_RECEIVED
+PARTIALLY_RECEIVED → PARTIALLY_RECEIVED
+PARTIALLY_RECEIVED → FULLY_RECEIVED
+```
+
+Posting never closes the PO. `FULLY_RECEIVED` means quantities are fulfilled;
+`PO.CLOSE` remains an explicit lifecycle command. A receipt may post only when
+the PO lifecycle is `ISSUED`; `DRAFT`, `ON_HOLD`, `CLOSED` and `CANCELLED`
+are ineligible. Supplier must match the PO supplier/context, and every receipt
+line must reference a line in the current issued commercial version. Receipt
+lines retain that immutable PO commercial-version context.
+
+## 24.3 Quantity and Condition Rules
+
+For each PO line:
+
+```text
+remaining_quantity = ordered_quantity - previously_accepted_quantity
+accepted_quantity > 0 for every posted receipt line
+cumulative accepted_quantity <= ordered_quantity
+```
+
+Under-receipt is allowed and leaves the PO `PARTIALLY_RECEIVED`. No over-
+receipt tolerance exists in TASK-073. If previous accepted plus proposed
+accepted quantity exceeds ordered quantity, fail the entire POST with
+`GOODS_RECEIPT_OVER_ORDERED_QUANTITY`; do not partially commit receipt,
+quantities, state, audit or events.
+
+Physical observed/received, accepted and rejected/damaged quantities are
+distinct. Only accepted quantity advances canonical PO progress. Damaged or
+rejected items do not count as fulfillment. Capture receiving exception or
+evidence for rejected/damaged facts. Any unresolved blocking exception that
+makes item identity or accepted quantity uncertain blocks POST. TASK-073 does
+not define a complete quarantine-resolution workflow.
+
+## 24.4 Serialized Units and Asset-Tracked Lines
+
+When an issued PO line's item/Asset policy requires serialized tracking, each
+accepted physical unit must have its required stable unit identity and serial
+data before POST. Duplicate unit identity within one receipt blocks POST.
+Serial text is not a global Asset primary key. A deterministic match to an
+existing Asset must never silently create a duplicate; ambiguous candidates
+create an exception and human-review work rather than an automatic merge.
+Unresolved identity uncertainty that affects an accepted unit blocks POST.
+Posted receipt snapshots retain immutable received-unit identity/serial facts.
+
+## 24.5 Atomic POST, Concurrency and Idempotency
+
+`GOODS_RECEIPT.POST` requires `expected_version`, `Idempotency-Key`,
+tenant/resource authorization, correlation ID, audit and outbox. One owning-
+domain transaction commits the receipt `DRAFT → POSTED`, immutable snapshot,
+accepted lines/units, PO accepted counters and received/remaining summaries,
+PO receipt state/version/history, durable audit reference and outbox events.
+Any blocking validation failure leaves all these effects uncommitted.
+
+The POST transaction locks/serializes on the PO aggregate and validates the
+current lifecycle, version and remaining line quantities inside that
+transaction. Database invariants must prevent over-receipt under competing
+POSTs. Competing receipt/PO commands use the same PO concurrency fence:
+
+- `GOODS_RECEIPT.POST` vs `PO.CANCEL`;
+- `GOODS_RECEIPT.POST` vs `PO.HOLD`;
+- `GOODS_RECEIPT.POST` vs `PO.CLOSE_REMAINDER` where applicable;
+- `GOODS_RECEIPT.POST` vs `PO.AMEND`, especially the first receipt;
+- parallel receipt POSTs consuming the same remaining PO-line quantity.
+
+At most one conflicting operation may commit based on a stale version. A
+receipt cannot be accepted while PO is cancelled/held/closed; if the receipt
+wins first, the conflicting PO command must re-evaluate the new state. The
+first POST moves receipt state from `NOT_RECEIVED`, so it also fences TASK-072
+commercial amendment. All accepted-quantity checks must be repeated under the
+transaction lock; an application precheck is insufficient.
+
+Same idempotency key and semantic request returns the original POST result
+without incrementing progress or duplicating events. Same key with different
+request returns `IDEMPOTENCY_KEY_CONFLICT`. Event consumers use inbox/durable
+idempotency independently.
+
+## 24.6 Receipt Snapshot and Immutability
+
+A posted receipt snapshot preserves, where applicable: PO ID/code and
+commercial version, supplier ID/display reference, receiving warehouse and
+location, immutable receipt lines and PO line references, ordered-quantity
+context, observed/accepted/rejected quantities, accepted-unit/serial
+identities, receiving actor, received/posted timestamps and evidence/document
+references. Historical evidence must not depend only on future mutable PO or
+Supplier values. After POST, target PO, Supplier, PO line, accepted quantities,
+unit identities and receiving context cannot be edited in place.
+
+## 24.7 Asynchronous Asset Registration
+
+Procurement must not write Asset tables or call Asset writes inside the Goods
+Receipt transaction. After commit, `GOODS_RECEIPT.POSTED` drives an
+idempotent workflow that invokes the Asset-owned `ASSET.REGISTER_RECEIVED`
+application command for each accepted Asset-tracked physical unit. The
+command is keyed by immutable `received_unit_id` (or equivalent stable
+receipt-unit identity), never serial text alone. The Asset owner applies its
+own duplicate rules and persists an Asset in `RECEIVED`, at the receiving
+warehouse/location, with assignment `UNASSIGNED`; it must not create it as
+`ASSIGNED` or `IN_USE`. Transition to `AVAILABLE` uses existing validation
+and put-away commands.
+
+Assetization failure never unposts a Goods Receipt. Retry is bounded and
+idempotent; exhausted retry creates actionable Work Queue/human fallback and
+an observable failure state. Event redelivery cannot duplicate Assets.
+Asset registration emits Asset-owned events/timeline only after the Asset
+actually exists. Normal successful receipt does not create a Work Item.
+
+## 24.8 Events, Audit and Timeline
+
+Required events: `GOODS_RECEIPT.CREATED`, `GOODS_RECEIPT.UPDATED`,
+`GOODS_RECEIPT.POSTED`, `GOODS_RECEIPT.CANCELLED`,
+`PO.PARTIALLY_RECEIVED`, and `PO.FULLY_RECEIVED`. A successful receipt that
+leaves the PO incomplete emits `PO.PARTIALLY_RECEIVED`, including when the
+previous receipt state was already partial. Emit `PO.FULLY_RECEIVED` only on
+transition into full receipt; idempotent replay emits neither duplicate
+effect. Events contain stable receipt/PO/version/unit references needed by
+consumers, not full documents or protected Supplier tax/financial data.
+
+Audit POST with actor, PO and receipt IDs, receipt-state before/after, PO
+receipt progress before/after, accepted quantities, correlation ID and
+evidence references. Do not include protected financial/bank/tax values.
+Operator timeline may show posted quantity and whether the PO is partial or
+full. Asset timeline records Asset registration only after that Asset exists.
+
+## 24.9 3-Way Match and Service Boundary
+
+Only `POSTED` Goods Receipts are authoritative receiving evidence for
+TASK-074 3-Way Match. `DRAFT` and `CANCELLED` receipts do not count; accepted
+quantities from posted receipts are canonical. TASK-073 covers physical Goods
+Receipt only. Service receipt/acceptance remains a separate future workflow;
+do not generalize these commands or state rules to services.
+
+No Goods Receipt command requires free-form reason for normal POST. Reason is
+required for CANCEL and for any implemented exception/manual override.
+
+## 24.10 Command API Shape
+
+```text
+POST /api/v1/goods-receipts
+POST /api/v1/goods-receipts/{id}/commands/update-draft
+POST /api/v1/goods-receipts/{id}/commands/post
+POST /api/v1/goods-receipts/{id}/commands/cancel
+```
+
+All existing-receipt commands require `expected_version`, idempotency,
+permission and tenant/resource scope. Only POST creates PO receipt progress.
 ---
 
 # 25. Partial Receipt
@@ -896,14 +1071,14 @@ System:
 ```text
 PO line received = 40/100
 receipt_state = PARTIALLY_RECEIVED
-PO lifecycle_state is unchanged (ISSUED or ON_HOLD)
+PO lifecycle_state remains ISSUED
 remaining = 60
 ```
 
-This receipt projection is not a PO lifecycle transition. A held PO cannot
-accept a new receipt; a partial PO may be intentionally closed using
-`PO.CLOSE_REMAINDER`, which preserves the 40 received units and partial receipt
-history.
+This receipt projection is not a PO lifecycle transition. Only accepted
+quantity counts; posting does not close the PO. A held PO cannot accept a new
+receipt; a partial PO may be intentionally closed using `PO.CLOSE_REMAINDER`,
+which preserves received units and partial receipt history.
 
 ---
 
@@ -920,23 +1095,9 @@ Cloud Service
 Training
 ```
 
-Use:
-
-```text
-SERVICE RECEIPT
-```
-
-Flow:
-
-```text
-Service Delivered
-↓
-Requester/Owner Confirms
-↓
-Service Receipt
-↓
-Invoice Matching
-```
+Service receipt/acceptance is a separate future workflow. TASK-073 Goods
+Receipt commands and PO receipt transitions apply only to physical goods and
+must not be reused for services.
 
 ---
 

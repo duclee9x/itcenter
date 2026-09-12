@@ -88,6 +88,36 @@ PATCH /assets/{id}
 
 để bypass workflow.
 
+## 2.2 Goods Receipt Command API
+
+TASK-073 uses explicit commands:
+
+```text
+POST /api/v1/goods-receipts
+POST /api/v1/goods-receipts/{id}/commands/update-draft
+POST /api/v1/goods-receipts/{id}/commands/post
+POST /api/v1/goods-receipts/{id}/commands/cancel
+```
+
+Create/update payloads contain PO, Supplier/context, warehouse/location and
+receipt-line observations. POST identifies the expected receipt aggregate
+version; its transaction revalidates PO state, Supplier/PO-line references,
+blocking receiving exceptions, accepted unit identity and cumulative
+accepted quantities while serialized on the PO aggregate. Existing-receipt
+commands require `expected_version` (or the API's equivalent `If-Match`) and
+`Idempotency-Key`; all commands require authentication, their exact
+`goods_receipt.*` permission, tenant/resource scope and correlation ID.
+`GOODS_RECEIPT.CANCEL` requires a reason. Normal POST does not require a
+free-form reason unless another explicit policy requires it.
+
+POST returns the committed POSTED receipt and resulting PO receipt progress.
+Same key/same semantic payload replays the original response; same key with
+different payload returns `409 IDEMPOTENCY_KEY_CONFLICT`. A command conflict
+from stale aggregate/version or concurrent receipt progress returns canonical
+conflict/business error and does not partially commit. The HTTP request never
+performs Asset creation synchronously; downstream Asset registration starts
+from the committed `GOODS_RECEIPT.POSTED` outbox event.
+
 ---
 
 # 3. API Layers

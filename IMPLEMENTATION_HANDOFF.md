@@ -1,22 +1,41 @@
 # IMPLEMENTATION HANDOFF
 
-## Current Task — TASK-073-R1 (Blocked, Not Started)
+## Current Task — TASK-073 (Ready, Not Started)
 
-Goods Receipt + Partial Receipt + PO Receipt Integration Contract
+Goods Receipt + Asset Registration + Partial Receipt
 
 Feature: F-042
 Workflow: WF-005
 Phase/Priority: P4 / P0
-Readiness: BLOCKED
+Readiness: READY (derived)
 Status: NOT_STARTED
 
-Task contract: `GENERATE_ON_READY`
+Task contract: `tasks/TASK-073_GOODS_RECEIPT_ASSETIZATION_PARTIAL_RECEIPT.md`
 
-TASK-073 is `NOT_STARTED` and blocked by `SPEC_GAP / PLANNING_REQUIRED`: its
-normative Goods Receipt, partial receipt and PO integration contract is
-incomplete. TASK-073-R1 tracks that planning gap. Do not define missing
-business rules until explicitly asked. No TASK-073 runtime implementation has
-started.
+Dependencies TASK-012, TASK-072 and TASK-073-R1 are `CODE_COMPLETE`. The
+normative contract is reconciled and TASK-073 is implementation-ready, but
+runtime implementation still requires explicit user authorization. Its scope
+owns immutable Goods Receipt posting, accepted PO receipt progress, PO/receipt
+concurrency and async Asset registration via Asset-owned
+`ASSET.REGISTER_RECEIVED`. No TASK-073 runtime implementation has started.
+
+## Last Completed Remediation — TASK-073-R1
+
+Goods Receipt + Partial Receipt + PO Receipt Integration Contract
+(`CODE_COMPLETE`, specification only). See
+`tasks/TASK-073-R1_GOODS_RECEIPT_PARTIAL_RECEIPT_PO_INTEGRATION_CONTRACT.md`.
+
+- Defined separate Goods Receipt, PO lifecycle/receipt and Asset lifecycle
+  state machines, including immutable POSTED receipts and explicit PO close.
+- Made accepted-only quantity progress and atomic over-receipt rejection
+  normative; assigned PO/receipt concurrency and partial-receipt races to
+  TASK-073.
+- Defined immutable receiving snapshots, permissions, API/events/audit,
+  POSTED-only 3-Way Match evidence and async Asset-owned registration by
+  stable received-unit ID. Asset failure cannot unpost a receipt.
+- Generated the detailed TASK-073 implementation contract and reconciled
+  traceability, registry, CURRENT_TASK and handoff. No runtime code was
+  implemented.
 
 ## Last Completed Task — TASK-072
 

@@ -196,6 +196,18 @@ FAILED
 UNKNOWN_ERROR_2
 ```
 
+Goods Receipt uses these canonical receiving failures:
+
+| Code | Category | HTTP / retry behavior |
+|---|---|---|
+| `GOODS_RECEIPT_OVER_ORDERED_QUANTITY` | BUSINESS_RULE | 422; non-retryable until accepted quantity/request changes. No partial commit. |
+| `GOODS_RECEIPT_PO_NOT_RECEIVABLE` | CONFLICT | 409; reload PO and issue a new command only if its state permits receiving. |
+| `GOODS_RECEIPT_BLOCKING_EXCEPTION` | BUSINESS_RULE | 422; resolve the referenced receiving exception before a new POST. |
+| `GOODS_RECEIPT_UNIT_IDENTITY_DUPLICATE` | DUPLICATE | 409; correct draft identity and submit a new request. |
+
+Same idempotency key with a different semantic command remains
+`IDEMPOTENCY_KEY_CONFLICT` (409).
+
 ---
 
 # 8. HTTP/API Error Mapping
@@ -591,6 +603,23 @@ handover:assignment_id
 ```
 
 Not merely event delivery count.
+
+## 30.1 Receipt-to-Asset Registration
+
+`GOODS_RECEIPT.POSTED` consumption is at-least-once. The consumer uses its
+durable inbox by event ID and invokes the Asset-owned
+`ASSET.REGISTER_RECEIVED` command with stable `received_unit_id` as the
+per-unit idempotency identity. Duplicate delivery or command retry returns
+the original Asset registration result and cannot create a second Asset.
+
+Asset registration is an asynchronous downstream effect. Failure never
+changes/unposts the canonical POSTED receipt. Apply a bounded retry policy for
+retryable dependency/technical errors; do not blindly retry validation,
+duplicate-identity or business-rule failures. After retry exhaustion, retain
+the failure and create actionable Work Queue/human fallback linked to the
+receipt unit. Expose assetization status/failure for reconciliation. Inbox,
+idempotency, outbox and work creation must prevent duplicate Assets or
+duplicate actionable work on redelivery.
 
 ---
 

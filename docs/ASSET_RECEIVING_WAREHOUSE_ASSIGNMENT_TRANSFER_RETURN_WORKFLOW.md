@@ -209,7 +209,7 @@ nhưng không đổi internal Asset ID.
 ## Trigger
 
 ```text
-GOODS.RECEIVED
+GOODS_RECEIPT.POSTED (Procurement-linked physical goods)
 ```
 
 Nguồn:
@@ -221,6 +221,10 @@ Transfer from another warehouse
 Donation
 Manual intake
 ```
+
+For PO-linked physical Goods Receipt, the authoritative trigger is
+`GOODS_RECEIPT.POSTED` after commit. Other intake sources keep their owning
+workflow; TASK-073 rules do not silently generalize to them.
 
 ## Preconditions
 
@@ -266,16 +270,20 @@ Inspect Condition
 ↓
 Accept / Quarantine / Reject
 ↓
-Create Asset Records
+GOODS_RECEIPT.POST
 ↓
-Generate Asset Tags
+Commit receipt + PO accepted quantities + audit + outbox
 ↓
-Assign Warehouse Location
+Asynchronous Asset-owned ASSET.REGISTER_RECEIVED per accepted tracked unit
 ↓
-Create Goods Receipt
+Generate Asset Tags / complete put-away through Asset workflow
 ↓
 Close Receiving Session
 ```
+
+The receiving session is an operator workflow, not the authoritative receipt
+record. Asset registration never occurs in the Procurement Goods Receipt
+transaction.
 
 ---
 
@@ -299,12 +307,19 @@ Decision:
 ```text
 MATCH
 PARTIAL
-OVER_RECEIPT
 UNDER_RECEIPT
 DAMAGED
 UNKNOWN_ITEM
 DUPLICATE
 ```
+
+TASK-073 is authoritative for Procurement-linked physical Goods Receipt.
+Accepted quantity may never exceed the ordered PO quantity; an over-receipt
+fails atomically and has no tolerance/approval path in this task. Observed,
+accepted and rejected/damaged quantity remain distinct; only accepted
+quantity advances the PO receipt dimension. A duplicate unit identity within
+one receipt or unresolved uncertainty about accepted quantity/item identity
+blocks posting. Do not auto-merge ambiguous Asset matches.
 
 ---
 
@@ -325,7 +340,7 @@ Goods Receipt = GR-001
 Remaining = 30
 ```
 
-Không đóng PO nếu policy chưa cho phép.
+Posting never closes the PO; `PO.CLOSE` remains an explicit lifecycle command.
 
 ---
 
@@ -344,25 +359,16 @@ Actions:
 Accept partial
 Wait remaining
 Create supplier discrepancy
-Close short by approval
+Close remainder through PO.CLOSE_REMAINDER with required reason
 ```
 
 ## Over Receipt
 
-```text
-Ordered 50
-Received 52
-```
-
-Actions:
-
-```text
-Reject extra
-Accept with approval
-Create PO amendment
-```
-
-Không tự tăng tồn kho ngoài PO mà không audit.
+For TASK-073, if cumulative accepted quantity would exceed the issued PO line
+quantity, reject the entire `GOODS_RECEIPT.POST` with
+`GOODS_RECEIPT_OVER_ORDERED_QUANTITY`. Do not partially post, accept the extra
+with approval, or amend the PO after receipt. No over-receipt tolerance or
+approval policy is defined. A future explicit policy may extend this rule.
 
 ---
 
@@ -391,23 +397,11 @@ Return / Replace / Accept Discount
 
 # 12. Asset Record Creation
 
-Khi receiving hợp lệ:
-
-```text
-Serial Scan
-↓
-Match Asset Model
-↓
-Create Asset ID
-↓
-Create Asset Tag / QR
-↓
-Attach PO/Invoice/Receipt
-↓
-Set Warranty Start
-↓
-Assign Warehouse Location
-```
+After a Goods Receipt is committed as POSTED, each accepted Asset-tracked
+physical unit is registered through the Asset-owned `ASSET.REGISTER_RECEIVED`
+command. Procurement/Warehouse must not write Asset tables or create the
+Asset inside its receipt transaction. Use immutable `received_unit_id` as
+the idempotency identity; serial text alone is not a stable global key.
 
 Initial state:
 
@@ -418,6 +412,15 @@ Operational = Unknown
 Health = Unknown
 Warehouse State = RECEIVED
 ```
+
+Initial registration is asynchronous and starts in `RECEIVED`, at the
+receiving warehouse/location, with assignment `UNASSIGNED`. It must not
+create an Asset directly as `ASSIGNED` or `IN_USE`. A later transition to
+`AVAILABLE` uses the existing validation and put-away workflow. Existing
+deterministic or ambiguous Asset matches must follow Asset duplicate rules;
+never auto-merge or silently create a duplicate. Asset registration failure
+does not undo a posted physical receipt and must be retried idempotently or
+left as actionable human work after retry exhaustion.
 
 Sau kiểm tra/preparation:
 
@@ -1412,7 +1415,8 @@ Không tạo nhiều handover document cho cùng assignment version nếu reques
 # 49. Idempotency Keys
 
 ```text
-receiving:{goods_receipt}:{serial}
+goods_receipt:{tenant_id}:{idempotency_key}
+asset_register_received:{tenant_id}:{received_unit_id}
 assignment:{asset_id}:{assignment_version}
 movement:{operation_id}:{asset_id}
 return:{return_task}:{asset_id}
@@ -1480,7 +1484,6 @@ high-value asset
 special asset class
 cross-department transfer
 inter-site transfer
-over-receipt
 lost asset
 manual stock adjustment
 ```
@@ -1599,8 +1602,10 @@ Returned to HN-WH-A05
 # 55. Generated Events
 
 ```text
-GOODS.RECEIVING_STARTED
-GOODS.RECEIVED
+GOODS_RECEIPT.CREATED
+GOODS_RECEIPT.UPDATED
+GOODS_RECEIPT.POSTED
+GOODS_RECEIPT.CANCELLED
 GOODS.RECEIVING_EXCEPTION
 ASSET.CREATED
 ASSET.TAGGED

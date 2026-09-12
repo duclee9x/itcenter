@@ -1220,8 +1220,10 @@ Supplier eligibility and, when RFQ-linked, the awarded RFQ and accepted
 winning quotation. Issued commercial versions are immutable; allowed
 pre-receipt amendments append a new version. TASK-072 owns lifecycle,
 conditional issue/amend approval validation, version/history, and
-`UPDATE_DRAFT`/`ISSUE` plus `AMEND`/`CANCEL` concurrency. TASK-073 owns receipt
-progression and the `HOLD`/Goods Receipt and `CANCEL`/Goods Receipt races.
+`UPDATE_DRAFT`/`ISSUE` plus `AMEND`/`CANCEL` concurrency. TASK-073-R1 defines
+the normative Goods Receipt contract. TASK-073 owns receipt progression,
+concurrent partial receipt protection, and POST races against PO cancel, hold,
+amend and relevant remainder close.
 
 Commands:
 
@@ -1253,9 +1255,10 @@ PO.REMAINDER_CLOSED
 
 Implementation status: TASK-072 `CODE_COMPLETE`. The implementation report
 and runtime acceptance evidence are recorded in
-`tasks/TASK-072_PURCHASE_ORDER_APPROVAL_AMENDMENT.md`. TASK-073 remains the
-owner of Goods Receipt writes, PO receipt-state progression and the two
-PO-vs-receipt concurrency races.
+`tasks/TASK-072_PURCHASE_ORDER_APPROVAL_AMENDMENT.md`. TASK-073-R1's normative
+specification is complete; TASK-073 remains the owner of Goods Receipt writes,
+PO receipt-state progression, asynchronous Asset registration and all
+receipt-vs-PO/partial-quantity concurrency races.
 
 ---
 
@@ -1266,31 +1269,82 @@ PO-vs-receipt concurrency races.
 ```text
 procurement.goods_receipts
 procurement.goods_receipt_lines
-procurement.received_serials
+procurement.goods_receipt_units
+procurement.receiving_exceptions
+```
+
+### State Dimensions
+
+```text
+Goods Receipt: DRAFT | POSTED | CANCELLED
+PO lifecycle: DRAFT | ISSUED | ON_HOLD | CLOSED | CANCELLED
+PO receipt:   NOT_RECEIVED | PARTIALLY_RECEIVED | FULLY_RECEIVED
+Asset:        RECEIVED → AVAILABLE through Asset-owned validation/put-away
+```
+
+Goods Receipt POST is allowed only while PO lifecycle is `ISSUED`. The three
+state dimensions remain independent: posting changes the Goods Receipt to
+POSTED and updates only PO receipt progress; it never closes the PO or creates
+an Asset synchronously. Posted receipts are immutable and are never deleted.
+
+### Invariants
+
+- Only accepted quantity advances PO progress; observed/rejected/damaged
+  quantities remain separately evidenced.
+- `accepted_quantity > 0`; cumulative accepted quantity per PO line cannot
+  exceed ordered quantity. Over-receipt fails atomically.
+- Supplier/context and PO line/commercial-version references match the PO.
+- Blocking uncertainty, missing serialized unit identity, or duplicate unit
+  identity within one receipt blocks POST.
+- POST atomically commits receipt snapshot/lines/units, PO counters and
+  summaries, receipt state/version/history, audit and outbox.
+- PO row/version serialization protects receipt POST against PO cancel, hold,
+  relevant remainder close, amendment, and parallel partial receipts.
+- Only POSTED accepted quantities count as 3-Way Match receiving evidence.
+
+### Commands and Permissions
+
+```text
+GOODS_RECEIPT.CREATE         → goods_receipt.create
+GOODS_RECEIPT.UPDATE_DRAFT   → goods_receipt.update
+GOODS_RECEIPT.POST           → goods_receipt.post
+GOODS_RECEIPT.CANCEL         → goods_receipt.cancel
+Goods Receipt queries        → goods_receipt.read
 ```
 
 ### Events
 
 ```text
-GOODS.RECEIVING_STARTED
-GOODS.RECEIVED
-GOODS.RECEIVING_EXCEPTION
+GOODS_RECEIPT.CREATED
+GOODS_RECEIPT.UPDATED
+GOODS_RECEIPT.POSTED
+GOODS_RECEIPT.CANCELLED
 PO.PARTIALLY_RECEIVED
 PO.FULLY_RECEIVED
 ```
 
-These two PO receipt events update only the independent receipt-state
-projection and are produced by TASK-073; they do not change PO lifecycle or
+`PO.PARTIALLY_RECEIVED` is emitted for each successful POST leaving fulfillment
+incomplete, including partial-to-partial. `PO.FULLY_RECEIVED` is emitted only
+on transition into fully received. Neither event changes PO lifecycle or
 commercial version.
 
 ### Downstream
 
 ```text
-Create Assets
-Tag Assets
-Put Away
-Update PO quantity
+GOODS_RECEIPT.POSTED outbox
+→ idempotent Asset-owned ASSET.REGISTER_RECEIVED per received_unit_id
+→ Asset lifecycle RECEIVED, assignment UNASSIGNED, receiving location
+→ existing validation/put-away → AVAILABLE
 ```
+
+Asset creation is asynchronous. Asset failure does not unpost Goods Receipt;
+redelivery/retry is idempotent and exhaustion creates actionable human work.
+Normal receiving does not create Work Queue items. Procurement must not write
+Asset domain tables. Full service receipt/acceptance remains out of scope.
+
+Planning status: TASK-073-R1 is `CODE_COMPLETE` (specification only);
+TASK-073 is `READY / NOT_STARTED`. No TASK-073 runtime implementation has
+started.
 
 ---
 

@@ -1359,7 +1359,16 @@ asset_model_id:
 serial_number:
 source:
 lifecycle_state:
+assignment_state:
+current_location_id:
+goods_receipt_id: # populated for ASSET.REGISTER_RECEIVED
+received_unit_id: # stable receipt-unit identity; populated for receipt registration
 ```
+
+For `ASSET.REGISTER_RECEIVED`, `source=GOODS_RECEIPT`,
+`lifecycle_state=RECEIVED`, `assignment_state=UNASSIGNED`, and
+`current_location_id` is the receiving location. This Asset-owned event is
+emitted only after registration commits.
 
 ---
 
@@ -1523,12 +1532,10 @@ warehouse_id:
 
 ## `GOODS.RECEIVED`
 
-```yaml
-goods_receipt_id:
-purchase_order_id:
-accepted_quantity:
-rejected_quantity:
-```
+`GOODS.RECEIVED` is not the authoritative posted Goods Receipt event.
+`GOODS_RECEIPT.POSTED` is the canonical event for the immutable physical
+receiving fact; keep any legacy/session notification separate and do not use
+it for PO quantities, Asset registration or invoice matching.
 
 ## `GOODS.RECEIVING_EXCEPTION`
 
@@ -3143,8 +3150,9 @@ reason:
 
 Producer/owner: Goods Receipt workflow under TASK-073. These events update
 only the independent PO receipt state; they do not change `lifecycle_state`
-or a PO commercial version. Goods Receipt posting is forbidden while
-`lifecycle_state=ON_HOLD` or `CANCELLED`.
+or a PO commercial version. Goods Receipt posting is allowed only while
+`lifecycle_state=ISSUED`; it is forbidden for `DRAFT`, `ON_HOLD`, `CLOSED` and
+`CANCELLED`.
 
 ## `PO.PARTIALLY_RECEIVED`
 
@@ -3155,6 +3163,7 @@ previous_receipt_state: NOT_RECEIVED | PARTIALLY_RECEIVED
 receipt_state: PARTIALLY_RECEIVED
 aggregate_version:
 commercial_version:
+accepted_quantities:
 received_summary:
 remaining_summary:
 ```
@@ -3169,8 +3178,85 @@ receipt_state: FULLY_RECEIVED
 aggregate_version:
 commercial_version:
 completed_at:
+accepted_quantities:
 received_summary:
 ```
+
+Emit `PO.PARTIALLY_RECEIVED` for a successfully posted receipt that leaves
+fulfillment incomplete, including a later receipt where the previous and new
+receipt state are both `PARTIALLY_RECEIVED`. Emit `PO.FULLY_RECEIVED` only
+when the receipt dimension transitions into `FULLY_RECEIVED`. Idempotent
+command replay and event redelivery must not duplicate either event/effect.
+Receipt events never close the PO lifecycle.
+
+## 44.1 Goods Receipt Events — TASK-073
+
+Goods Receipt events are produced by the Procurement/Warehouse owner. Posted
+receipt facts are immutable and are emitted from the same transaction as PO
+receipt progress, audit references and the outbox write.
+
+### `GOODS_RECEIPT.CREATED`
+
+```yaml
+goods_receipt_id:
+receipt_code:
+purchase_order_id:
+supplier_id:
+warehouse_id:
+location_id:
+state: DRAFT
+aggregate_version:
+```
+
+### `GOODS_RECEIPT.UPDATED`
+
+```yaml
+goods_receipt_id:
+purchase_order_id:
+state: DRAFT
+aggregate_version:
+changed_fields:
+```
+
+### `GOODS_RECEIPT.POSTED`
+
+```yaml
+goods_receipt_id:
+receipt_code:
+purchase_order_id:
+purchase_order_code:
+purchase_order_commercial_version:
+supplier_id:
+supplier_display_reference:
+warehouse_id:
+location_id:
+aggregate_version:
+posted_at:
+received_unit_ids: # stable immutable IDs for accepted Asset-tracked units
+accepted_line_references: # receipt line ID, PO line ID, accepted quantity/unit
+evidence_references: # references only; no full document content
+correlation_id:
+```
+
+The event contains references required for downstream Asset registration,
+not full documents or protected Supplier financial/tax values. The Asset
+consumer uses the immutable `received_unit_id` as command idempotency identity
+and obtains any additional canonical unit fields through the owning
+application contract.
+
+### `GOODS_RECEIPT.CANCELLED`
+
+```yaml
+goods_receipt_id:
+purchase_order_id:
+aggregate_version:
+reason:
+cancelled_at:
+```
+
+Draft update/cancellation do not advance PO quantities. No event rewrites a
+posted receipt; future reversal/correction events belong to a separate
+out-of-scope workflow.
 
 ## `PO.DELIVERY_OVERDUE`
 

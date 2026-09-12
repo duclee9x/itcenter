@@ -270,7 +270,7 @@ erDiagram
     PROCUREMENT_REQUEST ||--o{ PURCHASE_ORDER : results_in
     PURCHASE_ORDER ||--o{ GOODS_RECEIPT : receives
     PURCHASE_ORDER ||--o{ INVOICE : billed_by
-    GOODS_RECEIPT ||--o{ ASSET : creates
+    GOODS_RECEIPT ||--o{ RECEIVED_UNIT : records
 
     SOFTWARE_PRODUCT ||--o{ SOFTWARE_VERSION : has
     SOFTWARE_VERSION ||--o{ ARTIFACT_VERSION : packaged_as
@@ -2173,12 +2173,127 @@ history row in the same transaction as the PO mutation and outbox/audit
 references. A short close preserves every receipt record and quantity; it only
 records that the remaining balance was intentionally closed.
 
-Goods Receipt records remain owned by Warehouse/Procurement receiving under
-TASK-073. Each receipt line references the tenant, PO, committed commercial
-version and PO line version it fulfills. Receipt events update the PO
-`receipt_state` projection through the owning application contract. Receipt
-state progression is `NOT_RECEIVED → PARTIALLY_RECEIVED → FULLY_RECEIVED`;
-it never rewrites a commercial version or PO lifecycle state.
+Goods Receipt records remain owned by Procurement/Warehouse receiving under
+TASK-073. Each posted receipt line references the tenant, PO, committed
+commercial version and PO line version it fulfills. Receipt POST updates PO
+accepted counters, summaries, receipt state and aggregate history while
+serialized on the PO aggregate. Receipt state can progress
+`NOT_RECEIVED → PARTIALLY_RECEIVED/FULLY_RECEIVED`, remain partial after a
+later partial receipt, or progress from partial to full; it never rewrites a
+commercial version or PO lifecycle state. Only accepted quantity counts and
+cumulative accepted quantity cannot exceed the issued PO line quantity.
+
+Procurement owns receipt records and must not directly create/update Asset
+tables. The receipt-to-Asset relationship is an asynchronous registration
+reference processed after commit through the Asset-owned
+`ASSET.REGISTER_RECEIVED` application command.
+
+## 28.5 `goods_receipts`, Lines, Units and Exceptions
+
+Goods Receipt lifecycle is `DRAFT | POSTED | CANCELLED`; POSTED and CANCELLED
+are terminal. Never hard-delete a receipt. A posted receipt is immutable; a
+future correction/reversal requires a separate compensating workflow.
+
+```yaml
+goods_receipts:
+  id:
+  tenant_id:
+  receipt_code:
+  state: DRAFT | POSTED | CANCELLED
+  aggregate_version:
+  purchase_order_id:
+  purchase_order_code_snapshot:
+  purchase_order_commercial_version:
+  supplier_id:
+  supplier_display_snapshot:
+  warehouse_id:
+  location_id:
+  receiving_actor_id:
+  received_at:
+  posted_at:
+  cancelled_at:
+  cancellation_reason:
+  immutable_posted_snapshot:
+  correlation_id:
+  created_at:
+  updated_at:
+```
+
+```yaml
+goods_receipt_lines:
+  id:
+  tenant_id:
+  goods_receipt_id:
+  purchase_order_id:
+  purchase_order_line_id:
+  commercial_version:
+  ordered_quantity_snapshot:
+  previously_accepted_quantity_at_post:
+  observed_quantity:
+  accepted_quantity:
+  rejected_or_damaged_quantity:
+  unit:
+  item_reference_id:
+  description_snapshot:
+  evidence_document_refs:
+```
+
+```yaml
+goods_receipt_units:
+  id: # immutable received_unit_id
+  tenant_id:
+  goods_receipt_id:
+  goods_receipt_line_id:
+  identity_type:
+  identity_value:
+  serial_number:
+  accepted:
+  condition:
+  evidence_refs:
+```
+
+For serialized/Asset-tracked accepted quantity, persist one immutable unit
+identity per accepted physical unit before POST. Enforce no duplicate
+normalized unit identity within one receipt. Serial number is not a globally
+unique Asset primary key. Existing Asset matches use Asset-owned duplicate
+handling; ambiguity creates an exception/human review and never an automatic
+merge.
+
+Tenant-bound composite references must ensure receipt lines point to the
+receipt's PO and an existing PO line in the pinned commercial version; the
+receipt Supplier must match the PO Supplier. Enforce positive accepted
+quantity for posted lines and a PO-serialized cumulative accepted quantity
+no greater than ordered quantity. Permit draft edits only while DRAFT. Reject
+all update/delete attempts against POSTED receipt facts and all hard deletes
+of receipt records. A POSTED immutable snapshot must preserve PO code/version,
+Supplier display reference, receiving location, quantity context, unit
+identities, actor/timestamps and evidence references.
+
+```yaml
+receiving_exceptions:
+  id:
+  tenant_id:
+  goods_receipt_id:
+  goods_receipt_line_id:
+  received_unit_id:
+  exception_type:
+  blocking:
+  status:
+  observed_facts:
+  evidence_refs:
+  created_at:
+```
+
+An unresolved blocking exception that makes accepted quantity or item
+identity uncertain prevents POST. TASK-073 does not define a full
+quarantine-resolution workflow. Only POSTED receipts contribute accepted
+quantities to invoice 3-Way Match; DRAFT and CANCELLED receipts do not.
+
+POST atomically changes receipt state to POSTED, freezes its snapshot/lines/
+units, updates PO accepted counters and receipt summaries/state/version/
+history, and writes audit/outbox. The PO row/aggregate lock and database
+invariants must protect cumulative accepted quantities against parallel
+POSTs. All validation failure leaves these effects uncommitted.
 
 
 ---

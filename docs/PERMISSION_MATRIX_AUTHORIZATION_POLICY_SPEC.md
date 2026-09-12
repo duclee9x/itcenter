@@ -1077,6 +1077,11 @@ po.update
 po.hold
 po.cancel
 po.close
+goods_receipt.read
+goods_receipt.create
+goods_receipt.update
+goods_receipt.post
+goods_receipt.cancel
 invoice.read
 invoice.match.resolve
 invoice.approve_exception
@@ -1158,6 +1163,29 @@ Approval is not a PO permission and `po.issue` does not imply approval-decision
 authority. The previous draft identifiers `po.draft`,
 `po.issue_after_approval` and `po.approve` are not normative permissions.
 Every command also requires tenant/resource scope authorization.
+
+The Goods Receipt permission catalog and command mapping are:
+
+```text
+goods_receipt.read
+goods_receipt.create
+goods_receipt.update
+goods_receipt.post
+goods_receipt.cancel
+```
+
+| Command | Permission |
+|---|---|
+| `GOODS_RECEIPT.CREATE` | `goods_receipt.create` |
+| `GOODS_RECEIPT.UPDATE_DRAFT` | `goods_receipt.update` |
+| `GOODS_RECEIPT.POST` | `goods_receipt.post` |
+| `GOODS_RECEIPT.CANCEL` | `goods_receipt.cancel` |
+| Goods Receipt queries | `goods_receipt.read` |
+
+All Goods Receipt commands are tenant/resource scoped. No broad
+`procurement.manage` permission is defined. Permission to post a Goods
+Receipt does not grant Asset mutation; downstream asset registration is
+executed through the Asset-owned application command.
 
 ---
 

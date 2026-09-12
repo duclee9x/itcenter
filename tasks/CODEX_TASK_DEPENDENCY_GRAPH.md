@@ -221,7 +221,8 @@ flowchart TD
   TASK_070["TASK-070<br/>Supplier + Procurement Request"]
   TASK_071["TASK-071<br/>RFQ + Quotation + Supplier Selection"]
   TASK_072["TASK-072<br/>Purchase Order + Approval + Amendment"]
-  TASK_073["TASK-073<br/>Goods Receipt + Asset Creation + Partial Receipt"]
+  TASK_073_R1["TASK-073-R1<br/>Goods Receipt + Partial Receipt + PO Receipt Contract"]
+  TASK_073["TASK-073<br/>Goods Receipt + Asset Registration + Partial Receipt"]
   TASK_074["TASK-074<br/>Invoice + Duplicate Protection + 3-Way Match"]
   TASK_075["TASK-075<br/>Contract + Renewal + Commercial Document Governance"]
   TASK_076["TASK-076<br/>Phase 4 Procurement-to-Asset Integration Gate"]
@@ -234,6 +235,8 @@ flowchart TD
   TASK_012["TASK-012<br/>Basic Warehouse Receiving + Reservation"]
   TASK_012 --> TASK_073
   TASK_072 --> TASK_073
+  TASK_072 --> TASK_073_R1
+  TASK_073_R1 --> TASK_073
   TASK_072 --> TASK_074
   TASK_073 --> TASK_074
   TASK_070 --> TASK_075
@@ -330,6 +333,7 @@ TASK-000
 → TASK-061
 → TASK-070
 → TASK-072
+→ TASK-073-R1
 → TASK-073
 → TASK-074
 → TASK-076

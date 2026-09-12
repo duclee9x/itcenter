@@ -263,6 +263,11 @@ RETIRED
 DISPOSED
 ```
 
+For an accepted Asset-tracked unit from a POSTED Goods Receipt, the Asset
+aggregate may be created directly in `RECEIVED` only through the explicit
+Asset-owned `ASSET.REGISTER_RECEIVED` command; this source-specific creation
+does not bypass later validation/put-away before `AVAILABLE`.
+
 ---
 
 # 12. Asset Lifecycle Allowed Transitions
@@ -275,6 +280,12 @@ PLANNED
 → RESERVED
 → ASSIGNED
 → IN_USE
+```
+
+Receipt-backed registration path:
+
+```text
+none → ASSET.REGISTER_RECEIVED → RECEIVED
 ```
 
 Operational alternatives:
@@ -324,6 +335,7 @@ unless dedicated exception/migration workflow explicitly permits.
 | From | Command | To | Preconditions | Main Side Effects |
 |---|---|---|---|---|
 | PLANNED | `ASSET.MARK_PURCHASED` | PURCHASED | PO/approval if required | Link procurement |
+| none | `ASSET.REGISTER_RECEIVED` | RECEIVED | Accepted asset-tracked unit from a POSTED Goods Receipt; idempotent by received-unit identity | Create Asset-owned history/outbox; receiving location; assignment `UNASSIGNED` |
 | PURCHASED | `ASSET.RECEIVE` | RECEIVED | Goods receipt | Serial verification |
 | RECEIVED | `ASSET.MAKE_AVAILABLE` | AVAILABLE | Tagging + validation | Warehouse location |
 | AVAILABLE | `ASSET.RESERVE` | RESERVED | Eligible + no conflict | Reservation |
@@ -1258,16 +1270,86 @@ amendment request means approval is not required.
 ## 59.3 Receipt State Machine
 
 ```text
-NOT_RECEIVED
-→ PARTIALLY_RECEIVED
-→ FULLY_RECEIVED
+NOT_RECEIVED → PARTIALLY_RECEIVED
+NOT_RECEIVED → FULLY_RECEIVED
+PARTIALLY_RECEIVED → PARTIALLY_RECEIVED
+PARTIALLY_RECEIVED → FULLY_RECEIVED
 ```
 
 TASK-073/Goods Receipt owns these transitions and emits the corresponding
 `PO.PARTIALLY_RECEIVED` and `PO.FULLY_RECEIVED` facts/projections. Receipt
-state never changes PO lifecycle by itself. A PO in `ON_HOLD` or `CANCELLED`
-cannot receive goods. `PO.CANCEL` additionally checks both `NOT_RECEIVED` and
-absence of a committed Goods Receipt.
+state changes only on `GOODS_RECEIPT.POST` and never changes PO lifecycle by
+itself. A PO is eligible to receive only while `lifecycle_state=ISSUED`; a PO
+in `DRAFT`, `ON_HOLD`, `CLOSED` or `CANCELLED` cannot receive goods.
+`FULLY_RECEIVED` means accepted ordered quantities are complete; PO closure
+remains an explicit `PO.CLOSE` command. `PO.CANCEL` additionally checks both
+`NOT_RECEIVED` and absence of a committed Goods Receipt.
+
+## 59.4 Goods Receipt Lifecycle
+
+```text
+none → GOODS_RECEIPT.CREATE → DRAFT
+DRAFT → GOODS_RECEIPT.UPDATE_DRAFT → DRAFT
+DRAFT → GOODS_RECEIPT.POST → POSTED
+DRAFT → GOODS_RECEIPT.CANCEL → CANCELLED
+```
+
+`POSTED` and `CANCELLED` are terminal. POSTED is an immutable fact; it cannot
+return to DRAFT or become CANCELLED. Goods Receipt records are never deleted.
+A correction/reversal of a posted receipt requires a separate future
+compensating workflow, out of scope for TASK-073. Draft update/cancel does not
+change PO progress; cancellation requires a reason.
+
+`GOODS_RECEIPT.POST` is allowed only for a PO in `ISSUED`, with matching
+Supplier/context and receipt lines bound to lines of the issued commercial
+version. It changes only the PO receipt dimension, never automatically the
+PO lifecycle. Only accepted quantity counts. For each PO line,
+`remaining_quantity = ordered_quantity - previously_accepted_quantity`, every
+posted accepted line quantity is positive, and cumulative accepted quantity
+must not exceed ordered quantity. Under-receipt is allowed. Over-receipt
+fails atomically with `GOODS_RECEIPT_OVER_ORDERED_QUANTITY`; there is no
+tolerance or approval exception in TASK-073.
+
+Observed/received, accepted and rejected/damaged quantities remain distinct.
+Rejected/damaged items do not count toward PO fulfillment. Blocking unresolved
+exceptions about accepted quantity or item identity prevent POST. Serialized
+Asset-tracked units require unit identity/serial facts before POST; duplicate
+unit identity within a receipt blocks POST. Serial is not the global Asset
+key; deterministic/ambiguous cross-receipt duplicates follow Asset duplicate
+handling and are never silently merged.
+
+POST atomically commits immutable receipt snapshot/lines/units, receipt state,
+PO accepted counters and receipt summaries, PO receipt dimension/version/
+history, audit and outbox. It uses expected version, idempotency, tenant and
+resource scope. It serializes on the PO aggregate and enforces quantity
+invariants in the database/transaction, including competing receipt posts.
+Same key/same request replays the original result; same key/different request
+returns `IDEMPOTENCY_KEY_CONFLICT`.
+
+TASK-073 must serialize POST against `PO.CANCEL`, `PO.HOLD`,
+`PO.CLOSE_REMAINDER` when relevant, and `PO.AMEND`, including the first
+receipt. Two concurrent receipts cannot both consume the same final
+remaining quantity. One operation wins the PO version/lock; the loser reloads
+and fails if state or quantity guards no longer pass.
+
+## 59.5 Asset Registration from Receipt
+
+Procurement/Warehouse owns Goods Receipt and PO receipt progress; it must not
+write Asset tables. After the receipt transaction commits,
+`GOODS_RECEIPT.POSTED` drives asynchronous, idempotent Asset-owned
+`ASSET.REGISTER_RECEIVED` commands for accepted Asset-tracked units. The stable
+idempotency identity is immutable `received_unit_id` or equivalent receipt
+unit ID, not free-form serial text. Asset registration creates Lifecycle
+`RECEIVED`, receiving warehouse/location and Assignment `UNASSIGNED`; it
+never creates `ASSIGNED`/`IN_USE`. Existing validation/put-away later moves
+the Asset to `AVAILABLE`.
+
+Assetization failure cannot unpost the receipt. Consumers use inbox and
+command idempotency; bounded retry exhaustion creates actionable human work
+and visible failure status. Ambiguous Asset match creates exception/human
+review, not auto-merge. Normal successful receiving does not create Work
+Queue work. Asset-owned event/timeline facts are emitted only after
+registration actually succeeds.
 
 ## 60. Purchase Order Invariants and Versioning
 
@@ -1295,9 +1377,11 @@ absence of a committed Goods Receipt.
   the PO aggregate. At most one competing command based on the same version
   commits.
 - Serialize `PO.HOLD` vs Goods Receipt posting and `PO.CANCEL` vs Goods Receipt
-  posting on the PO identity. TASK-073 implements and verifies these receipt
-  races; the PO side rejects receipt while held/cancelled, and a committed
-  receipt prevents cancellation.
+  posting, `PO.AMEND` vs first receipt, `PO.CLOSE_REMAINDER` vs receipt where
+  relevant, and parallel receipts competing for remaining PO-line quantity
+  on the PO identity/version. TASK-073 implements and verifies these races;
+  receipt is allowed only while `ISSUED`, and the loser revalidates current
+  lifecycle, version and quantity under the PO lock.
 
 ---
 
