@@ -233,7 +233,8 @@ export async function transitionDiscoveryJob(input: {
 export async function readCurrentTopology(tx: Transaction) {
   const result = await tx.query(
     `WITH ranked AS (
-       SELECT o.id,o.discovery_job_id,o.asset_id,o.ip::text AS ip,o.mac::text AS mac,
+       SELECT o.id,o.discovery_job_id,COALESCE(o.asset_id,d.linked_asset_id) AS asset_id,
+         o.ip::text AS ip,o.mac::text AS mac,
          o.hostname,o.vendor,o.model,o.operating_system,o.vlan,o.switch_name,
          o.port_name,o.source_type,o.source,o.confidence,o.observed_at,
          j.freshness_threshold_seconds,
@@ -241,6 +242,7 @@ export async function readCurrentTopology(tx: Transaction) {
            ORDER BY o.observed_at DESC,o.created_at DESC) AS position
        FROM network.observations o
        JOIN network.discovery_jobs j ON j.tenant_id=o.tenant_id AND j.id=o.discovery_job_id
+       LEFT JOIN network.device_dispositions d ON d.tenant_id=o.tenant_id AND d.mac=o.mac
        WHERE o.tenant_id=$1
      )
      SELECT id,discovery_job_id,asset_id,ip,mac,hostname,vendor,model,operating_system,

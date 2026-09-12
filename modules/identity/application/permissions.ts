@@ -93,4 +93,15 @@ export const permissions: readonly Permission[] = [
     resource_type: "network_topology",
     action: "read",
   },
+  { code: "network.read", resource_type: "network_exception", action: "read" },
+  {
+    code: "network.exception.resolve",
+    resource_type: "network_exception",
+    action: "resolve",
+  },
+  {
+    code: "network.unknown_device.link",
+    resource_type: "network_exception",
+    action: "link",
+  },
 ];

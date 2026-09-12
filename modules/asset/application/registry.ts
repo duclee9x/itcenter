@@ -1,6 +1,18 @@
 import { randomUUID } from "node:crypto";
 import type { Transaction } from "../../../packages/persistence/src/index.js";
 import { ApplicationError } from "../../../packages/api-contracts/src/index.js";
+export async function assertAssetExists(input: {
+  tx: Transaction;
+  assetId: string;
+}) {
+  const result = await input.tx.query(
+    "SELECT id FROM asset.assets WHERE tenant_id=$1 AND id=$2",
+    [input.tx.tenantId, input.assetId],
+  );
+  if (!result.rowCount)
+    throw new ApplicationError("NOT_FOUND", "Asset was not found.");
+  return true;
+}
 export async function createAsset(input: {
   tx: Transaction;
   assetCode: string;

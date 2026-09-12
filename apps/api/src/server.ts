@@ -9,7 +9,10 @@ import {
   type AuthenticationPort,
   type AuthorizationPort,
 } from "../../../packages/auth/src/index.js";
-import type { UnitOfWork } from "../../../packages/persistence/src/index.js";
+import type {
+  Transaction,
+  UnitOfWork,
+} from "../../../packages/persistence/src/index.js";
 import { OperationRegistry } from "../../../packages/persistence/src/operations.js";
 import { ApplicationError } from "../../../packages/api-contracts/src/index.js";
 import {
@@ -19,6 +22,7 @@ import {
   revokeTemporary,
 } from "../../../modules/identity/index.js";
 import {
+  assertAssetExists,
   createAsset,
   assignAsset,
   reserveAsset,
@@ -33,7 +37,9 @@ import {
   transitionTicket,
 } from "../../../modules/ticket/index.js";
 import {
+  createNetworkExceptionWorkItem,
   createTicketWorkItem,
+  resolveNetworkExceptionWorkItem,
   resolveWorkItem,
 } from "../../../modules/work-queue/index.js";
 import { normalizeMonitoringEvent } from "../../../modules/monitoring/index.js";
@@ -67,9 +73,13 @@ import {
 } from "../../../modules/asset-audit/index.js";
 import {
   createDiscoveryJob,
+  compareExpectedVlan,
+  detectObservationExceptions,
+  listNetworkExceptions,
   normalizeNetworkObservation,
   readCurrentTopology,
   recordDiscoveryObservation,
+  resolveNetworkException,
   transitionDiscoveryJob,
 } from "../../../modules/network/index.js";
 import {
@@ -78,6 +88,73 @@ import {
 } from "../../../packages/messaging/src/index.js";
 import { PostgresAudit } from "../../../modules/audit/index.js";
 import { randomUUID } from "node:crypto";
+
+const networkExceptionQueue = {
+  createReference: createNetworkExceptionWorkItem,
+  resolveReference: resolveNetworkExceptionWorkItem,
+};
+
+async function appendNetworkExceptionEffects(input: {
+  tx: Transaction;
+  config: Config;
+  principal: { id: string; actor_type: string; tenant_id: string };
+  context: { correlation_id: string; causation_id: string };
+  idempotencyKey: string;
+  eventType: string;
+  exceptionId: string;
+  version?: number;
+  before?: unknown;
+  payload: unknown;
+}) {
+  const now = new Date().toISOString();
+  await new PostgresOutboxWriter(input.tx).append({
+    event_id: randomUUID(),
+    event_type: input.eventType,
+    schema_version: 1,
+    occurred_at: now,
+    producer: { service: input.config.serviceName, instance: "api" },
+    aggregate: {
+      type: "NETWORK_EXCEPTION",
+      id: input.exceptionId,
+      version: input.version ?? 1,
+    },
+    actor: { type: input.principal.actor_type, id: input.principal.id },
+    correlation_id: input.context.correlation_id,
+    causation_id: input.context.causation_id,
+    tenant_id: input.principal.tenant_id,
+    organization_id: input.principal.tenant_id,
+    idempotency_key: input.idempotencyKey,
+    payload: input.payload as never,
+  });
+  await new PostgresAudit(input.tx).append({
+    id: randomUUID(),
+    tenant_id: input.principal.tenant_id,
+    event_type: input.eventType,
+    occurred_at: now,
+    actor: { type: input.principal.actor_type, id: input.principal.id },
+    action: { command_type: input.eventType },
+    subject: { entity_type: "NETWORK_EXCEPTION", entity_id: input.exceptionId },
+    correlation_id: input.context.correlation_id,
+    causation_id: input.context.causation_id,
+    reason: {
+      code: input.eventType,
+      text:
+        typeof input.payload === "object" &&
+        input.payload !== null &&
+        "resolution_reason" in input.payload &&
+        typeof input.payload.resolution_reason === "string"
+          ? input.payload.resolution_reason
+          : input.eventType,
+    },
+    before: (input.before as never) ?? null,
+    after: input.payload as never,
+    outcome: { status: "SUCCESS" },
+    classification: "INTERNAL",
+    relations: [],
+    evidence: [],
+  });
+}
+
 export function apiServer(
   config: Config,
   ready: () => Promise<boolean>,
@@ -154,6 +231,37 @@ export function apiServer(
       });
       const topology = await uow.run(principal.tenant_id, readCurrentTopology);
       json(res, 200, { data: topology, meta: context });
+      return true;
+    }
+    if (
+      req.method === "GET" &&
+      (req.url === "/api/v1/network/exceptions" ||
+        req.url?.startsWith("/api/v1/network/exceptions?"))
+    ) {
+      const principal = await authenticate(
+        authentication,
+        req.headers.authorization,
+      );
+      await authorize(authorization, {
+        principal,
+        action: "network.read",
+        resource: {
+          type: "network_exception",
+          id: "collection",
+          tenant_id: principal.tenant_id,
+        },
+        scope: {},
+        context: { ...context },
+      });
+      const query = new URL(req.url ?? "", "http://localhost").searchParams;
+      const exceptions = await uow.run(principal.tenant_id, (tx) =>
+        listNetworkExceptions({
+          tx,
+          ...(query.has("state") ? { state: query.get("state")! } : {}),
+          ...(query.has("type") ? { exceptionType: query.get("type")! } : {}),
+        }),
+      );
+      json(res, 200, { data: exceptions, meta: context });
       return true;
     }
     const timelineMatch = /^\/api\/v1\/tickets\/([^/]+)\/timeline$/.exec(
@@ -257,6 +365,131 @@ export function apiServer(
       /^\/api\/v1\/network\/discovery-jobs\/([^/]+)\/commands\/transition$/.exec(
         req.url ?? "",
       );
+    const vlanCheck =
+      /^\/api\/v1\/network\/observations\/([^/]+)\/commands\/check-vlan$/.exec(
+        req.url ?? "",
+      );
+    const networkExceptionResolve =
+      /^\/api\/v1\/network\/exceptions\/([^/]+)\/commands\/resolve$/.exec(
+        req.url ?? "",
+      );
+    if (req.method === "POST" && (vlanCheck || networkExceptionResolve)) {
+      const principal = await authenticate(
+        authentication,
+        req.headers.authorization,
+      );
+      const key = req.headers["idempotency-key"];
+      if (typeof key !== "string" || !key.trim())
+        throw new ApplicationError(
+          "VALIDATION_ERROR",
+          "Idempotency-Key is required.",
+        );
+      const body = await new Promise<string>((resolve) => {
+        let data = "";
+        req.on("data", (chunk) => (data += chunk));
+        req.on("end", () => resolve(data));
+      });
+      let input: Record<string, unknown>;
+      try {
+        input = (body ? JSON.parse(body) : {}) as Record<string, unknown>;
+      } catch {
+        throw new ApplicationError("VALIDATION_ERROR", "Invalid JSON request.");
+      }
+      const action =
+        networkExceptionResolve && input.action === "LINK_TO_ASSET"
+          ? "network.unknown_device.link"
+          : networkExceptionResolve
+            ? "network.exception.resolve"
+            : "network.discovery.run";
+      await authorize(authorization, {
+        principal,
+        action,
+        resource: {
+          type: networkExceptionResolve
+            ? "network_exception"
+            : "network_observation",
+          id: vlanCheck ? vlanCheck[1]! : networkExceptionResolve![1]!,
+          tenant_id: principal.tenant_id,
+        },
+        scope: {},
+        context: { ...context },
+      });
+      const operation = vlanCheck
+        ? "NETWORK.VLAN.CHECK"
+        : "NETWORK.EXCEPTION.RESOLVE";
+      const businessScope = vlanCheck
+        ? vlanCheck[1]!
+        : networkExceptionResolve![1]!;
+      const result = await uow.run(principal.tenant_id, (tx) =>
+        new PostgresIdempotencyStore(tx).execute(
+          {
+            principalId: principal.id,
+            operation,
+            businessScope,
+            key,
+            semanticRequest: input as never,
+            expiresAt: new Date(Date.now() + 86400000),
+          },
+          async () => {
+            if (vlanCheck) {
+              const checked = await compareExpectedVlan({
+                tx,
+                observationId: vlanCheck[1]!,
+                expectedVlan: String(input.expected_vlan ?? ""),
+                queue: networkExceptionQueue,
+              });
+              if (checked.exception)
+                await appendNetworkExceptionEffects({
+                  tx,
+                  config,
+                  principal,
+                  context,
+                  idempotencyKey: key,
+                  eventType: "NETWORK.VLAN_MISMATCH",
+                  exceptionId: checked.exception.id,
+                  payload: checked.exception,
+                });
+              return {
+                status: checked.exception ? 201 : 200,
+                body: checked as never,
+              };
+            }
+            const resolved = await resolveNetworkException({
+              tx,
+              exceptionId: networkExceptionResolve![1]!,
+              expectedVersion: input.expected_version as number,
+              action: String(input.action ?? ""),
+              reason: String(input.reason ?? ""),
+              ...(typeof input.asset_id === "string"
+                ? { linkedAssetId: input.asset_id }
+                : {}),
+              assertAssetExists: (assetId) =>
+                assertAssetExists({ tx, assetId }),
+              queue: networkExceptionQueue,
+            });
+            await appendNetworkExceptionEffects({
+              tx,
+              config,
+              principal,
+              context,
+              idempotencyKey: key,
+              eventType: "NETWORK.EXCEPTION_RESOLVED",
+              exceptionId: resolved.id,
+              version: resolved.version,
+              before: {
+                id: resolved.id,
+                state: "OPEN",
+                version: input.expected_version,
+              },
+              payload: resolved,
+            });
+            return { status: 200, body: resolved as never };
+          },
+        ),
+      );
+      json(res, result.status, { data: result.body, meta: context });
+      return true;
+    }
     if (
       req.method === "POST" &&
       (discoveryCreate || discoveryObservation || discoveryTransition)
@@ -314,32 +547,43 @@ export function apiServer(
             expiresAt: new Date(Date.now() + 86400000),
           },
           async () => {
-            const value = discoveryCreate
-              ? await createDiscoveryJob({
-                  tx,
-                  sourceType: String(input.source_type ?? ""),
-                  ...(input.scope !== undefined ? { scope: input.scope } : {}),
-                  ...(typeof input.freshness_threshold_seconds === "number"
-                    ? {
-                        freshnessThresholdSeconds:
-                          input.freshness_threshold_seconds,
-                      }
-                    : {}),
-                })
-              : discoveryObservation
-                ? await recordDiscoveryObservation({
+            let value: unknown;
+            if (discoveryCreate) {
+              value = await createDiscoveryJob({
+                tx,
+                sourceType: String(input.source_type ?? ""),
+                ...(input.scope !== undefined ? { scope: input.scope } : {}),
+                ...(typeof input.freshness_threshold_seconds === "number"
+                  ? {
+                      freshnessThresholdSeconds:
+                        input.freshness_threshold_seconds,
+                    }
+                  : {}),
+              });
+            } else if (discoveryObservation) {
+              const recorded = await recordDiscoveryObservation({
+                tx,
+                jobId,
+                observation: normalized!,
+              });
+              const exceptions = recorded.duplicate
+                ? []
+                : await detectObservationExceptions({
                     tx,
-                    jobId,
-                    observation: normalized!,
-                  })
-                : await transitionDiscoveryJob({
-                    tx,
-                    jobId,
-                    targetState: String(input.target_state ?? ""),
-                    ...(typeof input.failure_reason === "string"
-                      ? { failureReason: input.failure_reason }
-                      : {}),
+                    observationId: String(recorded.observation?.id),
+                    queue: networkExceptionQueue,
                   });
+              value = { ...recorded, exceptions };
+            } else {
+              value = await transitionDiscoveryJob({
+                tx,
+                jobId,
+                targetState: String(input.target_state ?? ""),
+                ...(typeof input.failure_reason === "string"
+                  ? { failureReason: input.failure_reason }
+                  : {}),
+              });
+            }
             const resultValue = value as unknown as {
               id?: string;
               observation?: { id?: string; [key: string]: unknown };
@@ -414,6 +658,33 @@ export function apiServer(
                 relations: [],
                 evidence: [],
               });
+              if (
+                discoveryObservation &&
+                Array.isArray(resultValue.exceptions)
+              ) {
+                for (const exception of resultValue.exceptions as Array<{
+                  id: string;
+                  exception_type: string;
+                  source_observation_id: string;
+                  expected: unknown;
+                  observed: unknown;
+                }>) {
+                  const eventType =
+                    exception.exception_type === "UNKNOWN_DEVICE"
+                      ? "NETWORK.UNKNOWN_DEVICE"
+                      : "NETWORK.IP_CONFLICT";
+                  await appendNetworkExceptionEffects({
+                    tx,
+                    config,
+                    principal,
+                    context,
+                    idempotencyKey: key,
+                    eventType,
+                    exceptionId: exception.id,
+                    payload: exception,
+                  });
+                }
+              }
             }
             return {
               status: discoveryCreate ? 201 : 200,

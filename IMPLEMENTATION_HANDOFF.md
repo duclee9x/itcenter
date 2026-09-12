@@ -2,17 +2,18 @@
 
 ## Active Task
 
-TASK-051 — Network Discovery + Current Topology Projection
+TASK-052 — Network Exceptions — Unknown Device, VLAN, IP Conflict
 
-Feature: F-027
-Workflow: WF-011
+Feature: F-028/F-029
+Workflow: WF-012/WF-NET02
 Branch: master
 
 ## Overall Status
 
 CODE_COMPLETE
 
-TASK-051 network discovery ingestion and topology verification passed.
+TASK-052 network exception detection, resolution and Work Queue projection
+verification passed.
 
 ## Completed
 
@@ -77,6 +78,15 @@ TASK-051 network discovery ingestion and topology verification passed.
   latest-observation topology projection with source confidence and configured
   freshness thresholds. Added permission, idempotency, outbox, audit and E2E
   coverage; observations do not mutate canonical asset state.
+- Added unknown-device and duplicate-IP exception detection, explicit expected
+  VLAN comparison, tenant-scoped exception reads and version-checked resolution
+  with audit/outbox effects. Unknown-device links validate the asset and store
+  a network-owned MAC disposition without changing asset master data.
+- Added Work Queue-owned network exception references; generic queue resolution
+  rejects network-source items so resolution always uses the exception command.
+- Added E2E coverage for exception dedupe, Work Queue projection, tenant scope,
+  versioned linking, topology association, canonical asset immutability, audit
+  and outbox events.
 
 ## Verification State
 
@@ -105,6 +115,13 @@ ingestion and tenant-scoped current topology reads. Freshness is calculated
 against each job's configured threshold. Active source-specific network probes
 remain integration work; no discovery result is fabricated.
 
+TASK-052 complete: discovery now creates unknown-device and duplicate-IP
+exceptions. VLAN mismatches are recorded only when a caller supplies the
+expected VLAN because no VLAN policy registry exists. Resolution accepts an
+explicit reason and expected version, validates any target asset, records a
+durable MAC disposition, updates the Work Queue projection and emits the
+cataloged exception-resolved event.
+
 MIGRATION_RISK: the existing local volume rejects `npm run db:migrate` because
 an applied migration checksum differs. Do not edit migration history or reset
 the volume automatically; restore the original migration or add a forward
@@ -112,9 +129,9 @@ migration before applying schema changes.
 
 ## Exact Next Step
 
-TASK-052 is next; its prerequisites are satisfied. Generate the task spec from
-the registry, then implement unknown-device, VLAN-mismatch and IP-conflict
-exception handling.
+TASK-053 is next; its prerequisites are satisfied. Generate the task spec from
+the registry, then implement controlled network change, verification and
+rollback.
 
 ## SPEC_CONFLICT
 

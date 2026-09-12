@@ -1766,6 +1766,19 @@ switch_port_id:
 confidence:
 ```
 
+## `NETWORK.EXCEPTION_RESOLVED`
+
+```yaml
+network_exception_id:
+exception_type:
+state: RESOLVED | ACCEPTED
+resolution_action:
+resolution_reason:
+linked_asset_id:
+version:
+resolved_at:
+```
+
 ## `NETWORK.PORT_CHANGED`
 
 ```yaml

@@ -13,11 +13,11 @@ export async function migrate(
     "platform",
     "identity",
     "asset",
-    "network",
     "communication",
     "operations",
     "helpdesk",
     "audit",
+    "network",
   ];
   for (const owner of owners)
     for (const file of (await readdir(path.join(root, owner))).sort())

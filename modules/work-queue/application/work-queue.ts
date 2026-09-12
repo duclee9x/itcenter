@@ -33,6 +33,34 @@ export async function createTicketWorkItem(input: {
     version: number;
   };
 }
+
+export async function createNetworkExceptionWorkItem(input: {
+  tx: Transaction;
+  exceptionId: string;
+  title: string;
+  priority: string;
+}): Promise<void> {
+  await input.tx.query(
+    "INSERT INTO operations.work_items(id,tenant_id,source_type,source_id,title,priority,owner_team_id) VALUES($1,$2,'NETWORK_EXCEPTION',$3,$4,$5,'NETWORK') ON CONFLICT (tenant_id,source_type,source_id) DO NOTHING",
+    [
+      randomUUID(),
+      input.tx.tenantId,
+      input.exceptionId,
+      input.title,
+      input.priority,
+    ],
+  );
+}
+
+export async function resolveNetworkExceptionWorkItem(input: {
+  tx: Transaction;
+  exceptionId: string;
+}): Promise<void> {
+  await input.tx.query(
+    "UPDATE operations.work_items SET state='RESOLVED',resolved_at=now(),last_action_at=now(),version=version+1 WHERE tenant_id=$1 AND source_type='NETWORK_EXCEPTION' AND source_id=$2 AND state NOT IN ('RESOLVED','CLOSED')",
+    [input.tx.tenantId, input.exceptionId],
+  );
+}
 export async function resolveWorkItem(input: {
   tx: Transaction;
   workItemId: string;
@@ -52,6 +80,11 @@ export async function resolveWorkItem(input: {
     throw new ApplicationError("NOT_FOUND", "Work item was not found.");
   const item = result.rows[0]!;
   assertVersion(item.version, input.expectedVersion);
+  if (item.source_type !== "TICKET")
+    throw new ApplicationError(
+      "BUSINESS_RULE_VIOLATION",
+      "Resolve the source resource through its domain command.",
+    );
   if (item.state === "RESOLVED" || item.state === "CLOSED")
     throw new ApplicationError(
       "BUSINESS_RULE_VIOLATION",
