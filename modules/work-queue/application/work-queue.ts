@@ -29,6 +29,56 @@ export async function resolveRenewalWorkItem(input: {
     [input.tx.tenantId, input.renewalCaseId],
   );
 }
+
+export async function upsertContractAlertWorkItem(input: {
+  tx: Transaction;
+  alertId: string;
+  contractCode: string;
+  triggerAt: string;
+}) {
+  await input.tx.query(
+    `INSERT INTO operations.work_items(id,tenant_id,source_type,source_id,title,priority,owner_team_id)
+     VALUES($1,$2,'CONTRACT_ALERT',$3,$4,'MEDIUM','PROCUREMENT')
+     ON CONFLICT(tenant_id,source_type,source_id) DO NOTHING`,
+    [
+      randomUUID(),
+      input.tx.tenantId,
+      input.alertId,
+      `Contract ${input.contractCode} renewal action is due (${input.triggerAt}).`,
+    ],
+  );
+}
+
+export async function upsertContractAlertExceptionWorkItem(input: {
+  tx: Transaction;
+  exceptionId: string;
+  contractCode: string;
+}) {
+  await input.tx.query(
+    `INSERT INTO operations.work_items(id,tenant_id,source_type,source_id,title,priority,owner_team_id)
+     VALUES($1,$2,'CONTRACT_ALERT',$3,$4,'HIGH','PROCUREMENT')
+     ON CONFLICT(tenant_id,source_type,source_id) DO NOTHING`,
+    [
+      randomUUID(),
+      input.tx.tenantId,
+      input.exceptionId,
+      `Contract ${input.contractCode} has invalid renewal alert configuration.`,
+    ],
+  );
+}
+
+export async function upsertCostProvenanceWorkItem(input: {
+  tx: Transaction;
+  sourceId: string;
+  title: string;
+}) {
+  await input.tx.query(
+    `INSERT INTO operations.work_items(id,tenant_id,source_type,source_id,title,priority,owner_team_id)
+     VALUES($1,$2,'COST_PROVENANCE',$3,$4,'HIGH','PROCUREMENT')
+     ON CONFLICT(tenant_id,source_type,source_id) DO NOTHING`,
+    [randomUUID(), input.tx.tenantId, input.sourceId, input.title],
+  );
+}
 export async function createTicketWorkItem(input: {
   tx: Transaction;
   ticketId: string;

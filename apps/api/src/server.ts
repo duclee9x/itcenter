@@ -117,6 +117,7 @@ import { handlePurchaseOrderRoute } from "./purchase-order-routes.js";
 import { handleGoodsReceiptRoute } from "./goods-receipt-routes.js";
 import { handleInvoiceRoute } from "./invoice-routes.js";
 import { handleContractRoute } from "./contract-routes.js";
+import { handleCostProvenanceRoute } from "./cost-provenance-routes.js";
 import type { ObjectStore } from "../../../packages/object-storage/src/index.js";
 
 const networkExceptionQueue = {
@@ -251,6 +252,42 @@ export function apiServer(
   objectStore?: ObjectStore,
 ) {
   return createHttpServer(config, ready, async (req, res, context) => {
+    if (
+      req.method === "GET" &&
+      req.url?.split("?")[0] === "/api/v1/health/capabilities"
+    ) {
+      const configured = objectStore !== undefined;
+      const productionReady =
+        config.environment === "production" &&
+        objectStore?.production_verified === true;
+      json(res, 200, {
+        data: {
+          commercial_document_storage: {
+            status: !configured
+              ? "UNAVAILABLE_NOT_READY"
+              : productionReady
+                ? "CONFIGURED"
+                : "ADAPTER_PRESENT_NOT_PRODUCTION_VERIFIED",
+            adapter_present: configured,
+            test_environment: config.environment === "test",
+            production_ready: productionReady,
+          },
+        },
+        meta: context,
+      } as never);
+      return true;
+    }
+    if (
+      await handleCostProvenanceRoute({
+        req,
+        res,
+        context,
+        authentication,
+        authorization,
+        uow,
+      })
+    )
+      return true;
     if (
       await handleAssetLifecycleRoute({
         req,

@@ -8,8 +8,9 @@ feature_id: PHASE-GATE
 workflow_id: P4-E2E
 phase: P4
 priority: P0
-status: NOT_STARTED
+status: SATISFIED
 readiness: READY
+implementation_status: CODE_COMPLETE
 owner_domain: cross-domain integration
 depends_on: TASK-071, TASK-072, TASK-073, TASK-074, TASK-075, TASK-076-R1
 ```
@@ -44,6 +45,7 @@ contracts or create alternate sources of truth.
 - TASK-070, TASK-071, TASK-072, TASK-073, TASK-074 and TASK-075 contracts
   and implementation reports
 - `tasks/TASK-076-R1_PHASE4_INTEGRATION_GATE_CONTRACT.md`
+- `tasks/TASK-076_IMPLEMENTATION_REPORT.md`
 
 ## 4. In Scope
 
@@ -315,5 +317,8 @@ bypass source-domain commands or mutate other domains' canonical state.
 Discover repository-defined migration, format, lint, typecheck, unit,
 contract, integration and E2E commands. Run PostgreSQL concurrency and
 cross-domain flow tests; record exact commands/results in the TASK-076
-implementation report. This contract itself is planning-only; it does not
-authorize runtime implementation.
+implementation report. The report must distinguish scenarios exercised by
+TASK-076 runtime tests from upstream lifecycle contracts verified by their
+owning task suites. Do not claim one uninterrupted procurement-to-asset
+journey unless one end-to-end test actually creates and traces those records
+together.

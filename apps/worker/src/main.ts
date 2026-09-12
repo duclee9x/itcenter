@@ -12,6 +12,8 @@ import { PostgresUnitOfWork } from "../../../packages/persistence/src/index.js";
 import { licenseExpiryTask } from "./license-expiry.js";
 import { searchIndexerTask } from "./search-indexer.js";
 import { goodsReceiptAssetizerTask } from "./goods-receipt-assetizer.js";
+import { contractAlertTask } from "./contract-alerts.js";
+import { costProvenanceTask } from "./cost-provenance.js";
 const config = loadConfig(process.env, "worker", 3002);
 const log = logger(config);
 const pool = createPool(
@@ -36,6 +38,17 @@ host.start([
     uow: new PostgresUnitOfWork(pool),
     reportFailure: () =>
       log("error", "procurement.goods_receipt.assetization_failed"),
+  }),
+  contractAlertTask({
+    pool,
+    uow: new PostgresUnitOfWork(pool),
+    config,
+    reportFailure: () => log("error", "contract.alert_scheduler.failed"),
+  }),
+  costProvenanceTask({
+    pool,
+    uow: new PostgresUnitOfWork(pool),
+    reportFailure: () => log("error", "procurement.cost_provenance.failed"),
   }),
 ]);
 const server = createHttpServer(config, async () => false);

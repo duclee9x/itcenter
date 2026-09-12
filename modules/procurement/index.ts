@@ -64,3 +64,11 @@ export {
   type InvoiceCommandResult,
   type InvoiceEvent,
 } from "./application/invoices.js";
+export {
+  recordCostProvenance,
+  readCostProvenance,
+  type CostProvenanceInput,
+  type CostTargetType,
+  type CostSourceType,
+  type CostBasis,
+} from "./application/cost-provenance.js";

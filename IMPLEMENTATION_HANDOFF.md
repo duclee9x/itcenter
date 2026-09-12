@@ -1,35 +1,35 @@
 # IMPLEMENTATION HANDOFF
 
-## Current Task — TASK-076 (Ready, Not Started)
+## Current Task
 
-Phase 4 Procurement-to-Asset Integration Gate
+No implementation task is active. TASK-076 — Phase 4 Procurement-to-Asset
+Integration Gate — is `SATISFIED / CODE_COMPLETE`. Its implementation report
+is `tasks/TASK-076_IMPLEMENTATION_REPORT.md`.
 
-Feature: PHASE-GATE
+The gate added explicit Contract alert scheduling, immutable cost provenance
+for Asset and License targets, idempotent cross-domain linking, bounded retry
+with actionable fallback, and ObjectStore capability reporting. PostgreSQL
+E2E, typecheck, lint and formatting verification passed.
 
-Workflow: P4-E2E
+The local environment reports commercial-document storage as
+`UNAVAILABLE_NOT_READY`. A present adapter without an explicit production
+verification signal is not reported as production-ready.
 
-Phase/Priority: P4 / P0
+TASK-090 and TASK-095 remain `BLOCKED / NOT_STARTED` pending their detailed
+implementation contracts; reconcile planning readiness before runtime work.
 
-Readiness: READY
+## Last Completed Task — TASK-076
 
-Status: NOT_STARTED
+Phase 4 Procurement-to-Asset Integration Gate (`CODE_COMPLETE`). See
+`tasks/TASK-076_IMPLEMENTATION_REPORT.md`.
 
-Task: `tasks/TASK-076_PHASE4_PROCUREMENT_TO_ASSET_INTEGRATION_GATE.md`
-
-Dependencies TASK-071 through TASK-075 and TASK-076-R1 are `CODE_COMPLETE`.
-TASK-076-R1 normatively defines explicit version-bound Contract alert
-configuration, immutable Asset/License cost provenance, cross-domain
-ownership, event/idempotency/concurrency rules and the gate evidence matrix.
-The detailed implementation contract is ready; runtime work remains unstarted
-pending explicit user instruction.
-
-The integration environment must report central ObjectStore as configured or
-explicitly unavailable/not-ready. A fake adapter is test evidence only.
-
-## Last Completed Task — TASK-075
-
-Contract + Renewal + Commercial Document Governance (`CODE_COMPLETE`). See
-`tasks/TASK-075_IMPLEMENTATION_REPORT.md`.
+- Added version-bound Contract alert scheduling and independent natural expiry.
+- Added immutable PO/Invoice/Credit Note/Contract cost lineage and derived
+  summaries for Assets and License Entitlements/Pools.
+- Added idempotent worker linking, five-attempt backoff, Work Queue fallback,
+  authenticated cost provenance API and explicit storage capability health.
+- Verification passed: `npm test` (93 tests), typecheck, lint, format check
+  and `git diff --check`.
 
 ## Last Completed Remediation — TASK-076-R1
 
@@ -43,8 +43,7 @@ Contract Alert + Asset/License Cost Provenance Integration Contract
 - Defined immutable committed/actual/adjustment cost provenance, canonical
   source/version/line links, deterministic allocation, Credit Note adjustment,
   recurring periods and domain-owned event/projection boundaries.
-- Created the detailed TASK-076 gate contract and required E2E evidence. No
-  TASK-076 runtime code was changed.
+- Created the detailed TASK-076 gate contract and required E2E evidence.
 
 ## Prior Completed Remediation — TASK-075-R1
 

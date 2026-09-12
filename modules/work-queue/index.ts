@@ -20,4 +20,7 @@ export {
   resolveInvoiceWorkItem,
   upsertRenewalWorkItem,
   resolveRenewalWorkItem,
+  upsertContractAlertWorkItem,
+  upsertContractAlertExceptionWorkItem,
+  upsertCostProvenanceWorkItem,
 } from "./application/work-queue.js";

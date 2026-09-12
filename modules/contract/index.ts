@@ -13,3 +13,9 @@ export {
   readRenewalCase,
   type ContractCommand,
 } from "./application/contracts.js";
+export {
+  resolveContractAlertConfiguration,
+  type ContractAlertConfiguration,
+  type ContractAlertTerms,
+  type ContractAlertTrigger,
+} from "./application/alert-schedule.js";

@@ -200,7 +200,7 @@ Only generate a detailed `TASK-xxx_*.md` when the task becomes `READY` or is the
 | `TASK-075-R1` | `F-045/F-046` | `WF-P06/WF-016` | P4 | P1 | Contract Lifecycle + Renewal + Commercial Document Governance Contract | TASK-070, TASK-074 | **SATISFIED** | CODE_COMPLETE | `TASK-075-R1_CONTRACT_LIFECYCLE_RENEWAL_DOCUMENT_GOVERNANCE_CONTRACT.md` |
 | `TASK-075` | `F-045/F-046` | `WF-P06/WF-016` | P4 | P1 | Contract + Renewal + Commercial Document Governance | TASK-070, TASK-074, TASK-075-R1 | **SATISFIED** | CODE_COMPLETE | `TASK-075_CONTRACT_RENEWAL_COMMERCIAL_DOCUMENT_GOVERNANCE.md` |
 | `TASK-076-R1` | `PHASE-GATE` | `P4-E2E` | P4 | P0 | Contract Alert + Asset/License Cost Provenance Integration Contract | TASK-071, TASK-072, TASK-073, TASK-074, TASK-075 | **SATISFIED** | CODE_COMPLETE | `TASK-076-R1_PHASE4_INTEGRATION_GATE_CONTRACT.md` |
-| `TASK-076` | `PHASE-GATE` | `P4-E2E` | P4 | P0 | Phase 4 Procurement-to-Asset Integration Gate | TASK-071, TASK-072, TASK-073, TASK-074, TASK-075, TASK-076-R1 | **READY** | NOT_STARTED | `TASK-076_PHASE4_PROCUREMENT_TO_ASSET_INTEGRATION_GATE.md` |
+| `TASK-076` | `PHASE-GATE` | `P4-E2E` | P4 | P0 | Phase 4 Procurement-to-Asset Integration Gate | TASK-071, TASK-072, TASK-073, TASK-074, TASK-075, TASK-076-R1 | **SATISFIED** | CODE_COMPLETE | `TASK-076_PHASE4_PROCUREMENT_TO_ASSET_INTEGRATION_GATE.md` |
 | `TASK-090` | `F-049` | `WF-AUT02` | P5 | P1 | Advanced Rules Engine + Policy-Gated Automation | TASK-039, TASK-061, TASK-076 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |
 | `TASK-091` | `F-049` | `WF-AUT02` | P5 | P1 | Controlled Self-Healing + Compensation | TASK-031, TASK-053, TASK-090 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |
 | `TASK-092` | `F-050` | `WF-INT01` | P5 | P2 | Advanced Incident Correlation | TASK-033, TASK-051, TASK-090 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |
@@ -312,9 +312,9 @@ Only generate a detailed `TASK-xxx_*.md` when the task becomes `READY` or is the
   Version-bound alert triggers, immutable cost provenance/allocation,
   cross-domain ownership and gate evidence are normative.
 - **TASK-076 — Phase 4 Procurement-to-Asset Integration Gate:** dependencies
-  TASK-071 through TASK-075 and TASK-076-R1 are satisfied. Detailed task
-  contract is generated; derived readiness is `READY`, status remains
-  `NOT_STARTED` until explicitly started.
+  TASK-071 through TASK-075 and TASK-076-R1 are satisfied. Runtime alert,
+  cost-provenance, API, retry, object-storage capability and cross-domain gate
+  evidence are complete; see `TASK-076_IMPLEMENTATION_REPORT.md`.
 
 ## P5 — Automation + Intelligence + Advanced Reporting
 
@@ -341,8 +341,8 @@ reports and commits confirm TASK-015 (`32c3267`), TASK-036 (`e043c31`) and
 TASK-038 (`296336a`) are `CODE_COMPLETE`.
 
 ```text
-CURRENT = TASK-076 (READY; NOT_STARTED)
-NEXT = Implement the Phase 4 Procurement-to-Asset integration gate
+CURRENT = NONE (TASK-076 SATISFIED; no implementation task selected)
+NEXT = Reconcile P5 task readiness and generate a detailed contract before implementation
 TASK-059 = SATISFIED (CODE_COMPLETE)
 TASK-061 = SATISFIED (CODE_COMPLETE)
 TASK-070-R1 = SATISFIED (CODE_COMPLETE)
@@ -358,7 +358,7 @@ TASK-074 = SATISFIED (CODE_COMPLETE; see TASK-074_IMPLEMENTATION_REPORT.md)
 TASK-075-R1 = SATISFIED (CODE_COMPLETE; specification only)
 TASK-075 = SATISFIED (CODE_COMPLETE; see TASK-075_IMPLEMENTATION_REPORT.md)
 TASK-076-R1 = SATISFIED (CODE_COMPLETE; specification only)
-TASK-076 = READY (NOT_STARTED; detailed gate contract generated)
+TASK-076 = SATISFIED (CODE_COMPLETE; see TASK-076_IMPLEMENTATION_REPORT.md)
 ```
 
 TASK-061's acceptance criteria and verification gates passed; its implementation
@@ -385,10 +385,11 @@ implementation report. TASK-075-R1 resolved the Contract/Renewal/Commercial
 Document Governance `SPEC_GAP` as a specification-only remediation. TASK-075
 runtime implementation and its PostgreSQL E2E are complete. TASK-076-R1 has
 resolved the Contract alert and Asset/License cost-provenance `SPEC_GAP` as a
-specification-only remediation. TASK-076 has a detailed reconciled contract
-and is `READY / NOT_STARTED`; runtime implementation has not started. The
-shared object-storage provider remains a deployment capability to report for
-commercial-document finalization.
+specification-only remediation. TASK-076 runtime integration and its
+PostgreSQL E2E verification are complete; the local ObjectStore capability is
+explicitly `UNAVAILABLE_NOT_READY` and is recorded in its implementation
+report. TASK-090 and TASK-095 remain blocked pending their detailed contracts;
+dependency readiness alone does not make an undocumented task implementable.
 
 ---
 

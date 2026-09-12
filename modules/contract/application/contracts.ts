@@ -227,6 +227,7 @@ export async function executeContractCommand(input: {
       supplier_display_snapshot: supplierName,
       effective_at: effective,
       end_at: end,
+      auto_renew_clause: body.auto_renew_clause ?? null,
     };
     await tx.query(
       "INSERT INTO contract.contract_versions(id,tenant_id,contract_id,version_number,commercial_snapshot,fingerprint,source,created_by) VALUES($1,$2,$3,1,$4,$5,'CREATE',$6)",
@@ -325,6 +326,7 @@ export async function executeContractCommand(input: {
         supplier_display_snapshot: display,
         effective_at: effective,
         end_at: end,
+        auto_renew_clause: proposal.auto_renew_clause ?? null,
       };
       const fingerprint = hash(snap);
       await tx.query(
@@ -763,6 +765,12 @@ export async function executeContractCommand(input: {
         supplier_display_snapshot: nextSupplierName,
         effective_at: nextEffective,
         end_at: nextEnd,
+        auto_renew_clause:
+          snapshot.auto_renew_clause !== undefined
+            ? snapshot.auto_renew_clause
+            : (priorSnapshot.auto_renew_clause ??
+              row.auto_renew_clause ??
+              null),
       };
       const version = await addVersion(
         tx,
@@ -774,7 +782,7 @@ export async function executeContractCommand(input: {
         amendmentEvidence,
       );
       const updated = await tx.query(
-        "UPDATE contract.contracts SET current_version_id=$3,current_version_number=$4,supplier_id=$5,supplier_display_snapshot=$6,effective_at=$7,end_at=$8,version=version+1,updated_at=now() WHERE tenant_id=$1 AND id=$2 AND version=$9 RETURNING *",
+        "UPDATE contract.contracts SET current_version_id=$3,current_version_number=$4,supplier_id=$5,supplier_display_snapshot=$6,effective_at=$7,end_at=$8,auto_renew_clause=$9,version=version+1,updated_at=now() WHERE tenant_id=$1 AND id=$2 AND version=$10 RETURNING *",
         [
           tx.tenantId,
           row.id,
@@ -784,6 +792,9 @@ export async function executeContractCommand(input: {
           nextSupplierName,
           nextEffective,
           nextEnd,
+          nextSnapshot.auto_renew_clause == null
+            ? null
+            : JSON.stringify(nextSnapshot.auto_renew_clause),
           input.expectedVersion,
         ],
       );
