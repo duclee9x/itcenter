@@ -205,6 +205,30 @@ Goods Receipt uses these canonical receiving failures:
 | `GOODS_RECEIPT_BLOCKING_EXCEPTION` | BUSINESS_RULE | 422; resolve the referenced receiving exception before a new POST. |
 | `GOODS_RECEIPT_UNIT_IDENTITY_DUPLICATE` | DUPLICATE | 409; correct draft identity and submit a new request. |
 
+TASK-074 Invoice/Credit Note failures use these durable outcomes:
+
+| Code | Category | HTTP / retry behavior |
+|---|---|---|
+| `INVOICE_DUPLICATE` | DUPLICATE | 409; non-retryable for this submitted supplier document identity. A new corrected document must use its actual supplier-issued number. |
+| `INVOICE_MATCH_EXCEPTION_REQUIRED` | CONFLICT | 409; do not retry approval until the current mismatch has a linked approved exception. |
+| `INVOICE_APPROVAL_STALE` | CONFLICT | 409; obtain/re-evaluate approval against the current immutable invoice and match fingerprint. |
+| `CREDIT_NOTE_OVER_CREDITABLE_AMOUNT` | BUSINESS_RULE | 422; reload remaining creditable line quantity/amount and submit a corrected command. |
+
+Invoice document-number uniqueness is independent from request idempotency.
+`INVOICE.SUBMIT` atomically inserts the normalized identity reservation
+`(tenant_id, supplier_id, document_type, supplier_document_number_normalized)`;
+a unique-index race maps to `INVOICE_DUPLICATE`, not a generic SQL error. The
+reservation remains durable after submission, including terminal outcomes.
+Exact command replay with the same idempotency key and semantic payload returns
+the original result; same key with a different payload is
+`IDEMPOTENCY_KEY_CONFLICT`. A different key cannot bypass document uniqueness.
+
+Concurrent match allocation and Credit Note application are business
+concurrency conflicts, not transient retries. Re-read authoritative
+PO/receipt/allocation or remaining credit state and issue a new command only
+after reevaluation. Never blind-retry an uncertain Credit Note application;
+read its durable result first.
+
 Same idempotency key with a different semantic command remains
 `IDEMPOTENCY_KEY_CONFLICT` (409).
 
@@ -559,7 +583,7 @@ Some operations also need domain duplicate constraints.
 Example Invoice:
 
 ```text
-supplier_id + invoice_number
+tenant_id + supplier_id + document_type + supplier_document_number_normalized
 ```
 
 even if Idempotency-Key differs.
@@ -1293,7 +1317,7 @@ unless mapped to expected domain conflict.
 Example:
 
 ```text
-invoice supplier+number unique violation
+invoice/credit-note normalized supplier-document identity unique violation
 ```
 
 map to:

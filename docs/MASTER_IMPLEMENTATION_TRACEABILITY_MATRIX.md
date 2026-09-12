@@ -1352,33 +1352,118 @@ PostgreSQL E2E coverage are recorded in
 
 ---
 
-# 29. Invoice Traceability
+# 29. Invoice + Duplicate Protection + 3-Way Match Traceability (TASK-074)
 
-### Tables
+### Canonical tables
 
 ```text
 procurement.invoices
 procurement.invoice_lines
-procurement.invoice_match_results
+procurement.invoice_history
+procurement.invoice_document_identity_reservations
+procurement.invoice_match_evaluations
+procurement.invoice_match_allocations
+procurement.invoice_match_exceptions
+procurement.invoice_match_exception_history
+procurement.credit_notes
+procurement.credit_note_history
+procurement.credit_note_lines
+procurement.credit_note_applications
 ```
 
-### DB constraint
+### Durable constraints and evidence
 
 ```text
-UNIQUE(tenant_id, supplier_id, invoice_number)
+UNIQUE(tenant_id, supplier_id, document_type, supplier_document_number_normalized)
 ```
+
+The identity reservation is acquired at submit and retained thereafter. Match
+evaluations and allocation/application history are append-only. PO-line
+serialization prevents concurrent invoices consuming the same accepted
+quantity; Credit Note line invariants prevent over-credit. Approved mismatch
+exceptions reserve approved quantity against reuse while retaining
+`MISMATCHED` evidence.
+
+### Independent state dimensions
+
+```text
+Invoice lifecycle: DRAFT | SUBMITTED | APPROVED | REJECTED | CANCELLED
+Match:             NOT_EVALUATED | PENDING_RECEIPT | MATCHED | MISMATCHED
+Credit status:     NONE | PARTIALLY_CREDITED | FULLY_CREDITED (derived)
+Credit Note:       DRAFT | SUBMITTED | APPLIED | REJECTED | CANCELLED
+```
+
+3-Way Match uses immutable PO commercial version, submitted Invoice snapshot
+and POSTED Goods Receipt accepted quantities. Business quantity and unit-price
+tolerance are zero; arithmetic line-total rounding is at most one configured
+currency minor unit. Draft/cancelled receipts and observed/rejected/damaged
+quantities never count. Partial invoices are supported; only `PENDING_RECEIPT`
+may become `MATCHED` after a new receipt and explicit re-evaluation. Neither
+Invoice nor Credit Note processing mutates PO or POSTED Goods Receipt history.
+
+### Commands and permission mapping
+
+```text
+INVOICE.CREATE              → invoice.create
+INVOICE.UPDATE_DRAFT        → invoice.update
+INVOICE.CANCEL              → invoice.update
+INVOICE.SUBMIT              → invoice.submit
+INVOICE.REEVALUATE_MATCH    → invoice.match
+INVOICE.APPROVE             → invoice.approve
+INVOICE.REJECT              → invoice.reject
+CREDIT_NOTE.CREATE          → credit_note.create
+CREDIT_NOTE.UPDATE_DRAFT    → credit_note.update
+CREDIT_NOTE.CANCEL          → credit_note.update
+CREDIT_NOTE.SUBMIT          → credit_note.submit
+CREDIT_NOTE.APPLY           → credit_note.apply
+CREDIT_NOTE.REJECT          → credit_note.reject
+```
+
+Reads use `invoice.read` / `credit_note.read`; Approval Engine decisions use
+`approval.decide`. No broad procurement write permission is introduced.
 
 ### Events
 
 ```text
-INVOICE.RECEIVED
+INVOICE.CREATED
+INVOICE.UPDATED
+INVOICE.SUBMITTED
 INVOICE.DUPLICATE_DETECTED
-INVOICE.MATCH_STARTED
+INVOICE.MATCH_EVALUATED
 INVOICE.MATCHED
-INVOICE.MISMATCH
+INVOICE.PENDING_RECEIPT
+INVOICE.MISMATCHED
+INVOICE.MATCH_EXCEPTION_CREATED
+INVOICE.MATCH_EXCEPTION_ACCEPTED
 INVOICE.APPROVED
-INVOICE.PAID
+INVOICE.REJECTED
+INVOICE.CANCELLED
+CREDIT_NOTE.CREATED
+CREDIT_NOTE.UPDATED
+CREDIT_NOTE.SUBMITTED
+CREDIT_NOTE.APPLIED
+CREDIT_NOTE.REJECTED
+CREDIT_NOTE.CANCELLED
 ```
+
+Events use stable references and minimal required data; protected tax/bank
+fields and full commercial documents are excluded.
+
+### Required concurrency and failure tests
+
+- Duplicate normalized document submissions race against the DB unique key.
+- Partial invoice allocations race for the same remaining PO-line quantity.
+- Re-evaluation races with Goods Receipt POST/progress update.
+- Approval races with a new match evaluation or stale exception context.
+- Credit Note apply replay is idempotent; concurrent applications cannot
+  exceed remaining creditable line quantity/amount.
+- A mismatch exception approval reserves its full approved invoice quantity without
+  rewriting `MISMATCHED` or prior comparison evidence.
+- Only POSTED accepted receipt quantities support match allocations.
+
+Planning status: TASK-074-R1 is `CODE_COMPLETE` (specification only). TASK-074
+is `READY / NOT_STARTED`; its implementation contract and acceptance criteria
+are in `tasks/TASK-074_INVOICE_DUPLICATE_PROTECTION_3_WAY_MATCH.md`.
 
 ---
 
@@ -1592,7 +1677,7 @@ P5: Push/SMS if justified
 | License Reclaim | `license.reclaim` |
 | Procurement Approve | `procurement.approve` |
 | PO Issue | `po.issue` |
-| Invoice Exception | `invoice.approve_exception` |
+| Invoice approval command | `invoice.approve` (linked exception decision uses `approval.decide`) |
 | Contract Renew | `contract.renew` |
 | Privileged Role Grant | `role_binding.privileged_grant` |
 
@@ -1755,7 +1840,7 @@ resolution
 | Software product | product code, aliases | name/vendor/category |
 | License entitlement | product code, license type | product name/vendor |
 | PO | PO code | supplier/line |
-| Invoice | invoice number | supplier |
+| Invoice | normalized supplier document number + supplier + tenant + document type | supplier/date/currency/PO/amount candidate fingerprint |
 | Contract | contract code | title/supplier |
 
 ---

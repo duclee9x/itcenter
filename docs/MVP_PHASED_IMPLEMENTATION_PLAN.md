@@ -1449,10 +1449,15 @@ Invoice
 Output:
 
 ```text
+NOT_EVALUATED
+PENDING_RECEIPT
 MATCHED
-TOLERANCE
-EXCEPTION
+MISMATCHED
 ```
+
+Match is independent from Invoice lifecycle and credit status. Business
+quantity and unit-price tolerance are zero; arithmetic line-total rounding
+allows at most one configured currency minor unit.
 
 ---
 
@@ -1461,10 +1466,13 @@ EXCEPTION
 DB constraint:
 
 ```text
-tenant + supplier + invoice_number
+tenant_id + supplier_id + document_type + supplier_document_number_normalized
 ```
 
-plus idempotency.
+Reserved durably when submitted; normalized with NFKC, trim, whitespace
+collapse and case normalization. Idempotency remains a separate command
+retry mechanism. Invoice quantity and unit-price business tolerance are zero;
+only arithmetic rounding up to one currency minor unit is allowed.
 
 ---
 

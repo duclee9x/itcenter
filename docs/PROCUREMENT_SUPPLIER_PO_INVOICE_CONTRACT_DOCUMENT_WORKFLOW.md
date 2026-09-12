@@ -1101,223 +1101,205 @@ must not be reused for services.
 
 ---
 
-# 27. WF-PROC05 — Invoice Intake
+# 27. WF-PROC05 — Invoice Intake and Lifecycle (TASK-074)
 
-Invoice sources:
+Invoice sources include manual upload, email integration, supplier portal,
+API and accounting import. Each document begins as a draft and becomes an
+immutable commercial fact at submission.
 
 ```text
-Manual Upload
-Email Integration
-Supplier Portal
-API
-Accounting Import
+none → INVOICE.CREATE → DRAFT
+DRAFT → INVOICE.UPDATE_DRAFT → DRAFT
+DRAFT → INVOICE.SUBMIT → SUBMITTED
+DRAFT → INVOICE.CANCEL → CANCELLED
+SUBMITTED → INVOICE.APPROVE → APPROVED
+SUBMITTED → INVOICE.REJECT → REJECTED
 ```
 
-Required:
+`APPROVED`, `REJECTED` and `CANCELLED` are terminal. `SUBMITTED` freezes the
+supplier, document number, date, currency, PO reference, lines, quantities,
+unit prices, tax/charges, total and evidence references. Submitted commercial
+values are never edited in place. Supplier corrections use a new replacement
+invoice and/or separate Credit Note. Invoice lifecycle is independent of
+match and credit status. `APPROVED` means procurement/AP validation passed or
+an authorized mismatch exception was accepted; it does not mean paid. TASK-074
+does not implement payment settlement or a `PAID` state.
+
+No transition exists from a submitted or terminal Invoice back to `DRAFT`;
+`APPROVED → CANCELLED` and any transition out of `REJECTED` are forbidden.
+
+## 27.1 Independent Match State
 
 ```text
-Invoice Number
-Supplier
-Invoice Date
-Currency
-Amount
-Tax
-Lines
-```
-
----
-
-# 28. Invoice Duplicate Prevention
-
-Fingerprint:
-
-```text
-supplier
-invoice_number
-invoice_date
-gross_amount
-```
-
-Nếu match invoice active/existing:
-
-```text
-flag duplicate
-do not create silently
-```
-
----
-
-# 29. Invoice State
-
-```text
-RECEIVED
-VALIDATING
-MATCHING
-EXCEPTION
-APPROVED
-RECORDED_FOR_PAYMENT
-PAID
-CREDITED
-REJECTED
-```
-
----
-
-# 30. Invoice Validation
-
-Check:
-
-```text
-Supplier exists
-PO exists if required
-Invoice number unique
-Currency matches
-Tax data
-Line totals
-Grand total
-Required documents
-```
-
----
-
-# 31. 3-Way Match
-
-Core:
-
-```text
-PURCHASE ORDER
-vs
-GOODS/SERVICE RECEIPT
-vs
-INVOICE
-```
-
-Compare:
-
-```text
-Quantity
-Unit Price
-Item
-Tax
-Total
-```
-
----
-
-# 32. Match Result
-
-```text
+NOT_EVALUATED
+PENDING_RECEIPT
 MATCHED
-QUANTITY_MISMATCH
-PRICE_MISMATCH
-ITEM_MISMATCH
-TAX_MISMATCH
-MISSING_RECEIPT
-MISSING_PO
-OVER_INVOICE
-PARTIAL_MATCH
+MISMATCHED
 ```
 
----
+`NOT_EVALUATED` means no evaluation has completed. `PENDING_RECEIPT` means
+invoice terms are valid against the PO, accepted receipt quantity is not yet
+sufficient, and the PO can still receive goods. `MATCHED` means all required
+comparisons pass. `MISMATCHED` means at least one blocking commercial or
+identity comparison fails. Match history is append-only; re-evaluation adds a
+new evidence record without overwriting prior results or the frozen invoice
+snapshot.
 
-# 33. Tolerance Rules
+Submission starts the initial match evaluation. Until it completes, status
+remains `NOT_EVALUATED` and the invoice cannot be approved. `PENDING_RECEIPT`
+also blocks approval until new receipt evidence is explicitly re-evaluated to
+`MATCHED` or `MISMATCHED`.
 
-Có thể cấu hình:
+## 27.2 Authoritative Sources and Partial Invoices
+
+3-Way Match compares the applicable immutable PO commercial version,
+`SUBMITTED` Invoice snapshot and `POSTED` Goods Receipt accepted quantities.
+Draft/cancelled receipts and observed, rejected or damaged quantities do not
+count. A partial invoice is valid when its positive line quantity is no more
+than currently invoiceable accepted quantity; it is not a mismatch merely
+because some PO quantity remains uninvoiced. Multiple invoices may cover a PO
+line.
 
 ```text
-price tolerance %
-quantity tolerance
-rounding tolerance
-tax tolerance
+net_invoiceable_quantity = max(0,
+  cumulative POSTED accepted receipt quantity
+  - receipt-backed quantity allocated to previous effective invoice matches
+  - quantity reserved by approved mismatch exceptions
+  + quantity released by applied Credit Notes
+)
 ```
 
-Ví dụ:
+Business quantity tolerance is zero. If submitted quantity exceeds current
+invoiceable accepted quantity but is within legitimate ordered quantity and
+the PO can receive more, status is `PENDING_RECEIPT`. Quantity above the PO's
+legitimate ordered quantity, or that cannot become valid through future
+receipt, is `MISMATCHED`. No over-receipt or invoice tolerance is implicit.
+
+## 27.3 Commercial Comparisons and Arithmetic
+
+Invoice currency must equal PO currency. Unit price must equal the applicable
+PO unit price; business price tolerance is zero. A derived line-total
+calculation may differ by at most one currency minor unit solely where
+mathematical rounding requires it (`USD` 0.01; other currencies use configured
+minor-unit semantics). This allowance never excuses a unit-price variance.
+Taxes, freight, fees and other charges are valid only when represented in PO
+commercial terms or another explicit normative rule. Unexpected charges are
+`MISMATCHED`. Document total reconciles line totals plus recognized taxes and
+charges, minus recognized credits, subject only to the stated arithmetic
+rounding.
+
+## 27.4 Duplicate Identity and Candidate Detection
+
+Preserve the original supplier document number and derive its comparison form
+using Unicode NFKC, leading/trailing trim, repeated whitespace collapse and
+case normalization. Do not strip arbitrary punctuation. Durable submitted-
+document uniqueness is:
 
 ```text
-price variance <= 1%
-→ auto-acceptable
+tenant_id + supplier_id + document_type + supplier_document_number_normalized
+document_type ∈ {INVOICE, CREDIT_NOTE}
 ```
 
-Nếu vượt:
+The unique reservation is acquired atomically on submission and remains
+durable; application pre-check alone is insufficient. Drafts may coexist
+before reservation. A conflicting submission fails with canonical
+`INVOICE_DUPLICATE`. A candidate fingerprint may consider supplier, date,
+currency, gross total, PO and normalized number; it is advisory, may create
+review work, and must never auto-merge or reject solely on heuristic
+similarity.
+
+## 27.5 Match Allocation, Re-evaluation and Exceptions
+
+Matching persists durable Invoice-line to PO-line quantity allocations and,
+where available, POSTED Goods Receipt line references supporting each
+allocation. Aggregate PO-line serialization and database invariants prevent
+concurrent invoices from allocating the same remaining quantity. When one of
+two competing partial invoices wins the final available quantity, the loser
+must re-evaluate to `PENDING_RECEIPT` or `MISMATCHED` using current facts.
+
+`INVOICE.REEVALUATE_MATCH` is explicit and allowed for submitted invoices.
+Each evaluation records its version/fingerprint and cited PO/receipt
+evidence. Newly posted Goods Receipts may make a `PENDING_RECEIPT` invoice
+become `MATCHED`; they never cause edits to invoice or receipt snapshots.
+
+Each mismatch persists an immutable Match Exception with invoice, PO,
+relevant Goods Receipt references, canonical reason codes, expected and
+observed values, evaluation version/fingerprint, status and audit/correlation
+references. Resolution appends history; it does not overwrite comparison
+evidence. An invoice approved under `INVOICE_MATCH_EXCEPTION` reserves its
+full approved line quantity against reuse by later invoices, even when part
+of that quantity has no Goods Receipt allocation. Receipt-supported
+allocation and exception reservation remain separately identified; the match
+status stays `MISMATCHED`. An applied Credit Note releases its credited
+quantity/amount once. A POSTED Goods Receipt is never edited to satisfy an invoice. A
+receiving error requires a receiving/reconciliation exception and any future
+explicit correction workflow; commercial alternatives are replacement
+invoice, Credit Note or authorized match exception.
+
+## 27.6 Conditional Approval
+
+Approval remains independent from lifecycle and authorization. For a
+`MATCHED` invoice, a linked `INVOICE_APPROVAL` request is optional. If linked,
+it must belong to the same tenant, target this invoice, have purpose
+`INVOICE_APPROVAL`, bind to the current immutable invoice and match context,
+and be `APPROVED`; pending, rejected, expired or cancelled requests block
+`INVOICE.APPROVE`. No linked request does not itself block approval.
+
+A `MISMATCHED` invoice cannot use normal approval. It may be approved only
+with a linked, `APPROVED` `INVOICE_MATCH_EXCEPTION` request bound to the
+invoice, immutable version, current mismatch evaluation/fingerprint and
+exception reason/context. Approval does not change `match_status` from
+`MISMATCHED`; failed comparisons and accepted exception remain distinct.
+Any material change to invoice, match evaluation, PO context or exception
+fingerprint makes earlier approval stale. An approval cannot be silently
+reused for a different mismatch.
+
+## 27.7 Credit Note
+
+A Credit Note is a separate immutable commercial document and never edits the
+original Invoice. It references the Supplier and the Invoice/lines credited
+where applicable and uses positive semantic credit quantities and amounts.
 
 ```text
-Invoice Exception
+none → CREDIT_NOTE.CREATE → DRAFT
+DRAFT → CREDIT_NOTE.UPDATE_DRAFT → DRAFT
+DRAFT → CREDIT_NOTE.SUBMIT → SUBMITTED
+DRAFT → CREDIT_NOTE.CANCEL → CANCELLED
+SUBMITTED → CREDIT_NOTE.APPLY → APPLIED
+SUBMITTED → CREDIT_NOTE.REJECT → REJECTED
 ```
 
----
+`APPLIED`, `REJECTED` and `CANCELLED` are terminal. Submitted Credit Note
+commercial values are immutable. A Credit Note must use the same tenant,
+Supplier and currency as its referenced Invoice. Multiple partial credits are
+allowed, but cumulative quantity and amount cannot exceed the remaining
+creditable quantity/amount of the referenced Invoice lines.
+`CREDIT_NOTE.APPLY` records credited quantity/amount atomically and cannot be
+replayed or applied twice. Only explicitly credited line quantity that had
+consumed invoiceable quantity releases that quantity for a valid replacement
+invoice; amount-only credits reduce net billed amount without releasing
+quantity. Credit changes net billed values but never changes PO
+ordered quantity, accepted Goods Receipt quantity/history or original Invoice
+snapshot. Invoice lifecycle remains `APPROVED`; derived credit status is
+independently `NONE`, `PARTIALLY_CREDITED` or `FULLY_CREDITED`.
 
-# 34. Invoice Exception Flow
+## 27.8 Canonical Mismatch Reasons and Boundaries
 
-```text
-Mismatch
-↓
-Identify Type
-↓
-Assign Owner
-↓
-Resolve
-```
+Canonical reason codes include `SUPPLIER_MISMATCH`, `PO_NOT_ELIGIBLE`,
+`PO_LINE_NOT_FOUND`, `CURRENCY_MISMATCH`, `UNIT_PRICE_MISMATCH`,
+`QUANTITY_EXCEEDS_ORDERED`, `QUANTITY_EXCEEDS_RECEIVED`,
+`UNEXPECTED_CHARGE`, `TOTAL_MISMATCH`, `DUPLICATE_INVOICE`, `TAX_MISMATCH`,
+`ITEM_MISMATCH`, `CHARGE_MISMATCH` and `DATA_INTEGRITY_CONFLICT`. A shortfall covered by a legitimate future receipt
+is `PENDING_RECEIPT`, not permanent mismatch. The system never mutates PO
+commercial history or posted receipt evidence to make documents agree. Only
+an explicit linked match-exception approval can accept a mismatch while
+preserving failed-comparison evidence.
 
-Actions:
-
-```text
-Correct Invoice
-Correct Receipt
-Create PO Amendment
-Request Credit Note
-Approve Exception
-Reject Invoice
-```
-
----
-
-# 35. Credit Note
-
-Credit Note phải link tới:
-
-```text
-Supplier
-Original Invoice
-Reason
-Amount
-Lines
-```
-
-Không overwrite original invoice amount.
-
----
-
-# 36. Partial Invoice
-
-PO có thể được invoice nhiều lần.
-
-Example:
-
-```text
-PO total 100 units
-Invoice 1 = 40
-Invoice 2 = 60
-```
-
-System track cumulative invoiced quantity/value.
-
----
-
-# 37. Over-Invoice Protection
-
-Nếu:
-
-```text
-invoiced qty > received qty
-```
-
-hoặc:
-
-```text
-invoiced amount > allowed PO amount
-```
-
-→ block/exception theo policy.
+Actionable Work Queue items may reference exact duplicate review, blocking
+3-Way Match mismatch, unresolved approval, data-integrity conflict or
+reconciliation failure. Normal MATCHED invoices do not require Work Items.
+The source Invoice, evaluation, exception and Credit Note remain canonical;
+the Work Queue is only an operational reference/projection.
 
 ---
 
@@ -2335,15 +2317,25 @@ PO.DELIVERY_OVERDUE
 ## Invoice
 
 ```text
-INVOICE.RECEIVED
+INVOICE.CREATED
+INVOICE.UPDATED
+INVOICE.SUBMITTED
 INVOICE.DUPLICATE_DETECTED
-INVOICE.MATCH_STARTED
+INVOICE.MATCH_EVALUATED
 INVOICE.MATCHED
-INVOICE.MISMATCH
+INVOICE.PENDING_RECEIPT
+INVOICE.MISMATCHED
+INVOICE.MATCH_EXCEPTION_CREATED
+INVOICE.MATCH_EXCEPTION_ACCEPTED
 INVOICE.APPROVED
-INVOICE.RECORDED_FOR_PAYMENT
-INVOICE.PAID
-CREDIT_NOTE.RECEIVED
+INVOICE.REJECTED
+INVOICE.CANCELLED
+CREDIT_NOTE.CREATED
+CREDIT_NOTE.UPDATED
+CREDIT_NOTE.SUBMITTED
+CREDIT_NOTE.APPLIED
+CREDIT_NOTE.REJECTED
+CREDIT_NOTE.CANCELLED
 ```
 
 ## Contract
@@ -2570,7 +2562,7 @@ Examples:
 procurement_request:{source_type}:{source_id}:{version}
 po:{approved_request}:{supplier}:{version}
 goods_receipt:{po}:{delivery_reference}
-invoice:{supplier}:{invoice_number}
+invoice_submit:{tenant_id}:{invoice_id}:{version}
 contract:{supplier}:{contract_number}:{version}
 document:{entity}:{document_type}:{business_version}
 ```
@@ -2613,7 +2605,8 @@ Hệ thống không được:
 2. Tự tạo purchase nếu stock sẵn có phù hợp mà workflow yêu cầu reuse stock.
 3. Overwrite PO issued mà không version/amendment.
 4. Đóng PO partial receipt như fully received.
-5. Approve invoice nếu 3-way mismatch vượt tolerance mà không exception approval.
+5. Approve a MISMATCHED invoice without an approved, context-bound
+   `INVOICE_MATCH_EXCEPTION` request.
 6. Xóa original invoice khi có credit note.
 7. Duplicate invoice do email/API retry.
 8. Tạo Asset trước khi xác định serial trừ Planned Asset workflow.
@@ -2624,7 +2617,8 @@ Hệ thống không được:
 13. Cho OCR confidence thấp tự post dữ liệu tài chính.
 14. Expose confidential financial documents cho role không cần.
 15. Xóa contract/PO/invoice history sau closure.
-16. Hardcode tax/currency/approval threshold vào core workflow.
+16. Invent nonzero commercial tolerance or a blanket Invoice approval
+   requirement without a normative policy selector.
 17. Emergency Purchase được dùng để né quy trình bình thường mà không post-review.
 
 ---
@@ -2689,9 +2683,9 @@ Goods received = 10
 ↓
 Invoice unit price = 21,000,000
 ↓
-Price tolerance exceeded
+Invoice unit price differs from the PO unit price
 ↓
-INVOICE.MISMATCH
+INVOICE.MISMATCHED
 ↓
 Procurement reviews
 ↓
@@ -2701,7 +2695,7 @@ Corrected invoice uploaded
 ↓
 Old invoice rejected/superseded
 ↓
-3-Way Match PASS
+INVOICE.MATCH_EVALUATED → MATCHED
 ↓
 Approved
 ```
@@ -2813,8 +2807,10 @@ Cụm workflow này đạt yêu cầu khi:
 - Partial receiving hoạt động.
 - Goods Receipt liên kết Warehouse/Asset.
 - Service Receipt hỗ trợ non-physical purchase.
-- Invoice duplicate detection hoạt động.
-- 3-way match có tolerance + exception handling.
+- Invoice duplicate identity is durably enforced at submit and candidate
+  matching remains advisory.
+- 3-way match có zero business tolerance, arithmetic rounding và exception
+  handling.
 - Partial invoice và credit note hoạt động.
 - Payment chỉ được sync/record nếu hệ thống không phải ERP.
 - License purchase cập nhật entitlement.

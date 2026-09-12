@@ -195,7 +195,8 @@ Only generate a detailed `TASK-xxx_*.md` when the task becomes `READY` or is the
 | `TASK-072-R1` | `F-041` | `WF-P03` | P4 | P0 | Purchase Order Lifecycle + Approval + Amendment Contract | TASK-036, TASK-071 | **SATISFIED** | CODE_COMPLETE | `TASK-072-R1_PURCHASE_ORDER_LIFECYCLE_APPROVAL_AMENDMENT_CONTRACT.md` |
 | `TASK-073-R1` | `F-042` | `WF-005` | P4 | P0 | Goods Receipt + Partial Receipt + PO Receipt Integration Contract | TASK-072 | **SATISFIED** | CODE_COMPLETE | `TASK-073-R1_GOODS_RECEIPT_PARTIAL_RECEIPT_PO_INTEGRATION_CONTRACT.md` |
 | `TASK-073` | `F-042` | `WF-005` | P4 | P0 | Goods Receipt + Asset Registration + Partial Receipt | TASK-012, TASK-072, TASK-073-R1 | **SATISFIED** | CODE_COMPLETE | `TASK-073_GOODS_RECEIPT_ASSETIZATION_PARTIAL_RECEIPT.md` |
-| `TASK-074` | `F-043/F-044` | `WF-P04/WF-P05` | P4 | P0 | Invoice + Duplicate Protection + 3-Way Match | TASK-072, TASK-073 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |
+| `TASK-074-R1` | `F-043/F-044` | `WF-P04/WF-P05` | P4 | P0 | Invoice + Duplicate Protection + 3-Way Match + Credit Note Contract | TASK-072, TASK-073 | **SATISFIED** | CODE_COMPLETE | `TASK-074-R1_INVOICE_DUPLICATE_MATCH_CREDIT_NOTE_CONTRACT.md` |
+| `TASK-074` | `F-043/F-044` | `WF-P04/WF-P05` | P4 | P0 | Invoice + Duplicate Protection + 3-Way Match + Credit Note | TASK-072, TASK-073, TASK-074-R1 | **READY** | NOT_STARTED | `TASK-074_INVOICE_DUPLICATE_PROTECTION_3_WAY_MATCH.md` |
 | `TASK-075` | `F-045/F-046` | `WF-P06/WF-016` | P4 | P1 | Contract + Renewal + Commercial Document Governance | TASK-070, TASK-074 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |
 | `TASK-076` | `PHASE-GATE` | `P4-E2E` | P4 | P0 | Phase 4 Procurement-to-Asset Integration Gate | TASK-071, TASK-072, TASK-073, TASK-074, TASK-075 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |
 | `TASK-090` | `F-049` | `WF-AUT02` | P5 | P1 | Advanced Rules Engine + Policy-Gated Automation | TASK-039, TASK-061, TASK-076 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |
@@ -292,10 +293,14 @@ Only generate a detailed `TASK-xxx_*.md` when the task becomes `READY` or is the
   dependencies TASK-012, TASK-072 and TASK-073-R1 are satisfied. Runtime
   implementation and PostgreSQL E2E verification are complete; see the task
   implementation report.
-- **TASK-074 — Invoice + Duplicate Protection + 3-Way Match:** PO and Goods
-  Receipt are available, but the detailed normative Invoice contract remains
-  incomplete. Keep `BLOCKED / NOT_STARTED` pending planning/spec reconciliation;
-  do not infer tolerance, approval, credit-note or partial-invoice rules.
+- **TASK-074-R1 — Invoice + Duplicate Protection + 3-Way Match + Credit Note
+  Contract:** `CODE_COMPLETE`, specification-only. Invoice/credit lifecycles,
+  duplicate identity, match/credit dimensions, tolerance, exception approval,
+  concurrency and evidence-preservation rules are normative.
+- **TASK-074 — Invoice + Duplicate Protection + 3-Way Match + Credit Note:**
+  dependencies TASK-072, TASK-073 and TASK-074-R1 are satisfied. Detailed
+  implementation contract is generated and reconciled; derived readiness is
+  `READY`, status `NOT_STARTED`. Runtime work has not begun.
 - **TASK-075 — Contract + Renewal + Commercial Document Governance:** Supplier/procurement and invoice flow available.
 - **TASK-076 — Phase 4 Procurement-to-Asset Integration Gate:** Procurement lifecycle integrated end-to-end.
 
@@ -315,15 +320,16 @@ Only generate a detailed `TASK-xxx_*.md` when the task becomes `READY` or is the
 # 11. Current Next Task
 
 TASK-060-R1, TASK-060, TASK-056, TASK-059, TASK-061, TASK-070-R1, TASK-070,
-TASK-071-R1, TASK-071, TASK-072-R1 and TASK-072 are `CODE_COMPLETE`.
+TASK-071-R1, TASK-071, TASK-072-R1, TASK-072, TASK-073-R1, TASK-073 and
+TASK-074-R1 are `CODE_COMPLETE`.
 TASK-056's inventory, exception handling, safe removal flow, audit/outbox
 payloads and verification are recorded in its completion report. Dependency implementation
 reports and commits confirm TASK-015 (`32c3267`), TASK-036 (`e043c31`) and
 TASK-038 (`296336a`) are `CODE_COMPLETE`.
 
 ```text
-CURRENT = TASK-074 (BLOCKED; NOT_STARTED; SPEC_GAP / PLANNING_REQUIRED)
-NEXT = TASK-074 (normative Invoice contract reconciliation required before runtime implementation)
+CURRENT = TASK-074 (READY; NOT_STARTED)
+NEXT = TASK-074 (implementation-ready; runtime not started)
 TASK-059 = SATISFIED (CODE_COMPLETE)
 TASK-061 = SATISFIED (CODE_COMPLETE)
 TASK-070-R1 = SATISFIED (CODE_COMPLETE)
@@ -334,7 +340,8 @@ TASK-072-R1 = SATISFIED (CODE_COMPLETE; specification only)
 TASK-072 = SATISFIED (CODE_COMPLETE)
 TASK-073-R1 = SATISFIED (CODE_COMPLETE; specification only)
 TASK-073 = SATISFIED (CODE_COMPLETE; TASK-012, TASK-072 and TASK-073-R1 are complete)
-TASK-074 = BLOCKED (NOT_STARTED; detailed normative Invoice contract is incomplete)
+TASK-074-R1 = SATISFIED (CODE_COMPLETE; specification only)
+TASK-074 = READY (NOT_STARTED; TASK-072, TASK-073 and TASK-074-R1 are complete)
 ```
 
 TASK-061's acceptance criteria and verification gates passed; its implementation
@@ -351,13 +358,14 @@ and verification in its task report. TASK-073-R1 resolved the Goods Receipt
 normative lifecycle, quantity, PO concurrency, event, permission, data-model,
 Asset registration and 3-Way Match contracts are recorded in the remediation
 report. TASK-073 has a detailed reconciled contract and implementation report;
-runtime implementation and PostgreSQL E2E verification are complete. TASK-074
-remains blocked because the Invoice workflow does not normatively resolve
-matching tolerances, conditional approval/version binding, duplicate key
-normalization, partial/over-invoice concurrency, credit-note lifecycle, or
-exceptions against immutable posted receipts and post-receipt PO amendment
-restrictions. Resolve these gaps before generating an implementation-ready
-TASK-074 contract.
+runtime implementation and PostgreSQL E2E verification are complete.
+TASK-074-R1 resolved the Invoice/3-Way Match/Credit Note `SPEC_GAP` as a
+specification-only remediation, including duplicate reservation, zero
+business tolerance, conditional approvals, exception quantity reservation,
+Credit Note release, permissions, events and required concurrency cases.
+The detailed TASK-074 contract is generated and reconciled; derived readiness
+is `READY`, status `NOT_STARTED`. Do not implement TASK-074 until explicitly
+authorized.
 
 ---
 

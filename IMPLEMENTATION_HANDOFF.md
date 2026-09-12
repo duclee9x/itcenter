@@ -1,8 +1,8 @@
 # IMPLEMENTATION HANDOFF
 
-## Current Task — TASK-074 (Blocked, Not Started)
+## Current Task — TASK-074 (Ready, Not Started)
 
-Invoice + Duplicate Protection + 3-Way Match
+Invoice + Duplicate Protection + 3-Way Match + Credit Note
 
 Feature: F-043/F-044
 
@@ -10,18 +10,18 @@ Workflow: WF-P04/WF-P05
 
 Phase/Priority: P4 / P0
 
-Readiness: BLOCKED (`SPEC_GAP / PLANNING_REQUIRED`)
+Readiness: READY (derived)
 
 Status: NOT_STARTED
 
-Task contract: not generated; the detailed normative Invoice contract is
-incomplete. TASK-072 and TASK-073 are `CODE_COMPLETE`, but the existing
-workflow leaves material rules unresolved: matching tolerance policy,
-conditional approval and context/version binding, duplicate invoice-number
-normalization, partial/over-invoice concurrency, credit-note lifecycle, and
-exception resolution where posted receipts are immutable and PO amendments
-are forbidden after receiving begins. Reconcile these rules before marking
-TASK-074 READY or implementing runtime behavior.
+Task contract: `tasks/TASK-074_INVOICE_DUPLICATE_PROTECTION_3_WAY_MATCH.md`
+
+Dependencies TASK-072, TASK-073 and TASK-074-R1 are `CODE_COMPLETE`. The
+normative lifecycle, duplicate identity, match/credit separation, zero
+business tolerance, conditional approval, exception reservations, Credit Note
+effects, permissions, audit/events and concurrency requirements are
+reconciled. Runtime TASK-074 has not started and must wait for explicit user
+authorization.
 
 ## Last Completed Task — TASK-073
 
@@ -59,6 +59,25 @@ Goods Receipt + Partial Receipt + PO Receipt Integration Contract
 - Generated the detailed TASK-073 implementation contract and reconciled
   traceability, registry, CURRENT_TASK and handoff. No runtime code was
   implemented.
+
+## Last Completed Remediation — TASK-074-R1
+
+Invoice + Duplicate Protection + 3-Way Match + Credit Note Contract
+(`CODE_COMPLETE`, specification only). See
+`tasks/TASK-074-R1_INVOICE_DUPLICATE_MATCH_CREDIT_NOTE_CONTRACT.md`.
+
+- Defined independent Invoice lifecycle, match status and derived credit
+  status; Credit Notes have their own immutable lifecycle and applications.
+- Made POSTED accepted Goods Receipt evidence authoritative, with zero
+  business tolerance, partial invoice allocation, normalized durable
+  duplicate identity and PO-line concurrency rules.
+- Specified conditional Approval Engine binding. An accepted mismatch remains
+  `MISMATCHED` and reserves its full approved invoice quantity against later
+  invoices; an applied Credit Note releases only explicitly credited quantity
+  that previously consumed invoiceable capacity. Amount-only credits do not
+  release quantity.
+- Added the detailed TASK-074 contract and reconciled registry/current task.
+  No runtime Invoice/Credit Note behavior was implemented.
 
 ## Last Completed Task — TASK-072
 

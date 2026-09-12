@@ -891,6 +891,10 @@ GOODS_RECEIPT_OVER_ORDERED_QUANTITY
 GOODS_RECEIPT_PO_NOT_RECEIVABLE
 GOODS_RECEIPT_BLOCKING_EXCEPTION
 GOODS_RECEIPT_UNIT_IDENTITY_DUPLICATE
+INVOICE_DUPLICATE
+INVOICE_APPROVAL_STALE
+INVOICE_MATCH_EXCEPTION_REQUIRED
+CREDIT_NOTE_OVER_CREDITABLE_AMOUNT
 APPROVAL_REQUIRED
 DEPENDENCY_UNAVAILABLE
 RATE_LIMITED
@@ -1544,8 +1548,38 @@ POST /purchase-orders/{id}/commands/issue
 POST /purchase-orders/{id}/commands/amend
 POST /goods-receipts
 POST /invoices
-POST /invoices/{id}/commands/approve-exception
+POST /invoices/{id}/commands/update-draft
+POST /invoices/{id}/commands/submit
+POST /invoices/{id}/commands/reevaluate-match
+POST /invoices/{id}/commands/approve
+POST /invoices/{id}/commands/reject
+POST /invoices/{id}/commands/cancel
+POST /credit-notes
+POST /credit-notes/{id}/commands/update-draft
+POST /credit-notes/{id}/commands/submit
+POST /credit-notes/{id}/commands/apply
+POST /credit-notes/{id}/commands/reject
+POST /credit-notes/{id}/commands/cancel
 ```
+
+Invoice and Credit Note writes use explicit commands. State-changing requests
+carry `Idempotency-Key`, `expected_version` where applicable, tenant/resource
+scope authorization, actor and correlation context. `INVOICE.SUBMIT` atomically
+freezes the commercial snapshot and reserves the durable duplicate identity.
+`INVOICE.REEVALUATE_MATCH` evaluates only a SUBMITTED snapshot and writes a new
+append-only evaluation. `CREDIT_NOTE.APPLY` atomically validates remaining
+creditable line quantity/amount and writes its one-time application. It
+releases invoiceable quantity only for explicitly credited quantity that had
+consumed that capacity. These commands never mutate PO commercial history or a
+POSTED Goods Receipt.
+
+Canonical outcomes include `INVOICE_DUPLICATE` (409),
+`INVOICE_MATCH_EXCEPTION_REQUIRED` (409 when a MISMATCHED invoice is
+approved without its linked approved exception), `INVOICE_APPROVAL_STALE`
+(409), and `CREDIT_NOTE_OVER_CREDITABLE_AMOUNT` (422). Same-key/same-request
+replays the original result; same key with a different semantic payload is
+`IDEMPOTENCY_KEY_CONFLICT` (409). A different key for an already-reserved
+supplier document identity returns `INVOICE_DUPLICATE`.
 
 ---
 

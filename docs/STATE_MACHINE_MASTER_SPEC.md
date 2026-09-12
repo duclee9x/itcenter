@@ -1385,39 +1385,69 @@ registration actually succeeds.
 
 ---
 
-# 61. Invoice State Machine
+# 61. Invoice Lifecycle State Machine (TASK-074)
 
-States:
+Invoice lifecycle is independent from match status and credit status.
 
 ```text
-RECEIVED
-VALIDATING
-MATCHING
-EXCEPTION
-APPROVED
-RECORDED_FOR_PAYMENT
-PAID
-CREDITED
-REJECTED
+none → INVOICE.CREATE → DRAFT
+DRAFT → INVOICE.UPDATE_DRAFT → DRAFT
+DRAFT → INVOICE.SUBMIT → SUBMITTED
+DRAFT → INVOICE.CANCEL → CANCELLED
+SUBMITTED → INVOICE.APPROVE → APPROVED
+SUBMITTED → INVOICE.REJECT → REJECTED
 ```
+
+Terminal lifecycle states are `APPROVED`, `REJECTED` and `CANCELLED`.
+`SUBMITTED` commercial snapshot is immutable. There is no transition from a
+submitted or terminal invoice back to DRAFT. Approval does not represent
+payment and TASK-074 has no `PAID` transition.
+
+## 61.1 Independent Invoice Match State
+
+```text
+NOT_EVALUATED
+PENDING_RECEIPT
+MATCHED
+MISMATCHED
+```
+
+The match result is an independent dimension, and each evaluation is
+append-only. `INVOICE.REEVALUATE_MATCH` may add an evaluation for a SUBMITTED
+invoice without changing its immutable snapshot. `MISMATCHED` remains
+`MISMATCHED` when an authorized `INVOICE_MATCH_EXCEPTION` permits invoice
+approval; exception acceptance is separately recorded.
+
+## 61.2 Credit Note Lifecycle and Credit Status
+
+Credit Note lifecycle:
+
+```text
+none → CREDIT_NOTE.CREATE → DRAFT
+DRAFT → CREDIT_NOTE.UPDATE_DRAFT → DRAFT
+DRAFT → CREDIT_NOTE.SUBMIT → SUBMITTED
+DRAFT → CREDIT_NOTE.CANCEL → CANCELLED
+SUBMITTED → CREDIT_NOTE.APPLY → APPLIED
+SUBMITTED → CREDIT_NOTE.REJECT → REJECTED
+```
+
+Terminal Credit Note states are `APPLIED`, `REJECTED` and `CANCELLED`.
+Submitted Credit Note evidence is immutable. Credit Note application never
+rewrites the original Invoice or its lifecycle. An Invoice's derived credit
+status is independent: `NONE`, `PARTIALLY_CREDITED` or `FULLY_CREDITED`.
 
 ---
 
-# 62. Invoice Transitions
+## 61.3 Required Serialization
 
-```text
-RECEIVED → VALIDATING
-VALIDATING → MATCHING
-MATCHING → APPROVED
-MATCHING → EXCEPTION
-EXCEPTION → MATCHING
-EXCEPTION → REJECTED
-APPROVED → RECORDED_FOR_PAYMENT
-RECORDED_FOR_PAYMENT → PAID
-PAID → CREDITED
-```
-
----
+The owner must serialize duplicate `INVOICE.SUBMIT` attempts on normalized
+document identity; competing Invoice allocations on PO-line invoiceable
+quantity; `INVOICE.REEVALUATE_MATCH` against Goods Receipt POST/progress;
+`INVOICE.APPROVE` against a new match evaluation or changed approval context;
+replayed `CREDIT_NOTE.APPLY`; and competing Credit Note applications against
+the same remaining creditable Invoice-line quantity/amount. Only one valid
+serialized outcome may commit. Enforce durable uniqueness/quantity
+invariants, not application pre-checks alone.
 
 # 63. Contract State Machine
 
@@ -2198,7 +2228,8 @@ state_machine:
 | Deployment | QUEUED |
 | Procurement Request | DRAFT |
 | PO | DRAFT |
-| Invoice | RECEIVED |
+| Invoice | DRAFT |
+| Credit Note | DRAFT |
 | Contract | DRAFT |
 | Approval | PENDING |
 | Automation Execution | QUEUED |
@@ -2220,7 +2251,8 @@ state_machine:
 | Deployment | SUCCESS, FAILED, CANCELLED, ROLLED_BACK |
 | Procurement Request | FULFILLED, REJECTED, CANCELLED |
 | PO | CLOSED, CANCELLED |
-| Invoice | PAID, CREDITED, REJECTED |
+| Invoice | APPROVED, REJECTED, CANCELLED |
+| Credit Note | APPLIED, REJECTED, CANCELLED |
 | Contract | ARCHIVED |
 | Approval | APPROVED, REJECTED, EXPIRED, CANCELLED |
 | Offboarding | COMPLETED, CANCELLED |

@@ -3269,68 +3269,55 @@ days_overdue:
 
 ---
 
-# 45. Invoice Event Catalog
+# 45. Invoice and Credit Note Event Catalog (TASK-074)
 
-## `INVOICE.RECEIVED`
+Invoice and Credit Note events are completed facts written to the owning
+outbox in the same transaction as their lifecycle, match, exception,
+allocation or application effects. Payloads contain stable references and
+minimal state needed by consumers. Never include raw bank data, protected tax
+identifiers, full invoice documents or unnecessary line-level financial
+values. Standard envelope metadata carries tenant, correlation, causation and
+schema version.
 
-```yaml
-invoice_id:
-supplier_id:
-invoice_number:
-purchase_order_id:
-gross_amount:
-currency:
-```
+## Invoice events
 
-## `INVOICE.DUPLICATE_DETECTED`
+| Event | Minimum payload |
+|---|---|
+| `INVOICE.CREATED` | `invoice_id`, `supplier_id`, `document_type`, `version` |
+| `INVOICE.UPDATED` | `invoice_id`, `version` |
+| `INVOICE.SUBMITTED` | `invoice_id`, `supplier_id`, `purchase_order_id`, `snapshot_fingerprint`, `version` |
+| `INVOICE.DUPLICATE_DETECTED` | attempted `invoice_id`, existing `document_id`, `supplier_id`, `document_type`, `normalized_number_fingerprint` |
+| `INVOICE.MATCH_EVALUATED` | `invoice_id`, `match_evaluation_id`, `evaluation_version`, `match_status`, `reason_codes`, `po_id`, receipt reference IDs |
+| `INVOICE.MATCHED` | `invoice_id`, `match_evaluation_id`, `allocation_reference_ids` |
+| `INVOICE.PENDING_RECEIPT` | `invoice_id`, `match_evaluation_id`, `po_id`, affected PO line references |
+| `INVOICE.MISMATCHED` | `invoice_id`, `match_evaluation_id`, `match_exception_id`, `reason_codes` |
+| `INVOICE.MATCH_EXCEPTION_CREATED` | `invoice_id`, `match_exception_id`, `match_evaluation_id`, `reason_codes` |
+| `INVOICE.MATCH_EXCEPTION_ACCEPTED` | `invoice_id`, `match_exception_id`, `approval_request_id`, `match_evaluation_id` |
+| `INVOICE.APPROVED` | `invoice_id`, `match_status`, optional `approval_request_id`, optional `match_exception_id` |
+| `INVOICE.REJECTED` | `invoice_id`, `reason_code`, `reason_reference` |
+| `INVOICE.CANCELLED` | `invoice_id`, `reason_reference` |
 
-```yaml
-invoice_id:
-existing_invoice_id:
-supplier_id:
-invoice_number:
-```
+`INVOICE.MATCHED`, `INVOICE.PENDING_RECEIPT` and `INVOICE.MISMATCHED` are
+emitted from the corresponding immutable match evaluation outcome. Acceptance
+of a mismatch never emits `INVOICE.MATCHED` or changes that evaluation.
+Duplicate detection is a rejected command/audit outcome; if published,
+`INVOICE.DUPLICATE_DETECTED` exposes only a non-reversible number fingerprint,
+not the raw supplier document number.
 
-## `INVOICE.MATCH_STARTED`
+## Credit Note events
 
-```yaml
-invoice_id:
-purchase_order_id:
-```
+| Event | Minimum payload |
+|---|---|
+| `CREDIT_NOTE.CREATED` | `credit_note_id`, `invoice_id`, `supplier_id`, `version` |
+| `CREDIT_NOTE.UPDATED` | `credit_note_id`, `version` |
+| `CREDIT_NOTE.SUBMITTED` | `credit_note_id`, `invoice_id`, `supplier_id`, `snapshot_fingerprint` |
+| `CREDIT_NOTE.APPLIED` | `credit_note_id`, `invoice_id`, `application_id`, credited line reference IDs, released allocation reference IDs |
+| `CREDIT_NOTE.REJECTED` | `credit_note_id`, `invoice_id`, `reason_code`, `reason_reference` |
+| `CREDIT_NOTE.CANCELLED` | `credit_note_id`, `reason_reference` |
 
-## `INVOICE.MATCHED`
-
-```yaml
-invoice_id:
-match_result_id:
-result:
-tolerance_used:
-```
-
-## `INVOICE.MISMATCH`
-
-```yaml
-invoice_id:
-match_result_id:
-mismatch_types:
-variance_summary:
-```
-
-## `INVOICE.APPROVED`
-
-```yaml
-invoice_id:
-approved_by:
-approval_request_id:
-```
-
-## `INVOICE.PAID`
-
-```yaml
-invoice_id:
-payment_reference:
-paid_at:
-```
+Events do not carry full document content. Asset/procurement cross-domain
+consumers must use idempotent references and read protected canonical details
+through authorized application contracts where necessary.
 
 ---
 

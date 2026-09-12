@@ -2303,60 +2303,264 @@ POSTs. All validation failure leaves these effects uncommitted.
 
 ---
 
-# 29. Invoice Domain
+# 29. Invoice, Match and Credit Note Domain (TASK-074)
 
 ## 29.1 `invoices`
 
 ```yaml
 invoices:
   id:
+  tenant_id:
   supplier_id:
-  invoice_number:
+  supplier_document_number_original:
+  supplier_document_number_normalized:
+  document_type: INVOICE
   purchase_order_id:
-  state:
+  lifecycle_state: DRAFT | SUBMITTED | APPROVED | REJECTED | CANCELLED
+  match_status: NOT_EVALUATED | PENDING_RECEIPT | MATCHED | MISMATCHED
+  derived_credit_status: NONE | PARTIALLY_CREDITED | FULLY_CREDITED
+  current_match_evaluation_id:
+  submitted_snapshot_json:
+  snapshot_fingerprint:
   invoice_date:
   currency:
   net_amount:
   tax_amount:
   gross_amount:
+  version:
+  created_at:
+  submitted_at:
+
+invoice_history:
+  id:
+  tenant_id:
+  invoice_id:
+  prior_lifecycle_state:
+  new_lifecycle_state:
+  version:
+  actor_id:
+  reason_code:
+  correlation_id:
+  created_at:
 ```
 
-Unique:
-
-```text
-(supplier_id, invoice_number)
-```
-
-Usually the most important duplicate prevention rule.
-
----
+Draft fields are editable only in `DRAFT`. Submission freezes the complete
+commercial snapshot. Store tenant, supplier, PO and evidence references so
+historical match explanation does not depend on mutable display data.
 
 ## 29.2 `invoice_lines`
 
 ```yaml
 invoice_lines:
   id:
+  tenant_id:
   invoice_id:
   po_line_id:
-  description:
+  description_snapshot:
   quantity:
   unit_price:
+  currency:
   tax_amount:
+  charge_amount:
+  line_total:
+  evidence_reference_ids:
 ```
 
----
+Submitted line values and references are immutable. Draft line changes are
+transactional with the Invoice aggregate version.
 
-## 29.3 `invoice_match_results`
+## 29.3 `invoice_document_identity_reservations`
 
 ```yaml
-invoice_match_results:
-  id:
-  invoice_id:
-  match_type:
-  result:
-  variance_json:
-  evaluated_at:
+invoice_document_identity_reservations:
+  tenant_id:
+  supplier_id:
+  document_type: INVOICE | CREDIT_NOTE
+  supplier_document_number_normalized:
+  document_id:
+  reserved_at:
 ```
+
+Primary/unique identity is
+`(tenant_id, supplier_id, document_type, supplier_document_number_normalized)`.
+The reservation is inserted in the Invoice/Credit Note submit transaction and is
+retained after submission, including when the document later becomes terminal.
+Drafts have no reservation. NFKC, trim, repeated-whitespace collapse and case
+normalization derive the normalized number; punctuation is preserved.
+
+## 29.4 `invoice_match_evaluations`
+
+```yaml
+invoice_match_evaluations:
+  id:
+  tenant_id:
+  invoice_id:
+  evaluation_version:
+  invoice_snapshot_fingerprint:
+  po_commercial_version:
+  receipt_evidence_fingerprint:
+  match_status: PENDING_RECEIPT | MATCHED | MISMATCHED
+  reason_codes:
+  expected_values_json:
+  observed_values_json:
+  evaluated_at:
+  correlation_id:
+```
+
+Evaluations are append-only. A current-evaluation pointer may be maintained
+on the Invoice aggregate, but must not replace historical records.
+
+## 29.5 `invoice_match_allocations`
+
+```yaml
+invoice_match_allocations:
+  id:
+  tenant_id:
+  invoice_id:
+  invoice_line_id:
+  po_id:
+  po_line_id:
+  goods_receipt_id: nullable
+  goods_receipt_line_id: nullable
+  allocation_kind: RECEIPT_MATCHED | APPROVED_EXCEPTION
+  quantity:
+  amount:
+  match_evaluation_id:
+  approval_request_id: nullable
+  credit_released_quantity:
+  credit_released_amount:
+  created_at:
+```
+
+A `RECEIPT_MATCHED` allocation references immutable POSTED accepted receipt
+evidence. An `APPROVED_EXCEPTION` allocation reserves the full approved
+invoice-line quantity against reuse by later invoices, including any
+portion lacking receipt evidence; it remains explicitly distinct from a
+matched Goods Receipt allocation and does not change `MISMATCHED` status. Both
+kinds serialize against the PO line and are included in net invoiceable
+capacity. Applied Credit Notes append release facts; they do not edit the
+original allocation.
+
+## 29.6 `invoice_match_exceptions` and history
+
+```yaml
+invoice_match_exceptions:
+  id:
+  tenant_id:
+  invoice_id:
+  purchase_order_id:
+  match_evaluation_id:
+  reason_codes:
+  expected_values_json:
+  observed_values_json:
+  status:
+  resolution_reference:
+  version:
+
+invoice_match_exception_history:
+  id:
+  tenant_id:
+  exception_id:
+  prior_status:
+  new_status:
+  reason:
+  actor_id:
+  approval_request_id:
+  correlation_id:
+  created_at:
+```
+
+Mismatch evidence is immutable. Resolution and exception acceptance are
+append-only history. Exception approval binds to the exact invoice snapshot
+and current match evaluation fingerprint.
+
+## 29.7 `credit_notes`, lines and applications
+
+```yaml
+credit_notes:
+  id:
+  tenant_id:
+  supplier_id:
+  document_type: CREDIT_NOTE
+  supplier_document_number_original:
+  supplier_document_number_normalized:
+  invoice_id:
+  lifecycle_state: DRAFT | SUBMITTED | APPLIED | REJECTED | CANCELLED
+  submitted_snapshot_json:
+  snapshot_fingerprint:
+  currency:
+  total_amount:
+  version:
+
+credit_note_history:
+  id:
+  tenant_id:
+  credit_note_id:
+  prior_lifecycle_state:
+  new_lifecycle_state:
+  version:
+  actor_id:
+  reason_code:
+  correlation_id:
+  created_at:
+
+credit_note_lines:
+  id:
+  tenant_id:
+  credit_note_id:
+  invoice_line_id:
+  quantity:
+  amount:
+  reason_code:
+
+credit_note_applications:
+  id:
+  tenant_id:
+  credit_note_id:
+  invoice_id:
+  invoice_line_id:
+  quantity:
+  amount:
+  applied_at:
+  correlation_id:
+```
+
+Credit quantities and amounts are positive semantic values. An application is
+unique per submitted Credit Note and is committed exactly once. DB constraints
+and PO-line/invoice-line serialization prevent cumulative applications from
+exceeding the remaining creditable quantity/amount. The application writes
+credited quantity/amount facts and releases invoiceable quantity only when
+explicitly credited line quantity had consumed that capacity. It never
+modifies the Invoice, PO,
+Goods Receipt or original match allocation.
+
+Credit status is derived independently as `NONE`, `PARTIALLY_CREDITED` or
+`FULLY_CREDITED` from immutable Invoice and applied Credit Note/application
+facts.
+
+## 29.8 Invariants and Concurrency
+
+- A unique submitted document identity reservation enforces hard duplicate
+  protection for Invoice and Credit Note; duplicate submit maps to
+  `INVOICE_DUPLICATE`.
+- Net `RECEIPT_MATCHED` allocations against each PO line cannot exceed
+  accepted POSTED receipt quantity after applied credit releases.
+  `APPROVED_EXCEPTION` reservations are recorded separately and also consume
+  future invoiceable capacity even when `match_status` remains `MISMATCHED`;
+  unsupported exception quantity is never represented as received quantity.
+- Exception-approved quantity is reserved in full to prevent later invoice
+  reuse; receipt-supported allocations and unsupported-but-approved
+  reservations retain separate `allocation_kind` and approval references.
+  Match status/evaluation facts are unchanged by reservation.
+- Concurrent submissions, re-evaluations, approvals and credit applications
+  serialize on the affected document/PO-line allocation identity. A database
+  invariant prevents two invoices from allocating the same remaining
+  quantity or two Credit Notes from over-crediting the same Invoice line.
+- Concurrent re-evaluation and Goods Receipt projection/update must read
+  canonical PO counters or an equivalently serialized canonical receipt
+  projection; stale evidence cannot commit an allocation.
+- Audit/outbox and allocation/application effects commit atomically with the
+  owning command. Timeline and heuristic duplicate candidates are projections.
 
 ---
 
@@ -3033,7 +3237,7 @@ manufacturer + serial
 tickets.ticket_code
 incidents.incident_code
 purchase_orders.po_code
-supplier + invoice_number
+tenant + supplier + document_type + normalized supplier document number
 software_product + version
 artifact checksum
 site + vlan_number

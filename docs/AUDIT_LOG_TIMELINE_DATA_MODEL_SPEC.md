@@ -1500,6 +1500,17 @@ documents
 
 No destructive overwrite.
 
+TASK-074 audit is append-only and records Invoice submission and duplicate
+rejection, every match evaluation and its evidence fingerprint, Match Exception
+creation/resolution/acceptance, Invoice approval/rejection, Credit Note
+submission/application/rejection, and the corresponding before/after
+lifecycle, match and derived credit outcomes. Include actor, tenant, invoice
+or Credit Note, PO, relevant POSTED Goods Receipt references, approval
+reference, reason code where required, correlation ID and outcome. Keep the
+frozen commercial snapshot and prior evaluation evidence addressable; do not
+copy full invoice files, bank references or protected tax identifiers into
+general audit payloads.
+
 ---
 
 # 80. RBAC Audit
@@ -3431,3 +3442,33 @@ Audit Log + Timeline Spec đạt yêu cầu khi:
 - Audit archive/partition/retention/integrity strategy rõ.
 - Idempotency cho Audit và Timeline projection rõ.
 - MVP → Phase 3 implementation path được xác định.
+
+---
+
+# 211. TASK-074 Invoice and Credit Note Audit / Timeline
+
+Append audit evidence for Invoice submission and duplicate rejection, every
+match evaluation, Match Exception creation/resolution/acceptance, Invoice
+approval/rejection, and Credit Note submission/application/rejection. Include
+actor, tenant, invoice or Credit Note, PO, relevant POSTED Goods Receipt
+references, before/after lifecycle and match state, derived credit outcome,
+approval reference, reason code where required, correlation ID and outcome.
+Keep immutable snapshots and previous match evaluations addressable.
+
+Do not put full invoice files, bank references, protected tax identifiers or
+unnecessary financial line values into broad audit/event payloads. Evidence is
+linked by protected document/reference IDs.
+
+Timeline remains a derived operator view and may show:
+
+```text
+Invoice INV-123 submitted for PO-456
+Invoice INV-123 matched successfully
+Invoice INV-123 pending additional Goods Receipt
+Invoice INV-123 has a price mismatch
+Match exception approved; match evidence remains mismatched
+Credit Note CN-17 applied to Invoice INV-123
+```
+
+Timeline projections are rebuildable and never become Invoice, match,
+allocation or Credit Note source of truth.

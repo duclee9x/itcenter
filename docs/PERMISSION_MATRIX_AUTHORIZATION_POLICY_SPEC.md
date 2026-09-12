@@ -109,7 +109,19 @@ license.assign
 license.reclaim
 
 procurement.approve
-invoice.approve_exception
+invoice.read
+invoice.create
+invoice.update
+invoice.submit
+invoice.match
+invoice.approve
+invoice.reject
+credit_note.read
+credit_note.create
+credit_note.update
+credit_note.submit
+credit_note.apply
+credit_note.reject
 
 rbac.manage
 report.export_sensitive
@@ -693,6 +705,14 @@ po.amend
 po.close
 goods_receipt.read
 invoice.read
+invoice.create
+invoice.update
+invoice.submit
+invoice.match
+credit_note.read
+credit_note.create
+credit_note.update
+credit_note.submit
 ```
 
 Cannot self-approve above configured policy.
@@ -725,8 +745,12 @@ Allow:
 
 ```text
 invoice.read
-invoice.match.read
-invoice.approve_exception
+invoice.match
+invoice.approve
+invoice.reject
+credit_note.read
+credit_note.apply
+credit_note.reject
 payment_reference.update
 financial_report.read
 ```
@@ -1083,8 +1107,8 @@ goods_receipt.update
 goods_receipt.post
 goods_receipt.cancel
 invoice.read
-invoice.match.resolve
-invoice.approve_exception
+invoice.match
+invoice.approve
 ```
 
 The RFQ/Quotation command-to-permission mapping is normative:
@@ -1187,6 +1211,50 @@ All Goods Receipt commands are tenant/resource scoped. No broad
 Receipt does not grant Asset mutation; downstream asset registration is
 executed through the Asset-owned application command.
 
+The TASK-074 Invoice and Credit Note permission catalogs are:
+
+```text
+invoice.read
+invoice.create
+invoice.update
+invoice.submit
+invoice.match
+invoice.approve
+invoice.reject
+
+credit_note.read
+credit_note.create
+credit_note.update
+credit_note.submit
+credit_note.apply
+credit_note.reject
+```
+
+| Command | Permission |
+|---|---|
+| `INVOICE.CREATE` | `invoice.create` |
+| `INVOICE.UPDATE_DRAFT` | `invoice.update` |
+| `INVOICE.CANCEL` (DRAFT only) | `invoice.update` |
+| `INVOICE.SUBMIT` | `invoice.submit` |
+| `INVOICE.REEVALUATE_MATCH` | `invoice.match` |
+| `INVOICE.APPROVE` | `invoice.approve` |
+| `INVOICE.REJECT` | `invoice.reject` |
+| Invoice queries | `invoice.read` |
+| `CREDIT_NOTE.CREATE` | `credit_note.create` |
+| `CREDIT_NOTE.UPDATE_DRAFT` | `credit_note.update` |
+| `CREDIT_NOTE.CANCEL` (DRAFT only) | `credit_note.update` |
+| `CREDIT_NOTE.SUBMIT` | `credit_note.submit` |
+| `CREDIT_NOTE.APPLY` | `credit_note.apply` |
+| `CREDIT_NOTE.REJECT` | `credit_note.reject` |
+| Credit Note queries | `credit_note.read` |
+
+Approval decisions continue to require the Approval Engine permission
+`approval.decide`; invoice command permission does not grant approval-decision
+authority. `INVOICE_MATCH_EXCEPTION` is a linked Approval Request purpose, not
+a broad Invoice permission. Every command remains tenant/resource scoped.
+Do not use `procurement.manage` or legacy `invoice.approve_exception` as the
+normative command permission.
+
 ---
 
 # 48. Permission Catalog — Contract
@@ -1271,7 +1339,7 @@ artifact.revoke
 role_binding.privileged_grant
 service_account.manage_credential
 report.export_sensitive
-invoice.approve_exception_large
+approval.decide (when purpose is INVOICE_MATCH_EXCEPTION)
 contract.terminate
 data_wipe.execute
 ```
