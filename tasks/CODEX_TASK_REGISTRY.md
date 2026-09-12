@@ -173,10 +173,10 @@ Only generate a detailed `TASK-xxx_*.md` when the task becomes `READY` or is the
 | `TASK-051` | `F-027` | `WF-011` | P3 | P0 | Network Discovery + Current Topology Projection | TASK-010, TASK-031, TASK-039 | **SATISFIED** | CODE_COMPLETE | `TASK-051_NETWORK_DISCOVERY.md` |
 | `TASK-052` | `F-028/F-029` | `WF-012/WF-NET02` | P3 | P0 | Network Exceptions — Unknown Device, VLAN, IP Conflict | TASK-019, TASK-051 | **SATISFIED** | CODE_COMPLETE | `TASK-052_NETWORK_EXCEPTIONS.md` |
 | `TASK-053` | `NETWORK-CHANGE` | `WF-012` | P3 | P1 | Controlled Network Change + Verification + Rollback | TASK-036, TASK-037, TASK-052 | **SATISFIED** | CODE_COMPLETE | `TASK-053_CONTROLLED_NETWORK_CHANGE.md` |
-| `TASK-054` | `F-030/F-031` | `WF-SW01/WF-SW02` | P3 | P0 | Software Catalog + Artifact Repository | TASK-036, TASK-039 | **SATISFIED** | NOT_STARTED | `TASK-054_SOFTWARE_CATALOG_ARTIFACT_REPOSITORY.md` |
-| `TASK-055` | `F-032` | `WF-014` | P3 | P0 | Software Deployment + Verification | TASK-031, TASK-054 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |
+| `TASK-054` | `F-030/F-031` | `WF-SW01/WF-SW02` | P3 | P0 | Software Catalog + Artifact Repository | TASK-036, TASK-039 | **SATISFIED** | CODE_COMPLETE | `TASK-054_SOFTWARE_CATALOG_ARTIFACT_REPOSITORY.md` |
+| `TASK-055` | `F-032` | `WF-014` | P3 | P0 | Software Deployment + Verification | TASK-031, TASK-054 | **SATISFIED** | NOT_STARTED | `TASK-055_SOFTWARE_DEPLOYMENT_VERIFICATION.md` |
 | `TASK-056` | `F-033` | `WF-013` | P3 | P1 | Unauthorized Software Detection + Resolution | TASK-019, TASK-054, TASK-055 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |
-| `TASK-057` | `F-034` | `WF-L01` | P3 | P0 | License Entitlement + Pool Model | TASK-054 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |
+| `TASK-057` | `F-034` | `WF-L01` | P3 | P0 | License Entitlement + Pool Model | TASK-054 | **SATISFIED** | NOT_STARTED | `GENERATE_ON_READY` |
 | `TASK-058` | `F-035/F-036` | `WF-015` | P3 | P0 | License Assignment + Reclaim + Compliance | TASK-031, TASK-057 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |
 | `TASK-059` | `F-037/F-038` | `WF-017/WF-018` | P3 | P1 | Replacement + Retirement + Disposal + Data Wipe | TASK-015, TASK-036, TASK-038 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |
 | `TASK-060` | `F-004/OFFBOARDING` | `WF-ID04/WF-019` | P3 | P0 | User Offboarding Orchestration | TASK-003, TASK-015, TASK-058 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |

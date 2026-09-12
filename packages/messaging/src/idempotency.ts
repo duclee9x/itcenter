@@ -40,6 +40,47 @@ export interface IdempotencyStore {
 }
 export class PostgresIdempotencyStore implements IdempotencyStore {
   constructor(private readonly tx: Transaction) {}
+  async findPrevious(i: IdempotencyIntent): Promise<StoredResponse | null> {
+    if (
+      ![i.principalId, i.operation, i.businessScope, i.key].every((s) =>
+        s.trim(),
+      )
+    )
+      throw new ApplicationError(
+        "VALIDATION_ERROR",
+        "Idempotency scope is required.",
+      );
+    const scope = [
+      this.tx.tenantId,
+      i.principalId,
+      i.operation,
+      i.businessScope,
+      i.key,
+    ];
+    const previous = await this.tx.query(
+      "SELECT request_hash,state,response_status,result_reference,expires_at FROM platform.idempotency_records WHERE tenant_id=$1 AND principal_id=$2 AND operation=$3 AND business_scope=$4 AND idempotency_key=$5",
+      scope,
+    );
+    if (!previous.rowCount) return null;
+    const row = previous.rows[0]!;
+    if (new Date(row.expires_at).getTime() <= Date.now())
+      throw new ApplicationError(
+        "IDEMPOTENCY_KEY_CONFLICT",
+        "Idempotency key has expired and cannot be reused.",
+      );
+    if (row.request_hash !== requestHash(i.semanticRequest))
+      throw new ApplicationError(
+        "IDEMPOTENCY_KEY_CONFLICT",
+        "Key was used with a different request.",
+      );
+    if (row.state !== "SUCCEEDED")
+      throw new ApplicationError(
+        "OPERATION_IN_PROGRESS",
+        "Original operation requires reconciliation.",
+      );
+    return { status: Number(row.response_status), body: row.result_reference };
+  }
+
   async execute(
     i: IdempotencyIntent,
     work: () => Promise<StoredResponse>,

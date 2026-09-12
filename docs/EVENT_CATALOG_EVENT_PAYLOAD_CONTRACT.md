@@ -1829,6 +1829,65 @@ confidence:
 
 # 41. Software Event Catalog
 
+The following catalog-management facts are additive TASK-054 events; they are
+distinct from end-user software request approval.
+
+## `SOFTWARE.CATALOG_ITEM_CREATED`
+
+```yaml
+software_product_id:
+product_code:
+classification:
+visibility:
+self_service_allowed:
+```
+
+## `SOFTWARE.VERSION_CREATED`
+
+```yaml
+software_product_id:
+software_version_id:
+version:
+```
+
+## `SOFTWARE.CLASSIFICATION_CHANGED`
+
+```yaml
+software_product_id:
+from_classification:
+classification:
+self_service_allowed:
+reason:
+```
+
+## `SOFTWARE.CATALOG_VISIBILITY_CHANGED`
+
+```yaml
+software_product_id:
+visibility:
+self_service_allowed:
+reason:
+```
+
+## `SOFTWARE.CATALOG_VERSION_PUBLISHED`
+
+```yaml
+software_product_id:
+software_version_id:
+artifact_version_id:
+approved_by:
+```
+
+## `SOFTWARE.CATALOG_VERSION_WITHDRAWN`
+
+```yaml
+software_product_id:
+software_version_id:
+artifact_version_id:
+classification:
+reason:
+```
+
 ## `SOFTWARE.REQUESTED`
 
 ```yaml
@@ -1927,6 +1986,10 @@ severity:
 
 # 42. Artifact Event Catalog
 
+These lifecycle facts extend the artifact event catalog for the explicit
+review, activation and restriction commands. They do not carry binary content
+or storage credentials.
+
 ## `ARTIFACT.UPLOADED`
 
 ```yaml
@@ -1954,12 +2017,52 @@ severity:
 reason:
 ```
 
+## `ARTIFACT.SCAN_REVIEW_REQUIRED`
+
+```yaml
+artifact_version_id:
+scan_result_id:
+reason:
+```
+
+## `ARTIFACT.SIGNATURE_VALIDATED`
+
+```yaml
+artifact_version_id:
+signature_status:
+verifier:
+```
+
 ## `ARTIFACT.APPROVED`
 
 ```yaml
 artifact_version_id:
 approved_by:
 approved_at:
+```
+
+## `ARTIFACT.REJECTED`
+
+```yaml
+artifact_version_id:
+rejected_by:
+reason:
+```
+
+## `ARTIFACT.ACTIVATED`
+
+```yaml
+artifact_version_id:
+activated_by:
+activated_at:
+```
+
+## `ARTIFACT.RESTRICTED`
+
+```yaml
+artifact_version_id:
+restricted_by:
+reason:
 ```
 
 ## `ARTIFACT.REVOKED`

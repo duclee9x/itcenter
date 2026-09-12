@@ -94,6 +94,10 @@ import {
 } from "../../../packages/messaging/src/index.js";
 import { PostgresAudit } from "../../../modules/audit/index.js";
 import { randomUUID } from "node:crypto";
+import {
+  handleSoftwareArtifactRoute,
+  type SoftwareArtifactAdapters,
+} from "./software-artifact-routes.js";
 
 const networkExceptionQueue = {
   createReference: createNetworkExceptionWorkItem,
@@ -223,8 +227,24 @@ export function apiServer(
   authentication: AuthenticationPort,
   authorization: AuthorizationPort,
   uow: UnitOfWork,
+  softwareArtifactAdapters?: SoftwareArtifactAdapters,
 ) {
   return createHttpServer(config, ready, async (req, res, context) => {
+    if (
+      await handleSoftwareArtifactRoute({
+        req,
+        res,
+        context,
+        config,
+        authentication,
+        authorization,
+        uow,
+        ...(softwareArtifactAdapters
+          ? { adapters: softwareArtifactAdapters }
+          : {}),
+      })
+    )
+      return true;
     if (req.method !== "GET" && req.method !== "POST") return false;
     const searchMatch = /^\/api\/v1\/search(?:\?q=([^&]+))?$/.exec(
       req.url ?? "",

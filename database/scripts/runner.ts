@@ -27,6 +27,8 @@ export async function migrate(
     "automation",
     "operations",
     "network",
+    "software",
+    "artifact",
   ];
   for (const owner of owners)
     for (const file of (await readdir(path.join(root, owner))).sort())

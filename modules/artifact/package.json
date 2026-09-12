@@ -1,0 +1,5 @@
+{
+  "name": "@itcenter/artifact",
+  "private": true,
+  "type": "module"
+}

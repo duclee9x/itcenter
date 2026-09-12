@@ -1,25 +1,22 @@
 # CURRENT TASK
 
-Task: `TASK-053`
+Task: `TASK-054`
 
-Task specification: `tasks/TASK-053_CONTROLLED_NETWORK_CHANGE.md`
+Task specification: `tasks/TASK-054_SOFTWARE_CATALOG_ARTIFACT_REPOSITORY.md`
 
-Status: `CODE_COMPLETE_WITH_INTEGRATION_BOUNDARIES`
+Status: `CODE_COMPLETE`
 
 Branch: `master`
 
-Controlled VLAN changes now require a tenant-owned Change in `IMPLEMENTING`
-with an approved approval request. Network commands record implementation,
-technical/service/monitoring verification, and rollback evidence with
-idempotency, optimistic concurrency, authorization, audit and outbox effects.
-The API records operator evidence and does not configure live devices.
+Implemented tenant-scoped software product/version catalog and artifact
+intake/review lifecycle. Binary data stays in object storage behind a port;
+unconfigured storage, scan and signature providers fail closed or leave
+records pending for review. All repository gates passed, and the local
+PostgreSQL database has the new migrations applied.
 
-Next ready task: `TASK-054` — Software Catalog + Artifact Repository.
+Next ready task: `TASK-055` — Software Deployment + Verification
+(`tasks/TASK-055_SOFTWARE_DEPLOYMENT_VERIFICATION.md`). `TASK-057` is also
+dependency-ready but follows TASK-055 by P0 priority and task ID ordering.
 
-High-risk VLAN commands now require verified OIDC `acr`/`amr`/`auth_time`
-assurance and return an RFC 9470 step-up challenge when assurance is missing or
-stale. A provider-neutral network adapter port is defined with a no-I/O,
-fail-closed default; no live device protocol is enabled without a known model.
-Local PostgreSQL migration history was reconciled without editing applied
-checksums; all 33 repository migrations are applied and API readiness returned
-HTTP 200.
+Previous task TASK-053 is committed as `9e09f3b`; its live device and deployed
+IdP integrations remain explicitly deferred pending real providers.

@@ -6,7 +6,7 @@ feature_id: F-030/F-031
 workflow_id: WF-SW01/WF-SW02
 phase: P3
 priority: P0
-status: NOT_STARTED
+status: CODE_COMPLETE
 owner_domain: software_and_artifact
 ```
 
@@ -84,3 +84,81 @@ reference.
 Object storage, malware scanning and publisher/signature verification
 implementations are not currently wired. Provide application ports and safe
 pending states; do not create fake adapters or store binary data in PostgreSQL.
+
+## Implementation Report
+
+### Status
+
+CODE_COMPLETE. Acceptance criteria and repository verification passed. Runtime
+object storage, malware scanning, and signature-verification providers remain
+unconfigured; the API fails closed or keeps evidence pending until adapters
+are supplied.
+
+### Files Changed
+
+- Added Software and Artifact domain modules, API composition routes, migrations,
+  permission catalog entries, and a software/artifact operations runbook.
+- Added regression coverage in `tests/e2e/software-artifact.test.ts` and migration
+  schema expectations.
+- Extended the event catalog, traceability matrix, and workflow event registry
+  with the catalog and artifact lifecycle facts implemented here.
+- Updated `CURRENT_TASK.md`, `IMPLEMENTATION_HANDOFF.md`, and the task registry.
+
+### Database Changes
+
+- Added tenant-scoped software products/versions and artifact-version metadata.
+- Enforced immutable artifact checksum/storage references, append-only scan
+  evidence, lifecycle constraints, and uniqueness/foreign-key boundaries.
+- Applied the migrations to the local `itcenter` database.
+
+### APIs / Commands
+
+- Added authenticated product/version, catalog classification/visibility and
+  publication routes; artifact intake, scan, review, activation,
+  restriction/revocation, and read routes.
+- Writes use idempotency, version checks where mutable, tenant filtering, audit,
+  and outbox records. Adapter calls happen outside database transactions.
+
+### Events
+
+- Added catalog item/version creation, classification/visibility changes,
+  publication/withdrawal, scan review, signature validation, rejection,
+  activation, and restriction event contracts.
+
+### Permissions
+
+- Added `software.read`, `software.catalog.manage`, `artifact.read`,
+  `artifact.upload`, `artifact.scan.review`, `artifact.approve`, and
+  `artifact.revoke`; no implicit role grants were added.
+
+### Audit / Timeline
+
+- Mutations write durable audit evidence and outbox events. No raw binaries,
+  provider secrets, or unfiltered scanner output are persisted in API/audit
+  payloads.
+
+### Tests Run
+
+- `npm test`: passed, 56 tests across unit, contract, migration, integration,
+  and E2E suites.
+- `npm run lint`: passed.
+- `npm run typecheck`: passed.
+- `npm run build`: passed.
+- `npm run format:check`: passed.
+- `npm run db:migrate` against the local PostgreSQL `itcenter` database:
+  passed.
+
+### Remaining Gaps
+
+- Provider-specific object storage, malware scanning, and signature verification
+  remain an integration boundary; absence safely prevents trusted publication.
+
+### Spec Conflicts
+
+- None. Dedicated catalog lifecycle event contracts were added where the event
+  catalog previously had no matching facts.
+
+### Assumptions
+
+- Object references are opaque identifiers returned by a trusted storage
+  adapter; binary data is never accepted by the API or stored in PostgreSQL.
