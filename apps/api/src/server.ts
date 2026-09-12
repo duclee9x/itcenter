@@ -24,6 +24,7 @@ import {
 } from "../../../modules/identity/index.js";
 import {
   assertAssetExists,
+  assertAssetEligibleForMaintenance,
   createAsset,
   assignAsset,
   reserveAsset,
@@ -102,6 +103,11 @@ import { handleSoftwareDeploymentRoute } from "./software-deployment-routes.js";
 import { handleLicenseRoute } from "./license-routes.js";
 import { handleOffboardingRoute } from "./offboarding-routes.js";
 import { handleSoftwareComplianceRoute } from "./software-compliance-routes.js";
+import { handleAssetLifecycleRoute } from "./asset-lifecycle-routes.js";
+import {
+  upsertApprovalWorkItem,
+  resolveApprovalWorkItem,
+} from "../../../modules/work-queue/index.js";
 
 const networkExceptionQueue = {
   createReference: createNetworkExceptionWorkItem,
@@ -234,6 +240,18 @@ export function apiServer(
   softwareArtifactAdapters?: SoftwareArtifactAdapters,
 ) {
   return createHttpServer(config, ready, async (req, res, context) => {
+    if (
+      await handleAssetLifecycleRoute({
+        req,
+        res,
+        context,
+        config,
+        authentication,
+        authorization,
+        uow,
+      })
+    )
+      return true;
     if (
       await handleSoftwareComplianceRoute({
         req,
@@ -1211,13 +1229,19 @@ export function apiServer(
                     endsAt: input.ends_at as string,
                     coverage: input.coverage as string,
                   })
-                : await createMaintenance({
-                    tx,
-                    assetId: input.asset_id as string,
-                    title: input.title as string,
-                    description: input.description as string,
-                    warrantyId: input.warranty_id as string | undefined,
-                  });
+                : await (async () => {
+                    await assertAssetEligibleForMaintenance({
+                      tx,
+                      assetId: input.asset_id as string,
+                    });
+                    return createMaintenance({
+                      tx,
+                      assetId: input.asset_id as string,
+                      title: input.title as string,
+                      description: input.description as string,
+                      warrantyId: input.warranty_id as string | undefined,
+                    });
+                  })();
             const output = value as unknown as Record<string, unknown>;
             const eventType = maintenanceTransitionMatch
               ? "MAINTENANCE.STATE_CHANGED"
@@ -1450,6 +1474,8 @@ export function apiServer(
                   requesterId: principal.id,
                   context: input.context,
                 });
+            if (isDecision)
+              await resolveApprovalWorkItem({ tx, approvalId: value.id });
             const now = new Date().toISOString();
             const eventType = isDecision
               ? `APPROVAL.${value.state}`
@@ -1498,6 +1524,84 @@ export function apiServer(
           },
         ),
       );
+      if (
+        !isDecision &&
+        result.status === 201 &&
+        [
+          "REPLACEMENT",
+          "ASSET_RETIREMENT",
+          "ASSET_DISPOSAL",
+          "DATA_WIPE",
+        ].includes(String(input.source_type))
+      ) {
+        const approval = result.body as { id: string };
+        let recipients: string[] = [];
+        let routingFailed = false;
+        try {
+          const users = await uow.run(principal.tenant_id, (tx) =>
+            tx.query<{ id: string }>(
+              "SELECT id FROM identity.users WHERE tenant_id=$1 AND employment_status='ACTIVE' AND archived_at IS NULL AND id<>$2 ORDER BY id",
+              [principal.tenant_id, principal.id],
+            ),
+          );
+          const decisions = await Promise.all(
+            users.rows.map(async (user) => ({
+              userId: user.id,
+              allowed:
+                (
+                  await authorization.evaluate({
+                    principal: {
+                      id: user.id,
+                      tenant_id: principal.tenant_id,
+                      actor_type: "USER",
+                    },
+                    action: "approval.decide",
+                    resource: {
+                      type: "approval",
+                      id: approval.id,
+                      tenant_id: principal.tenant_id,
+                    },
+                    scope: {},
+                    context: {
+                      ...context,
+                      source_type: input.source_type,
+                      source_id: input.source_id,
+                    },
+                  })
+                ).result === "ALLOW",
+            })),
+          );
+          recipients = decisions
+            .filter((decision) => decision.allowed)
+            .map((decision) => decision.userId);
+        } catch {
+          routingFailed = true;
+        }
+        await uow.run(principal.tenant_id, async (tx) => {
+          if (recipients.length) {
+            for (const recipientId of recipients)
+              await tx.query(
+                "INSERT INTO communication.notifications(id,tenant_id,recipient_user_id,event_type,subject,body,dedupe_key) VALUES($1,$2,$3,'APPROVAL.CREATED','Approval requires review',$4,$5) ON CONFLICT(tenant_id,dedupe_key) DO NOTHING",
+                [
+                  randomUUID(),
+                  principal.tenant_id,
+                  recipientId,
+                  `An authorized reviewer must decide on ${String(input.source_type)} request ${approval.id}.`,
+                  `approval-created:${approval.id}:${recipientId}`,
+                ],
+              );
+            await resolveApprovalWorkItem({ tx, approvalId: approval.id });
+          } else {
+            await upsertApprovalWorkItem({
+              tx,
+              approvalId: approval.id,
+              title: routingFailed
+                ? "Approval notification routing failed; operator review required"
+                : "No authorized approval recipient resolved; route request manually",
+            });
+          }
+        });
+      }
       json(res, result.status, { data: result.body, meta: context });
       return true;
     }

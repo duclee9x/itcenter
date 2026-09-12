@@ -420,6 +420,7 @@ break-glass usage
 | Receive Return | `assignments`, `movements` | `ASSET.RECEIVE_RETURN` | `ASSET.RETURNED` | `asset.receive_return` | PENDING_RETURN→RETURNED |
 | Retire Asset | `retirement_records` | `ASSET.RETIRE` | `ASSET.RETIRED` | `asset.retire` | AVAILABLE→RETIRED |
 | Dispose Asset | `disposal_records` | `ASSET.DISPOSE` | `ASSET.DISPOSED` | `asset.dispose` | RETIRED→DISPOSED |
+| Replacement + retirement evidence | `replacement_plans`, `replacement_history`, `retirement_records`, `data_wipe_jobs`, `disposal_records`, `lifecycle_evidence_history` | `REPLACEMENT.*`, `RETIREMENT.CANDIDATE_CREATED/BLOCKED/APPROVED`, `ASSET.RETIRE`, `DATA_WIPE.*`, `ASSET.DISPOSE`, `ASSET.REACTIVATE` | Replacement/retirement/wipe/disposal event catalog | `replacement.create_candidate`, `replacement.review`, `asset.retire`, `data_wipe.execute`, `asset.dispose`, `asset.reactivate` | Separate state machines; assigned retirement candidate remains BLOCKED/actionable until Asset return clears the owner-side blocker |
 
 ---
 

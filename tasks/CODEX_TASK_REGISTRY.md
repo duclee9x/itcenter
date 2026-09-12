@@ -183,10 +183,10 @@ Only generate a detailed `TASK-xxx_*.md` when the task becomes `READY` or is the
 | `TASK-057` | `F-034` | `WF-L01` | P3 | P0 | License Entitlement + Pool Model | TASK-054 | **SATISFIED** | CODE_COMPLETE | `TASK-057_LICENSE_ENTITLEMENT_POOL_MODEL.md` |
 | `TASK-058` | `F-035/F-036` | `WF-015` | P3 | P0 | License Assignment + Reclaim + Compliance | TASK-031, TASK-057 | **SATISFIED** | CODE_COMPLETE | `TASK-058_LICENSE_ASSIGNMENT_RECLAIM_COMPLIANCE.md` |
 | `TASK-058-R1` | `F-035` | `WF-015` | P3 | P0 | Cancel Unactivated License Assignment | TASK-058 | **SATISFIED** | CODE_COMPLETE | `TASK-058-R1_CANCEL_UNACTIVATED_LICENSE_ASSIGNMENT.md` |
-| `TASK-059` | `F-037/F-038` | `WF-017/WF-018` | P3 | P1 | Replacement + Retirement + Disposal + Data Wipe | TASK-015, TASK-036, TASK-038 | **READY** | NOT_STARTED | `TASK-059_REPLACEMENT_RETIREMENT_DISPOSAL_DATA_WIPE.md` |
+| `TASK-059` | `F-037/F-038` | `WF-017/WF-018` | P3 | P1 | Replacement + Retirement + Disposal + Data Wipe | TASK-015, TASK-036, TASK-038 | **SATISFIED** | CODE_COMPLETE | `TASK-059_REPLACEMENT_RETIREMENT_DISPOSAL_DATA_WIPE.md` |
 | `TASK-060` | `F-004/OFFBOARDING` | `WF-ID04/WF-019` | P3 | P0 | User Offboarding Orchestration | TASK-003, TASK-015, TASK-058, TASK-058-R1, TASK-060-R1 | **SATISFIED** | CODE_COMPLETE | `TASK-060_USER_OFFBOARDING_ORCHESTRATION.md` |
 | `TASK-060-R1` | `F-004/OFFBOARDING` | `WF-ID04/WF-019` | P3 | P0 | Define Normative Offboarding State Machine | TASK-003, TASK-015, TASK-058, TASK-058-R1 | **SATISFIED** | CODE_COMPLETE | `TASK-060-R1_NORMATIVE_OFFBOARDING_STATE_MACHINE.md` |
-| `TASK-061` | `F-047/PHASE-GATE` | `WF-SRCH01/P3-E2E` | P3 | P1 | Advanced Search + Phase 3 Integration Gate | TASK-050, TASK-051, TASK-052, TASK-053, TASK-055, TASK-056, TASK-058, TASK-059, TASK-060 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |
+| `TASK-061` | `F-047/PHASE-GATE` | `WF-SRCH01/P3-E2E` | P3 | P1 | Advanced Search + Phase 3 Integration Gate | TASK-050, TASK-051, TASK-052, TASK-053, TASK-055, TASK-056, TASK-058, TASK-059, TASK-060 | **READY** | NOT_STARTED | `TASK-061_ADVANCED_SEARCH_PHASE3_INTEGRATION_GATE.md` |
 | `TASK-070` | `F-039` | `WF-P01` | P4 | P0 | Supplier + Procurement Request | TASK-061 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |
 | `TASK-071` | `F-040` | `WF-P02` | P4 | P1 | RFQ + Quotation + Supplier Selection | TASK-070 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |
 | `TASK-072` | `F-041` | `WF-P03` | P4 | P0 | Purchase Order + Approval + Amendment | TASK-036, TASK-071 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |
@@ -285,22 +285,24 @@ Only generate a detailed `TASK-xxx_*.md` when the task becomes `READY` or is the
 
 # 11. Current Next Task
 
-TASK-060-R1, TASK-060, and TASK-056 are `CODE_COMPLETE`. TASK-056 inventory,
-exception handling, safe removal flow, audit/outbox payloads, and verification
-are recorded in its completion report. Dependency implementation reports and
-commits confirm TASK-015 (`32c3267`), TASK-036 (`e043c31`) and TASK-038
-(`296336a`) are `CODE_COMPLETE`.
+TASK-060-R1, TASK-060, TASK-056 and TASK-059 are `CODE_COMPLETE`. TASK-056
+inventory, exception handling, safe removal flow, audit/outbox payloads, and
+verification are recorded in its completion report. Dependency implementation
+reports and commits confirm TASK-015 (`32c3267`), TASK-036 (`e043c31`) and
+TASK-038 (`296336a`) are `CODE_COMPLETE`.
 
 ```text
-CURRENT = TASK-059 (READY / NOT_STARTED)
-NEXT = TASK-059
-TASK-061 = BLOCKED (TASK-059 is not yet CODE_COMPLETE)
+CURRENT = TASK-061 (READY / NOT_STARTED)
+NEXT = TASK-061
+TASK-059 = SATISFIED (CODE_COMPLETE)
 ```
 
-TASK-059 has no explicit blocker or unresolved `SPEC_CONFLICT`; its declared
-dependencies are satisfied, so derived readiness is `READY`. Its detailed
-contract has been generated. TASK-061 remains `BLOCKED` because the dependency
-rule requires TASK-059 itself to reach `CODE_COMPLETE`, not merely `READY`.
+TASK-059's acceptance criteria and verification gates passed and its detailed
+implementation report is recorded. TASK-061's declared dependencies
+(TASK-050, TASK-051, TASK-052, TASK-053, TASK-055, TASK-056, TASK-058,
+TASK-059 and TASK-060) are all `CODE_COMPLETE`; there is no recorded blocker
+or unresolved `SPEC_CONFLICT`. Its readiness is therefore derived as `READY`
+and its task contract has been generated. Implementation has not started.
 
 ---
 

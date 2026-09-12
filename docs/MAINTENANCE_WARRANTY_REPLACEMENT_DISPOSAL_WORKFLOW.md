@@ -1071,7 +1071,17 @@ State:
 
 ```text
 RETIREMENT_CANDIDATE
+BLOCKED
 ```
+
+A retirement candidate may be opened while an Asset is assigned or on loan.
+Persist the active assignment/loan as a blocker and create an actionable Work
+Queue reference; do not change Asset lifecycle or bypass the Asset return
+workflow. After return is received and the assignment is closed, an authorized
+retry rechecks the current Asset version, approval and all required clearances.
+The retirement record may proceed from `BLOCKED` to `RETIRED` only when every
+applicable blocker has cleared. Failed checks remain in `BLOCKED` with an
+updated version, evidence and actionable work.
 
 ---
 

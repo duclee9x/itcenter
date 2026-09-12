@@ -21,13 +21,30 @@ export async function assertAssetEligibleForLicense(input: {
   const result = await input.tx.query(
     `SELECT id FROM asset.assets
       WHERE tenant_id=$1 AND id=$2
-        AND lifecycle_state NOT IN ('RETIRED','DISPOSED')`,
+        AND lifecycle_state NOT IN ('RETIRED','DISPOSED')
+      FOR UPDATE`,
     [input.tx.tenantId, input.assetId],
   );
   if (!result.rowCount)
     throw new ApplicationError(
       "NOT_FOUND",
       "Active asset was not found in this tenant.",
+    );
+  return true;
+}
+
+export async function assertAssetEligibleForMaintenance(input: {
+  tx: Transaction;
+  assetId: string;
+}) {
+  const result = await input.tx.query(
+    "SELECT id FROM asset.assets WHERE tenant_id=$1 AND id=$2 AND lifecycle_state NOT IN ('RETIRED','DISPOSED') FOR UPDATE",
+    [input.tx.tenantId, input.assetId],
+  );
+  if (!result.rowCount)
+    throw new ApplicationError(
+      "BUSINESS_RULE_VIOLATION",
+      "Maintenance cannot be opened for a retired or disposed asset.",
     );
   return true;
 }

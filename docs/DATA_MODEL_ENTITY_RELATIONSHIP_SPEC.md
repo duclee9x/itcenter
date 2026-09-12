@@ -1323,13 +1323,22 @@ warranty_claims:
 ```yaml
 replacement_plans:
   id:
-  old_asset_id:
+  asset_id:
+  new_asset_id:
   target_user_id:
+  target_model:
+  score:
+  reasons:
+  assessment:
+  budget:
+  procurement_required:
+  migration_required:
+  review_date:
+  risk_acceptance:
   reason:
   state:
-  target_asset_model_id:
-  replacement_asset_id:
   target_date:
+  version:
 ```
 
 ---
@@ -1341,9 +1350,10 @@ retirement_records:
   id:
   asset_id:
   reason:
-  approved_by:
-  approved_at:
+  approval_id:
+  clearances:
   state:
+  version:
 ```
 
 ---
@@ -1354,12 +1364,21 @@ retirement_records:
 data_wipe_jobs:
   id:
   asset_id:
+  retirement_id:
+  agent_id:
   method:
   state:
+  generation:
+  approval_id:
   started_at:
   completed_at:
+  result:
   verification_result:
   evidence_document_id:
+  evidence_storage_ref:
+  evidence_checksum:
+  report_key:
+  version:
 ```
 
 ---
@@ -1370,13 +1389,16 @@ data_wipe_jobs:
 disposal_records:
   id:
   asset_id:
+  retirement_id:
   method:
   state:
+  approval_id:
+  cleanup_clearances:
   disposed_at:
-  counterparty_id:
-  value_recovered:
-  currency:
-  document_id:
+  physical_evidence_id:
+  physical_evidence_checksum:
+  reason:
+  version:
 ```
 
 ---

@@ -122,6 +122,91 @@ export async function resolveSoftwareExceptionWorkItem(input: {
     [input.tx.tenantId, input.exceptionId],
   );
 }
+
+export async function upsertAssetLifecycleWorkItem(input: {
+  tx: Transaction;
+  sourceId: string;
+  title: string;
+  priority?: string;
+}): Promise<void> {
+  await input.tx.query(
+    `INSERT INTO operations.work_items
+       (id,tenant_id,source_type,source_id,title,priority,owner_team_id)
+     VALUES($1,$2,'ASSET_LIFECYCLE',$3,$4,$5,'ASSET')
+     ON CONFLICT(tenant_id,source_type,source_id) DO UPDATE SET
+       title=EXCLUDED.title,priority=EXCLUDED.priority,
+       state=CASE WHEN operations.work_items.state IN ('RESOLVED','CLOSED') THEN 'NEW' ELSE operations.work_items.state END,
+       resolved_at=CASE WHEN operations.work_items.state IN ('RESOLVED','CLOSED') THEN NULL ELSE operations.work_items.resolved_at END,
+       last_action_at=now(),version=operations.work_items.version+1`,
+    [
+      randomUUID(),
+      input.tx.tenantId,
+      input.sourceId,
+      input.title,
+      input.priority ?? "HIGH",
+    ],
+  );
+}
+
+export async function resolveAssetLifecycleWorkItem(input: {
+  tx: Transaction;
+  sourceId: string;
+}): Promise<void> {
+  await input.tx.query(
+    `UPDATE operations.work_items SET state='RESOLVED',resolved_at=now(),last_action_at=now(),version=version+1
+      WHERE tenant_id=$1 AND source_type='ASSET_LIFECYCLE' AND source_id=$2 AND state NOT IN ('RESOLVED','CLOSED')`,
+    [input.tx.tenantId, input.sourceId],
+  );
+}
+
+export async function recordAssetLifecycleTimelineEvent(input: {
+  tx: Transaction;
+  assetId: string;
+  eventType: string;
+  summary: string;
+  payload: unknown;
+  sourceEventId?: string;
+}): Promise<void> {
+  await input.tx.query(
+    `INSERT INTO operations.timeline_events(id,tenant_id,entity_type,entity_id,event_type,summary,payload,source_event_id)
+     VALUES($1,$2,'ASSET',$3,$4,$5,$6,$7) ON CONFLICT(tenant_id,source_event_id) DO NOTHING`,
+    [
+      randomUUID(),
+      input.tx.tenantId,
+      input.assetId,
+      input.eventType,
+      input.summary,
+      JSON.stringify(input.payload ?? {}),
+      input.sourceEventId ?? randomUUID(),
+    ],
+  );
+}
+
+export async function upsertApprovalWorkItem(input: {
+  tx: Transaction;
+  approvalId: string;
+  title: string;
+}): Promise<void> {
+  await input.tx.query(
+    `INSERT INTO operations.work_items(id,tenant_id,source_type,source_id,title,priority,owner_team_id)
+     VALUES($1,$2,'APPROVAL',$3,$4,'HIGH','APPROVAL')
+     ON CONFLICT(tenant_id,source_type,source_id) DO UPDATE SET title=EXCLUDED.title,
+       state=CASE WHEN operations.work_items.state IN ('RESOLVED','CLOSED') THEN 'NEW' ELSE operations.work_items.state END,
+       resolved_at=NULL,last_action_at=now(),version=operations.work_items.version+1`,
+    [randomUUID(), input.tx.tenantId, input.approvalId, input.title],
+  );
+}
+
+export async function resolveApprovalWorkItem(input: {
+  tx: Transaction;
+  approvalId: string;
+}): Promise<void> {
+  await input.tx.query(
+    "UPDATE operations.work_items SET state='RESOLVED',resolved_at=now(),last_action_at=now(),version=version+1 WHERE tenant_id=$1 AND source_type='APPROVAL' AND source_id=$2 AND state NOT IN ('RESOLVED','CLOSED')",
+    [input.tx.tenantId, input.approvalId],
+  );
+}
+
 export async function resolveWorkItem(input: {
   tx: Transaction;
   workItemId: string;

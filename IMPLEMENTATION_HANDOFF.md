@@ -1,34 +1,48 @@
 # IMPLEMENTATION HANDOFF
 
-## Current Task — TASK-059
+## Current Task — TASK-061
 
-Replacement + Retirement + Disposal + Data Wipe
+Advanced Search + Phase 3 Integration Gate
 
-Feature: F-037/F-038
-Workflow: WF-017/WF-018
+Feature: F-047 / Phase Gate
+Workflow: WF-SRCH01 / P3-E2E
 Phase/Priority: P3 / P1
 Readiness: READY
 Status: NOT_STARTED
 
-Task contract: `tasks/TASK-059_REPLACEMENT_RETIREMENT_DISPOSAL_DATA_WIPE.md`
+Task contract: `tasks/TASK-061_ADVANCED_SEARCH_PHASE3_INTEGRATION_GATE.md`
 
-## Registry Reconciliation
+All declared dependencies are `CODE_COMPLETE`: TASK-050, TASK-051, TASK-052,
+TASK-053, TASK-055, TASK-056, TASK-058, TASK-059 and TASK-060. The registry
+reconciliation derived TASK-061 readiness as `READY`. Its contract is prepared;
+implementation has not started and requires an explicit user request.
 
-- TASK-015 `CODE_COMPLETE`: registry/task report agree; implementation commit
-  `32c3267` contains Asset return commands, immutable documents and E2E tests.
-- TASK-036 `CODE_COMPLETE`: registry/task report agree; implementation commit
-  `e043c31` contains Approval requests/decisions, separation of duties,
-  audit/outbox and full verification.
-- TASK-038 `CODE_COMPLETE`: registry/task report agree; implementation commit
-  `296336a` contains Maintenance/Warranty persistence, protected transitions,
-  audit/outbox and full verification.
-- TASK-059 is `NOT_STARTED`, has no explicit blocker and no unresolved
-  `SPEC_CONFLICT`; readiness is therefore derived as `READY`.
-- TASK-061 remains `BLOCKED` because TASK-059 is not yet `CODE_COMPLETE`.
-- This is a registry/planning update only. Do not implement TASK-059 until the
-  user explicitly asks to continue.
+## Last Completed Task — TASK-059
 
-## Last Completed Task — TASK-056
+Replacement + Retirement + Disposal + Data Wipe (`CODE_COMPLETE`). See
+`tasks/TASK-059_REPLACEMENT_RETIREMENT_DISPOSAL_DATA_WIPE.md` for the full
+implementation report.
+
+- Added durable Asset-owned replacement plans, retirement decisions, versioned
+  wipe jobs, disposal records and immutable evidence history with tenant and
+  state constraints.
+- Added tenant-scoped replacement, retirement, wipe, disposal and approved
+  internal reactivation commands. Verified cutover assigns the prepared
+  replacement through Asset-owned commands while preserving the old Asset
+  until cutover succeeds.
+- Added agent-bound wipe claim/report flow, capability-scoped symbolic methods,
+  evidence checks, bounded retries, approval recipient routing, actionable
+  Work Queue items, audit/outbox, timeline and notifications.
+- Updated lifecycle, data-model, event, permission and traceability specs; added
+  five database-backed E2E scenarios.
+- Verification passed: `npm test` (70 tests), `npm run format:check`,
+  `npm run typecheck`, `npm run lint` and `git diff --check`.
+- Remaining operational setup: configure supported wipe and evidence-storage
+  adapters; unavailable adapters fail closed. Procurement execution is outside
+  TASK-059. Required external clearances are currently recorded as authorized
+  operator attestations.
+
+## Earlier Completed Task — TASK-056
 
 Unauthorized Software Detection + Resolution (`CODE_COMPLETE`; commit
 `89857bd`). See `tasks/TASK-056_UNAUTHORIZED_SOFTWARE_DETECTION_RESOLUTION.md`.
@@ -40,8 +54,6 @@ Unauthorized Software Detection + Resolution (`CODE_COMPLETE`; commit
   agent claims/reports, retries and later complete-inventory verification.
 - Added migrations, tenant-scoped APIs, audit/outbox events, permissions,
   specifications/traceability and database-backed E2E tests.
-- Verification passed: `npm test` (65 tests), typecheck, lint, format check,
-  migration tests and `git diff --check`.
 - Assumptions: UNKNOWN grace defaults to 72 hours; OS-specific uninstall
   adapters are out of scope and unsupported adapters fail closed.
 
@@ -63,11 +75,10 @@ TASK-060 — User Offboarding Orchestration (`CODE_COMPLETE`)
 - E2E covers Asset return and compensation, both License paths, duplicate start,
   missing-asset blocking/retry, access revocation, actionable pending work,
   cancellation recovery, denial, and the COMPLETE-vs-REQUEST_CANCEL race.
-- Verification: `npm test` (62 tests), typecheck, lint, format check, migration
-  tests, focused Offboarding E2E, and `git diff --check` passed.
-- Assumption: in the absence of an HRIS provider, an authorized operator
-  attests termination and withdrawal references. External verification remains
-  outside TASK-060 scope.
+- Verification passed: `npm test` (62 tests), typecheck, lint, format check,
+  migration tests, focused Offboarding E2E, and `git diff --check`.
+- Assumption: without an HRIS provider, an authorized operator attests
+  termination and withdrawal references; external verification is out of scope.
 
 ## Previous Specification Remediation
 
@@ -75,4 +86,4 @@ TASK-060-R1 — Define Normative Offboarding State Machine (`CODE_COMPLETE`)
 
 - Made case/user state machines, cancellation/recovery rules, terminal
   invariants, events and COMPLETE-vs-REQUEST_CANCEL concurrency normative.
-- TASK-060 implementation was started only after a later explicit user request.
+- TASK-060 implementation began only after a later explicit user request.

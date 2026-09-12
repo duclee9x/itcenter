@@ -1,6 +1,7 @@
 export {
   assertAssetExists,
   assertAssetEligibleForLicense,
+  assertAssetEligibleForMaintenance,
   createAsset,
 } from "./application/registry.js";
 export {

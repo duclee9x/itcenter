@@ -1752,7 +1752,104 @@ asset_id:
 method:
 value_recovered:
 currency:
+evidence_document_id:
+evidence_checksum:
 ```
+
+## `REPLACEMENT.REVIEWED`
+
+```yaml
+replacement_plan_id:
+asset_id:
+decision:
+reviewed_by:
+reason:
+review_date:
+risk_acceptance:
+version:
+```
+
+## `REPLACEMENT.PLAN_CREATED`
+
+```yaml
+replacement_plan_id:
+asset_id:
+target_user_id:
+target_model:
+budget:
+target_date:
+procurement_required:
+migration_required:
+state:
+version:
+```
+
+## `REPLACEMENT.MIGRATION_STARTED`
+
+```yaml
+replacement_plan_id:
+old_asset_id:
+new_asset_id:
+migration_required:
+version:
+```
+
+## `RETIREMENT.CANDIDATE_CREATED`
+
+```yaml
+retirement_record_id:
+asset_id:
+state:
+reason:
+version:
+blockers: []
+```
+
+## `RETIREMENT.APPROVED`
+
+```yaml
+retirement_record_id:
+asset_id:
+approval_id:
+approved_by:
+clearances:
+version:
+```
+
+## `RETIREMENT.BLOCKED`
+
+```yaml
+retirement_record_id:
+asset_id:
+blockers:
+version:
+```
+
+## `DISPOSAL.APPROVED`
+
+```yaml
+disposal_record_id:
+asset_id:
+method:
+approval_id:
+```
+
+## `ASSET.REACTIVATED`
+
+```yaml
+asset_id:
+from_state:
+to_state:
+version:
+approval_id:
+reconditioning_evidence_id:
+reconditioning_evidence_checksum:
+```
+
+`RETIREMENT.BLOCKED` retains the actionable gate result when owner clearance is
+missing. `REPLACEMENT.REVIEWED` records non-approval decisions, including a
+defer that remains under review. These facts use the Asset-owned aggregate and
+carry the standard event envelope.
 
 ---
 

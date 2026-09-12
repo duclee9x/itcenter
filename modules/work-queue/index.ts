@@ -7,4 +7,9 @@ export {
   resolveOffboardingWorkItem,
   createSoftwareExceptionWorkItem,
   resolveSoftwareExceptionWorkItem,
+  upsertAssetLifecycleWorkItem,
+  resolveAssetLifecycleWorkItem,
+  recordAssetLifecycleTimelineEvent,
+  upsertApprovalWorkItem,
+  resolveApprovalWorkItem,
 } from "./application/work-queue.js";

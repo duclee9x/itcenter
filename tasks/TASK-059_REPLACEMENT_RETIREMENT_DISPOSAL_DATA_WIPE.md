@@ -8,8 +8,8 @@ feature_id: F-037/F-038
 workflow_id: WF-017/WF-018
 phase: P3
 priority: P1
-readiness: READY
-status: NOT_STARTED
+readiness: SATISFIED
+status: CODE_COMPLETE
 owner_domain: asset
 depends_on: TASK-015, TASK-036, TASK-038
 ```
@@ -147,7 +147,10 @@ do not rewrite applied migration history or reset the local database volume.
   verification. A failed/uncertain migration leaves the old asset active and
   actionable; do not infer successful cutover from a command response alone.
 - Do not retire an assigned device while it remains with the user. Complete
-  physical return/handover through TASK-015 before retirement.
+  physical return/handover through TASK-015 before retirement. A retirement
+  candidate may be created while the device remains assigned; persist
+  `BLOCKED`, retain the active Asset state, and create actionable work until
+  the return is received.
 - Retirement review must check the workflow's listed blockers. Do not retire
   while a required assignment, loan, incident, maintenance, legal-hold,
   retention or financial clearance is unresolved.
@@ -189,6 +192,8 @@ Retirement/disposal workflow state:
 
 ```text
 ACTIVE → RETIREMENT_CANDIDATE → APPROVED_FOR_RETIREMENT → RETIRED
+RETIREMENT_CANDIDATE → BLOCKED → (re-evaluate after owner cleanup)
+BLOCKED → APPROVED_FOR_RETIREMENT → RETIRED
 RETIRED → DATA_WIPE_PENDING → DATA_WIPED → DISPOSAL_PENDING
 DISPOSAL_PENDING → DISPOSED | SOLD | RETURNED_TO_VENDOR | RECYCLED | DESTROYED
 ```
@@ -655,22 +660,84 @@ IMPLEMENTED / PARTIAL / BLOCKED
 - none / ...
 ```
 
-### Planning Assumptions To Validate During Implementation
+### Database Changes
 
-- Candidate score/reasons are recorded from an explicit assessment input; no
-  undocumented score weights are introduced.
-- `DEFER` remains `UNDER_REVIEW`; `CONTINUE_USE`, `REPAIR_FIRST` and
-  `EXTEND_WARRANTY` are recorded as review outcomes and close the replacement
-  plan as `CANCELLED`. Preserve reason and evidence for each decision.
-- Procurement execution is deferred to Phase 4; TASK-059 can use an already
-  eligible asset or leave procurement-required plans actionable.
-- The symbolic wipe adapter and evidence-storage port fail closed if no
-  supported provider is configured.
-- Historical migration-checksum drift is a `MIGRATION_RISK`, not a dependency
-  readiness blocker; preserve migration history and use forward migrations.
-- No direct contradiction was found in the reconciled sources. Internal reuse
-  of a RETIRED asset follows the general terminal-state rule: explicit command,
-  policy, reason and audit; it is prohibited once DISPOSED.
+- Added Asset-owned replacement plans and version history, retirement
+  decisions, versioned wipe jobs, disposal records and immutable lifecycle
+  evidence history, including tenant references, state/checksum constraints
+  and append-only enforcement.
+- Added `ASSET_LIFECYCLE` as an actionable Operations work source.
+- Serialized Asset eligibility checks for License assignment and Maintenance
+  creation against retirement using row locks.
+
+### APIs / Commands
+
+- Added tenant-scoped replacement candidate/review/plan, replacement
+  preparation, migration and verified cutover endpoints. Cutover uses the
+  Asset owning commands to reserve and assign the replacement; the old Asset
+  remains assigned and in service until successful cutover.
+- Extended retirement with independently approved review, versioned
+  clearances and a durable actionable BLOCKED path. Assigned/in-use Assets can
+  have a retirement candidate recorded without changing their lifecycle; the
+  Work Queue records the return blocker until TASK-015 return is received.
+- Added approved, versioned data-wipe dispatch and agent claim/report routes
+  with capability-scoped methods, locking, evidence verification and bounded
+  retry behavior.
+- Added approved disposal finalization and explicit, evidence-backed internal
+  reactivation; disposed Assets remain terminal.
+- Routed approval notices only to active users authorized for
+  `approval.decide`; failed or unresolved routing leaves an actionable
+  Approval Work Queue item.
+
+### Events
+
+- Added payload contracts for the missing replacement, retirement, disposal
+  and reactivation events and included disposal evidence references/checksum.
+- Lifecycle commands persist outbox events transactionally, with corresponding
+  Asset timeline history and requester/approver notifications where required.
+
+### Permissions
+
+- Added explicit `asset.dispose`, `asset.reactivate`, replacement
+  create/review and `data_wipe.execute` permissions to the permission catalog.
+
+### Audit / Timeline
+
+- State changes preserve actor, reason, expected version, before/after facts,
+  evidence references and correlation metadata in durable audit and
+  append-only lifecycle history. Candidate and unresolved blocker work remains
+  actionable until its source workflow clears.
+
+### Tests Run
+
+- `npm test`: 70 tests passed across unit, contract, migration, integration
+  and E2E suites, including five new TASK-059 database-backed E2E scenarios.
+- `npm run format:check`: passed.
+- `npm run typecheck`: passed.
+- `npm run lint`: passed, including dependency boundary checks.
+- `git diff --check`: passed.
+
+### Remaining Gaps
+
+- No TASK-059 acceptance blocker remains. A production wipe provider and
+  evidence-storage adapter must be configured separately; unavailable adapters
+  fail closed as specified. Procurement execution remains outside TASK-059.
+
+### Spec Conflicts
+
+- None.
+
+### Assumptions
+
+- Replacement evaluation records explicit score/reason evidence and introduces
+  no undocumented scoring weights. Procurement is deferred to Phase 4.
+- Required legal-hold, retention, financial, incident and physical-disposition
+  clearances are explicit authorized operator attestations until their
+  authoritative external systems are integrated.
+- Symbolic wipe methods and evidence storage are adapter boundaries; an
+  unavailable provider fails closed. Reuse of a RETIRED Asset requires a
+  separate approved reactivation with reconditioning evidence; DISPOSED cannot
+  be reactivated.
 
 ## 32. Scope Expansion Rule
 
@@ -687,20 +754,8 @@ disposal semantics.
 
 ## 34. Completion Rule
 
-Mark TASK-059 `CODE_COMPLETE` only after all applicable acceptance criteria
-and verification gates pass, implementation reports are updated, and a clean
-implementation commit is recorded. Then reconcile dependent readiness;
-TASK-061 stays blocked until TASK-059 is `CODE_COMPLETE`.
-
-## 35. Registry Reconciliation
-
-At contract generation, TASK-015, TASK-036 and TASK-038 are all
-`CODE_COMPLETE` in the registry and their implementation commits/reports are
-present. TASK-059 itself is `NOT_STARTED`, with no explicit blocker and no
-unresolved `SPEC_CONFLICT`; therefore its derived readiness is `READY`.
-TASK-061 remains `BLOCKED` because TASK-059 is not yet `CODE_COMPLETE`.
-
-The workflow lists the five events above without payload schemas in the event
-catalog. This is a contract-completeness task deliverable, not a conflicting
-business rule; define their payloads from the documented aggregate model
-before emitting them.
+TASK-059 has reached `CODE_COMPLETE`: all applicable acceptance criteria and
+verification gates pass, this implementation report is recorded, and its
+implementation is committed separately. Reconcile downstream readiness from
+the live dependency statuses; do not begin a downstream task without an
+explicit implementation request.

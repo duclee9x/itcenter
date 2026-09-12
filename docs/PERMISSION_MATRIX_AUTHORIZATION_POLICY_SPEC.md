@@ -88,6 +88,10 @@ asset.assign
 asset.transfer
 asset.retire
 asset.dispose
+asset.reactivate
+replacement.create_candidate
+replacement.review
+data_wipe.execute
 
 ticket.read
 ticket.create
@@ -851,11 +855,20 @@ asset.request_return
 asset.receive_return
 asset.retire
 asset.dispose
+asset.reactivate
 asset.force_state
 asset.tag.manage
 asset.export
 asset.bulk_update_safe
 asset.audit_correct
+```
+
+Replacement and wipe actions:
+
+```text
+replacement.create_candidate
+replacement.review
+data_wipe.execute
 ```
 
 ---
@@ -1122,6 +1135,7 @@ data_wipe.execute
 | Action | Re-auth | MFA | Approval | Reason | Change Required |
 |---|---:|---:|---:|---:|---:|
 | Asset Dispose | Yes | Optional | Yes | Yes | No |
+| Asset Reactivate | Policy-based | Optional | Internal-reuse policy | Yes | No |
 | Data Wipe | Yes | Yes | Yes | Yes | Sometimes |
 | VLAN Change | Yes | Yes | Yes | Yes | Yes |
 | Emergency Change | Yes | Yes | Yes | Yes | Emergency |

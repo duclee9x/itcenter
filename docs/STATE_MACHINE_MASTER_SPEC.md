@@ -806,6 +806,13 @@ REPLACED
 CANCELLED
 ```
 
+Review decisions `CONTINUE_USE`, `REPAIR_FIRST` and `EXTEND_WARRANTY` close
+the replacement as `CANCELLED`; `DEFER` remains `UNDER_REVIEW` and requires a
+review date and recorded risk acceptance. A failed or uncertain migration
+remains actionable in `MIGRATING`; it never changes the old Asset lifecycle.
+Successful completion requires explicit cutover verification and assignment
+of the prepared Asset to the target user.
+
 ---
 
 # 39. Replacement Transitions
@@ -848,6 +855,24 @@ DISPOSED / SOLD / RETURNED_TO_VENDOR / RECYCLED / DESTROYED
 ```
 
 can be final disposition outcomes.
+
+The retirement record passes through an approved decision before the Asset
+transitions to `RETIRED`. A wipe job has its own `QUEUED → CLAIMED → COMPLETED
+| FAILED` state and retains each report as append-only evidence. `FAILED` and
+uncertain jobs block reuse and disposition until an independently approved
+alternative method or physical destruction is recorded. Final non-reuse
+disposition requires confirmed physical handover. `REUSE_INTERNAL` is not a
+terminal disposition and may return only a `RETIRED` Asset to `AVAILABLE`
+through `ASSET.REACTIVATE`, with separate approval and reconditioning evidence;
+`DISPOSED` is never reactivated.
+
+The retirement workflow record has an actionable `BLOCKED` state. A candidate
+may be recorded while the Asset is assigned or on loan; the Asset lifecycle is
+unchanged, the return blocker is persisted and queued, and
+`RETIREMENT.BLOCKED` is emitted. After the Asset-owning return workflow clears
+the assignment, an authorized retry re-evaluates all clearances using the
+current Asset and retirement record versions. It becomes `RETIRED` only after
+the approval and every applicable clearance pass.
 
 ---
 

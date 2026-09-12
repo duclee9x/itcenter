@@ -27,6 +27,11 @@ import {
   type AgentDeploymentAdapters,
 } from "./software-deployment-routes.js";
 import { handleAgentSoftwareRemovalRoute } from "./software-removal-routes.js";
+import { handleAgentAssetWipeRoute } from "./asset-wipe-routes.js";
+import {
+  unavailableArtifactStorage,
+  type ArtifactObjectStoragePort,
+} from "../../../modules/artifact/application/ports.js";
 // No user administration routes; dedicated adapter must authenticate enrolled agents.
 export function agentServer(
   config: Config,
@@ -34,6 +39,7 @@ export function agentServer(
   agentAuthentication: AuthenticationPort,
   uow?: UnitOfWork,
   deploymentAdapters?: AgentDeploymentAdapters,
+  artifactStorage: ArtifactObjectStoragePort = unavailableArtifactStorage,
 ) {
   return createHttpServer(config, ready, async (req, res, context) => {
     if (!req.url?.startsWith("/api/v1/agent/")) return false;
@@ -42,6 +48,18 @@ export function agentServer(
       req.headers.authorization,
     );
     if (!uow) return false;
+    if (
+      await handleAgentAssetWipeRoute({
+        req,
+        res,
+        context,
+        config,
+        principal,
+        uow,
+        storage: artifactStorage,
+      })
+    )
+      return true;
     if (
       await handleAgentSoftwareDeploymentRoute({
         req,
