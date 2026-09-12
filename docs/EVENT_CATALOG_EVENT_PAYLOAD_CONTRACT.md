@@ -2284,6 +2284,17 @@ principal_type:
 principal_id:
 ```
 
+## `LICENSE.ASSIGNMENT_CANCELLED`
+
+```yaml
+assignment_id:
+entitlement_id:
+principal_type:
+principal_id:
+cancelled_at:
+reason:
+```
+
 ## `LICENSE.RESERVED`
 
 ```yaml

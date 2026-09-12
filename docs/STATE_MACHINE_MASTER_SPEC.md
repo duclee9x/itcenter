@@ -1077,6 +1077,7 @@ SUSPENDED
 RECLAIM_PENDING
 RECLAIMED
 EXPIRED
+CANCELLED
 ```
 
 ---
@@ -1086,11 +1087,19 @@ EXPIRED
 ```text
 RESERVED → ASSIGNED
 ASSIGNED → ACTIVE
+ASSIGNED → CANCELLED (explicit LICENSE.CANCEL_ASSIGNMENT before activation)
 ACTIVE → SUSPENDED
 ACTIVE/SUSPENDED → RECLAIM_PENDING
 RECLAIM_PENDING → RECLAIMED
 ACTIVE → EXPIRED
 ```
+
+`CANCELLED` is terminal and does not consume license capacity. It is valid only
+for an unactivated `ASSIGNED` record. `LICENSE.CANCEL_ASSIGNMENT` must reject
+`ACTIVE` and `SUSPENDED`; those assignments use the reclaim flow. Cancellation
+retains the assignment and append-only history. Concurrent cancellation and
+activation serialize on the assignment version: exactly one transition may
+commit, and a cancelled assignment can never be activated.
 
 ---
 

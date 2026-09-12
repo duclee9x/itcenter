@@ -1007,7 +1007,7 @@ artifact.revoke
 | Entitlement + terms | `license_entitlements`, entitlement history | `LICENSE.ENTITLEMENT_CREATED`, `LICENSE.ENTITLEMENT_UPDATED`, `LICENSE.RENEWED`, `LICENSE.EXPIRED` | `license.entitlement.manage` |
 | Pool | `license_pools` | `LICENSE.POOL_CREATED`, `LICENSE.POOL_UPDATED` | `license.pool.manage` |
 | Reservation | `deployment_reservations` | `LICENSE.RESERVED`, `LICENSE.RESERVATION_RELEASED` | Software application contract |
-| Assignment | `assignments`, assignment history | `LICENSE.ASSIGNED` | `license.assign` |
+| Assignment | `assignments`, assignment history | `LICENSE.ASSIGNED`, `LICENSE.ASSIGNMENT_CANCELLED` | `license.assign` |
 | Activation | assignment | `LICENSE.ACTIVATED` | system/integration or `license.assign` |
 | Reclaim | assignment/history | `LICENSE.RECLAIM_PENDING`, `LICENSE.RECLAIMED` | `license.reclaim` |
 | Usage evidence | `usage_observations` | `LICENSE.USAGE_OBSERVED` | `license.compliance.resolve` |

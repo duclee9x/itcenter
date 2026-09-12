@@ -240,6 +240,30 @@ test("license entitlements and pools retain terms, scope, audit and expiry facts
       { expected_version: 1, reason: "Activate assigned seat" },
     );
     assert.equal(activated.status, 200, await activated.clone().text());
+    const cancelActive = await post(
+      `/api/v1/license-assignments/${assignment.assignment_id}/commands/cancel`,
+      "cancel-active-license",
+      { expected_version: 2, reason: "Active assignments require reclaim" },
+    );
+    assert.equal(cancelActive.status, 422);
+    const suspended = await post(
+      `/api/v1/license-assignments/${assignment.assignment_id}/commands/suspend`,
+      "license-suspend",
+      { expected_version: 2, reason: "Suspend before checking cancellation" },
+    );
+    assert.equal(suspended.status, 200, await suspended.clone().text());
+    const cancelSuspended = await post(
+      `/api/v1/license-assignments/${assignment.assignment_id}/commands/cancel`,
+      "cancel-suspended-license",
+      { expected_version: 3, reason: "Suspended assignments require reclaim" },
+    );
+    assert.equal(cancelSuspended.status, 422);
+    const reactivated = await post(
+      `/api/v1/license-assignments/${assignment.assignment_id}/commands/activate`,
+      "license-reactivate",
+      { expected_version: 3, reason: "Resume before reclaim test" },
+    );
+    assert.equal(reactivated.status, 200);
     const allocatedTypeChange = await post(
       `/api/v1/license-entitlements/${entitlement.id}/commands/update`,
       "allocated-type-change",
@@ -273,20 +297,20 @@ test("license entitlements and pools retain terms, scope, audit and expiry facts
     const reclaimPending = await post(
       `/api/v1/license-assignments/${assignment.assignment_id}/commands/reclaim`,
       "license-reclaim",
-      { expected_version: 2, reason: "User no longer requires the software" },
+      { expected_version: 4, reason: "User no longer requires the software" },
     );
     assert.equal(reclaimPending.status, 200);
     const incompleteReclaim = await post(
       `/api/v1/license-assignments/${assignment.assignment_id}/commands/complete-reclaim`,
       "license-reclaim-incomplete",
-      { expected_version: 3, reason: "Reclaim verified" },
+      { expected_version: 5, reason: "Reclaim verified" },
     );
     assert.equal(incompleteReclaim.status, 400);
     const reclaimed = await post(
       `/api/v1/license-assignments/${assignment.assignment_id}/commands/complete-reclaim`,
       "license-reclaim-complete",
       {
-        expected_version: 3,
+        expected_version: 5,
         verification_reference: "uninstall-check-2026-001",
         reason: "Uninstall confirmed and seat returned",
       },
@@ -423,6 +447,239 @@ test("license entitlements and pools retain terms, scope, audit and expiry facts
     const winningIndex = concurrentAssignments.findIndex(
       (response) => response.status === 201,
     );
+
+    const cancellableEntitlementResponse = await post(
+      "/api/v1/license-entitlements",
+      "cancellable-entitlement",
+      {
+        ...entitlementBody,
+        pool_id: null,
+        quantity: 1,
+        valid_from: new Date(Date.now() - 60_000).toISOString(),
+        valid_until: new Date(Date.now() + 365 * 86400000).toISOString(),
+        renewal_notice_days: 0,
+        reason: "Create entitlement for cancellation lifecycle",
+      },
+    );
+    assert.equal(
+      cancellableEntitlementResponse.status,
+      201,
+      await cancellableEntitlementResponse.clone().text(),
+    );
+    const cancellableEntitlementId = (
+      (await cancellableEntitlementResponse.json()) as { data: { id: string } }
+    ).data.id;
+    const cancellableUserId = randomUUID();
+    await db.pool.query(
+      `INSERT INTO identity.users
+         (id,tenant_id,display_code,username,primary_email,display_name,employment_status)
+       VALUES($1,$2,'USR-LICENSE-CANCEL','license.cancel','cancel@example.test','License Cancel','ACTIVE')`,
+      [cancellableUserId, tenantId],
+    );
+    const cancellableAssignmentResponse = await post(
+      `/api/v1/license-entitlements/${cancellableEntitlementId}/commands/assign`,
+      "cancellable-assignment",
+      {
+        principal_type: "USER",
+        principal_id: cancellableUserId,
+        reason: "Assign seat to validate explicit cancellation",
+      },
+    );
+    assert.equal(
+      cancellableAssignmentResponse.status,
+      201,
+      await cancellableAssignmentResponse.clone().text(),
+    );
+    const cancellableAssignmentId = (
+      (await cancellableAssignmentResponse.json()) as {
+        data: { assignment_id: string };
+      }
+    ).data.assignment_id;
+    const cancelBody = {
+      expected_version: 1,
+      reason: "Offboarding before activation",
+    };
+    allowed = false;
+    const deniedCancellation = await post(
+      `/api/v1/license-assignments/${cancellableAssignmentId}/commands/cancel`,
+      "cancel-denied",
+      cancelBody,
+    );
+    assert.equal(deniedCancellation.status, 403);
+    allowed = true;
+    const cancelled = await post(
+      `/api/v1/license-assignments/${cancellableAssignmentId}/commands/cancel`,
+      "cancel-unactivated-assignment",
+      cancelBody,
+    );
+    assert.equal(cancelled.status, 200, await cancelled.clone().text());
+    const cancelledData = (
+      (await cancelled.json()) as {
+        data: { state: string; version: number; cancelled_at: string };
+      }
+    ).data;
+    assert.equal(cancelledData.state, "CANCELLED");
+    assert.equal(cancelledData.version, 2);
+    assert.ok(cancelledData.cancelled_at);
+    const cancellationReplay = await post(
+      `/api/v1/license-assignments/${cancellableAssignmentId}/commands/cancel`,
+      "cancel-unactivated-assignment",
+      cancelBody,
+    );
+    assert.equal(cancellationReplay.status, 200);
+    const cancellationKeyConflict = await post(
+      `/api/v1/license-assignments/${cancellableAssignmentId}/commands/cancel`,
+      "cancel-unactivated-assignment",
+      {
+        expected_version: 2,
+        reason: "Changed cancellation business request",
+      },
+    );
+    assert.equal(cancellationKeyConflict.status, 409);
+    const repeatedBusinessCancellation = await post(
+      `/api/v1/license-assignments/${cancellableAssignmentId}/commands/cancel`,
+      "cancel-unactivated-assignment-again",
+      cancelBody,
+    );
+    assert.equal(
+      repeatedBusinessCancellation.status,
+      200,
+      await repeatedBusinessCancellation.clone().text(),
+    );
+    const cancelledRead = await get(
+      `/api/v1/license-assignments/${cancellableAssignmentId}`,
+    );
+    const cancelledRecord = (
+      (await cancelledRead.json()) as {
+        data: { state: string; cancelled_at: string | null };
+      }
+    ).data;
+    assert.equal(cancelledRecord.state, "CANCELLED");
+    assert.ok(cancelledRecord.cancelled_at);
+    const cancelledAvailability = await get(
+      `/api/v1/license-entitlements/${cancellableEntitlementId}/availability`,
+    );
+    assert.deepEqual(
+      (
+        (await cancelledAvailability.json()) as {
+          data: { assigned: number; available: number };
+        }
+      ).data,
+      {
+        entitlement_id: cancellableEntitlementId,
+        license_type: "PER_USER",
+        quantity: 1,
+        assigned: 0,
+        reserved: 0,
+        consumption_rule_supported: true,
+        available: 1,
+        effective_state: "ACTIVE",
+      },
+    );
+    const cancelledActivation = await post(
+      `/api/v1/license-assignments/${cancellableAssignmentId}/commands/activate`,
+      "activate-cancelled-assignment",
+      { expected_version: 2, reason: "Cancelled assignments stay terminal" },
+    );
+    assert.equal(cancelledActivation.status, 422);
+    const terminalDatabaseGuard = await db.pool
+      .query(
+        `UPDATE license.assignments SET state='ACTIVE',version=version+1
+          WHERE tenant_id=$1 AND id=$2`,
+        [tenantId, cancellableAssignmentId],
+      )
+      .then(
+        () => false,
+        (error: Error) =>
+          /cancelled license assignment is terminal/.test(error.message),
+      );
+    assert.equal(terminalDatabaseGuard, true);
+    const cancellationEffects = await db.pool.query(
+      `SELECT
+         (SELECT count(*)::int FROM platform.outbox_events
+           WHERE tenant_id=$1 AND event_type='LICENSE.ASSIGNMENT_CANCELLED'
+             AND aggregate_id=$2::text) AS outbox_count,
+         (SELECT count(*)::int FROM audit.audit_events
+           WHERE tenant_id=$1 AND event_type='LICENSE.ASSIGNMENT_CANCELLED'
+             AND subject->>'entity_id'=$2::text) AS audit_count,
+         (SELECT count(*)::int FROM license.assignment_history
+           WHERE tenant_id=$1 AND assignment_id=$2::uuid AND action='CANCELLED') AS history_count`,
+      [tenantId, cancellableAssignmentId],
+    );
+    assert.deepEqual(cancellationEffects.rows[0], {
+      outbox_count: 1,
+      audit_count: 1,
+      history_count: 1,
+    });
+    const cancellationEvent = await db.pool.query(
+      `SELECT payload->'payload'->>'reason' AS reason,
+              payload->'payload'->>'cancelled_at' AS cancelled_at,
+              aggregate_version
+         FROM platform.outbox_events
+        WHERE tenant_id=$1 AND event_type='LICENSE.ASSIGNMENT_CANCELLED'
+          AND aggregate_id=$2::text`,
+      [tenantId, cancellableAssignmentId],
+    );
+    assert.deepEqual(cancellationEvent.rows, [
+      {
+        reason: cancelBody.reason,
+        cancelled_at: cancelledData.cancelled_at,
+        aggregate_version: 2,
+      },
+    ]);
+
+    const racingUserId = randomUUID();
+    await db.pool.query(
+      `INSERT INTO identity.users
+         (id,tenant_id,display_code,username,primary_email,display_name,employment_status)
+       VALUES($1,$2,'USR-LICENSE-CANCEL-RACE','license.cancelrace','cancelrace@example.test','License Cancel Race','ACTIVE')`,
+      [racingUserId, tenantId],
+    );
+    const racingAssignmentResponse = await post(
+      `/api/v1/license-entitlements/${cancellableEntitlementId}/commands/assign`,
+      "cancellation-race-assignment",
+      {
+        principal_type: "USER",
+        principal_id: racingUserId,
+        reason: "Create assignment for cancel/activate race",
+      },
+    );
+    assert.equal(racingAssignmentResponse.status, 201);
+    const racingAssignmentId = (
+      (await racingAssignmentResponse.json()) as {
+        data: { assignment_id: string };
+      }
+    ).data.assignment_id;
+    const racingCommands = await Promise.all([
+      post(
+        `/api/v1/license-assignments/${racingAssignmentId}/commands/activate`,
+        "cancel-activate-race-activate",
+        { expected_version: 1, reason: "Compete to activate assignment" },
+      ),
+      post(
+        `/api/v1/license-assignments/${racingAssignmentId}/commands/cancel`,
+        "cancel-activate-race-cancel",
+        { expected_version: 1, reason: "Compete to cancel assignment" },
+      ),
+    ]);
+    assert.deepEqual(
+      racingCommands.map((response) => response.status).sort(),
+      [200, 409],
+    );
+    const raceState = await db.pool.query(
+      "SELECT state FROM license.assignments WHERE tenant_id=$1 AND id=$2",
+      [tenantId, racingAssignmentId],
+    );
+    assert.ok(["ACTIVE", "CANCELLED"].includes(raceState.rows[0]!.state));
+    const raceAvailability = await get(
+      `/api/v1/license-entitlements/${cancellableEntitlementId}/availability`,
+    );
+    assert.equal(
+      ((await raceAvailability.json()) as { data: { assigned: number } }).data
+        .assigned,
+      raceState.rows[0]!.state === "ACTIVE" ? 1 : 0,
+    );
+
     // Represent a legacy/imported allocation discovered after a contract change.
     // Application commands cannot create this over-allocation; the compliance
     // worker must still detect and audit the authoritative database facts.

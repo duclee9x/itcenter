@@ -1381,6 +1381,7 @@ GET  /license-pools/{id}
 POST /license-pools/{id}/commands/update
 POST /licenses/{id}/commands/assign
 POST /license-assignments/{id}/commands/reclaim
+POST /license-assignments/{id}/commands/cancel
 POST /license-assignments/{id}/commands/activate
 POST /license-assignments/{id}/commands/suspend
 POST /license-assignments/{id}/commands/complete-reclaim
@@ -1396,6 +1397,14 @@ Entitlement `effective_state` is derived from its validity window; the
 compliance projection is separate. Renewal is idempotent and versioned, and
 retains prior contractual terms in append-only history. `LICENSE.EXPIRED` is
 keyed to a term version and does not mutate entitlement state.
+
+`POST /license-assignments/{id}/commands/cancel` invokes
+`LICENSE.CANCEL_ASSIGNMENT`. It requires `license.assign` authorization,
+`Idempotency-Key`, `expected_version`, and a reason. Only an unactivated
+`ASSIGNED` record may transition to `CANCELLED`; repeats of the same completed
+business request return its result without another state change, capacity
+release, audit event, or outbox event. `ACTIVE` and `SUSPENDED` assignments
+must use `LICENSE.RECLAIM`.
 
 ---
 

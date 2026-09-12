@@ -562,7 +562,7 @@ export async function transitionLicenseAssignment(input: {
   tx: Transaction;
   assignmentId: string;
   expectedVersion: number;
-  action: "ACTIVATE" | "SUSPEND" | "RECLAIM" | "COMPLETE_RECLAIM";
+  action: "ACTIVATE" | "SUSPEND" | "RECLAIM" | "COMPLETE_RECLAIM" | "CANCEL";
   actorId: string;
   reason: string;
   verificationReference?: string;
@@ -583,9 +583,31 @@ export async function transitionLicenseAssignment(input: {
       "License assignment was not found.",
     );
   const current = found.rows[0]!;
+  const reason = sanitizeReason(input.reason);
+  if (input.action === "CANCEL" && current.state === "CANCELLED") {
+    const previousCancellation = await input.tx.query(
+      `SELECT reason FROM license.assignment_history
+        WHERE tenant_id=$1 AND assignment_id=$2 AND action='CANCELLED'
+        ORDER BY entity_version DESC LIMIT 1`,
+      [input.tx.tenantId, id],
+    );
+    if (
+      Number(input.expectedVersion) > 0 &&
+      Number(input.expectedVersion) <= Number(current.version) &&
+      previousCancellation.rows[0]?.reason === reason
+    )
+      return {
+        ...current,
+        id,
+        version: Number(current.version),
+        before: current,
+        noOp: true,
+      };
+  }
   assertVersion(Number(current.version), input.expectedVersion);
   const transitions: Record<string, string> = {
     "ASSIGNED:ACTIVATE": "ACTIVE",
+    "ASSIGNED:CANCEL": "CANCELLED",
     "ACTIVE:SUSPEND": "SUSPENDED",
     "SUSPENDED:ACTIVATE": "ACTIVE",
     "ACTIVE:RECLAIM": "RECLAIM_PENDING",
@@ -637,21 +659,24 @@ export async function transitionLicenseAssignment(input: {
   const updated = await input.tx.query(
     `UPDATE license.assignments SET state=$1,version=$2,updated_at=now(),
        activated_at=CASE WHEN $1='ACTIVE' THEN coalesce(activated_at,now()) ELSE activated_at END,
+       cancelled_at=CASE WHEN $1='CANCELLED' THEN now() ELSE cancelled_at END,
        reclaimed_at=CASE WHEN $1='RECLAIMED' THEN now() ELSE reclaimed_at END,
        reclaim_verification_reference=CASE WHEN $1='RECLAIMED' THEN $5 ELSE reclaim_verification_reference END
      WHERE tenant_id=$3 AND id=$4
-     RETURNING id,entitlement_id,principal_type,principal_id,quantity,state,version,activated_at,reclaimed_at`,
+     RETURNING id,entitlement_id,principal_type,principal_id,quantity,state,version,activated_at,cancelled_at,reclaimed_at`,
     [next, version, input.tx.tenantId, id, verificationReference],
   );
   const row = updated.rows[0]!;
   const action =
-    input.action === "COMPLETE_RECLAIM"
-      ? "RECLAIMED"
-      : input.action === "RECLAIM"
-        ? "RECLAIM_PENDING"
-        : input.action === "ACTIVATE"
-          ? "ACTIVATED"
-          : "SUSPENDED";
+    input.action === "CANCEL"
+      ? "CANCELLED"
+      : input.action === "COMPLETE_RECLAIM"
+        ? "RECLAIMED"
+        : input.action === "RECLAIM"
+          ? "RECLAIM_PENDING"
+          : input.action === "ACTIVATE"
+            ? "ACTIVATED"
+            : "SUSPENDED";
   await history({
     tx: input.tx,
     table: "assignment_history",
@@ -663,7 +688,7 @@ export async function transitionLicenseAssignment(input: {
     actorId: input.actorId,
     reason: input.reason,
   });
-  return { ...row, id, version, before: current };
+  return { ...row, id, version, before: current, noOp: false };
 }
 
 export async function recordLicenseUsageObservation(input: {
@@ -940,7 +965,7 @@ export async function readLicenseAssignment(
   const id = uuid(assignmentId, "assignment_id");
   const result = await tx.query(
     `SELECT id,entitlement_id,reservation_id,principal_type,principal_id,
-            quantity,state,version,assigned_at,activated_at,reclaimed_at,
+            quantity,state,version,assigned_at,activated_at,cancelled_at,reclaimed_at,
             reclaim_verification_reference,created_at,updated_at
        FROM license.assignments WHERE tenant_id=$1 AND id=$2`,
     [tx.tenantId, id],

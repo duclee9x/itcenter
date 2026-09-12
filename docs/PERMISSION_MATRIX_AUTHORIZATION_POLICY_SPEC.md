@@ -639,6 +639,9 @@ license.compliance.resolve
 license.renewal.prepare
 ```
 
+`license.assign` also governs `LICENSE.CANCEL_ASSIGNMENT`; it does not grant
+permission to reclaim an activated or suspended assignment.
+
 Procurement approval remains separate.
 
 ---

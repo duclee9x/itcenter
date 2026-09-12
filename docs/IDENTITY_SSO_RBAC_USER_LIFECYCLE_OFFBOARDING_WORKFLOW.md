@@ -1223,7 +1223,9 @@ Offboarding:
 ```text
 Find User Licenses
 ↓
-Reclaim SaaS
+ASSIGNED → LICENSE.CANCEL_ASSIGNMENT
+ACTIVE/SUSPENDED → LICENSE.RECLAIM
+Terminal/non-capacity states → no-op
 ↓
 Release Named User License
 ↓
@@ -1231,6 +1233,10 @@ Unassign Device Licenses as needed
 ↓
 Update Pools
 ```
+
+If cancellation or reclaim fails, the offboarding case retains an actionable
+License cleanup failure and cannot mark License clearance complete. Committed
+License history is retained.
 
 ---
 

@@ -1686,6 +1686,7 @@ license_assignments:
   version:
   assigned_at:
   activated_at:
+  cancelled_at:
   reclaimed_at:
   reclaim_verification_reference:
 ```
@@ -1695,7 +1696,13 @@ principal reference is validated through the owning Identity or Asset
 application boundary; License does not mutate those domains. Assignment and
 reservation histories are append-only. `usage_observations` preserve the
 source, observation time, active-use count, optional inactivity threshold, and
-evidence reference used by compliance projections.
+evidence reference used by compliance projections. Assignment states include
+`ASSIGNED`, `ACTIVE`, `SUSPENDED`, `RECLAIM_PENDING`, `RECLAIMED`, `EXPIRED`,
+and `CANCELLED`. `CANCELLED` requires `cancelled_at`, requires
+`activated_at IS NULL`, is terminal, and is excluded from capacity counts and
+the one-live-principal constraint. Only an unactivated `ASSIGNED` record may
+be cancelled through `LICENSE.CANCEL_ASSIGNMENT`; no assignment row or history
+is deleted.
 
 ---
 

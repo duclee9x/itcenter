@@ -2,19 +2,19 @@
 
 ## Next Task
 
-TASK-060 — User Offboarding Orchestration
+TASK-058-R1 — Cancel Unactivated License Assignment
 
-Feature: F-004/OFFBOARDING
+Feature: F-035
 
-Workflow: WF-ID04/WF-019
+Workflow: WF-015
 
 Phase/Priority: P3 / P0
 
-Dependency readiness: SATISFIED (TASK-003, TASK-015, TASK-058)
+Dependency readiness: SATISFIED (TASK-058)
 
-Status: BLOCKED — SPEC_CONFLICT
+Status: IN_PROGRESS
 
-Task contract: `tasks/TASK-060_USER_OFFBOARDING_ORCHESTRATION.md`
+Task contract: `tasks/TASK-058-R1_CANCEL_UNACTIVATED_LICENSE_ASSIGNMENT.md`
 
 ## Previous Task Completed
 
@@ -31,23 +31,23 @@ TASK-058 — License Assignment + Reclaim + Compliance (`CODE_COMPLETE`)
 - `npm test` passed (58 tests: 22 unit, 2 contract, 1 migration, 18 integration,
   15 E2E); typecheck, lint, format check, and `git diff --check` passed.
 
-## TASK-060 Readiness and Blocker
+## TASK-058-R1 Normative Rule and Handoff
 
-All declared prerequisites are complete. A normative conflict remains:
-TASK-058 permits reclaim only from `ACTIVE`/`SUSPENDED`, while offboarding must
-release user License allocations and `ASSIGNED` (not activated) allocations
-also consume capacity. Leaving one behind prevents clearance; treating it as
-reclaimed would invent a transition.
+The user approved explicit cancellation of unactivated assignments. State,
+data model, API, permission, event, traceability, License workflow, and
+offboarding specs now define `ASSIGNED → CANCELLED`, retaining the record and
+history while releasing capacity. `ACTIVE`/`SUSPENDED` continue through
+`LICENSE.RECLAIM`; terminal/non-capacity states are no-op for offboarding.
 
-Keep implementation paused at this boundary. TASK-060 proposes a narrow,
-audited License command to cancel an unactivated assignment, with expected
-version and reason. The specification owner must resolve this before that
-transition is implemented. Meanwhile, offboarding can safely report such a
-case as blocked/unresolved.
+Implement the migration/database invariant, License application transition,
+authorized idempotent API command, audit/outbox, and race/replay tests. After
+TASK-058-R1 passes and is committed, update TASK-060 to remove its
+`SPEC_CONFLICT`, then stop without starting TASK-060.
 
 ## Repository State
 
 - Branch: `master`
 - TASK-058 implementation and completion report are committed in repository
-  history.
+  history (`fabf43a`).
+- TASK-060 remains blocked and must not be started during TASK-058-R1.
 - No generated task artifacts or temporary repository files were removed.

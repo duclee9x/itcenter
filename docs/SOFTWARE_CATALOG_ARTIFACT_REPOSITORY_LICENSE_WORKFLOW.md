@@ -1135,7 +1135,13 @@ SUSPENDED
 RECLAIM_PENDING
 RECLAIMED
 EXPIRED
+CANCELLED
 ```
+
+An unactivated `ASSIGNED` License may be cancelled only through the explicit
+`LICENSE.CANCEL_ASSIGNMENT` command and then no longer consumes capacity.
+`ACTIVE` and `SUSPENDED` assignments must follow reclaim; a cancelled
+assignment record and its history remain retained.
 
 ---
 
@@ -1292,7 +1298,9 @@ System:
 ```text
 Find License Assignments
 ↓
-Reclaim SaaS seats
+ASSIGNED → LICENSE.CANCEL_ASSIGNMENT
+ACTIVE/SUSPENDED → LICENSE.RECLAIM
+Terminal/non-capacity states → no-op
 ↓
 Unassign device licenses
 ↓
@@ -1300,6 +1308,9 @@ Remove tokens/access
 ↓
 Update pools
 ```
+
+If cancellation or reclaim fails, offboarding retains an actionable License
+clearance failure and cannot mark License cleanup complete.
 
 ---
 
@@ -1940,6 +1951,7 @@ LICENSE.ENTITLEMENT_CREATED
 LICENSE.RESERVED
 LICENSE.RESERVATION_RELEASED
 LICENSE.ASSIGNED
+LICENSE.ASSIGNMENT_CANCELLED
 LICENSE.ACTIVATED
 LICENSE.SUSPENDED
 LICENSE.RECLAIM_PENDING

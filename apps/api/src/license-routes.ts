@@ -329,7 +329,7 @@ export async function handleLicenseRoute(input: {
       path,
     );
   const assignmentCommand =
-    /^\/api\/v1\/license-assignments\/([^/]+)\/commands\/(activate|suspend|reclaim|complete-reclaim)$/.exec(
+    /^\/api\/v1\/license-assignments\/([^/]+)\/commands\/(activate|suspend|reclaim|complete-reclaim|cancel)$/.exec(
       path,
     );
   const compliance = path === "/api/v1/license-compliance";
@@ -785,12 +785,17 @@ export async function handleLicenseRoute(input: {
       const expectedVersion = integer(body, "expected_version");
       const reason = safeFreeText(requiredString(body, "reason"), "reason");
       const action =
-        routeAction === "complete-reclaim"
-          ? "COMPLETE_RECLAIM"
-          : routeAction === "reclaim"
-            ? "RECLAIM"
-            : routeAction.toUpperCase();
-      const operation = `LICENSE.ASSIGNMENT_${action}`;
+        routeAction === "cancel"
+          ? "CANCEL"
+          : routeAction === "complete-reclaim"
+            ? "COMPLETE_RECLAIM"
+            : routeAction === "reclaim"
+              ? "RECLAIM"
+              : routeAction.toUpperCase();
+      const operation =
+        routeAction === "cancel"
+          ? "LICENSE.CANCEL_ASSIGNMENT"
+          : `LICENSE.ASSIGNMENT_${action}`;
       const op = intent({
         principal,
         operation,
@@ -804,21 +809,36 @@ export async function handleLicenseRoute(input: {
           assignmentId: assignmentCommand[1]!,
           expectedVersion,
           action: action as
-            "ACTIVATE" | "SUSPEND" | "RECLAIM" | "COMPLETE_RECLAIM",
+            "ACTIVATE" | "SUSPEND" | "RECLAIM" | "COMPLETE_RECLAIM" | "CANCEL",
           actorId: principal.id,
           reason,
           ...(typeof body.verification_reference === "string"
             ? { verificationReference: body.verification_reference }
             : {}),
         });
+        if (changed.noOp)
+          return {
+            status: 200,
+            body: {
+              assignment_id: assignmentCommand[1]!,
+              entitlement_id: String(changed.entitlement_id),
+              principal_type: String(changed.principal_type),
+              principal_id: String(changed.principal_id),
+              state: String(changed.state),
+              version: changed.version,
+              cancelled_at: changed.cancelled_at,
+            } as never,
+          };
         const eventType =
-          changed.state === "ACTIVE"
-            ? "LICENSE.ACTIVATED"
-            : changed.state === "SUSPENDED"
-              ? "LICENSE.SUSPENDED"
-              : changed.state === "RECLAIM_PENDING"
-                ? "LICENSE.RECLAIM_PENDING"
-                : "LICENSE.RECLAIMED";
+          changed.state === "CANCELLED"
+            ? "LICENSE.ASSIGNMENT_CANCELLED"
+            : changed.state === "ACTIVE"
+              ? "LICENSE.ACTIVATED"
+              : changed.state === "SUSPENDED"
+                ? "LICENSE.SUSPENDED"
+                : changed.state === "RECLAIM_PENDING"
+                  ? "LICENSE.RECLAIM_PENDING"
+                  : "LICENSE.RECLAIMED";
         const after = {
           assignment_id: assignmentCommand[1]!,
           entitlement_id: String(changed.entitlement_id),
@@ -826,6 +846,9 @@ export async function handleLicenseRoute(input: {
           principal_id: String(changed.principal_id),
           state: String(changed.state),
           version: changed.version,
+          ...(changed.cancelled_at
+            ? { cancelled_at: changed.cancelled_at, reason }
+            : {}),
           ...(changed.reclaim_verification_reference
             ? { verification_reference: changed.reclaim_verification_reference }
             : {}),
