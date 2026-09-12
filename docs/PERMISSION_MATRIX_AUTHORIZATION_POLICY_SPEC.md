@@ -1039,6 +1039,7 @@ user.read
 user.update_non_authoritative
 identity.offboard
 identity.offboard.cancel
+identity.offboard.exception
 session.revoke
 group.mapping.manage
 role.read
@@ -1057,6 +1058,8 @@ authorizes direct cancellation from `INITIATED`, cancellation requests,
 completion of recovery, and the explicit validated restoration from
 `TERMINATING` to `pre_offboarding_user_state` when all cancellation conditions
 are satisfied. Neither permission permits reactivating a `TERMINATED` User.
+`identity.offboard.exception` is required to waive or accept an offboarding
+recovery/clearance exception and requires an evidence reference and reason.
 
 ---
 

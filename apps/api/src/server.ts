@@ -100,6 +100,7 @@ import {
 } from "./software-artifact-routes.js";
 import { handleSoftwareDeploymentRoute } from "./software-deployment-routes.js";
 import { handleLicenseRoute } from "./license-routes.js";
+import { handleOffboardingRoute } from "./offboarding-routes.js";
 
 const networkExceptionQueue = {
   createReference: createNetworkExceptionWorkItem,
@@ -261,6 +262,18 @@ export function apiServer(
       return true;
     if (
       await handleLicenseRoute({
+        req,
+        res,
+        context,
+        config,
+        authentication,
+        authorization,
+        uow,
+      })
+    )
+      return true;
+    if (
+      await handleOffboardingRoute({
         req,
         res,
         context,

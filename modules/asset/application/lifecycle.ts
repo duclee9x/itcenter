@@ -399,6 +399,115 @@ export async function requestReturn(input: {
   };
 }
 
+export async function listUserAssetsForOffboarding(
+  tx: Transaction,
+  userId: string,
+) {
+  const rows = await tx.query(
+    `SELECT a.id,a.asset_code,a.assignment_state,a.risk_state,a.lifecycle_state,a.version,rr.id AS return_request_id,
+            rr.status AS return_state
+       FROM asset.assignments x JOIN asset.assets a ON a.tenant_id=x.tenant_id AND a.id=x.asset_id
+       LEFT JOIN asset.return_requests rr ON rr.tenant_id=x.tenant_id AND rr.assignment_id=x.id AND rr.status='PENDING'
+      WHERE x.tenant_id=$1 AND x.user_id=$2 AND x.status='ACTIVE' AND x.assignment_type='PRIMARY'
+      ORDER BY a.id`,
+    [tx.tenantId, userId],
+  );
+  return rows.rows.map((row) => ({
+    id: String(row.id),
+    asset_code: String(row.asset_code),
+    assignment_state: String(row.assignment_state),
+    risk_state: String(row.risk_state),
+    lifecycle_state: String(row.lifecycle_state),
+    version: Number(row.version),
+    return_request_id: row.return_request_id
+      ? String(row.return_request_id)
+      : null,
+    return_state: row.return_state ? String(row.return_state) : null,
+  }));
+}
+
+export async function cancelReturnRequest(input: {
+  tx: Transaction;
+  assetId: string;
+  returnRequestId: string;
+  expectedVersion: number;
+  reason: string;
+}) {
+  if (
+    !input.reason.trim() ||
+    input.reason.length > 2000 ||
+    /(?:password|access[_ -]?token|secret|api[_ -]?key|license[_ -]?key)\s*[:=]\s*\S+/i.test(
+      input.reason,
+    )
+  )
+    throw new ApplicationError("VALIDATION_ERROR", "reason is required.");
+  const asset = await input.tx.query(
+    "SELECT assignment_state,version FROM asset.assets WHERE tenant_id=$1 AND id=$2 FOR UPDATE",
+    [input.tx.tenantId, input.assetId],
+  );
+  if (!asset.rowCount)
+    throw new ApplicationError("NOT_FOUND", "Asset was not found.");
+  const req = await input.tx.query(
+    "SELECT id,assignment_id,status,cancelled_reason FROM asset.return_requests WHERE tenant_id=$1 AND id=$2 AND asset_id=$3 FOR UPDATE",
+    [input.tx.tenantId, input.returnRequestId, input.assetId],
+  );
+  if (
+    req.rowCount &&
+    req.rows[0]!.status === "CANCELLED" &&
+    req.rows[0]!.cancelled_reason === input.reason.trim()
+  )
+    return {
+      asset_id: input.assetId,
+      version: Number(asset.rows[0]!.version),
+      return_request_id: input.returnRequestId,
+      noOp: true,
+    };
+  assertVersion(Number(asset.rows[0]!.version), input.expectedVersion);
+  if (
+    !req.rowCount ||
+    req.rows[0]!.status !== "PENDING" ||
+    asset.rows[0]!.assignment_state !== "PENDING_RETURN"
+  )
+    throw new ApplicationError(
+      "BUSINESS_RULE_VIOLATION",
+      "Pending return request cannot be recovered.",
+    );
+  await input.tx.query(
+    "UPDATE asset.return_requests SET status='CANCELLED',cancelled_reason=$3 WHERE tenant_id=$1 AND id=$2",
+    [input.tx.tenantId, input.returnRequestId, input.reason.trim()],
+  );
+  const version = input.expectedVersion + 1;
+  await input.tx.query(
+    "UPDATE asset.assets SET assignment_state='ASSIGNED',version=$1,updated_at=now() WHERE tenant_id=$2 AND id=$3",
+    [version, input.tx.tenantId, input.assetId],
+  );
+  return {
+    asset_id: input.assetId,
+    version,
+    return_request_id: input.returnRequestId,
+    noOp: false,
+  };
+}
+
+export async function readReturnRequestState(
+  tx: Transaction,
+  returnRequestId: string,
+) {
+  const result = await tx.query(
+    "SELECT status,asset_id FROM asset.return_requests WHERE tenant_id=$1 AND id=$2",
+    [tx.tenantId, returnRequestId],
+  );
+  if (!result.rowCount)
+    throw new ApplicationError(
+      "NOT_FOUND",
+      "Asset return request was not found.",
+    );
+  return {
+    status: String(result.rows[0]!.status),
+    asset_id: String(result.rows[0]!.asset_id),
+  };
+}
+
 export async function receiveReturn(input: {
   tx: Transaction;
   assetId: string;

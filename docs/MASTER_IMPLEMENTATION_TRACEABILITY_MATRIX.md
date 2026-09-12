@@ -273,6 +273,7 @@ Implementation task: TASK-060
 identity.users
 identity.offboarding_cases
 identity.offboarding_case_history
+identity.offboarding_clearance_tasks
 identity.offboarding_recovery_actions
 ```
 
@@ -291,6 +292,9 @@ OFFBOARDING.COMPLETE
 OFFBOARDING.CANCEL
 OFFBOARDING.REQUEST_CANCEL
 OFFBOARDING.COMPLETE_CANCELLATION
+OFFBOARDING.RECONCILE_CLEARANCES
+OFFBOARDING.RESOLVE_RECOVERY_ACTION
+OFFBOARDING.RESOLVE_CLEARANCE_EXCEPTION
 ```
 
 Commands require authorization, expected version for every affected aggregate,
@@ -313,6 +317,7 @@ OFFBOARDING.COMPLETED
 ```text
 identity.offboard
 identity.offboard.cancel
+identity.offboard.exception
 ```
 
 ### State Machines and Invariants

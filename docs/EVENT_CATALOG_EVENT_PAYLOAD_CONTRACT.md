@@ -972,6 +972,28 @@ reason:
 completed_at:
 ```
 
+### `OFFBOARDING.RECOVERY_ACTION_UPDATED`
+
+```yaml
+case_id:
+recovery_action_id:
+disposition: # SUCCEEDED, WAIVED, ACCEPTED_EXCEPTION
+version:
+evidence_reference:
+reason:
+```
+
+### `OFFBOARDING.CLEARANCE_EXCEPTION_RECORDED`
+
+```yaml
+case_id:
+clearance_id:
+disposition: # WAIVED, ACCEPTED_EXCEPTION
+version:
+evidence_reference:
+reason:
+```
+
 ---
 
 ## `USER.DEPARTMENT_CHANGED`
@@ -1430,6 +1452,15 @@ assignment_id:
 user_id:
 due_at:
 reason:
+```
+
+## `ASSET.RETURN_REQUEST_CANCELLED`
+
+```yaml
+asset_id:
+return_request_id:
+reason:
+offboarding_case_id:
 ```
 
 ---
@@ -2495,7 +2526,7 @@ reclaimable_count:
 ```yaml
 assignment_id:
 reason:
-grace_until:
+grace_until: # nullable when the entitlement has no configured reclaim grace period
 ```
 
 ## `LICENSE.RECLAIMED`

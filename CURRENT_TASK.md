@@ -1,18 +1,16 @@
 # CURRENT TASK
 
-Task: `TASK-060` — User Offboarding Orchestration
+Next task: `TASK-056` — Unauthorized Software Detection + Resolution
 
-Task specification: `tasks/TASK-060_USER_OFFBOARDING_ORCHESTRATION.md`
+Task specification: `GENERATE_ON_READY` (create when implementation starts)
 
-Readiness: `READY`
+Readiness: `READY` (TASK-019, TASK-054, TASK-055 satisfied)
 
 Status: `NOT_STARTED`
 
 Branch: `master`
 
-Previous completed task: TASK-060-R1 — Define Normative Offboarding State Machine.
+Previous completed task: `TASK-060` — User Offboarding Orchestration.
 
-TASK-060 dependencies and specifications are ready, including normative
-offboarding transitions, cancellation/recovery invariants and COMPLETE versus
-REQUEST_CANCEL concurrency requirements. Do not begin implementation until the
-user explicitly asks to continue.
+TASK-060 is implemented, verified, and recorded in the registry and handoff.
+TASK-056 is the next dependency-ready task; its implementation has not started.

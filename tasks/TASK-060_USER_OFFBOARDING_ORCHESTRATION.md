@@ -85,6 +85,10 @@ CANCELLATION_PENDING, COMPLETED, CANCELLED
 - A termination start is idempotent and versioned. Tenant validation precedes
   resource scope. An emergency reason is required where policy classifies the
   termination as critical.
+- In this manual initiation path, an authorized operator supplies the
+  authoritative termination request reference; the API persists and carries
+  that reference through readiness and cancellation withdrawal. External HRIS
+  validation remains out of scope.
 - `TERMINATING` must stop interactive login and authorization immediately;
   session revocation and temporary access removal are recorded as Identity
   actions. No external HTTP call occurs inside the database transaction.
@@ -97,7 +101,8 @@ CANCELLATION_PENDING, COMPLETED, CANCELLED
   enters `CANCELLATION_PENDING`; complete cancellation only after all required
   recovery actions succeed or are explicitly policy-authorized as waived or an
   accepted exception. Cancellation while User Lifecycle is `TERMINATING`
-  requires withdrawal/cancellation of the authoritative termination request.
+  requires the authoritative termination request withdrawal reference at
+  `OFFBOARDING.REQUEST_CANCEL`, before entering `CANCELLATION_PENDING`.
   Restore the captured User state only through an explicit validated Identity
   transition. Cancellation must never restore a `TERMINATED` User; use
   `USER.REACTIVATE` / REHIRE. Preserve all historical actions and handle
@@ -140,4 +145,32 @@ CANCELLATION_PENDING, COMPLETED, CANCELLED
 
 ## Completion Report
 
-To be filled after implementation and verification.
+- Added an Identity-owned case, append-only case/lifecycle/recovery histories,
+  durable clearance tasks, and reconciliation leases. The API exposes separate
+  case creation and `OFFBOARDING.START` commands plus an atomic immediate-start
+  command. Direct cancellation is available only from `INITIATED` with no side
+  effects.
+- Starting revokes active sessions, temporary grants, and user role bindings;
+  `TERMINATING` blocks subsequent login and authorization. Final completion
+  validates clearances and remaining Identity access, changes the canonical
+  User to `TERMINATED`, and completes the case atomically.
+- Asset return and cancellation run through Asset application commands.
+  License cleanup routes `ASSIGNED` through cancel and `ACTIVE`/`SUSPENDED`
+  through reclaim. Pending/failing cleanup stays visible on the case and in an
+  actionable Operations work item; reconciliation can retry without repeating
+  completed owner-domain effects. Cancellation requires a recorded request
+  withdrawal and authorized recovery evidence; terminated users cannot be
+  restored.
+- Added tenant-scoped permissions, optimistic versions, durable idempotency,
+  transactional audit/outbox events, an offboarding Work Queue source, and
+  migrations for Identity cases, Asset return recovery, and Operations work.
+  Case reconciliation leases serialize cross-domain cleanup against terminal
+  and cancellation commands.
+- Verification passed: `npm run typecheck`, `npm run lint`, migration tests,
+  focused Offboarding E2E, and full `npm test` (62 tests: 22 unit/architecture,
+  2 contract, 1 migration, 18 integration, 19 E2E). Formatting and
+  `git diff --check` also passed.
+- Implementation assumption: without an HRIS/termination-request provider,
+  an authorized operator attests the termination request reference at creation
+  and its withdrawal reference before `REQUEST_CANCEL`. External source
+  validation remains outside TASK-060 scope.

@@ -180,7 +180,7 @@ Only generate a detailed `TASK-xxx_*.md` when the task becomes `READY` or is the
 | `TASK-058` | `F-035/F-036` | `WF-015` | P3 | P0 | License Assignment + Reclaim + Compliance | TASK-031, TASK-057 | **SATISFIED** | CODE_COMPLETE | `TASK-058_LICENSE_ASSIGNMENT_RECLAIM_COMPLIANCE.md` |
 | `TASK-058-R1` | `F-035` | `WF-015` | P3 | P0 | Cancel Unactivated License Assignment | TASK-058 | **SATISFIED** | CODE_COMPLETE | `TASK-058-R1_CANCEL_UNACTIVATED_LICENSE_ASSIGNMENT.md` |
 | `TASK-059` | `F-037/F-038` | `WF-017/WF-018` | P3 | P1 | Replacement + Retirement + Disposal + Data Wipe | TASK-015, TASK-036, TASK-038 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |
-| `TASK-060` | `F-004/OFFBOARDING` | `WF-ID04/WF-019` | P3 | P0 | User Offboarding Orchestration | TASK-003, TASK-015, TASK-058, TASK-058-R1, TASK-060-R1 | **SATISFIED** | NOT_STARTED | `TASK-060_USER_OFFBOARDING_ORCHESTRATION.md` |
+| `TASK-060` | `F-004/OFFBOARDING` | `WF-ID04/WF-019` | P3 | P0 | User Offboarding Orchestration | TASK-003, TASK-015, TASK-058, TASK-058-R1, TASK-060-R1 | **SATISFIED** | CODE_COMPLETE | `TASK-060_USER_OFFBOARDING_ORCHESTRATION.md` |
 | `TASK-060-R1` | `F-004/OFFBOARDING` | `WF-ID04/WF-019` | P3 | P0 | Define Normative Offboarding State Machine | TASK-003, TASK-015, TASK-058, TASK-058-R1 | **SATISFIED** | CODE_COMPLETE | `TASK-060-R1_NORMATIVE_OFFBOARDING_STATE_MACHINE.md` |
 | `TASK-061` | `F-047/PHASE-GATE` | `WF-SRCH01/P3-E2E` | P3 | P1 | Advanced Search + Phase 3 Integration Gate | TASK-050, TASK-051, TASK-052, TASK-053, TASK-055, TASK-056, TASK-058, TASK-059, TASK-060 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |
 | `TASK-070` | `F-039` | `WF-P01` | P4 | P0 | Supplier + Procurement Request | TASK-061 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |
@@ -281,17 +281,18 @@ Only generate a detailed `TASK-xxx_*.md` when the task becomes `READY` or is the
 
 # 11. Current Next Task
 
-TASK-060-R1 is `CODE_COMPLETE`; its normative Offboarding Case transitions,
-cancellation/recovery invariants and event contracts are recorded. All TASK-060
-dependencies, including TASK-058-R1 and this spec remediation, are satisfied.
-No unresolved `SPEC_CONFLICT` blocks TASK-060.
+TASK-060-R1 and TASK-060 are `CODE_COMPLETE`. The approved state machine,
+cancellation/recovery invariants, runtime commands, owning-domain clearances,
+audit/outbox behavior, and concurrency coverage are implemented. All
+TASK-060 dependencies are satisfied; no unresolved `SPEC_CONFLICT` remains.
 
 ```text
-NEXT = TASK-060 (READY, NOT_STARTED)
+NEXT = TASK-056 (READY / NOT_STARTED)
 ```
 
-TASK-056 is dependency-ready at P1, but TASK-060 is the P0 critical-path task.
-TASK-060 implementation must wait for a separate explicit user instruction.
+TASK-056 dependencies TASK-019, TASK-054, and TASK-055 are satisfied. Its task
+contract is generated when implementation starts. TASK-059 remains blocked and
+continues to block the TASK-061 Phase 3 integration gate.
 
 ---
 

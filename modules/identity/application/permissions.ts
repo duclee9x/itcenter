@@ -61,6 +61,21 @@ export const permissions: readonly Permission[] = [
   },
   { code: "operation.read", resource_type: "operation", action: "read" },
   { code: "user.read", resource_type: "user", action: "read" },
+  {
+    code: "identity.offboard",
+    resource_type: "offboarding_case",
+    action: "manage",
+  },
+  {
+    code: "identity.offboard.cancel",
+    resource_type: "offboarding_case",
+    action: "cancel",
+  },
+  {
+    code: "identity.offboard.exception",
+    resource_type: "offboarding_case",
+    action: "exception",
+  },
   { code: "role_binding.read", resource_type: "role_binding", action: "read" },
   { code: "rbac.manage", resource_type: "rbac", action: "manage" },
   { code: "agent.enroll", resource_type: "agent", action: "enroll" },

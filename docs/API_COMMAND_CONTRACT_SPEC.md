@@ -1148,8 +1148,9 @@ validation precedes resource-scope evaluation.
 `OFFBOARDING.START` moves `INITIATED` to `IN_PROGRESS`; where termination is
 effective it separately performs the validated User transition to
 `TERMINATING`. Offboarding Case and User Lifecycle remain independent state
-machines. `OFFBOARDING.REQUEST_CANCEL` must validate authoritative termination
-request withdrawal when the User is `TERMINATING`. Cancellation of a
+machines. `OFFBOARDING.REQUEST_CANCEL` must validate and persist the
+authoritative termination request withdrawal reference before entering
+`CANCELLATION_PENDING` when the User is `TERMINATING`. Cancellation of a
 `TERMINATED` User never reactivates the User; use `USER.REACTIVATE` / REHIRE.
 Every state-changing command carries an idempotency key, correlation ID, actor,
 reason and target expected version, and requires authorization, audit and
@@ -1167,6 +1168,14 @@ any permitted restoration only after recovery is complete and the termination
 request withdrawal is validated; it never restores `TERMINATED`. Finalization
 to `TERMINATED` follows the same explicit, versioned Identity lifecycle
 transition before the case can complete.
+
+The HTTP command routes are `POST /api/v1/users/{user_id}/offboarding-cases`,
+`POST /api/v1/offboarding-cases/{case_id}/commands/{start|resume|mark-ready|complete|cancel|request-cancel|complete-cancellation|reconcile|resolve-recovery|resolve-clearance}`,
+and the atomic immediate path `POST /api/v1/users/{user_id}/commands/start-offboarding`.
+`start-offboarding` requires `expected_user_version`, a manually attested
+`termination_request_id`, and `reason`. `request-cancel` requires
+`expected_version`, `withdrawal_reference`, and `reason`; the reference is
+persisted before the case enters `CANCELLATION_PENDING`.
 
 The workflow issues owning-domain commands:
 

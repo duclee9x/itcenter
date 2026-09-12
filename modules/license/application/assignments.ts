@@ -977,3 +977,21 @@ export async function readLicenseAssignment(
     );
   return result.rows[0]!;
 }
+
+export async function listUserLicenseAssignmentsForOffboarding(
+  tx: Transaction,
+  userId: string,
+) {
+  const rows = await tx.query(
+    `SELECT id,state,version,quantity FROM license.assignments
+      WHERE tenant_id=$1 AND principal_type='USER' AND principal_id=$2
+        ORDER BY id`,
+    [tx.tenantId, userId],
+  );
+  return rows.rows.map((row) => ({
+    id: String(row.id),
+    state: String(row.state),
+    version: Number(row.version),
+    quantity: Number(row.quantity),
+  }));
+}

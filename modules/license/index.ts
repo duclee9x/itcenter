@@ -23,6 +23,7 @@ export {
   listLicenseCompliance,
   readLicenseAvailability,
   readLicenseAssignment,
+  listUserLicenseAssignmentsForOffboarding,
   recordLicenseComplianceFacts,
 } from "./application/assignments.js";
 

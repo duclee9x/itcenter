@@ -374,6 +374,17 @@ identity.offboarding_cases:
   completed_at:
   cancelled_at:
 
+identity.user_lifecycle_history:
+  id:
+  tenant_id:
+  user_id:
+  from_state:
+  to_state:
+  actor_id:
+  reason:
+  correlation_id:
+  occurred_at:
+
 identity.offboarding_case_history:
   id:
   tenant_id:
@@ -386,6 +397,18 @@ identity.offboarding_case_history:
   reason:
   correlation_id:
   occurred_at:
+
+identity.offboarding_clearance_tasks:
+  id:
+  tenant_id:
+  offboarding_case_id:
+  clearance_type: # ACCESS, ASSET_RETURN, LICENSE
+  resource_id:
+  state: # PENDING, SUCCEEDED, BLOCKED, WAIVED, ACCEPTED_EXCEPTION
+  detail:
+  evidence_reference:
+  authorized_by:
+  version:
 
 identity.offboarding_recovery_actions:
   id:
@@ -531,6 +554,8 @@ role_bindings:
   source:
   valid_from:
   valid_until:
+  revoked_at:
+  version:
   reason:
   created_by:
 ```
@@ -777,6 +802,26 @@ do not update past assignments after ended_at
 ```
 
 except correction workflow.
+
+## 10.4 `return_requests`
+
+```yaml
+return_requests:
+  id:
+  asset_id:
+  assignment_id:
+  user_id:
+  due_at:
+  reason:
+  status: # PENDING, FULFILLED, CANCELLED
+  cancelled_reason: # required for an explicit cancellation/compensation
+  created_at:
+  fulfilled_at:
+```
+
+Return request cancellation preserves the record and requires the Asset-owned
+versioned command. Cancellation reason is retained to support idempotent
+offboarding recovery; completed return requests are not rolled back.
 
 ---
 

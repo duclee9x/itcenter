@@ -14,7 +14,7 @@ test("empty DB applies all migrations; rerun is idempotent and changed migration
       "SELECT schemaname,tablename FROM pg_tables WHERE schemaname IN ('identity','platform','audit')",
     );
     // TASK-002 adds identity.sessions to the foundation schema.
-    assert.equal(tables.rowCount, 15);
+    assert.equal(tables.rowCount, 21);
     const domainSchemas = await db.pool.query(
       "SELECT schema_name FROM information_schema.schemata WHERE schema_name = ANY($1::text[])",
       [

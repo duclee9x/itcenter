@@ -8,6 +8,9 @@ export {
   reserveAsset,
   requestReturn,
   receiveReturn,
+  listUserAssetsForOffboarding,
+  cancelReturnRequest,
+  readReturnRequestState,
   transferAsset,
   transitionLifecycle,
 } from "./application/lifecycle.js";

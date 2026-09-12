@@ -21,3 +21,16 @@ export {
   assertSessionActive,
 } from "./application/sessions.js";
 export { grantTemporary, revokeTemporary } from "./application/privilege.js";
+export {
+  startOffboarding,
+  createOffboardingCase,
+  startExistingOffboarding,
+  readOffboardingCase,
+  recordOffboardingClearance,
+  resolveOffboardingClearance,
+  transitionOffboardingCase,
+  addRecoveryAction,
+  resolveOffboardingRecoveryAction,
+  beginOffboardingReconciliation,
+  endOffboardingReconciliation,
+} from "./application/offboarding.js";

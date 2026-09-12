@@ -31,7 +31,7 @@ export async function evaluateAuthorization(
  FROM identity.role_bindings rb JOIN identity.roles r ON r.id=rb.role_id AND r.tenant_id=rb.tenant_id
  JOIN identity.role_permissions rp ON rp.role_id=r.id AND rp.tenant_id=r.tenant_id JOIN identity.permissions p ON p.id=rp.permission_id
  JOIN identity.users u ON u.tenant_id=rb.tenant_id AND u.id=rb.principal_id
- WHERE rb.tenant_id=$1 AND rb.principal_id=$2 AND u.employment_status='ACTIVE' AND u.archived_at IS NULL AND p.code=$3 AND rb.valid_from<= $4 AND (rb.valid_until IS NULL OR rb.valid_until>$4)
+ WHERE rb.tenant_id=$1 AND rb.principal_id=$2 AND rb.revoked_at IS NULL AND u.employment_status='ACTIVE' AND u.archived_at IS NULL AND p.code=$3 AND rb.valid_from<= $4 AND (rb.valid_until IS NULL OR rb.valid_until>$4)
  UNION ALL
  SELECT p.code, 'TEMPORARY_GRANT' AS role_code, tg.scope_type, tg.scope_id, 'Temporary Elevation' AS source,
         true AS temporary

@@ -61,6 +61,27 @@ export async function resolveNetworkExceptionWorkItem(input: {
     [input.tx.tenantId, input.exceptionId],
   );
 }
+
+export async function createOffboardingWorkItem(input: {
+  tx: Transaction;
+  caseId: string;
+  title: string;
+}): Promise<void> {
+  await input.tx.query(
+    "INSERT INTO operations.work_items(id,tenant_id,source_type,source_id,title,priority,owner_team_id) VALUES($1,$2,'OFFBOARDING',$3,$4,'HIGH','IDENTITY') ON CONFLICT (tenant_id,source_type,source_id) DO NOTHING",
+    [randomUUID(), input.tx.tenantId, input.caseId, input.title],
+  );
+}
+
+export async function resolveOffboardingWorkItem(input: {
+  tx: Transaction;
+  caseId: string;
+}): Promise<void> {
+  await input.tx.query(
+    "UPDATE operations.work_items SET state='RESOLVED',resolved_at=now(),last_action_at=now(),version=version+1 WHERE tenant_id=$1 AND source_type='OFFBOARDING' AND source_id=$2 AND state NOT IN ('RESOLVED','CLOSED')",
+    [input.tx.tenantId, input.caseId],
+  );
+}
 export async function resolveWorkItem(input: {
   tx: Transaction;
   workItemId: string;
