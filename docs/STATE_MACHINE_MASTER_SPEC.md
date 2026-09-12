@@ -1327,6 +1327,11 @@ TERMINATING → TERMINATED
 TERMINATED → ARCHIVED
 ```
 
+After a valid Offboarding cancellation and authoritative termination-request
+withdrawal, `TERMINATING` may transition back to the captured
+`pre_offboarding_user_state` only through an explicit validated Identity
+transition. This does not create a transition out of `TERMINATED`.
+
 Rehire:
 
 ```text
@@ -1342,27 +1347,98 @@ ARCHIVED/TERMINATED
 States:
 
 ```text
-PLANNED
+INITIATED
 IN_PROGRESS
 BLOCKED
-WAITING_ASSET_RETURN
-WAITING_OWNER_TRANSFER
 READY_TO_CLOSE
+CANCELLATION_PENDING
 COMPLETED
 CANCELLED
 ```
+
+`COMPLETED` and `CANCELLED` are terminal states. Offboarding Case and User
+Lifecycle are independent state machines; an Offboarding Case transition never
+implicitly changes User Lifecycle.
+
+Normal transitions:
+
+```text
+INITIATED → START → IN_PROGRESS
+IN_PROGRESS → blocking failure → BLOCKED
+BLOCKED → RESUME → IN_PROGRESS
+IN_PROGRESS → MARK_READY → READY_TO_CLOSE
+READY_TO_CLOSE → COMPLETE → COMPLETED
+```
+
+Cancellation transitions:
+
+```text
+INITIATED → OFFBOARDING.CANCEL → CANCELLED
+  only when no side effect or compensation is required
+
+IN_PROGRESS → OFFBOARDING.REQUEST_CANCEL → CANCELLATION_PENDING
+BLOCKED → OFFBOARDING.REQUEST_CANCEL → CANCELLATION_PENDING
+READY_TO_CLOSE → OFFBOARDING.REQUEST_CANCEL → CANCELLATION_PENDING
+CANCELLATION_PENDING
+  → OFFBOARDING.COMPLETE_CANCELLATION
+  → CANCELLED
+```
+
+`OFFBOARDING.CANCEL` is valid only for `INITIATED` when no compensation is
+required. It never restores a User in `TERMINATED`. Cancellation while User
+Lifecycle is `TERMINATING` is permitted only after the
+authoritative termination request is withdrawn or cancelled. The captured
+`pre_offboarding_user_state` may be restored from `TERMINATING` only by an
+explicit validated Identity transition. Cancellation never restores a User in
+`TERMINATED`; use the separate `USER.REACTIVATE` / REHIRE workflow. The
+`OFFBOARDING.CANCEL` operation must not perform that reactivation.
+
+After side effects begin, cancellation requires compensating/recovery actions.
+Historical actions are retained. `CANCELLATION_PENDING` can become `CANCELLED`
+only after all required recovery actions succeed or are explicitly
+policy-authorized as `WAIVED` / `ACCEPTED_EXCEPTION`. Irreversible actions such
+as completed data wipe or disposal are not rolled back and require recovery or
+manual exception work.
+
+All state-changing commands enforce expected version, idempotency,
+authorization, reason, audit, outbox and correlation ID where applicable.
+`COMPLETE` and `OFFBOARDING.REQUEST_CANCEL` serialize on the Offboarding Case
+version/aggregate lock; only one may win. A stale competing command fails with
+a version conflict and cannot overwrite the successful transition. When a
+command explicitly changes both the Offboarding Case and User Lifecycle, it
+validates both aggregate versions and commits both explicit transitions
+atomically; neither transition is inferred from the other.
 
 ---
 
 # 70. Offboarding Invariants
 
 ```text
+READY_TO_CLOSE
+→ all mandatory tasks succeeded or policy-approved waived
+→ no unresolved blockers
+→ authoritative termination request remains valid
+→ no cancellation is pending
+
 COMPLETED
+→ canonical User Lifecycle is TERMINATED (observed or produced by normative
+  finalization)
 → login revoked
 → privileged access revoked
 → required asset return resolved/exception accepted
 → licenses reclaimed/exception accepted
 → ownership transferred where required
+
+CANCELLED
+→ all required recovery actions succeeded or policy-authorized waived/
+  accepted exception
+→ authoritative termination request is withdrawn/cancelled
+→ historical actions remain unchanged
+
+COMPLETED is terminal; COMPLETED → CANCELLED is forbidden.
+User Lifecycle restoration is a separate explicit validated Identity
+transition from TERMINATING to pre_offboarding_user_state. A TERMINATED User
+is never restored by Offboarding cancellation.
 ```
 
 ---
@@ -2002,7 +2078,15 @@ depends on:
 - Asset return
 - License reclaim
 - Ownership transfer
+- all mandatory tasks succeeded or policy-approved waived
+- no unresolved blockers or pending cancellation
+- authoritative termination request remains valid
+- User Lifecycle is TERMINATED (observed or produced by finalization)
 ```
+
+Offboarding `COMPLETE` and `OFFBOARDING.REQUEST_CANCEL` compete on the same
+case version; a stale command cannot overwrite the committed winner. An
+Offboarding Case cancellation never reactivates a User.
 
 ---
 

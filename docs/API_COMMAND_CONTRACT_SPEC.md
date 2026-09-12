@@ -1127,11 +1127,53 @@ Example offboarding command:
 IDENTITY.START_OFFBOARDING
 ```
 
-then workflow issues:
+The command creates an Identity-owned case in `INITIATED` and captures the
+User's current lifecycle state as `pre_offboarding_user_state`. Starting and
+advancing the case use explicit commands:
+
+```text
+OFFBOARDING.START
+OFFBOARDING.RESUME
+OFFBOARDING.MARK_READY
+OFFBOARDING.COMPLETE
+OFFBOARDING.CANCEL
+OFFBOARDING.REQUEST_CANCEL
+OFFBOARDING.COMPLETE_CANCELLATION
+```
+
+Use `identity.offboard` for normal case commands and
+`identity.offboard.cancel` for cancellation/recovery commands. Tenant
+validation precedes resource-scope evaluation.
+
+`OFFBOARDING.START` moves `INITIATED` to `IN_PROGRESS`; where termination is
+effective it separately performs the validated User transition to
+`TERMINATING`. Offboarding Case and User Lifecycle remain independent state
+machines. `OFFBOARDING.REQUEST_CANCEL` must validate authoritative termination
+request withdrawal when the User is `TERMINATING`. Cancellation of a
+`TERMINATED` User never reactivates the User; use `USER.REACTIVATE` / REHIRE.
+Every state-changing command carries an idempotency key, correlation ID, actor,
+reason and target expected version, and requires authorization, audit and
+transactional outbox behavior. The target version is the User version for
+case creation and the Offboarding Case version for subsequent transitions.
+`OFFBOARDING.COMPLETE` and `OFFBOARDING.REQUEST_CANCEL` must compare-and-set the
+same case version so only one concurrent transition succeeds.
+`OFFBOARDING.CANCEL` is permitted only from `INITIATED` if no compensation is
+required; later cancellation uses `REQUEST_CANCEL` and
+`COMPLETE_CANCELLATION`.
+When a command changes both User Lifecycle and Offboarding Case, it validates
+the expected version of each affected aggregate and commits both explicit
+Identity transitions atomically. `OFFBOARDING.COMPLETE_CANCELLATION` performs
+any permitted restoration only after recovery is complete and the termination
+request withdrawal is validated; it never restores `TERMINATED`. Finalization
+to `TERMINATED` follows the same explicit, versioned Identity lifecycle
+transition before the case can complete.
+
+The workflow issues owning-domain commands:
 
 ```text
 ASSET.REQUEST_RETURN
-LICENSE.RECLAIM
+LICENSE.CANCEL_ASSIGNMENT (ASSIGNED)
+LICENSE.RECLAIM (ACTIVE / SUSPENDED)
 ACCESS.REVOKE
 ```
 

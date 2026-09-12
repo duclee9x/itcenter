@@ -1037,6 +1037,8 @@ contract.export
 ```text
 user.read
 user.update_non_authoritative
+identity.offboard
+identity.offboard.cancel
 session.revoke
 group.mapping.manage
 role.read
@@ -1048,6 +1050,13 @@ role_binding.privileged_grant
 service_account.manage
 access_review.manage
 ```
+
+`identity.offboard` authorizes initiation, start, resume, readiness marking and
+completion of a tenant-scoped Offboarding Case. `identity.offboard.cancel`
+authorizes direct cancellation from `INITIATED`, cancellation requests,
+completion of recovery, and the explicit validated restoration from
+`TERMINATING` to `pre_offboarding_user_state` when all cancellation conditions
+are satisfied. Neither permission permits reactivating a `TERMINATED` User.
 
 ---
 

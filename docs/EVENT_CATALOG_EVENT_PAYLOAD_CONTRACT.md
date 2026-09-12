@@ -846,6 +846,134 @@ search
 
 ---
 
+## Offboarding Case Events
+
+These events are produced by Identity after the corresponding Offboarding Case
+transaction commits. The common event envelope carries `correlation_id`,
+`causation_id`, actor, tenant, aggregate version, and idempotency key. Payloads
+contain identifiers and state facts only; they do not publish the full User
+record. `case_version` is the committed Offboarding Case version.
+
+### `OFFBOARDING.CREATED`
+
+```yaml
+offboarding_case_id:
+user_id:
+case_version: 1
+user_version:
+state: INITIATED
+pre_offboarding_user_state:
+termination_request_id:
+reason:
+created_at:
+```
+
+### `OFFBOARDING.STARTED`
+
+```yaml
+offboarding_case_id:
+user_id:
+case_version:
+user_version:
+from_state: INITIATED
+to_state: IN_PROGRESS
+pre_offboarding_user_state:
+termination_request_id:
+started_at:
+reason:
+```
+
+### `OFFBOARDING.BLOCKED`
+
+```yaml
+offboarding_case_id:
+user_id:
+case_version:
+from_state: IN_PROGRESS
+to_state: BLOCKED
+blocking_task_ids: []
+reason:
+blocked_at:
+```
+
+### `OFFBOARDING.RESUMED`
+
+```yaml
+offboarding_case_id:
+user_id:
+case_version:
+from_state: BLOCKED
+to_state: IN_PROGRESS
+resolved_blocker_ids: []
+reason:
+resumed_at:
+```
+
+### `OFFBOARDING.READY_TO_CLOSE`
+
+```yaml
+offboarding_case_id:
+user_id:
+case_version:
+from_state: IN_PROGRESS
+to_state: READY_TO_CLOSE
+termination_request_id:
+mandatory_task_summary:
+reason:
+ready_at:
+```
+
+### `OFFBOARDING.CANCELLATION_REQUESTED`
+
+```yaml
+offboarding_case_id:
+user_id:
+case_version:
+from_state: [IN_PROGRESS, BLOCKED, READY_TO_CLOSE]
+to_state: CANCELLATION_PENDING
+termination_request_withdrawal_reference: # required when User is TERMINATING
+recovery_action_ids: []
+reason:
+requested_at:
+```
+
+### `OFFBOARDING.CANCELLED`
+
+```yaml
+offboarding_case_id:
+user_id:
+case_version:
+user_version:
+from_state: [INITIATED, CANCELLATION_PENDING]
+to_state: CANCELLED
+recovery_dispositions: []
+user_lifecycle_state:
+reason:
+cancelled_at:
+```
+
+`user_lifecycle_state` records the observed canonical state after cancellation.
+It does not imply a User state transition. Any restoration from `TERMINATING`
+to `pre_offboarding_user_state` is a separate validated Identity transition.
+
+### `OFFBOARDING.COMPLETED`
+
+```yaml
+offboarding_case_id:
+user_id:
+case_version:
+user_version:
+from_state: READY_TO_CLOSE
+to_state: COMPLETED
+user_lifecycle_state: TERMINATED
+termination_request_id:
+clearance_summary:
+reason:
+completed_at:
+```
+
+---
+
 ## `USER.DEPARTMENT_CHANGED`
 
 ```yaml
@@ -3304,17 +3432,28 @@ causation_id = immediate previous command/event
 # 60. Cross-domain Saga Example — Offboarding
 
 ```text
-USER.TERMINATING
+OFFBOARDING.CREATED (INITIATED)
+↓
+OFFBOARDING.STARTED (IN_PROGRESS) + USER.TERMINATING
 ↓
 ACCESS.REVOKE_REQUESTED
 ASSET.RETURN_REQUESTED
 LICENSE.RECLAIM_PENDING
 OWNERSHIP.TRANSFER_REQUIRED
 ↓
-responses/events
+partial failure → OFFBOARDING.BLOCKED → OFFBOARDING.RESUMED
 ↓
-OFFBOARDING.COMPLETED
+clearances verified → OFFBOARDING.READY_TO_CLOSE
+↓
+USER.TERMINATED → OFFBOARDING.COMPLETED
 ```
+
+Cancellation from `INITIATED` emits `OFFBOARDING.CANCELLED` only when no
+compensation is required. Later cancellation emits
+`OFFBOARDING.CANCELLATION_REQUESTED`, runs recovery actions, and emits
+`OFFBOARDING.CANCELLED` only after all required recovery succeeds or is
+policy-authorized as waived/accepted exception. `OFFBOARDING.COMPLETE` races
+`OFFBOARDING.REQUEST_CANCEL` on the case version; only one may commit.
 
 Prefer choreography for simple flows.
 

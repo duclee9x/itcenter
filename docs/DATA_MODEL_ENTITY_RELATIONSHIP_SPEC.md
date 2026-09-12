@@ -220,6 +220,7 @@ Notification / Reporting / Audit
 | Domain | Aggregate Root | Important Children |
 |---|---|---|
 | Identity | User | ExternalIdentity, GroupMembership, RoleBinding |
+| Identity | OffboardingCase | OffboardingCaseHistory, OffboardingRecoveryAction |
 | Asset | Asset | Interface, StateHistory, AssetAttribute |
 | Assignment | Assignment | AssignmentItem, Confirmation |
 | Warehouse | GoodsReceipt | GoodsReceiptLine |
@@ -250,6 +251,9 @@ Notification / Reporting / Audit
 ```mermaid
 erDiagram
     USER ||--o{ ASSIGNMENT : receives
+    USER ||--o{ OFFBOARDING_CASE : subject_of
+    OFFBOARDING_CASE ||--o{ OFFBOARDING_CASE_HISTORY : records
+    OFFBOARDING_CASE ||--o{ OFFBOARDING_RECOVERY_ACTION : requires
     ASSET ||--o{ ASSIGNMENT : assigned_via
     ASSET ||--o{ MOVEMENT : moves
     ASSET ||--o{ MAINTENANCE_ORDER : has
@@ -345,6 +349,80 @@ Unique:
 ```text
 (provider_id, external_subject)
 ```
+
+### Offboarding Case and Recovery Records
+
+Identity owns the canonical Offboarding Case, its immutable history and
+cancellation recovery records. Asset and License references remain logical
+cross-domain references; Identity does not write their state.
+
+```yaml
+identity.offboarding_cases:
+  id:
+  tenant_id:
+  user_id:
+  state: # INITIATED, IN_PROGRESS, BLOCKED, READY_TO_CLOSE,
+         # CANCELLATION_PENDING, COMPLETED, CANCELLED
+  pre_offboarding_user_state:
+  termination_request_id:
+  termination_request_withdrawn_at:
+  termination_request_withdrawal_reference:
+  cancellation_requested_at:
+  version:
+  created_at:
+  updated_at:
+  completed_at:
+  cancelled_at:
+
+identity.offboarding_case_history:
+  id:
+  tenant_id:
+  offboarding_case_id:
+  case_version:
+  from_state:
+  to_state:
+  command_type:
+  actor_id:
+  reason:
+  correlation_id:
+  occurred_at:
+
+identity.offboarding_recovery_actions:
+  id:
+  tenant_id:
+  offboarding_case_id:
+  source_action_id:
+  action_type:
+  disposition: # PENDING, SUCCEEDED, WAIVED, ACCEPTED_EXCEPTION
+  evidence_reference:
+  authorized_by:
+  reason:
+  version:
+  created_at:
+  completed_at:
+
+identity.offboarding_recovery_action_history:
+  id:
+  tenant_id:
+  recovery_action_id:
+  action_version:
+  from_disposition:
+  to_disposition:
+  actor_id:
+  reason:
+  evidence_reference:
+  occurred_at:
+```
+
+`pre_offboarding_user_state` is captured before the User Lifecycle transition
+to `TERMINATING` and is immutable after the case begins. Recovery action
+history is append-only; completed actions and irreversible data wipe/disposal
+records are never deleted or rewritten. A `CANCELLED` case requires all
+required recovery actions to be `SUCCEEDED` or explicitly policy-authorized as
+`WAIVED` / `ACCEPTED_EXCEPTION`. Case version is the concurrency boundary for
+`COMPLETE` versus `OFFBOARDING.REQUEST_CANCEL`. Validate termination-request
+withdrawal and continued validity against its authoritative source at the
+relevant command; do not treat a cached boolean as authoritative.
 
 ---
 

@@ -1096,10 +1096,10 @@ archive
 
 # 50. WF-JML03 — Leaver / Offboarding
 
-Trigger:
+Triggers:
 
 ```text
-USER.TERMINATED
+AUTHORITATIVE.TERMINATION_REQUEST
 HRIS.END_DATE_REACHED
 MANUAL.OFFBOARDING
 ```
@@ -1107,9 +1107,14 @@ MANUAL.OFFBOARDING
 Flow:
 
 ```text
-Termination Event
+Create Offboarding Case (INITIATED)
 ↓
-Set TERMINATING
+Capture pre_offboarding_user_state and termination request reference
+↓
+OFFBOARDING.START
+↓
+Offboarding Case → IN_PROGRESS
+User Lifecycle → TERMINATING through its own validated transition
 ↓
 Disable Interactive Access
 ↓
@@ -1314,15 +1319,73 @@ Security Review Complete
 # 60. Offboarding Case State
 
 ```text
-PLANNED
+INITIATED
 IN_PROGRESS
 BLOCKED
-WAITING_ASSET_RETURN
-WAITING_OWNER_TRANSFER
 READY_TO_CLOSE
+CANCELLATION_PENDING
 COMPLETED
 CANCELLED
 ```
+
+The Offboarding Case and User Lifecycle are independent state machines.
+Persist `pre_offboarding_user_state` before the User Lifecycle transition to
+`TERMINATING`; each transition is explicit, versioned and validated by Identity.
+
+Normal transitions:
+
+```text
+INITIATED → START → IN_PROGRESS
+IN_PROGRESS → blocking failure → BLOCKED
+BLOCKED → RESUME → IN_PROGRESS
+IN_PROGRESS → MARK_READY → READY_TO_CLOSE
+READY_TO_CLOSE → COMPLETE → COMPLETED
+```
+
+Cancellation transitions:
+
+```text
+INITIATED → OFFBOARDING.CANCEL → CANCELLED
+  only when no compensation is required
+
+IN_PROGRESS | BLOCKED | READY_TO_CLOSE
+  → OFFBOARDING.REQUEST_CANCEL
+  → CANCELLATION_PENDING
+CANCELLATION_PENDING
+  → OFFBOARDING.COMPLETE_CANCELLATION
+  → CANCELLED
+```
+
+When User Lifecycle is `TERMINATING`, cancellation requires withdrawal or
+cancellation of the authoritative termination request. Successful cancellation
+may restore `TERMINATING` to `pre_offboarding_user_state` only through an
+explicit validated Identity transition. Offboarding cancellation never restores
+a `TERMINATED` User; use `USER.REACTIVATE` / REHIRE.
+
+`OFFBOARDING.CANCEL` is allowed only from `INITIATED` when no compensation is
+required. Later cancellation uses `OFFBOARDING.REQUEST_CANCEL` followed by
+`OFFBOARDING.COMPLETE_CANCELLATION` after recovery is complete or explicitly
+policy-waived.
+
+After side effects begin, retain their history and execute compensating or
+recovery actions. `CANCELLATION_PENDING` remains until each required recovery
+action succeeds or an authorized policy records `WAIVED` /
+`ACCEPTED_EXCEPTION`. Completed data wipe or disposal is irreversible and
+requires recovery/manual exception work. Do not delete or rewrite action history.
+
+`READY_TO_CLOSE` requires all mandatory tasks succeeded or policy-approved
+waived, no unresolved blockers, a valid authoritative termination request and
+no pending cancellation. `COMPLETED` requires canonical User Lifecycle
+`TERMINATED`, observed or produced by the normative finalization flow.
+`COMPLETED` and `CANCELLED` are terminal; `COMPLETED → CANCELLED` is forbidden.
+
+All state-changing commands enforce expected version, idempotency, permission,
+reason, audit, outbox and correlation ID where applicable. `COMPLETE` and
+`OFFBOARDING.REQUEST_CANCEL` serialize on the same Offboarding Case version;
+exactly one may win and a stale competing command must receive a version
+conflict. If one command changes both the case and User Lifecycle, it validates
+both aggregate versions and commits both explicit Identity transitions
+atomically.
 
 ---
 
@@ -1882,10 +1945,15 @@ SYNC.CONFLICT_DETECTED
 
 ```text
 OFFBOARDING.CREATED
+OFFBOARDING.STARTED
 OFFBOARDING.ACCESS_REVOKED
 OFFBOARDING.ASSET_RETURN_REQUIRED
 OFFBOARDING.LICENSE_RECLAIM_REQUIRED
 OFFBOARDING.BLOCKED
+OFFBOARDING.RESUMED
+OFFBOARDING.READY_TO_CLOSE
+OFFBOARDING.CANCELLATION_REQUESTED
+OFFBOARDING.CANCELLED
 OFFBOARDING.COMPLETED
 ```
 

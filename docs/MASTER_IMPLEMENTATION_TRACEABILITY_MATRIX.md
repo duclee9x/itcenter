@@ -123,6 +123,7 @@ P5 = Automation + Intelligence + Advanced Reporting
 | F-002 | RBAC Authorization | Identity/RBAC | WF-ID02 | P0 | P0 | DESIGN_READY |
 | F-003 | External Identity Sync | Identity | WF-ID03 | P0/P2 | P1 | DESIGN_READY |
 | F-004 | User Lifecycle | Identity | WF-ID04 | P0/P2 | P1 | DESIGN_READY |
+| F-004/OFFBOARDING | User Offboarding | Identity | WF-ID04/WF-019 | P3 | P0 | DESIGN_READY |
 | F-005 | Asset Registry | Asset | WF-A01 | P1 | P0 | DESIGN_READY |
 | F-006 | Asset Assignment | Asset | WF-006 | P1 | P0 | DESIGN_READY |
 | F-007 | Asset Transfer | Asset | WF-007 | P1 | P1 | DESIGN_READY |
@@ -252,6 +253,91 @@ suspended user
 terminated user
 session revoke
 tenant isolation
+```
+
+## F-004 — User Lifecycle / Offboarding
+
+```text
+Feature: User Lifecycle / Offboarding
+Owner: Identity
+Workflow: WF-ID04 / WF-019
+Phase: P3
+Priority: P0
+Specification remediation: TASK-060-R1
+Implementation task: TASK-060
+```
+
+### Entities
+
+```text
+identity.users
+identity.offboarding_cases
+identity.offboarding_case_history
+identity.offboarding_recovery_actions
+```
+
+The Offboarding Case and User Lifecycle are independent state machines.
+Persist `pre_offboarding_user_state` before the explicit User transition to
+`TERMINATING`.
+
+### Commands
+
+```text
+IDENTITY.START_OFFBOARDING
+OFFBOARDING.START
+OFFBOARDING.RESUME
+OFFBOARDING.MARK_READY
+OFFBOARDING.COMPLETE
+OFFBOARDING.CANCEL
+OFFBOARDING.REQUEST_CANCEL
+OFFBOARDING.COMPLETE_CANCELLATION
+```
+
+Commands require authorization, expected version for every affected aggregate,
+idempotency, reason, audit, outbox and correlation metadata as applicable.
+
+### Events
+
+```text
+OFFBOARDING.STARTED
+OFFBOARDING.BLOCKED
+OFFBOARDING.RESUMED
+OFFBOARDING.READY_TO_CLOSE
+OFFBOARDING.CANCELLATION_REQUESTED
+OFFBOARDING.CANCELLED
+OFFBOARDING.COMPLETED
+```
+
+### Permissions
+
+```text
+identity.offboard
+identity.offboard.cancel
+```
+
+### State Machines and Invariants
+
+```text
+Offboarding Case: INITIATED, IN_PROGRESS, BLOCKED, READY_TO_CLOSE,
+                  CANCELLATION_PENDING, COMPLETED, CANCELLED
+User Lifecycle: independent; TERMINATING may be restored to the captured
+                pre_offboarding_user_state only by an explicit validated
+                Identity transition after authoritative request withdrawal
+```
+
+Cancellation after side effects uses compensating/recovery actions. Historical
+actions are retained; irreversible data wipe/disposal requires manual recovery
+or policy-approved exception. `COMPLETE` races `OFFBOARDING.REQUEST_CANCEL` on
+the case version; add a concurrency test proving only one can win.
+
+### Audit, Timeline and Tests
+
+```text
+Immutable case transition/action history and audit/outbox per committed
+command; user timeline projects Offboarding events.
+E2E: completion, cancellation/recovery, missing Asset, License cancellation
+and reclaim, actionable failure, authorization denial, idempotent replay, and
+COMPLETE versus REQUEST_CANCEL concurrency.
 ```
 
 ---

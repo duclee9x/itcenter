@@ -23,6 +23,7 @@ of their assignments and state transitions.
 - `docs/IDENTITY_SSO_RBAC_USER_LIFECYCLE_OFFBOARDING_WORKFLOW.md` (§§50–63,
   §§82–84)
 - `docs/STATE_MACHINE_MASTER_SPEC.md` (§§69–70)
+- `tasks/TASK-060-R1_NORMATIVE_OFFBOARDING_STATE_MACHINE.md`
 - `docs/DATA_MODEL_ENTITY_RELATIONSHIP_SPEC.md` (Identity, Asset, License,
   offboarding and audit entities)
 - `docs/API_COMMAND_CONTRACT_SPEC.md` (§§49–50)
@@ -72,12 +73,15 @@ of their assignments and state transitions.
 Use only the specified case states and transitions:
 
 ```text
-PLANNED, IN_PROGRESS, BLOCKED, WAITING_ASSET_RETURN,
-WAITING_OWNER_TRANSFER, READY_TO_CLOSE, COMPLETED, CANCELLED
+INITIATED, IN_PROGRESS, BLOCKED, READY_TO_CLOSE,
+CANCELLATION_PENDING, COMPLETED, CANCELLED
 ```
 
-- Enforce transition rules from the normative offboarding state machine; do not
-  infer additional transitions from this state list.
+- Offboarding Case and User Lifecycle are independent state machines. Enforce
+  only the normative transitions and cancellation/recovery rules in
+  `STATE_MACHINE_MASTER_SPEC.md` §69 and the Identity offboarding workflow.
+- Persist immutable `pre_offboarding_user_state` before transitioning User
+  Lifecycle to `TERMINATING`.
 - A termination start is idempotent and versioned. Tenant validation precedes
   resource scope. An emergency reason is required where policy classifies the
   termination as critical.
@@ -87,6 +91,26 @@ WAITING_OWNER_TRANSFER, READY_TO_CLOSE, COMPLETED, CANCELLED
 - Case completion must verify no active session, no privileged/temporary access,
   and no outstanding tracked Asset or supported License clearance, unless a
   specific approved exception is recorded.
+- Cancellation from `INITIATED` is allowed only when no compensation is
+  required, using `OFFBOARDING.CANCEL`. Cancellation from `IN_PROGRESS`,
+  `BLOCKED`, or `READY_TO_CLOSE`
+  enters `CANCELLATION_PENDING`; complete cancellation only after all required
+  recovery actions succeed or are explicitly policy-authorized as waived or an
+  accepted exception. Cancellation while User Lifecycle is `TERMINATING`
+  requires withdrawal/cancellation of the authoritative termination request.
+  Restore the captured User state only through an explicit validated Identity
+  transition. Cancellation must never restore a `TERMINATED` User; use
+  `USER.REACTIVATE` / REHIRE. Preserve all historical actions and handle
+  irreversible actions through recovery/manual exception work.
+- `READY_TO_CLOSE` requires all mandatory tasks succeeded or policy-approved
+  waived, no unresolved blockers, a still-valid termination request, and no
+  pending cancellation. `COMPLETED` requires canonical User Lifecycle
+  `TERMINATED`, observed or produced by the normative finalization flow.
+- `OFFBOARDING.COMPLETE` and `OFFBOARDING.REQUEST_CANCEL` must serialize on the
+  same case version/aggregate lock. A concurrent loser gets a version conflict;
+  it cannot overwrite the committed winner. Commands that change both the case
+  and User Lifecycle validate both aggregate versions and commit both explicit
+  Identity transitions atomically.
 - Asset and License state changes are explicit commands/use cases through the
   owning application contracts. Cross-domain partial failure leaves a durable
   blocked case that can be retried or reconciled; it must not imply rollback of
@@ -103,12 +127,16 @@ WAITING_OWNER_TRANSFER, READY_TO_CLOSE, COMPLETED, CANCELLED
    application contracts, with partial failure/retry represented on the case.
 4. Completion is blocked while required clearances remain unresolved; exceptions
    require explicit approval and evidence.
-5. Commands enforce permission, tenant/scope, idempotency, versions, audit, and
-   outbox contracts; user and audit records remain retained.
+5. Commands enforce permission, tenant/scope, idempotency, expected versions,
+   reason, audit, outbox and correlation contracts; user and audit records
+   remain retained.
 6. Cross-domain E2E tests cover successful close, missing Asset, partial failure
-   and retry, duplicate start, authorization denial, cancellation of unactivated
-   License assignments, reclaim of active/suspended assignments, and actionable
-   cleanup failure without false completion.
+  and retry, duplicate start, authorization denial, cancellation of unactivated
+  License assignments, reclaim of active/suspended assignments, cancellation
+  recovery including the no-reactivation guard for `TERMINATED` Users, and actionable
+  cleanup failure without false completion. A concurrency test races
+  `OFFBOARDING.COMPLETE` against `OFFBOARDING.REQUEST_CANCEL` and proves exactly
+  one wins while the losing stale command cannot rewrite case or User history.
 
 ## Completion Report
 
