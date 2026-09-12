@@ -2,17 +2,17 @@
 
 ## Active Task
 
-TASK-050 — Asset Audit — Expected vs Observed
+TASK-051 — Network Discovery + Current Topology Projection
 
-Feature: F-026
-Workflow: WF-010
+Feature: F-027
+Workflow: WF-011
 Branch: master
 
 ## Overall Status
 
 CODE_COMPLETE
 
-TASK-030 monitoring ingestion and normalization verification passed.
+TASK-051 network discovery ingestion and topology verification passed.
 
 ## Completed
 
@@ -72,6 +72,11 @@ TASK-030 monitoring ingestion and normalization verification passed.
   transition APIs, validation, idempotency, outbox and audit effects.
 - Added maintenance orders, warranty coverage records and protected
   maintenance transitions with tenant-scoped persistence, outbox and audit.
+- Added tenant-scoped network discovery jobs and state transitions, normalized
+  append-only IP/MAC/device observations, provider-event deduplication, and the
+  latest-observation topology projection with source confidence and configured
+  freshness thresholds. Added permission, idempotency, outbox, audit and E2E
+  coverage; observations do not mutate canonical asset state.
 
 ## Verification State
 
@@ -95,6 +100,11 @@ append-only observations, durable mismatch exceptions and explicit resolution
 commands with idempotency, outbox and audit effects. Observations do not mutate
 canonical asset state.
 
+TASK-051 complete: added discovery job lifecycle, provider-neutral observation
+ingestion and tenant-scoped current topology reads. Freshness is calculated
+against each job's configured threshold. Active source-specific network probes
+remain integration work; no discovery result is fabricated.
+
 MIGRATION_RISK: the existing local volume rejects `npm run db:migrate` because
 an applied migration checksum differs. Do not edit migration history or reset
 the volume automatically; restore the original migration or add a forward
@@ -102,7 +112,9 @@ migration before applying schema changes.
 
 ## Exact Next Step
 
-TASK-051 is next; proceed only through the task registry workflow.
+TASK-052 is next; its prerequisites are satisfied. Generate the task spec from
+the registry, then implement unknown-device, VLAN-mismatch and IP-conflict
+exception handling.
 
 ## SPEC_CONFLICT
 
@@ -110,4 +122,6 @@ None.
 
 ## SCOPE_DEPENDENCY
 
-None.
+Live SNMP/ICMP/ARP/LLDP and controller polling need source connectors and
+scoped credentials; TASK-051 provides the normalized ingestion and topology
+boundary without claiming live polling.

@@ -13,6 +13,7 @@ export async function migrate(
     "platform",
     "identity",
     "asset",
+    "network",
     "communication",
     "operations",
     "helpdesk",

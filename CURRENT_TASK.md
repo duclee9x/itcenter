@@ -1,14 +1,14 @@
 # CURRENT TASK
 
-Task: `TASK-050`
+Task: `TASK-051`
 
-Task specification: `tasks/TASK-050_ASSET_AUDIT.md`
+Task specification: `tasks/TASK-051_NETWORK_DISCOVERY.md`
 
 Status: `CODE_COMPLETE`
 
 Branch: `master`
 
-TASK-000 through TASK-050 acceptance criteria pass. Asset audit sessions,
-expected values, observations and explicit exception resolution are tenant
-scoped with outbox and audit effects. TASK-051 is next through the task
-registry workflow.
+TASK-000 through TASK-051 acceptance criteria pass. Network discovery jobs,
+normalized immutable observations, idempotent ingestion and a tenant-scoped
+current topology projection are implemented with authorization, outbox and
+audit effects. TASK-052 is next through the task registry workflow.

@@ -66,6 +66,13 @@ import {
   startAudit,
 } from "../../../modules/asset-audit/index.js";
 import {
+  createDiscoveryJob,
+  normalizeNetworkObservation,
+  readCurrentTopology,
+  recordDiscoveryObservation,
+  transitionDiscoveryJob,
+} from "../../../modules/network/index.js";
+import {
   PostgresIdempotencyStore,
   PostgresOutboxWriter,
 } from "../../../packages/messaging/src/index.js";
@@ -127,6 +134,26 @@ export function apiServer(
         };
       });
       json(res, 200, { data: overview, meta: context });
+      return true;
+    }
+    if (req.method === "GET" && req.url === "/api/v1/network/topology") {
+      const principal = await authenticate(
+        authentication,
+        req.headers.authorization,
+      );
+      await authorize(authorization, {
+        principal,
+        action: "network.topology.read",
+        resource: {
+          type: "network_topology",
+          id: "current",
+          tenant_id: principal.tenant_id,
+        },
+        scope: {},
+        context: { ...context },
+      });
+      const topology = await uow.run(principal.tenant_id, readCurrentTopology);
+      json(res, 200, { data: topology, meta: context });
       return true;
     }
     const timelineMatch = /^\/api\/v1\/tickets\/([^/]+)\/timeline$/.exec(
@@ -221,6 +248,183 @@ export function apiServer(
       );
     const isWarrantyCreate = req.url === "/api/v1/warranties";
     const isMaintenanceCreate = req.url === "/api/v1/maintenance";
+    const discoveryCreate = req.url === "/api/v1/network/discovery-jobs";
+    const discoveryObservation =
+      /^\/api\/v1\/network\/discovery-jobs\/([^/]+)\/observations$/.exec(
+        req.url ?? "",
+      );
+    const discoveryTransition =
+      /^\/api\/v1\/network\/discovery-jobs\/([^/]+)\/commands\/transition$/.exec(
+        req.url ?? "",
+      );
+    if (
+      req.method === "POST" &&
+      (discoveryCreate || discoveryObservation || discoveryTransition)
+    ) {
+      const principal = await authenticate(
+        authentication,
+        req.headers.authorization,
+      );
+      const key = req.headers["idempotency-key"];
+      if (typeof key !== "string" || !key.trim())
+        throw new ApplicationError(
+          "VALIDATION_ERROR",
+          "Idempotency-Key is required.",
+        );
+      const body = await new Promise<string>((resolve) => {
+        let data = "";
+        req.on("data", (chunk) => (data += chunk));
+        req.on("end", () => resolve(data));
+      });
+      let input: Record<string, unknown>;
+      try {
+        input = (body ? JSON.parse(body) : {}) as Record<string, unknown>;
+      } catch {
+        throw new ApplicationError("VALIDATION_ERROR", "Invalid JSON request.");
+      }
+      const normalized = discoveryObservation
+        ? normalizeNetworkObservation(input)
+        : null;
+      const jobId =
+        discoveryObservation?.[1] ?? discoveryTransition?.[1] ?? "new";
+      await authorize(authorization, {
+        principal,
+        action: "network.discovery.run",
+        resource: {
+          type: "network_discovery",
+          id: jobId,
+          tenant_id: principal.tenant_id,
+        },
+        scope: {},
+        context: { ...context },
+      });
+      const operation = discoveryCreate
+        ? "NETWORK.DISCOVERY.START"
+        : discoveryObservation
+          ? "NETWORK.DISCOVERY.OBSERVE"
+          : "NETWORK.DISCOVERY.TRANSITION";
+      const result = await uow.run(principal.tenant_id, (tx) =>
+        new PostgresIdempotencyStore(tx).execute(
+          {
+            principalId: principal.id,
+            operation,
+            businessScope: jobId,
+            key,
+            semanticRequest: input as never,
+            expiresAt: new Date(Date.now() + 86400000),
+          },
+          async () => {
+            const value = discoveryCreate
+              ? await createDiscoveryJob({
+                  tx,
+                  sourceType: String(input.source_type ?? ""),
+                  ...(input.scope !== undefined ? { scope: input.scope } : {}),
+                  ...(typeof input.freshness_threshold_seconds === "number"
+                    ? {
+                        freshnessThresholdSeconds:
+                          input.freshness_threshold_seconds,
+                      }
+                    : {}),
+                })
+              : discoveryObservation
+                ? await recordDiscoveryObservation({
+                    tx,
+                    jobId,
+                    observation: normalized!,
+                  })
+                : await transitionDiscoveryJob({
+                    tx,
+                    jobId,
+                    targetState: String(input.target_state ?? ""),
+                    ...(typeof input.failure_reason === "string"
+                      ? { failureReason: input.failure_reason }
+                      : {}),
+                  });
+            const resultValue = value as unknown as {
+              id?: string;
+              observation?: { id?: string; [key: string]: unknown };
+              duplicate?: boolean;
+              [key: string]: unknown;
+            };
+            const duplicate =
+              discoveryObservation && resultValue.duplicate === true;
+            const payload =
+              discoveryObservation && resultValue.observation
+                ? {
+                    ...resultValue.observation,
+                    duplicate: resultValue.duplicate,
+                  }
+                : resultValue;
+            if (!duplicate) {
+              const eventType = discoveryCreate
+                ? "NETWORK.DISCOVERY_STARTED"
+                : discoveryObservation
+                  ? "NETWORK.DEVICE_DISCOVERED"
+                  : `NETWORK.DISCOVERY_${String(input.target_state)}`;
+              const aggregateId = discoveryCreate
+                ? resultValue.id
+                : discoveryObservation
+                  ? resultValue.observation?.id
+                  : resultValue.id;
+              const now = new Date().toISOString();
+              await new PostgresOutboxWriter(tx).append({
+                event_id: randomUUID(),
+                event_type: eventType,
+                schema_version: 1,
+                occurred_at: now,
+                producer: { service: config.serviceName, instance: "api" },
+                aggregate: {
+                  type: discoveryObservation
+                    ? "NETWORK_OBSERVATION"
+                    : "NETWORK_DISCOVERY_JOB",
+                  id: String(aggregateId),
+                  version: 1,
+                },
+                actor: { type: principal.actor_type, id: principal.id },
+                correlation_id: context.correlation_id,
+                causation_id: context.causation_id,
+                tenant_id: principal.tenant_id,
+                organization_id: principal.tenant_id,
+                idempotency_key: key,
+                payload: payload as never,
+              });
+              await new PostgresAudit(tx).append({
+                id: randomUUID(),
+                tenant_id: principal.tenant_id,
+                event_type: eventType,
+                occurred_at: now,
+                actor: { type: principal.actor_type, id: principal.id },
+                action: { command_type: operation },
+                subject: {
+                  entity_type: discoveryObservation
+                    ? "NETWORK_OBSERVATION"
+                    : "NETWORK_DISCOVERY_JOB",
+                  entity_id: String(aggregateId),
+                },
+                correlation_id: context.correlation_id,
+                causation_id: context.causation_id,
+                reason: {
+                  code: eventType,
+                  text: (input.failure_reason as string) ?? eventType,
+                },
+                before: null,
+                after: payload as never,
+                outcome: { status: "SUCCESS" },
+                classification: "INTERNAL",
+                relations: [],
+                evidence: [],
+              });
+            }
+            return {
+              status: discoveryCreate ? 201 : 200,
+              body: payload as never,
+            };
+          },
+        ),
+      );
+      json(res, result.status, { data: result.body, meta: context });
+      return true;
+    }
     const isAuditStart = req.url === "/api/v1/audits";
     const observationMatch = /^\/api\/v1\/audits\/([^/]+)\/observations$/.exec(
       req.url ?? "",

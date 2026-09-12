@@ -83,4 +83,14 @@ export const permissions: readonly Permission[] = [
     resource_type: "audit_exception",
     action: "resolve",
   },
+  {
+    code: "network.discovery.run",
+    resource_type: "network_discovery",
+    action: "run",
+  },
+  {
+    code: "network.topology.read",
+    resource_type: "network_topology",
+    action: "read",
+  },
 ];
