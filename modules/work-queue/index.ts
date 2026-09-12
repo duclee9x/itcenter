@@ -16,4 +16,6 @@ export {
   resolveApprovalWorkItem,
   upsertGoodsReceiptWorkItem,
   resolveGoodsReceiptWorkItem,
+  upsertInvoiceWorkItem,
+  resolveInvoiceWorkItem,
 } from "./application/work-queue.js";

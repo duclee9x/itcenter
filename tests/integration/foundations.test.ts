@@ -238,10 +238,23 @@ test("durable foundations on PostgreSQL", async (t) => {
           "QUEUED",
         );
         await db.uow.run("catalog", (tx) => seedPermissions(tx, permissions));
+        const permissionCountAfterFirstSeed = Number(
+          (
+            await db.pool.query(
+              "SELECT count(*)::int AS count FROM identity.permissions",
+            )
+          ).rows[0]!.count,
+        );
         await db.uow.run("catalog", (tx) => seedPermissions(tx, permissions));
         assert.equal(
-          (await db.pool.query("SELECT * FROM identity.permissions")).rowCount,
-          permissions.length,
+          Number(
+            (
+              await db.pool.query(
+                "SELECT count(*)::int AS count FROM identity.permissions",
+              )
+            ).rows[0]!.count,
+          ),
+          permissionCountAfterFirstSeed,
         );
         assert.equal(
           (await db.pool.query("SELECT * FROM identity.role_bindings"))

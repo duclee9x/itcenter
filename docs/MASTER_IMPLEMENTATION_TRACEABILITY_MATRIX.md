@@ -1466,9 +1466,12 @@ fields and full commercial documents are excluded.
   rewriting `MISMATCHED` or prior comparison evidence.
 - Only POSTED accepted receipt quantities support match allocations.
 
-Planning status: TASK-074-R1 is `CODE_COMPLETE` (specification only). TASK-074
-is `READY / NOT_STARTED`; its implementation contract and acceptance criteria
-are in `tasks/TASK-074_INVOICE_DUPLICATE_PROTECTION_3_WAY_MATCH.md`.
+Implementation status: TASK-074-R1 is `CODE_COMPLETE` (specification only);
+TASK-074 is `SATISFIED / CODE_COMPLETE`. Runtime persistence, commands, API,
+authorization, duplicate identity reservation, match allocation/exception and
+credit-note application are implemented and exercised by PostgreSQL E2E tests.
+See `tasks/TASK-074_IMPLEMENTATION_REPORT.md` and the task contract at
+`tasks/TASK-074_INVOICE_DUPLICATE_PROTECTION_3_WAY_MATCH.md`.
 
 ---
 

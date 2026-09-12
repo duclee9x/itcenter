@@ -115,6 +115,7 @@ import { handleProcurementRoute } from "./procurement-routes.js";
 import { handleRfqRoute } from "./rfq-routes.js";
 import { handlePurchaseOrderRoute } from "./purchase-order-routes.js";
 import { handleGoodsReceiptRoute } from "./goods-receipt-routes.js";
+import { handleInvoiceRoute } from "./invoice-routes.js";
 
 const networkExceptionQueue = {
   createReference: createNetworkExceptionWorkItem,
@@ -323,6 +324,18 @@ export function apiServer(
       return true;
     if (
       await handleGoodsReceiptRoute({
+        req,
+        res,
+        context,
+        config,
+        authentication,
+        authorization,
+        uow,
+      })
+    )
+      return true;
+    if (
+      await handleInvoiceRoute({
         req,
         res,
         context,

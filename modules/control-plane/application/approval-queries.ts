@@ -11,3 +11,16 @@ export async function readApprovalRequest(input: {
   );
   return result.rows[0] ?? null;
 }
+
+/** Source-scoped approval link contract for owning-domain guards. */
+export async function readApprovalRequestForSource(input: {
+  tx: Transaction;
+  sourceType: string;
+  sourceId: string;
+}) {
+  const result = await input.tx.query(
+    "SELECT id,tenant_id,source_type,source_id,state,context,version,created_at FROM control.approval_requests WHERE tenant_id=$1 AND source_type=$2 AND source_id=$3",
+    [input.tx.tenantId, input.sourceType, input.sourceId],
+  );
+  return result.rows[0] ?? null;
+}

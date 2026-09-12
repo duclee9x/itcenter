@@ -8,8 +8,8 @@ feature_id: F-043/F-044
 workflow_id: WF-P04/WF-P05
 phase: P4
 priority: P0
-readiness: READY
-status: NOT_STARTED
+readiness: SATISFIED
+status: CODE_COMPLETE
 owner_domain: procurement
 depends_on: TASK-072, TASK-073, TASK-074-R1
 ```

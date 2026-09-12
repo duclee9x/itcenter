@@ -1,23 +1,23 @@
 # CURRENT TASK
 
-Task: `TASK-074` — Invoice + Duplicate Protection + 3-Way Match + Credit Note
+Task: `TASK-075` — Contract + Renewal + Commercial Document Governance
 
-Task specification: `tasks/TASK-074_INVOICE_DUPLICATE_PROTECTION_3_WAY_MATCH.md`
+Task specification: `GENERATE_ON_READY` (detailed normative contract missing)
 
-Readiness: `READY`
+Readiness: `BLOCKED — SPEC_GAP / PLANNING_REQUIRED`
 
 Status: `NOT_STARTED`
 
-Dependencies TASK-072, TASK-073 and TASK-074-R1 are `CODE_COMPLETE`.
-TASK-074-R1 completed the normative Invoice lifecycle, independent match and
-credit dimensions, durable duplicate identity, tolerance, approval exception,
-Credit Note, audit/event/permission and concurrency contracts. Runtime
-TASK-074 implementation has not started and requires a later explicit user
-instruction.
+Dependencies TASK-070 and TASK-074 are `CODE_COMPLETE`. TASK-075 remains
+blocked because its detailed normative Contract/Renewal/Commercial Document
+Governance implementation contract has not been defined or reconciled. Do not
+infer business rules or begin runtime implementation until that planning gap
+is resolved.
 
-Last completed task: `TASK-073` — Goods Receipt + Asset Registration + Partial
-Receipt (`CODE_COMPLETE`); see
-`tasks/TASK-073_GOODS_RECEIPT_ASSETIZATION_PARTIAL_RECEIPT.md`.
+Last completed task: `TASK-074` — Invoice + Duplicate Protection + 3-Way Match
+
+- Credit Note (`CODE_COMPLETE`); see
+  `tasks/TASK-074_IMPLEMENTATION_REPORT.md`.
 
 Last completed remediation: `TASK-074-R1` — Invoice + Duplicate Protection +
 3-Way Match + Credit Note Contract (`CODE_COMPLETE`, specification only); see

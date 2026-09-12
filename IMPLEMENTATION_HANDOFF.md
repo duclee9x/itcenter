@@ -1,27 +1,39 @@
 # IMPLEMENTATION HANDOFF
 
-## Current Task — TASK-074 (Ready, Not Started)
+## Current Task — TASK-075 (Blocked; Planning Required)
 
-Invoice + Duplicate Protection + 3-Way Match + Credit Note
+Contract + Renewal + Commercial Document Governance
 
-Feature: F-043/F-044
+Feature: F-045/F-046
 
-Workflow: WF-P04/WF-P05
+Workflow: WF-P06/WF-016
 
-Phase/Priority: P4 / P0
+Phase/Priority: P4 / P1
 
-Readiness: READY (derived)
+Readiness: BLOCKED — `SPEC_GAP / PLANNING_REQUIRED`
 
 Status: NOT_STARTED
 
-Task contract: `tasks/TASK-074_INVOICE_DUPLICATE_PROTECTION_3_WAY_MATCH.md`
+Task contract: `GENERATE_ON_READY` (missing)
 
-Dependencies TASK-072, TASK-073 and TASK-074-R1 are `CODE_COMPLETE`. The
-normative lifecycle, duplicate identity, match/credit separation, zero
-business tolerance, conditional approval, exception reservations, Credit Note
-effects, permissions, audit/events and concurrency requirements are
-reconciled. Runtime TASK-074 has not started and must wait for explicit user
-authorization.
+Dependencies TASK-070 and TASK-074 are complete. TASK-075 cannot be
+implemented without inventing rules because its detailed normative Contract,
+Renewal and Commercial Document Governance contract is missing. Resolve this
+planning gap before runtime implementation; no TASK-075 runtime work has begun.
+
+## Last Completed Task — TASK-074
+
+Invoice + Duplicate Protection + 3-Way Match + Credit Note (`CODE_COMPLETE`).
+See `tasks/TASK-074_IMPLEMENTATION_REPORT.md`.
+
+- Implemented Procurement-owned Invoice and Credit Note entities, immutable
+  submitted snapshots, lifecycle commands, scoped API routes and migrations.
+- Added durable duplicate identity reservation, append-only match evidence,
+  PO-line capacity allocation, conditional approvals, mismatch exceptions,
+  Credit Note applications/releases, audit, outbox, timelines and actionable
+  duplicate/mismatch work items.
+- Verification passed: `npm test` (87 tests), `npm run typecheck`,
+  `npm run lint`, `npm run format:check` and `git diff --check`.
 
 ## Last Completed Task — TASK-073
 

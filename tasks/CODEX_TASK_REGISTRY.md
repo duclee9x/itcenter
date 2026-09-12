@@ -196,8 +196,8 @@ Only generate a detailed `TASK-xxx_*.md` when the task becomes `READY` or is the
 | `TASK-073-R1` | `F-042` | `WF-005` | P4 | P0 | Goods Receipt + Partial Receipt + PO Receipt Integration Contract | TASK-072 | **SATISFIED** | CODE_COMPLETE | `TASK-073-R1_GOODS_RECEIPT_PARTIAL_RECEIPT_PO_INTEGRATION_CONTRACT.md` |
 | `TASK-073` | `F-042` | `WF-005` | P4 | P0 | Goods Receipt + Asset Registration + Partial Receipt | TASK-012, TASK-072, TASK-073-R1 | **SATISFIED** | CODE_COMPLETE | `TASK-073_GOODS_RECEIPT_ASSETIZATION_PARTIAL_RECEIPT.md` |
 | `TASK-074-R1` | `F-043/F-044` | `WF-P04/WF-P05` | P4 | P0 | Invoice + Duplicate Protection + 3-Way Match + Credit Note Contract | TASK-072, TASK-073 | **SATISFIED** | CODE_COMPLETE | `TASK-074-R1_INVOICE_DUPLICATE_MATCH_CREDIT_NOTE_CONTRACT.md` |
-| `TASK-074` | `F-043/F-044` | `WF-P04/WF-P05` | P4 | P0 | Invoice + Duplicate Protection + 3-Way Match + Credit Note | TASK-072, TASK-073, TASK-074-R1 | **READY** | NOT_STARTED | `TASK-074_INVOICE_DUPLICATE_PROTECTION_3_WAY_MATCH.md` |
-| `TASK-075` | `F-045/F-046` | `WF-P06/WF-016` | P4 | P1 | Contract + Renewal + Commercial Document Governance | TASK-070, TASK-074 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |
+| `TASK-074` | `F-043/F-044` | `WF-P04/WF-P05` | P4 | P0 | Invoice + Duplicate Protection + 3-Way Match + Credit Note | TASK-072, TASK-073, TASK-074-R1 | **SATISFIED** | CODE_COMPLETE | `TASK-074_INVOICE_DUPLICATE_PROTECTION_3_WAY_MATCH.md` |
+| `TASK-075` | `F-045/F-046` | `WF-P06/WF-016` | P4 | P1 | Contract + Renewal + Commercial Document Governance | TASK-070, TASK-074 | **BLOCKED** | NOT_STARTED | `SPEC_GAP / PLANNING_REQUIRED: detailed normative task contract missing` |
 | `TASK-076` | `PHASE-GATE` | `P4-E2E` | P4 | P0 | Phase 4 Procurement-to-Asset Integration Gate | TASK-071, TASK-072, TASK-073, TASK-074, TASK-075 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |
 | `TASK-090` | `F-049` | `WF-AUT02` | P5 | P1 | Advanced Rules Engine + Policy-Gated Automation | TASK-039, TASK-061, TASK-076 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |
 | `TASK-091` | `F-049` | `WF-AUT02` | P5 | P1 | Controlled Self-Healing + Compensation | TASK-031, TASK-053, TASK-090 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |
@@ -298,10 +298,14 @@ Only generate a detailed `TASK-xxx_*.md` when the task becomes `READY` or is the
   duplicate identity, match/credit dimensions, tolerance, exception approval,
   concurrency and evidence-preservation rules are normative.
 - **TASK-074 — Invoice + Duplicate Protection + 3-Way Match + Credit Note:**
-  dependencies TASK-072, TASK-073 and TASK-074-R1 are satisfied. Detailed
-  implementation contract is generated and reconciled; derived readiness is
-  `READY`, status `NOT_STARTED`. Runtime work has not begun.
-- **TASK-075 — Contract + Renewal + Commercial Document Governance:** Supplier/procurement and invoice flow available.
+  dependencies TASK-072, TASK-073 and TASK-074-R1 are satisfied. Runtime
+  implementation and verification are complete; see
+  `TASK-074_IMPLEMENTATION_REPORT.md`.
+- **TASK-075 — Contract + Renewal + Commercial Document Governance:**
+  dependencies TASK-070 and TASK-074 are satisfied, but the detailed
+  normative implementation contract is missing (`SPEC_GAP /
+  PLANNING_REQUIRED`). Keep blocked until the contract is generated and
+  reconciled; do not infer contract, renewal or document-governance rules.
 - **TASK-076 — Phase 4 Procurement-to-Asset Integration Gate:** Procurement lifecycle integrated end-to-end.
 
 ## P5 — Automation + Intelligence + Advanced Reporting
@@ -328,8 +332,8 @@ reports and commits confirm TASK-015 (`32c3267`), TASK-036 (`e043c31`) and
 TASK-038 (`296336a`) are `CODE_COMPLETE`.
 
 ```text
-CURRENT = TASK-074 (READY; NOT_STARTED)
-NEXT = TASK-074 (implementation-ready; runtime not started)
+CURRENT = TASK-075 (BLOCKED; SPEC_GAP / PLANNING_REQUIRED)
+NEXT = TASK-075 contract generation and normative reconciliation; no runtime work
 TASK-059 = SATISFIED (CODE_COMPLETE)
 TASK-061 = SATISFIED (CODE_COMPLETE)
 TASK-070-R1 = SATISFIED (CODE_COMPLETE)
@@ -341,7 +345,8 @@ TASK-072 = SATISFIED (CODE_COMPLETE)
 TASK-073-R1 = SATISFIED (CODE_COMPLETE; specification only)
 TASK-073 = SATISFIED (CODE_COMPLETE; TASK-012, TASK-072 and TASK-073-R1 are complete)
 TASK-074-R1 = SATISFIED (CODE_COMPLETE; specification only)
-TASK-074 = READY (NOT_STARTED; TASK-072, TASK-073 and TASK-074-R1 are complete)
+TASK-074 = SATISFIED (CODE_COMPLETE; see TASK-074_IMPLEMENTATION_REPORT.md)
+TASK-075 = BLOCKED (NOT_STARTED; detailed normative contract missing)
 ```
 
 TASK-061's acceptance criteria and verification gates passed; its implementation
@@ -363,9 +368,13 @@ TASK-074-R1 resolved the Invoice/3-Way Match/Credit Note `SPEC_GAP` as a
 specification-only remediation, including duplicate reservation, zero
 business tolerance, conditional approvals, exception quantity reservation,
 Credit Note release, permissions, events and required concurrency cases.
-The detailed TASK-074 contract is generated and reconciled; derived readiness
-is `READY`, status `NOT_STARTED`. Do not implement TASK-074 until explicitly
-authorized.
+TASK-074 implementation and verification are complete and recorded in its
+implementation report. TASK-075's dependencies TASK-070 and TASK-074 now meet
+their requirements, but `GENERATE_ON_READY` is not an implementation contract:
+the detailed normative Contract/Renewal/Commercial Document Governance rules
+are absent. This is an explicit `SPEC_GAP / PLANNING_REQUIRED` blocker. Do not
+invent business rules or begin TASK-075 runtime implementation until its
+contract is defined and reconciled.
 
 ---
 

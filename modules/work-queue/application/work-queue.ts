@@ -195,6 +195,47 @@ export async function resolveGoodsReceiptWorkItem(input: {
   );
 }
 
+export async function upsertInvoiceWorkItem(input: {
+  tx: Transaction;
+  documentId: string;
+  sourceType: "INVOICE_DUPLICATE" | "INVOICE_MATCH_EXCEPTION";
+  title: string;
+  priority?: string;
+}): Promise<void> {
+  await input.tx.query(
+    `INSERT INTO operations.work_items
+       (id,tenant_id,source_type,source_id,title,priority,owner_team_id)
+     VALUES($1,$2,$3,$4,$5,$6,'PROCUREMENT')
+     ON CONFLICT(tenant_id,source_type,source_id) DO UPDATE SET
+       title=EXCLUDED.title,priority=EXCLUDED.priority,
+       state=CASE WHEN operations.work_items.state IN ('RESOLVED','CLOSED') THEN 'NEW' ELSE operations.work_items.state END,
+       resolved_at=CASE WHEN operations.work_items.state IN ('RESOLVED','CLOSED') THEN NULL ELSE operations.work_items.resolved_at END,
+       last_action_at=now(),version=operations.work_items.version+1`,
+    [
+      randomUUID(),
+      input.tx.tenantId,
+      input.sourceType,
+      input.documentId,
+      input.title,
+      input.priority ?? "HIGH",
+    ],
+  );
+}
+
+export async function resolveInvoiceWorkItem(input: {
+  tx: Transaction;
+  documentId: string;
+  sourceType: "INVOICE_DUPLICATE" | "INVOICE_MATCH_EXCEPTION";
+}): Promise<void> {
+  await input.tx.query(
+    `UPDATE operations.work_items
+        SET state='RESOLVED',resolved_at=now(),last_action_at=now(),version=version+1
+      WHERE tenant_id=$1 AND source_type=$2 AND source_id=$3
+        AND state NOT IN ('RESOLVED','CLOSED')`,
+    [input.tx.tenantId, input.sourceType, input.documentId],
+  );
+}
+
 export async function recordAssetLifecycleTimelineEvent(input: {
   tx: Transaction;
   assetId: string;
@@ -226,7 +267,9 @@ export async function recordProcurementTimelineEvent(input: {
     | "RFQ"
     | "QUOTATION"
     | "PURCHASE_ORDER"
-    | "GOODS_RECEIPT";
+    | "GOODS_RECEIPT"
+    | "INVOICE"
+    | "CREDIT_NOTE";
   entityId: string;
   eventType: string;
   payload: unknown;
@@ -248,7 +291,17 @@ export async function recordProcurementTimelineEvent(input: {
         : input.eventType === "PO.PARTIALLY_RECEIVED" ||
             input.eventType === "PO.FULLY_RECEIVED"
           ? `PO ${String((input.payload as Record<string, unknown>)?.po_code ?? input.entityId)} is now ${input.eventType === "PO.FULLY_RECEIVED" ? "fully" : "partially"} received`
-          : `${input.eventType} committed`,
+          : input.eventType === "INVOICE.SUBMITTED"
+            ? `Invoice ${String((input.payload as Record<string, unknown>)?.invoice_code ?? input.entityId)} submitted`
+            : input.eventType === "INVOICE.MATCHED"
+              ? `Invoice ${String((input.payload as Record<string, unknown>)?.invoice_code ?? input.entityId)} matched successfully`
+              : input.eventType === "INVOICE.PENDING_RECEIPT"
+                ? `Invoice ${String((input.payload as Record<string, unknown>)?.invoice_code ?? input.entityId)} is pending additional Goods Receipt`
+                : input.eventType === "INVOICE.MISMATCHED"
+                  ? `Invoice ${String((input.payload as Record<string, unknown>)?.invoice_code ?? input.entityId)} has a 3-Way Match mismatch`
+                  : input.eventType === "CREDIT_NOTE.APPLIED"
+                    ? `Credit Note ${String((input.payload as Record<string, unknown>)?.credit_note_code ?? input.entityId)} applied to an Invoice`
+                    : `${input.eventType} committed`,
       JSON.stringify(input.payload ?? {}),
       input.sourceEventId,
     ],
@@ -263,7 +316,9 @@ export async function readEntityTimeline(input: {
     | "RFQ"
     | "QUOTATION"
     | "PURCHASE_ORDER"
-    | "GOODS_RECEIPT";
+    | "GOODS_RECEIPT"
+    | "INVOICE"
+    | "CREDIT_NOTE";
   entityId: string;
   limit?: number;
 }) {
