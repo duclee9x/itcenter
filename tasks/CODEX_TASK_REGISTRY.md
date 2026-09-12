@@ -172,8 +172,8 @@ Only generate a detailed `TASK-xxx_*.md` when the task becomes `READY` or is the
 | `TASK-050` | `F-026` | `WF-010` | P3 | P0 | Asset Audit — Expected vs Observed | TASK-020, TASK-039 | **SATISFIED** | CODE_COMPLETE | `TASK-050_ASSET_AUDIT.md` |
 | `TASK-051` | `F-027` | `WF-011` | P3 | P0 | Network Discovery + Current Topology Projection | TASK-010, TASK-031, TASK-039 | **SATISFIED** | CODE_COMPLETE | `TASK-051_NETWORK_DISCOVERY.md` |
 | `TASK-052` | `F-028/F-029` | `WF-012/WF-NET02` | P3 | P0 | Network Exceptions — Unknown Device, VLAN, IP Conflict | TASK-019, TASK-051 | **SATISFIED** | CODE_COMPLETE | `TASK-052_NETWORK_EXCEPTIONS.md` |
-| `TASK-053` | `NETWORK-CHANGE` | `WF-012` | P3 | P1 | Controlled Network Change + Verification + Rollback | TASK-036, TASK-037, TASK-052 | **SATISFIED** | NOT_STARTED | `GENERATE_ON_READY` |
-| `TASK-054` | `F-030/F-031` | `WF-SW01/WF-SW02` | P3 | P0 | Software Catalog + Artifact Repository | TASK-036, TASK-039 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |
+| `TASK-053` | `NETWORK-CHANGE` | `WF-012` | P3 | P1 | Controlled Network Change + Verification + Rollback | TASK-036, TASK-037, TASK-052 | **SATISFIED** | CODE_COMPLETE | `TASK-053_CONTROLLED_NETWORK_CHANGE.md` |
+| `TASK-054` | `F-030/F-031` | `WF-SW01/WF-SW02` | P3 | P0 | Software Catalog + Artifact Repository | TASK-036, TASK-039 | **SATISFIED** | NOT_STARTED | `TASK-054_SOFTWARE_CATALOG_ARTIFACT_REPOSITORY.md` |
 | `TASK-055` | `F-032` | `WF-014` | P3 | P0 | Software Deployment + Verification | TASK-031, TASK-054 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |
 | `TASK-056` | `F-033` | `WF-013` | P3 | P1 | Unauthorized Software Detection + Resolution | TASK-019, TASK-054, TASK-055 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |
 | `TASK-057` | `F-034` | `WF-L01` | P3 | P0 | License Entitlement + Pool Model | TASK-054 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |

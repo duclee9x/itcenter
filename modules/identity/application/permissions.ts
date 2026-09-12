@@ -104,4 +104,9 @@ export const permissions: readonly Permission[] = [
     resource_type: "network_exception",
     action: "link",
   },
+  {
+    code: "network.vlan.change",
+    resource_type: "network_vlan_change",
+    action: "change",
+  },
 ];

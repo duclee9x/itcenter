@@ -1789,6 +1789,31 @@ new_switch_port_id:
 observed_at:
 ```
 
+## Controlled VLAN Change Events
+
+These Network-owned events record the controlled operation and its durable
+operator evidence. They do not assert that a device connector executed a
+configuration change.
+
+### `NETWORK.VLAN_CHANGE_CREATED`
+### `NETWORK.VLAN_CHANGE_STARTED`
+### `NETWORK.VLAN_CHANGE_IMPLEMENTATION_RECORDED`
+### `NETWORK.VLAN_CHANGE_VERIFIED`
+### `NETWORK.VLAN_CHANGE_ROLLBACK_RECORDED`
+
+```yaml
+vlan_change_id:
+change_id:
+target_device:
+target_port:
+previous_vlan:
+desired_vlan:
+state:
+version:
+reason:
+evidence: # phase-specific record when the command captures operator evidence
+```
+
 ## `NETWORK.TOPOLOGY_CHANGED`
 
 ```yaml

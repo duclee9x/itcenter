@@ -1,14 +1,17 @@
 # CURRENT TASK
 
-Task: `TASK-052`
+Task: `TASK-053`
 
-Task specification: `tasks/TASK-052_NETWORK_EXCEPTIONS.md`
+Task specification: `tasks/TASK-053_CONTROLLED_NETWORK_CHANGE.md`
 
 Status: `CODE_COMPLETE`
 
 Branch: `master`
 
-TASK-000 through TASK-052 acceptance criteria pass. Unknown-device, duplicate
-IP and expected-vs-observed VLAN exceptions are tenant-scoped, deduplicated,
-audited, and represented in Work Queue. TASK-053 is next through the task
-registry workflow.
+Controlled VLAN changes now require a tenant-owned Change in `IMPLEMENTING`
+with an approved approval request. Network commands record implementation,
+technical/service/monitoring verification, and rollback evidence with
+idempotency, optimistic concurrency, authorization, audit and outbox effects.
+The API records operator evidence and does not configure live devices.
+
+Next ready task: `TASK-054` — Software Catalog + Artifact Repository.

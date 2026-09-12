@@ -7,16 +7,25 @@ export async function migrate(
   root = path.resolve("database/migrations"),
 ): Promise<void> {
   const files: string[] = [];
-  // Owners are ordered by schema dependencies. Asset migrations reference
-  // identity.users, and audit/platform tables are independent foundations.
+  // Owners are ordered by schema dependencies. Network stays after Operations
+  // because its source-type compatibility migration extends the Work Queue.
+  // Every owner must be included so fresh databases receive all domain schemas.
   const owners = [
     "platform",
     "identity",
-    "asset",
     "communication",
-    "operations",
+    "control",
+    "asset",
     "helpdesk",
+    "problem",
     "audit",
+    "audit_ops",
+    "incident",
+    "maintenance",
+    "monitoring",
+    "agent",
+    "automation",
+    "operations",
     "network",
   ];
   for (const owner of owners)

@@ -11,6 +11,13 @@ export {
   listNetworkExceptions,
   resolveNetworkException,
 } from "./application/exceptions.js";
+export {
+  createVlanChange,
+  recordVlanImplementation,
+  recordVlanRollback,
+  startVlanChange,
+  verifyVlanChange,
+} from "./application/vlan-changes.js";
 export type {
   NetworkException,
   NetworkExceptionQueuePort,

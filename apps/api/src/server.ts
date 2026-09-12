@@ -79,8 +79,13 @@ import {
   normalizeNetworkObservation,
   readCurrentTopology,
   recordDiscoveryObservation,
+  createVlanChange,
+  recordVlanImplementation,
+  recordVlanRollback,
   resolveNetworkException,
+  startVlanChange,
   transitionDiscoveryJob,
+  verifyVlanChange,
 } from "../../../modules/network/index.js";
 import {
   PostgresIdempotencyStore,
@@ -148,6 +153,62 @@ async function appendNetworkExceptionEffects(input: {
     },
     before: (input.before as never) ?? null,
     after: input.payload as never,
+    outcome: { status: "SUCCESS" },
+    classification: "INTERNAL",
+    relations: [],
+    evidence: [],
+  });
+}
+
+async function appendNetworkVlanChangeEffects(input: {
+  tx: Transaction;
+  config: Config;
+  principal: { id: string; actor_type: string; tenant_id: string };
+  context: { correlation_id: string; causation_id: string };
+  idempotencyKey: string;
+  eventType: string;
+  value: { id: string; version: number };
+  reason: string;
+}) {
+  const now = new Date().toISOString();
+  await new PostgresOutboxWriter(input.tx).append({
+    event_id: randomUUID(),
+    event_type: input.eventType,
+    schema_version: 1,
+    occurred_at: now,
+    producer: { service: input.config.serviceName, instance: "api" },
+    aggregate: {
+      type: "NETWORK_VLAN_CHANGE",
+      id: input.value.id,
+      version: input.value.version,
+    },
+    actor: { type: input.principal.actor_type, id: input.principal.id },
+    correlation_id: input.context.correlation_id,
+    causation_id: input.context.causation_id,
+    tenant_id: input.principal.tenant_id,
+    organization_id: input.principal.tenant_id,
+    idempotency_key: input.idempotencyKey,
+    payload: input.value as never,
+  });
+  await new PostgresAudit(input.tx).append({
+    id: randomUUID(),
+    tenant_id: input.principal.tenant_id,
+    event_type: input.eventType,
+    occurred_at: now,
+    actor: { type: input.principal.actor_type, id: input.principal.id },
+    action: { command_type: input.eventType },
+    subject: { entity_type: "NETWORK_VLAN_CHANGE", entity_id: input.value.id },
+    correlation_id: input.context.correlation_id,
+    causation_id: input.context.causation_id,
+    reason: { code: input.eventType, text: input.reason },
+    before:
+      "from_state" in input.value
+        ? {
+            state: (input.value as { from_state: string }).from_state,
+            version: input.value.version - 1,
+          }
+        : null,
+    after: input.value as never,
     outcome: { status: "SUCCESS" },
     classification: "INTERNAL",
     relations: [],
@@ -373,6 +434,145 @@ export function apiServer(
       /^\/api\/v1\/network\/exceptions\/([^/]+)\/commands\/resolve$/.exec(
         req.url ?? "",
       );
+    const vlanChangeCreate = req.url === "/api/v1/network/vlan-changes";
+    const vlanChangeCommand =
+      /^\/api\/v1\/network\/vlan-changes\/([^/]+)\/commands\/(start|record-implementation|verify|rollback)$/.exec(
+        req.url ?? "",
+      );
+    if (req.method === "POST" && (vlanChangeCreate || vlanChangeCommand)) {
+      const principal = await authenticate(
+        authentication,
+        req.headers.authorization,
+      );
+      const key = req.headers["idempotency-key"];
+      if (typeof key !== "string" || !key.trim())
+        throw new ApplicationError(
+          "VALIDATION_ERROR",
+          "Idempotency-Key is required.",
+        );
+      const body = await new Promise<string>((resolve) => {
+        let data = "";
+        req.on("data", (chunk) => (data += chunk));
+        req.on("end", () => resolve(data));
+      });
+      let input: Record<string, unknown>;
+      try {
+        input = (body ? JSON.parse(body) : {}) as Record<string, unknown>;
+      } catch {
+        throw new ApplicationError("VALIDATION_ERROR", "Invalid JSON request.");
+      }
+      await authorize(authorization, {
+        principal,
+        action: "network.vlan.change",
+        resource: {
+          type: "network_vlan_change",
+          id: vlanChangeCommand?.[1] ?? String(input.change_id ?? "new"),
+          tenant_id: principal.tenant_id,
+        },
+        scope: {},
+        context: {
+          ...context,
+          high_risk: true,
+          change_required: true,
+          mfa_required: true,
+          reauth_required: true,
+        },
+      });
+      const command = vlanChangeCommand?.[2];
+      const operation = vlanChangeCreate
+        ? "NETWORK.VLAN_CHANGE.CREATE"
+        : `NETWORK.VLAN_CHANGE.${command!.replaceAll("-", "_").toUpperCase()}`;
+      const businessScope =
+        vlanChangeCommand?.[1] ?? String(input.change_id ?? "new");
+      const result = await uow.run(principal.tenant_id, (tx) =>
+        new PostgresIdempotencyStore(tx).execute(
+          {
+            principalId: principal.id,
+            operation,
+            businessScope,
+            key,
+            semanticRequest: input as never,
+            expiresAt: new Date(Date.now() + 86400000),
+          },
+          async () => {
+            let value: { id: string; version: number };
+            let eventType: string;
+            if (vlanChangeCreate) {
+              value = await createVlanChange({
+                tx,
+                changeId: String(input.change_id ?? ""),
+                targetDevice: String(input.target_device ?? ""),
+                targetPort: String(input.target_port ?? ""),
+                previousVlan: String(input.previous_vlan ?? ""),
+                desiredVlan: String(input.desired_vlan ?? ""),
+                reason: String(input.reason ?? ""),
+                rollbackPlan: String(input.rollback_plan ?? ""),
+              });
+              eventType = "NETWORK.VLAN_CHANGE_CREATED";
+            } else if (command === "start") {
+              value = await startVlanChange({
+                tx,
+                id: vlanChangeCommand![1]!,
+                expectedVersion: input.expected_version as number,
+              });
+              eventType = "NETWORK.VLAN_CHANGE_STARTED";
+            } else if (command === "record-implementation") {
+              value = await recordVlanImplementation({
+                tx,
+                id: vlanChangeCommand![1]!,
+                expectedVersion: input.expected_version as number,
+                actorId: principal.id,
+                reason: String(input.reason ?? ""),
+                result: String(input.result ?? "") as "APPLIED" | "FAILED",
+                evidence: input.evidence,
+              });
+              eventType = "NETWORK.VLAN_CHANGE_IMPLEMENTATION_RECORDED";
+            } else if (command === "verify") {
+              value = await verifyVlanChange({
+                tx,
+                id: vlanChangeCommand![1]!,
+                expectedVersion: input.expected_version as number,
+                actorId: principal.id,
+                reason: String(input.reason ?? ""),
+                observedVlan: String(input.observed_vlan ?? ""),
+                technicalPassed: input.technical_passed === true,
+                servicePassed: input.service_passed === true,
+                monitoringPassed: input.monitoring_passed === true,
+                evidence: input.evidence,
+              });
+              eventType = "NETWORK.VLAN_CHANGE_VERIFIED";
+            } else {
+              value = await recordVlanRollback({
+                tx,
+                id: vlanChangeCommand![1]!,
+                expectedVersion: input.expected_version as number,
+                actorId: principal.id,
+                reason: String(input.reason ?? ""),
+                trigger: String(input.trigger ?? ""),
+                steps: input.steps,
+                restoredVlan: String(input.restored_vlan ?? ""),
+                verificationPassed: input.verification_passed === true,
+                evidence: input.evidence,
+              });
+              eventType = "NETWORK.VLAN_CHANGE_ROLLBACK_RECORDED";
+            }
+            await appendNetworkVlanChangeEffects({
+              tx,
+              config,
+              principal,
+              context,
+              idempotencyKey: key,
+              eventType,
+              value,
+              reason: String(input.reason ?? eventType),
+            });
+            return { status: vlanChangeCreate ? 201 : 200, body: value };
+          },
+        ),
+      );
+      json(res, result.status, { data: result.body, meta: context });
+      return true;
+    }
     if (req.method === "POST" && (vlanCheck || networkExceptionResolve)) {
       const principal = await authenticate(
         authentication,
