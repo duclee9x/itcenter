@@ -1004,7 +1004,8 @@ artifact.revoke
 
 | Capability | Tables | Event | Permission |
 |---|---|---|---|
-| Entitlement | `license_entitlements` | `LICENSE.ENTITLEMENT_CREATED` | `license.entitlement.manage` |
+| Entitlement + terms | `license_entitlements`, entitlement history | `LICENSE.ENTITLEMENT_CREATED`, `LICENSE.ENTITLEMENT_UPDATED`, `LICENSE.RENEWED`, `LICENSE.EXPIRED` | `license.entitlement.manage` |
+| Pool | `license_pools` | `LICENSE.POOL_CREATED`, `LICENSE.POOL_UPDATED` | `license.pool.manage` |
 | Assignment | `license_assignments` | `LICENSE.ASSIGNED` | `license.assign` |
 | Activation | assignment | `LICENSE.ACTIVATED` | system/integration |
 | Reclaim | assignment | `LICENSE.RECLAIMED` | `license.reclaim` |

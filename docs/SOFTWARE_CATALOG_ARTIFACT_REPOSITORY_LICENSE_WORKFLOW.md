@@ -1051,6 +1051,28 @@ license_entitlement:
   restrictions:
 ```
 
+Entitlement effectiveness is derived from its contractual validity window; it
+is not the License Assignment state machine and is not the compliance state:
+
+```text
+NOT_YET_VALID: now < valid_from
+ACTIVE:        valid_from <= now AND (valid_until IS NULL OR now < valid_until)
+EXPIRED:       valid_until IS NOT NULL AND now >= valid_until
+```
+
+All boundaries use UTC instants and the validity interval is half-open
+`[valid_from, valid_until)`. A null `valid_until` represents an entitlement
+without a contractual end date. Reads may expose this derived value as
+`effective_state`; it is not a manually mutable entitlement state. Renewal is
+an explicit, versioned change to contractual terms. The previous and new terms
+must remain in append-only entitlement history. Expiration is the validity
+window ending, not a manual lifecycle command; any `LICENSE.EXPIRED` fact is
+keyed to the entitlement term/version so it can be emitted once per term.
+
+The `UNKNOWN`, `COMPLIANT`, `AT_RISK`, `OVERUSED`, `UNDERUSED`, and `EXPIRED`
+values in the License Compliance State section are a separate calculated
+compliance projection. They do not override or mutate entitlement effectiveness.
+
 ---
 
 # 44. License Pool

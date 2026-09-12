@@ -1647,8 +1647,15 @@ license_entitlements:
   pool_id:
   cost:
   currency:
-  state:
+  # effective_state is derived from valid_from/valid_until; never manually stored.
+  # Compliance state is a separate calculated projection (State Machine §56).
 ```
+
+Entitlement terms that are renewed or corrected must retain prior term
+snapshots in append-only License-owned history. `effective_state` is derived
+using the validity interval defined in the Software/License workflow. It is not
+the assignment state and is not the compliance projection. Do not add a
+manually mutable generic `state` field to the canonical entitlement record.
 
 ---
 

@@ -10,7 +10,8 @@ export async function migrate(
   // Owners are ordered by schema dependencies. Network stays after Operations
   // because its compatibility migration extends the Work Queue. Software's
   // deployment migration references Artifact, so its catalog migration must
-  // precede Artifact while later Software migrations run after it.
+  // precede Artifact while later Software migrations run after it. License
+  // entitlements reference Software products, so License migrations follow it.
   const plan: { owner: string; before?: string; after?: string }[] = [
     ...[
       "platform",
@@ -33,6 +34,7 @@ export async function migrate(
     { owner: "software", before: "20260912_002_deployment.sql" },
     { owner: "artifact" },
     { owner: "software", after: "20260912_001_catalog.sql" },
+    { owner: "license" },
   ];
   for (const step of plan)
     for (const file of (await readdir(path.join(root, step.owner))).sort())

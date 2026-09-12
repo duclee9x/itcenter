@@ -1370,11 +1370,25 @@ responses.
 # 64. License Commands
 
 ```text
+POST /license-entitlements
+GET  /license-entitlements
+GET  /license-entitlements/{id}
+POST /license-entitlements/{id}/commands/update
+POST /license-entitlements/{id}/commands/renew
+POST /license-pools
+GET  /license-pools
+GET  /license-pools/{id}
+POST /license-pools/{id}/commands/update
 POST /licenses/{id}/commands/assign
 POST /license-assignments/{id}/commands/reclaim
 POST /license-exceptions/{id}/commands/approve
 POST /license-renewals/{id}/commands/decide
 ```
+
+Entitlement `effective_state` is derived from its validity window; the
+compliance projection is separate. Renewal is idempotent and versioned, and
+retains prior contractual terms in append-only history. `LICENSE.EXPIRED` is
+keyed to a term version and does not mutate entitlement state.
 
 ---
 

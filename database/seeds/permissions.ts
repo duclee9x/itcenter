@@ -5,6 +5,7 @@ import {
 import { permissions as audit } from "../../modules/audit/index.js";
 import { permissions as software } from "../../modules/software/index.js";
 import { permissions as artifact } from "../../modules/artifact/index.js";
+import { permissions as license } from "../../modules/license/index.js";
 import {
   loadConfig,
   databaseUrl,
@@ -22,7 +23,13 @@ const pool = createPool(
 );
 try {
   await new PostgresUnitOfWork(pool).run("platform-catalog", (tx) =>
-    seedPermissions(tx, [...identity, ...audit, ...software, ...artifact]),
+    seedPermissions(tx, [
+      ...identity,
+      ...audit,
+      ...software,
+      ...artifact,
+      ...license,
+    ]),
   );
 } finally {
   await pool.end();

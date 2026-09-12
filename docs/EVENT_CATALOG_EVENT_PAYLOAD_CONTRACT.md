@@ -2227,6 +2227,54 @@ valid_from:
 valid_until:
 ```
 
+## `LICENSE.POOL_CREATED`
+
+```yaml
+pool_id:
+name:
+pool_type:
+scope_reference:
+version:
+```
+
+## `LICENSE.POOL_UPDATED`
+
+```yaml
+pool_id:
+name:
+state:
+version:
+```
+
+## `LICENSE.ENTITLEMENT_UPDATED`
+
+```yaml
+entitlement_id:
+software_product_id:
+version:
+changed_fields:
+reason:
+```
+
+`changed_fields` contains field names only; it must not contain license keys,
+credentials, or unrestricted contract data.
+
+## `LICENSE.RENEWED`
+
+```yaml
+entitlement_id:
+software_product_id:
+term_version:
+previous_valid_from:
+previous_valid_until:
+valid_from:
+valid_until:
+reason:
+```
+
+This event records committed new contractual terms. The previous term remains
+available in append-only entitlement history.
+
 ## `LICENSE.ASSIGNED`
 
 ```yaml
@@ -2295,8 +2343,13 @@ usage_summary:
 
 ```yaml
 entitlement_id:
+term_version:
 expired_at:
+valid_until:
 ```
+
+The event represents the validity-window boundary, not a mutable entitlement
+state transition. Emit at most once for each entitlement term version.
 
 ---
 

@@ -34,10 +34,11 @@ test("empty DB applies all migrations; rerun is idempotent and changed migration
           "network",
           "software",
           "artifact",
+          "license",
         ],
       ],
     );
-    assert.equal(domainSchemas.rowCount, 15);
+    assert.equal(domainSchemas.rowCount, 16);
     const invalid = await db.pool.query(
       "SELECT column_name FROM information_schema.columns WHERE table_schema='platform' AND table_name='outbox_events'",
     );

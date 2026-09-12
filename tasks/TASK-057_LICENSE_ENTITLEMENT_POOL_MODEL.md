@@ -6,7 +6,7 @@ feature_id: F-034
 workflow_id: WF-L01
 phase: P3
 priority: P0
-status: NOT_STARTED
+status: CODE_COMPLETE
 owner_domain: license
 ```
 
@@ -42,8 +42,9 @@ individual license assignment or reclaim flows.
 - Optional pools grouped by department, country, business unit, project, or
   contract; an entitlement may be associated with a pool under tenant scope.
 - Database validation for positive quantity, validity windows, money/currency,
-  supported license type and lifecycle state, tenant-safe references, and
-  uniqueness needed for idempotent administration.
+  supported license type, tenant-safe references, and uniqueness needed for
+  idempotent administration; derive effectiveness from dates rather than a
+  mutable lifecycle field.
 - Permissions, authorization, idempotency, expected version, audit, outbox,
   canonical errors, event contracts, traceability, and tests.
 - Reads that clearly report entitlement and pool quantities without treating
@@ -69,9 +70,9 @@ individual license assignment or reclaim flows.
   Instance license types as distinct codes. Do not apply one consumption
   formula to all types.
 - Entitlement belongs to one tenant and one canonical Software product.
-- An entitlement may optionally refer to an existing contract, supplier, or
-  pool only when that reference is tenant-safe and its domain contract exists.
-  Do not invent cross-domain foreign keys to tables that are not implemented.
+- An entitlement may optionally refer to an active pool. Contract/supplier
+  references remain display identifiers until their owning canonical domains
+  exist; they grant no authority and are not foreign keys.
 - Quantity is a positive integer. Expiry and validity boundaries are explicit;
   an expired entitlement cannot be renewed by silently changing its history.
 - Entitlement corrections and renewal create auditable state/history rather
@@ -82,10 +83,13 @@ individual license assignment or reclaim flows.
 
 ## State and Commands
 
-Entitlement lifecycle must align with the canonical License state in the state
-machine specification. At minimum, reject use outside its validity window and
-preserve an auditable transition to expired or renewed status. Do not introduce
-assignment states from WF-L01 into the entitlement entity.
+Entitlement has no manually mutable lifecycle state. Derive `effective_state`
+from its UTC validity interval `[valid_from, valid_until)`: `NOT_YET_VALID`,
+`ACTIVE`, or `EXPIRED` (a null `valid_until` has no expiry). Keep this distinct
+from assignment state and the compliance projection in State Machine §56.
+Renewal is an explicit, versioned term change with previous and new terms
+retained in append-only history. `LICENSE.EXPIRED` is an idempotent fact keyed
+by entitlement term/version, not a state mutation.
 
 Required commands:
 
@@ -93,7 +97,6 @@ Required commands:
 LICENSE.ENTITLEMENT_CREATE
 LICENSE.ENTITLEMENT_UPDATE
 LICENSE.ENTITLEMENT_RENEW
-LICENSE.ENTITLEMENT_EXPIRE (system/scheduled transition if required)
 LICENSE.POOL_CREATE
 LICENSE.POOL_UPDATE
 ```
@@ -124,11 +127,16 @@ Implement License-owned structures corresponding to:
 
 - `license.license_entitlements`: product, optional contract/pool, license
   type, quantity, validity, purchase/renewal, cost/currency, restrictions,
-  lifecycle state, actor, version, and timestamps.
+  actor, version, and timestamps. Do not store a manually mutable generic state.
+- Contract/supplier strings are external business references only until their
+  owning canonical domains exist; do not treat them as tenant-scoped entity IDs.
 - `license.license_pools`: name, pool type, optional organizational and
   contract references, state, version, and timestamps.
 - Any minimal append-only entitlement history needed to audit updates, renewal,
   and expiry. Do not add assignment, installation, or usage tables in this task.
+- Expose `effective_state` as a derived read field from the validity interval;
+  do not persist the compliance projection described in State Machine §56 as
+  entitlement lifecycle.
 
 Enforce tenant-safe foreign keys to `software.software_products`. Add checks
 for positive quantities, supported enum values, non-inverted validity, valid
@@ -163,7 +171,7 @@ Define payload contracts before emission. At minimum:
 ```text
 LICENSE.ENTITLEMENT_CREATED
 LICENSE.ENTITLEMENT_UPDATED
-LICENSE.ENTITLEMENT_RENEWED
+LICENSE.RENEWED
 LICENSE.EXPIRING
 LICENSE.EXPIRED
 LICENSE.POOL_CREATED
@@ -182,6 +190,8 @@ documents in event payloads.
 - Update/renew operations require matching `expected_version`; conflicts return
   `409 VERSION_CONFLICT`.
 - Entitlement, history, audit, and outbox changes commit in one transaction.
+- Expiry facts are emitted at most once per entitlement term version; their
+  idempotency identity includes the term version.
 - Audit records identify actor, entitlement/pool, before/after, reason, and
   correlation. Do not store license keys or secrets in audit evidence.
 - No timeline projection is required unless an existing traceability row
@@ -222,4 +232,32 @@ documents in event payloads.
 
 ## Completion Report
 
-To be filled after implementation and verification.
+Implemented the License-owned tenant-scoped entitlement and pool foundation.
+The migration adds entitlements, versioned validity terms, append-only history,
+and deduplicated expiry/renewal-warning facts. The module derives effective
+state from the validity window. Authenticated API commands enforce permission,
+idempotency, expected version, tenant scope, audit, and outbox behavior. The
+worker emits `LICENSE.EXPIRING` inside an entitlement's configured renewal
+notice window and `LICENSE.EXPIRED` once per expired term version.
+
+Added permissions `license.read`, `license.entitlement.manage`, and
+`license.pool.manage`, plus event contracts, traceability, and migration order.
+Applied the migration and permission seed to the local PostgreSQL container.
+
+Verification passed: `npm run typecheck`, `npm run lint`,
+`npm run format:check`, `git diff --check`, and `npm test` (22 unit, 2
+contract, 1 migration, 18 integration, and 15 E2E tests). The focused E2E test
+covers authorization denial, tenant isolation, idempotency replay/conflict,
+version conflict, term renewal/history, pool totals, secret rejection, and
+atomic expiry/warning audit/outbox facts.
+
+Remaining scope boundaries: assignment/reservation, compliance/usage
+calculation, and dispatch integration belong to TASK-058. Contract and supplier
+references remain display identifiers; no procurement or vendor integration
+was introduced. Warning delivery currently records the configured per-term
+notice fact; notification delivery and the broader renewal decision workflow
+remain outside this task. Resource authorization carries department,
+business-unit, and project pool scope into the policy evaluator. Country and
+contract pool labels have no matching scope type in the current RBAC policy and
+therefore require tenant-level permission; they are not silently mapped to a
+different scope type.

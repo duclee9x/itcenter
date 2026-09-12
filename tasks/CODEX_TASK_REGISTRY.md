@@ -176,8 +176,8 @@ Only generate a detailed `TASK-xxx_*.md` when the task becomes `READY` or is the
 | `TASK-054` | `F-030/F-031` | `WF-SW01/WF-SW02` | P3 | P0 | Software Catalog + Artifact Repository | TASK-036, TASK-039 | **SATISFIED** | CODE_COMPLETE | `TASK-054_SOFTWARE_CATALOG_ARTIFACT_REPOSITORY.md` |
 | `TASK-055` | `F-032` | `WF-014` | P3 | P0 | Software Deployment + Verification | TASK-031, TASK-054 | **SATISFIED** | CODE_COMPLETE | `TASK-055_SOFTWARE_DEPLOYMENT_VERIFICATION.md` |
 | `TASK-056` | `F-033` | `WF-013` | P3 | P1 | Unauthorized Software Detection + Resolution | TASK-019, TASK-054, TASK-055 | **SATISFIED** | NOT_STARTED | `GENERATE_ON_READY` |
-| `TASK-057` | `F-034` | `WF-L01` | P3 | P0 | License Entitlement + Pool Model | TASK-054 | **SATISFIED** | NOT_STARTED | `TASK-057_LICENSE_ENTITLEMENT_POOL_MODEL.md` |
-| `TASK-058` | `F-035/F-036` | `WF-015` | P3 | P0 | License Assignment + Reclaim + Compliance | TASK-031, TASK-057 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |
+| `TASK-057` | `F-034` | `WF-L01` | P3 | P0 | License Entitlement + Pool Model | TASK-054 | **SATISFIED** | CODE_COMPLETE | `TASK-057_LICENSE_ENTITLEMENT_POOL_MODEL.md` |
+| `TASK-058` | `F-035/F-036` | `WF-015` | P3 | P0 | License Assignment + Reclaim + Compliance | TASK-031, TASK-057 | **SATISFIED** | NOT_STARTED | `TASK-058_LICENSE_ASSIGNMENT_RECLAIM_COMPLIANCE.md` |
 | `TASK-059` | `F-037/F-038` | `WF-017/WF-018` | P3 | P1 | Replacement + Retirement + Disposal + Data Wipe | TASK-015, TASK-036, TASK-038 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |
 | `TASK-060` | `F-004/OFFBOARDING` | `WF-ID04/WF-019` | P3 | P0 | User Offboarding Orchestration | TASK-003, TASK-015, TASK-058 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |
 | `TASK-061` | `F-047/PHASE-GATE` | `WF-SRCH01/P3-E2E` | P3 | P1 | Advanced Search + Phase 3 Integration Gate | TASK-050, TASK-051, TASK-052, TASK-053, TASK-055, TASK-056, TASK-058, TASK-059, TASK-060 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |
@@ -279,19 +279,15 @@ Only generate a detailed `TASK-xxx_*.md` when the task becomes `READY` or is the
 
 # 11. Current Next Task
 
-TASK-000 is CODE_COMPLETE after review remediation. TASK-001 is CODE_COMPLETE after RBAC evaluation and API verification.
+TASK-057 is `CODE_COMPLETE`; its prerequisite TASK-054 is satisfied. TASK-058's
+prerequisites TASK-031 and TASK-057 are both satisfied, and its implementation
+contract has been generated from the License workflow and repository rules.
 
 ```text
-NEXT = TASK-002 (in progress)
+NEXT = TASK-058 (ready, not started)
 ```
 
-After TASK-000 passes, `TASK-001` and `TASK-004` can become dependency-ready. The default critical path chooses:
-
-```text
-TASK-001 — Identity + RBAC Foundation
-```
-
-because Identity/RBAC unlocks most business capabilities.
+TASK-056 is also dependency-ready at P1, but TASK-058 is P0 and takes precedence.
 
 ---
 

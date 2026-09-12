@@ -1094,7 +1094,7 @@ ACTIVE → EXPIRED
 
 ---
 
-# 56. License Entitlement Compliance State
+# 56. License Compliance State (Calculated Projection)
 
 States:
 
@@ -1108,6 +1108,11 @@ EXPIRED
 ```
 
 This is calculated state, not manual workflow state.
+
+This projection describes compliance and consumption findings; it is not the
+contractual effectiveness of a License Entitlement. Entitlement effectiveness
+is derived only from its validity window as specified in the License workflow.
+Do not persist or expose this projection as an entitlement lifecycle state.
 
 ---
 
