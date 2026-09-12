@@ -1251,6 +1251,12 @@ PO.CLOSED
 PO.REMAINDER_CLOSED
 ```
 
+Implementation status: TASK-072 `CODE_COMPLETE`. The implementation report
+and runtime acceptance evidence are recorded in
+`tasks/TASK-072_PURCHASE_ORDER_APPROVAL_AMENDMENT.md`. TASK-073 remains the
+owner of Goods Receipt writes, PO receipt-state progression and the two
+PO-vs-receipt concurrency races.
+
 ---
 
 # 28. Goods Receipt Traceability

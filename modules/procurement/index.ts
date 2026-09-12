@@ -34,3 +34,12 @@ export {
   type RfqCommandResult,
   type RfqEvent,
 } from "./application/rfqs.js";
+export {
+  executePurchaseOrderCommand,
+  linkPurchaseOrderApproval,
+  listPurchaseOrders,
+  readPurchaseOrder,
+  type PurchaseOrderCommand,
+  type PurchaseOrderCommandResult,
+  type PurchaseOrderEvent,
+} from "./application/purchase-orders.js";

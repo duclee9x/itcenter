@@ -1,22 +1,40 @@
 # IMPLEMENTATION HANDOFF
 
-## Current Task — TASK-072 (Ready, Not Started)
+## Current Task — TASK-073 (Ready, Not Started)
 
-Purchase Order + Approval + Amendment
+Goods Receipt + Asset Creation + Partial Receipt
 
-Feature: F-041
-Workflow: WF-P03
+Feature: F-042
+Workflow: WF-005
 Phase/Priority: P4 / P0
-Readiness: READY
+Readiness: READY (derived)
 Status: NOT_STARTED
 
-Task contract: `tasks/TASK-072_PURCHASE_ORDER_APPROVAL_AMENDMENT.md`
+Task contract: `GENERATE_ON_READY`
 
-Dependencies TASK-036, TASK-071 and TASK-072-R1 are `CODE_COMPLETE`.
-TASK-072-R1 resolved the PO lifecycle/approval/amendment `SPEC_CONFLICT` and
-made its state dimensions, transition guards, conditional approvals, immutable
-versions, permissions, events, data model and concurrency ownership normative.
-TASK-072 remains `NOT_STARTED`; wait for explicit user authorization.
+Dependencies TASK-012 and TASK-072 are `CODE_COMPLETE`; registry readiness
+has been reconciled. Generate and reconcile the detailed TASK-073 contract
+before implementation. TASK-073 owns canonical Goods Receipt writes,
+receipt-state progression, and the PO.HOLD-vs-receipt and PO.CANCEL-vs-receipt
+concurrency tests. No TASK-073 runtime code has started.
+
+## Last Completed Task — TASK-072
+
+Purchase Order + Approval + Amendment (`CODE_COMPLETE`). See
+`tasks/TASK-072_PURCHASE_ORDER_APPROVAL_AMENDMENT.md`.
+
+- Added Procurement-owned PO lifecycle commands, scoped APIs, independently
+  stored lifecycle/receipt dimensions, mutable draft lines, immutable
+  version-bound commercial lines and append-only history.
+- Enforced conditional Approval Engine links for issue and amendment, Supplier
+  and RFQ award guards, receipt-aware cancellation/close, audit, outbox,
+  timeline and durable idempotency.
+- Added database fencing for terminal states, immutable commercial versions,
+  held/terminal receipt posting and aggregate concurrency. TASK-073 must lock
+  the PO and write its canonical receipt, counter, quantity summaries, receipt
+  state, aggregate version and receipt history in the same transaction.
+- Verification passed: `npm test` (83 tests), typecheck, lint, format check
+  and `git diff --check`. TASK-073 receipt races remain unimplemented.
 
 ## Last Completed Remediation — TASK-072-R1
 

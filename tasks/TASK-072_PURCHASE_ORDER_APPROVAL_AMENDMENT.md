@@ -8,8 +8,8 @@ feature_id: F-041
 workflow_id: WF-P03
 phase: P4
 priority: P0
-readiness: READY
-status: NOT_STARTED
+readiness: SATISFIED
+status: CODE_COMPLETE
 owner_domain: procurement
 depends_on: TASK-036, TASK-071, TASK-072-R1
 ```
@@ -366,5 +366,46 @@ and relevant metrics. Never log sensitive commercial payloads unnecessarily.
 ## 28. Blockers / Readiness
 
 TASK-072-R1 resolves the PO lifecycle/approval/amendment `SPEC_CONFLICT`.
-Dependencies TASK-036 and TASK-071 are `CODE_COMPLETE`; this implementation
-task is derived `READY` and remains `NOT_STARTED` until explicitly authorized.
+Dependencies TASK-036 and TASK-071 are `CODE_COMPLETE`; implementation and
+required TASK-072 verification gates are complete.
+
+## 29. Implementation Report
+
+Implemented Procurement-owned Purchase Orders with separate lifecycle and
+receipt dimensions, mutable DRAFT lines, immutable version-bound commercial
+lines, append-only aggregate history, optimistic version checks, and a
+tenant-scoped command/query API. Commands cover create, draft update, issue,
+hold/resume, amendment, cancellation, fulfilled close, and close-remainder.
+Database triggers fence terminal transitions, commercial edits after issue,
+history/version/line rewrites, and receipt progression while held or terminal.
+
+Issue checks the canonical Supplier state and, for RFQ-sourced orders, the
+awarded RFQ, winner Supplier, and accepted quotation. Approval requests are
+conditionally linked by the Approval Engine through Procurement's
+application contract; the current PO link is persisted, tenant/target/type
+and exact version/hash context are validated, and stale or unapproved requests
+block the command. No approval is created automatically or required when no
+link exists.
+
+Each successful command writes PO history, audit, outbox and Operations
+timeline in the same transaction. Durable idempotency replays the committed
+result without duplicate effects. API authorization enforces the exact
+`po.*` command permission and tenant/resource scope.
+
+PO lifecycle events include the contract fields for changed draft fields,
+approval references and immutable snapshot hashes, amendment material changes,
+completion time, and received/remaining summaries for remainder close.
+
+TASK-073 integration boundary: PO stores `committed_receipt_count`,
+`received_quantities` and `remaining_quantities` alongside
+`receipt_state`. TASK-073 must lock the PO row and create the canonical Goods
+Receipt, update these summaries, advance receipt state and aggregate version,
+and append receipt history in one transaction. This is the database-backed
+fence used by PO cancellation and hold checks; TASK-072 does not implement
+Goods Receipt creation or claim its two end-to-end races.
+
+Verification passed: `npm test` (83 tests), `npm run typecheck`,
+`npm run lint`, `npm run format:check`, and `git diff --check`.
+
+No TASK-072 business blocker remains. TASK-073 remains unimplemented and
+inherits the explicit PO-lock/counter transaction contract above.

@@ -184,7 +184,8 @@ export async function recordAssetLifecycleTimelineEvent(input: {
 
 export async function recordProcurementTimelineEvent(input: {
   tx: Transaction;
-  entityType: "SUPPLIER" | "PROCUREMENT_REQUEST" | "RFQ" | "QUOTATION";
+  entityType:
+    "SUPPLIER" | "PROCUREMENT_REQUEST" | "RFQ" | "QUOTATION" | "PURCHASE_ORDER";
   entityId: string;
   eventType: string;
   payload: unknown;
@@ -210,7 +211,8 @@ export async function recordProcurementTimelineEvent(input: {
 
 export async function readEntityTimeline(input: {
   tx: Transaction;
-  entityType: "SUPPLIER" | "PROCUREMENT_REQUEST" | "RFQ" | "QUOTATION";
+  entityType:
+    "SUPPLIER" | "PROCUREMENT_REQUEST" | "RFQ" | "QUOTATION" | "PURCHASE_ORDER";
   entityId: string;
   limit?: number;
 }) {
