@@ -82,6 +82,46 @@ export async function resolveOffboardingWorkItem(input: {
     [input.tx.tenantId, input.caseId],
   );
 }
+
+export async function createSoftwareExceptionWorkItem(input: {
+  tx: Transaction;
+  exceptionId: string;
+  title: string;
+  priority: string;
+}): Promise<void> {
+  await input.tx.query(
+    `INSERT INTO operations.work_items
+       (id,tenant_id,source_type,source_id,title,priority,owner_team_id)
+     VALUES($1,$2,'SOFTWARE_EXCEPTION',$3,$4,$5,'SOFTWARE_SECURITY')
+     ON CONFLICT(tenant_id,source_type,source_id) DO UPDATE SET
+       title=EXCLUDED.title,priority=EXCLUDED.priority,
+       state=CASE WHEN operations.work_items.state IN ('RESOLVED','CLOSED')
+         THEN 'NEW' ELSE operations.work_items.state END,
+       resolved_at=CASE WHEN operations.work_items.state IN ('RESOLVED','CLOSED')
+         THEN NULL ELSE operations.work_items.resolved_at END,
+       last_action_at=now(),version=operations.work_items.version+1`,
+    [
+      randomUUID(),
+      input.tx.tenantId,
+      input.exceptionId,
+      input.title,
+      input.priority,
+    ],
+  );
+}
+
+export async function resolveSoftwareExceptionWorkItem(input: {
+  tx: Transaction;
+  exceptionId: string;
+}): Promise<void> {
+  await input.tx.query(
+    `UPDATE operations.work_items
+        SET state='RESOLVED',resolved_at=now(),last_action_at=now(),version=version+1
+      WHERE tenant_id=$1 AND source_type='SOFTWARE_EXCEPTION' AND source_id=$2
+        AND state NOT IN ('RESOLVED','CLOSED')`,
+    [input.tx.tenantId, input.exceptionId],
+  );
+}
 export async function resolveWorkItem(input: {
   tx: Transaction;
   workItemId: string;

@@ -2238,9 +2238,86 @@ retryable:
 ```yaml
 software_exception_id:
 asset_id:
-software_product_id:
+software_product_id: # nullable when catalog matching remains UNKNOWN
 detected_version:
 classification:
+installation_id:
+```
+
+## `SOFTWARE.INVENTORY_NORMALIZED`
+
+```yaml
+inventory_report_id:
+asset_id:
+agent_id:
+inventory_complete:
+item_count:
+payload_sha256:
+```
+
+## `SOFTWARE.PRODUCT_ALIAS_CREATED`
+
+```yaml
+software_product_id:
+alias_id:
+alias:
+normalized_alias:
+```
+
+## `SOFTWARE.EXCEPTION_UPDATED`
+
+```yaml
+software_exception_id:
+state:
+version:
+reason:
+approval_request_id: # nullable
+approved_until: # nullable
+```
+
+## `SOFTWARE.UNINSTALL_PROFILE_CREATED`, `SOFTWARE.UNINSTALL_PROFILE_APPROVED`
+
+```yaml
+uninstall_profile_id:
+software_product_id:
+symbolic_method:
+auto_removal_allowed:
+approval_request_id: # nullable for creation, required after approval
+version:
+```
+
+## `SOFTWARE.REMOVAL_REQUESTED`, `SOFTWARE.REMOVAL_JOB_QUEUED`
+
+```yaml
+software_exception_id:
+removal_job_id: # nullable when operator action is required
+state:
+automatic_dispatch:
+version:
+```
+
+## `SOFTWARE.REMOVAL_JOB_CLAIMED`
+
+```yaml
+removal_job_id:
+software_exception_id:
+asset_id:
+agent_id:
+symbolic_method:
+attempt_number:
+lease_expires_at:
+```
+
+## `SOFTWARE.REMOVAL_JOB_REPORTED`, `SOFTWARE.REMOVAL_FAILED`
+
+```yaml
+removal_job_id:
+software_exception_id:
+outcome:
+state:
+error_code: # nullable
+version:
+```
 ```
 
 ## `SOFTWARE.REMOVED`

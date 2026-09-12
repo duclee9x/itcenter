@@ -101,6 +101,7 @@ import {
 import { handleSoftwareDeploymentRoute } from "./software-deployment-routes.js";
 import { handleLicenseRoute } from "./license-routes.js";
 import { handleOffboardingRoute } from "./offboarding-routes.js";
+import { handleSoftwareComplianceRoute } from "./software-compliance-routes.js";
 
 const networkExceptionQueue = {
   createReference: createNetworkExceptionWorkItem,
@@ -233,6 +234,18 @@ export function apiServer(
   softwareArtifactAdapters?: SoftwareArtifactAdapters,
 ) {
   return createHttpServer(config, ready, async (req, res, context) => {
+    if (
+      await handleSoftwareComplianceRoute({
+        req,
+        res,
+        context,
+        config,
+        authentication,
+        authorization,
+        uow,
+      })
+    )
+      return true;
     if (
       await handleSoftwareArtifactRoute({
         req,

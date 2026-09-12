@@ -175,7 +175,7 @@ Only generate a detailed `TASK-xxx_*.md` when the task becomes `READY` or is the
 | `TASK-053` | `NETWORK-CHANGE` | `WF-012` | P3 | P1 | Controlled Network Change + Verification + Rollback | TASK-036, TASK-037, TASK-052 | **SATISFIED** | CODE_COMPLETE | `TASK-053_CONTROLLED_NETWORK_CHANGE.md` |
 | `TASK-054` | `F-030/F-031` | `WF-SW01/WF-SW02` | P3 | P0 | Software Catalog + Artifact Repository | TASK-036, TASK-039 | **SATISFIED** | CODE_COMPLETE | `TASK-054_SOFTWARE_CATALOG_ARTIFACT_REPOSITORY.md` |
 | `TASK-055` | `F-032` | `WF-014` | P3 | P0 | Software Deployment + Verification | TASK-031, TASK-054 | **SATISFIED** | CODE_COMPLETE | `TASK-055_SOFTWARE_DEPLOYMENT_VERIFICATION.md` |
-| `TASK-056` | `F-033` | `WF-013` | P3 | P1 | Unauthorized Software Detection + Resolution | TASK-019, TASK-054, TASK-055 | **SATISFIED** | NOT_STARTED | `GENERATE_ON_READY` |
+| `TASK-056` | `F-033` | `WF-013` | P3 | P1 | Unauthorized Software Detection + Resolution | TASK-019, TASK-054, TASK-055 | **SATISFIED** | CODE_COMPLETE | `TASK-056_UNAUTHORIZED_SOFTWARE_DETECTION_RESOLUTION.md` |
 | `TASK-057` | `F-034` | `WF-L01` | P3 | P0 | License Entitlement + Pool Model | TASK-054 | **SATISFIED** | CODE_COMPLETE | `TASK-057_LICENSE_ENTITLEMENT_POOL_MODEL.md` |
 | `TASK-058` | `F-035/F-036` | `WF-015` | P3 | P0 | License Assignment + Reclaim + Compliance | TASK-031, TASK-057 | **SATISFIED** | CODE_COMPLETE | `TASK-058_LICENSE_ASSIGNMENT_RECLAIM_COMPLIANCE.md` |
 | `TASK-058-R1` | `F-035` | `WF-015` | P3 | P0 | Cancel Unactivated License Assignment | TASK-058 | **SATISFIED** | CODE_COMPLETE | `TASK-058-R1_CANCEL_UNACTIVATED_LICENSE_ASSIGNMENT.md` |
@@ -281,18 +281,19 @@ Only generate a detailed `TASK-xxx_*.md` when the task becomes `READY` or is the
 
 # 11. Current Next Task
 
-TASK-060-R1 and TASK-060 are `CODE_COMPLETE`. The approved state machine,
-cancellation/recovery invariants, runtime commands, owning-domain clearances,
-audit/outbox behavior, and concurrency coverage are implemented. All
-TASK-060 dependencies are satisfied; no unresolved `SPEC_CONFLICT` remains.
+TASK-060-R1, TASK-060, and TASK-056 are `CODE_COMPLETE`. TASK-056 inventory,
+exception handling, safe removal flow, audit/outbox payloads, and verification
+are recorded in its completion report. No TASK-056 acceptance gap remains.
 
 ```text
-NEXT = TASK-056 (READY / NOT_STARTED)
+CURRENT = none (no READY task)
+NEXT_BLOCKED = TASK-059
 ```
 
-TASK-056 dependencies TASK-019, TASK-054, and TASK-055 are satisfied. Its task
-contract is generated when implementation starts. TASK-059 remains blocked and
-continues to block the TASK-061 Phase 3 integration gate.
+TASK-059 is still marked `BLOCKED` although its declared dependencies
+TASK-015, TASK-036, and TASK-038 are satisfied; this registry entry does not
+record the specific blocker. TASK-061 remains blocked on TASK-059. Reconcile
+the TASK-059 blocker before generating its task contract or starting work.
 
 ---
 

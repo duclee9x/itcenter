@@ -1,25 +1,33 @@
 # IMPLEMENTATION HANDOFF
 
-## Next Task
+## Current Status
 
-TASK-056 — Unauthorized Software Detection + Resolution
+No task is currently in progress.
 
-Feature: F-033
+Last completed: TASK-056 — Unauthorized Software Detection + Resolution
+(`CODE_COMPLETE`). See `tasks/TASK-056_UNAUTHORIZED_SOFTWARE_DETECTION_RESOLUTION.md`.
 
-Workflow: WF-013
+TASK-059 — Replacement + Retirement + Disposal + Data Wipe is the next
+registry item but remains `BLOCKED`. Its declared dependencies are satisfied,
+and the registry does not document the specific blocker. Resolve that blocker
+before generating the task contract or starting implementation. TASK-061
+remains blocked on TASK-059.
 
-Phase/Priority: P3 / P1
+## TASK-056 Completion
 
-Readiness: READY (TASK-019, TASK-054, TASK-055 satisfied)
+- Implemented tenant-scoped software inventory normalization, deterministic
+  catalog aliases, unauthorized detection, exceptions and actionable Work
+  Queue references.
+- Added approval and policy decisions, bounded safe symbolic removal jobs,
+  agent claims/reports, retries and later complete-inventory verification.
+- Added migrations, tenant-scoped APIs, audit/outbox events, permissions,
+  specifications/traceability and database-backed E2E tests.
+- Verification passed: `npm test` (65 tests), typecheck, lint, format check,
+  migration tests and `git diff --check`.
+- Assumptions: UNKNOWN grace defaults to 72 hours; OS-specific uninstall
+  adapters are out of scope and unsupported adapters fail closed.
 
-Status: NOT_STARTED
-
-Task contract: `GENERATE_ON_READY` (create when implementation starts)
-
-TASK-059 remains blocked; TASK-061 Phase 3 integration gate remains blocked on
-TASK-059. TASK-056 is independently dependency-ready.
-
-## Previous Task Completed
+## Earlier Completed Task — TASK-060
 
 TASK-060 — User Offboarding Orchestration (`CODE_COMPLETE`)
 

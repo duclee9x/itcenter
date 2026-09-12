@@ -832,6 +832,12 @@ Latest normalized software inventory:
 Relational projection
 ```
 
+Store report metadata and normalized inventory observations append-only in
+Software-owned relational tables. Keep the latest present/removed installation
+projection tenant-scoped. Do not treat an incomplete inventory report as proof
+that software is absent. Historical archival may later move to compressed
+observation storage without changing Software's canonical current projection.
+
 Historical scan snapshots:
 
 ```text

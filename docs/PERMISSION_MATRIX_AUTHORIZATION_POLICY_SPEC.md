@@ -619,9 +619,21 @@ artifact.read
 artifact.publish
 artifact.revoke
 software.exception.resolve
+software.inventory.read
+software.exception.read
+software.exception.manage
+software.exception.approve
+software.removal.manage
 ```
 
 Artifact approval may require Security Reviewer.
+
+Inventory and exception reads are tenant-scoped. Temporary exceptions and
+uninstall-profile approval require `software.exception.approve` plus a
+distinct approved Approval-domain decision. Removal execution requires
+`software.removal.manage`; this permission never bypasses the approved
+symbolic profile, classification, asset-risk, inventory, and Agent lease
+checks.
 
 ---
 
@@ -971,6 +983,11 @@ software.catalog.manage
 software.deploy
 software.remove
 software.exception.resolve
+software.inventory.read
+software.exception.read
+software.exception.manage
+software.exception.approve
+software.removal.manage
 
 artifact.read
 artifact.upload

@@ -1407,6 +1407,21 @@ GET  /software/deployment-campaigns/{id}/targets
 POST /software/deployment-targets/{id}/commands/retry
 POST /software-exceptions/{id}/commands/approve
 POST /software-exceptions/{id}/commands/remove
+GET  /software/inventory
+GET  /software/exceptions
+GET  /software/exceptions/{id}
+POST /software/products/{id}/aliases
+POST /software/products/{id}/uninstall-profiles
+POST /software/uninstall-profiles/{id}/commands/approve
+POST /software/inventory/{installation_id}/commands/review
+POST /software/exceptions/{id}/commands/request-approval
+POST /software/exceptions/{id}/commands/approve-temporary
+POST /software/exceptions/{id}/commands/mark-false-positive
+POST /software/exceptions/{id}/commands/investigate
+POST /software/exceptions/{id}/commands/request-removal
+POST /software/exceptions/{id}/commands/ignore-by-policy
+POST /agent/software-removals/claim
+POST /agent/software-removals/{id}/commands/report
 ```
 
 ---
@@ -1417,6 +1432,16 @@ and result reporting use the authenticated Agent Gateway, short-lived leases,
 and normalized results; signed artifact download grants are returned only to
 the enrolled agent and are never persisted in audit, events, or idempotency
 responses.
+
+Software inventory reports use the existing Agent inventory API with
+`Idempotency-Key`, `inventory_complete`, and a bounded normalized item array.
+A complete report is the only evidence allowed to mark an installation absent.
+Software exception mutations require `expected_version`, reason,
+authorization, and idempotency. Temporary exceptions and automatic uninstall
+profiles require a distinct approved Approval-domain request. Removal Agent
+claims/reports are bound to the enrolled agent's asset and short lease; agent
+success does not close an exception until a later complete inventory confirms
+absence.
 
 # 64. License Commands
 

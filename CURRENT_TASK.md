@@ -1,16 +1,12 @@
 # CURRENT TASK
 
-Next task: `TASK-056` — Unauthorized Software Detection + Resolution
+No task is currently in progress.
 
-Task specification: `GENERATE_ON_READY` (create when implementation starts)
+Last completed task: `TASK-056` — Unauthorized Software Detection + Resolution
+(`CODE_COMPLETE`; implementation and verification are recorded in
+`tasks/TASK-056_UNAUTHORIZED_SOFTWARE_DETECTION_RESOLUTION.md`).
 
-Readiness: `READY` (TASK-019, TASK-054, TASK-055 satisfied)
-
-Status: `NOT_STARTED`
-
-Branch: `master`
-
-Previous completed task: `TASK-060` — User Offboarding Orchestration.
-
-TASK-060 is implemented, verified, and recorded in the registry and handoff.
-TASK-056 is the next dependency-ready task; its implementation has not started.
+Next registry item: `TASK-059` — Replacement + Retirement + Disposal + Data
+Wipe. Status: `BLOCKED`. The registry does not record the blocker even though
+its declared dependencies are satisfied. Resolve that registry blocker before
+generating or starting TASK-059. `TASK-061` remains blocked on TASK-059.

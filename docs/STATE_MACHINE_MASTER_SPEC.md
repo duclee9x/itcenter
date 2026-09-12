@@ -1019,6 +1019,22 @@ RESOLVED
 FALSE_POSITIVE
 ```
 
+Transitions and guards:
+
+```text
+OPEN → WAITING_APPROVAL → APPROVED_TEMPORARY
+OPEN / WAITING_APPROVAL → FALSE_POSITIVE
+OPEN / WAITING_APPROVAL → REMOVAL_PENDING
+OPEN / WAITING_APPROVAL → RESOLVED (policy-authorized ignore)
+REMOVAL_PENDING → RESOLVED only after complete inventory confirms absence
+APPROVED_TEMPORARY → OPEN when its approval expires and the install remains
+WAITING_APPROVAL → OPEN when its approval is rejected, expired, or cancelled
+```
+
+`FALSE_POSITIVE` and `RESOLVED` are terminal for that exception record. A new
+installation occurrence creates a new exception generation and retains prior
+history. Agent removal success alone does not resolve the exception.
+
 ---
 
 # 51. Artifact State Machine

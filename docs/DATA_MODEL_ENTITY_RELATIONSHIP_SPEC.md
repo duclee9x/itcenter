@@ -1709,6 +1709,21 @@ lease, precheck, checksum/signature booleans, installer exit, observed product
 and version, reboot requirement, outcome, bounded error code, and redacted
 summary. Updates and deletes are prohibited.
 
+## 23.7 Inventory and Compliance Exceptions
+
+Software owns `inventory_reports`, append-only `inventory_observations`,
+`inventory_installations`, exact `product_aliases`, `software_exceptions` and
+append-only `software_exception_history`. Inventory installation identity is
+tenant + asset + normalized product/name, version, package identifier and
+install scope; a detection generation distinguishes later reinstallation.
+Exceptions reference the installation generation and retain state/version,
+owner, risk, decision reason, approval reference and temporary expiry.
+
+`uninstall_profiles` stores an approved symbolic method and explicit automatic
+removal/no-business-dependency policy. `removal_jobs` and append-only
+`removal_attempts` retain the enrolled Agent binding and expiring lease. Raw
+commands and arbitrary URLs are not persisted or dispatched.
+
 ---
 
 # 24. Artifact Domain

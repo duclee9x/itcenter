@@ -1046,6 +1046,48 @@ SOFTWARE.DEPLOYMENT_CAMPAIGN_STOPPED
 SOFTWARE.REMOVED
 ```
 
+### Unauthorized Software / Inventory Compliance (F-033 / WF-013)
+
+Tables:
+
+```text
+software.inventory_reports
+software.inventory_observations
+software.inventory_installations
+software.product_aliases
+software.software_exceptions
+software.software_exception_history
+software.uninstall_profiles
+software.removal_jobs
+software.removal_attempts
+operations.work_items (SOFTWARE_EXCEPTION reference)
+```
+
+Commands and APIs:
+
+```text
+POST /agent/v1/inventory
+GET /api/v1/software/inventory
+GET /api/v1/software/exceptions[/{id}]
+POST /api/v1/software/exceptions/{id}/commands/{request-approval|approve-temporary|mark-false-positive|investigate|request-removal|ignore-by-policy}
+POST /api/v1/agent/software-removals/claim
+POST /api/v1/agent/software-removals/{id}/commands/report
+```
+
+Events:
+
+```text
+SOFTWARE.INVENTORY_NORMALIZED
+SOFTWARE.UNAUTHORIZED_DETECTED
+SOFTWARE.EXCEPTION_UPDATED
+SOFTWARE.REMOVAL_REQUESTED
+SOFTWARE.REMOVAL_JOB_QUEUED
+SOFTWARE.REMOVAL_JOB_CLAIMED
+SOFTWARE.REMOVAL_JOB_REPORTED
+SOFTWARE.REMOVAL_FAILED
+SOFTWARE.REMOVED
+```
+
 ---
 
 # 24. Artifact Traceability

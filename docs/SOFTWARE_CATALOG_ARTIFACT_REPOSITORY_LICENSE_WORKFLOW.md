@@ -890,6 +890,15 @@ OR
 RESTRICTED without approval
 ```
 
+Agent inventory is stored as append-only Software-owned observations and a
+tenant-scoped normalized current installation projection. Product matching is
+exact after Unicode normalization, against product name, product code, or an
+explicit catalog alias; ambiguous matches remain `UNKNOWN`. The default
+unknown-software grace period is 72 hours from first receipt. `PROHIBITED` is
+actionable immediately; `RESTRICTED` is actionable unless an unexpired
+approved exception exists. Only a complete validated inventory report may
+establish that an installation is absent.
+
 ---
 
 # 36. Unauthorized Software Decision
@@ -905,6 +914,11 @@ Ignore by Policy
 Security Investigation
 ```
 
+An actionable decision is retained as a Software Exception and referenced by
+one Work Item. Approval requests use the Approval domain with the exception as
+source. A temporary exception requires a distinct approval decision, owner,
+reason, and expiry. Expiry is re-evaluated on the next inventory report.
+
 ---
 
 # 37. Auto Removal Policy
@@ -919,6 +933,13 @@ no known business dependency
 ```
 
 Không auto-remove software mơ hồ.
+
+The Software domain stores only an approved symbolic uninstall profile, never
+an arbitrary shell command or URL. Automatic dispatch is allowed only for
+`PROHIBITED` software, an approved profile with explicit no-business-dependency
+attestation, and a low-risk asset with a recent enrolled Agent. Otherwise the
+exception stays actionable for an authorized operator. Agent success remains
+`REMOVAL_PENDING` until a later complete inventory proves absence.
 
 ---
 

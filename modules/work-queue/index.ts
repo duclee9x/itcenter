@@ -5,4 +5,6 @@ export {
   resolveWorkItem,
   createOffboardingWorkItem,
   resolveOffboardingWorkItem,
+  createSoftwareExceptionWorkItem,
+  resolveSoftwareExceptionWorkItem,
 } from "./application/work-queue.js";

@@ -21,6 +21,27 @@ export {
   reportDeploymentResult,
   type DeploymentReport,
 } from "./application/deployments.js";
+export {
+  normalizeSoftwareName,
+  ingestSoftwareInventory,
+  createProductAlias,
+  createUninstallProfile,
+  approveUninstallProfile,
+  listSoftwareInventory,
+  listSoftwareExceptions,
+  readSoftwareException,
+  requestExceptionApproval,
+  approveTemporaryException,
+  markFalsePositive,
+  ignoreExceptionByPolicy,
+  requestExceptionInvestigation,
+  requestExceptionRemoval,
+  claimRemovalJob,
+  reportRemovalResult,
+  getExceptionRemovalJob,
+  inspectExceptionForReview,
+  type SoftwareInventoryItem,
+} from "./application/inventory-exceptions.js";
 export const permissions = [
   { code: "software.read", resource_type: "software_product", action: "read" },
   {
@@ -47,5 +68,30 @@ export const permissions = [
     code: "software.retry_deployment",
     resource_type: "software_deployment",
     action: "retry",
+  },
+  {
+    code: "software.inventory.read",
+    resource_type: "software_inventory",
+    action: "read",
+  },
+  {
+    code: "software.exception.read",
+    resource_type: "software_exception",
+    action: "read",
+  },
+  {
+    code: "software.exception.manage",
+    resource_type: "software_exception",
+    action: "manage",
+  },
+  {
+    code: "software.exception.approve",
+    resource_type: "software_exception",
+    action: "approve",
+  },
+  {
+    code: "software.removal.manage",
+    resource_type: "software_removal",
+    action: "manage",
   },
 ] as const;
