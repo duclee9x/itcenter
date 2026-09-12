@@ -9,6 +9,7 @@ import { apiServer } from "../../apps/api/src/server.js";
 import { loadConfig } from "../../packages/config/src/index.js";
 import { resolveDeploymentAgentContext } from "../../modules/agent/index.js";
 import { nextDeploymentCandidate } from "../../modules/software/index.js";
+import { createLicenseEntitlement } from "../../modules/license/index.js";
 import { testDatabase } from "../helpers.js";
 
 async function listen(server: Server) {
@@ -56,7 +57,7 @@ test("software deployment is tenant-scoped, fail-closed, leased and verified", a
         license_required)
      VALUES($1,$2,'EDITOR-DEPLOY','Editor','Example Vendor','DEVELOPMENT',
             'APPROVED','team-it','service-desk',ARRAY['linux'],ARRAY['Laptop'],
-            'IT_ONLY',false)`,
+            'IT_ONLY',true)`,
     [productId, tenantId],
   );
   await db.pool.query(
@@ -87,6 +88,20 @@ test("software deployment is tenant-scoped, fail-closed, leased and verified", a
     `INSERT INTO agent.agents(id,tenant_id,asset_id,agent_version,status,last_seen_at)
      VALUES($1,$2,$3,'test-agent','ONLINE',now())`,
     [agentId, tenantId, assetId],
+  );
+  await db.uow.run(tenantId, (tx) =>
+    createLicenseEntitlement({
+      tx,
+      softwareProductId: productId,
+      licenseType: "PER_DEVICE",
+      quantity: 1,
+      validFrom: new Date(Date.now() - 60_000).toISOString(),
+      validUntil: new Date(Date.now() + 30 * 86400000).toISOString(),
+      renewalNoticeDays: 14,
+      restrictions: [],
+      actorId: "license-fixture",
+      reason: "Create one device license for deployment test",
+    }),
   );
 
   let actorType = "USER";
@@ -289,6 +304,20 @@ test("software deployment is tenant-scoped, fail-closed, leased and verified", a
       }
     ).data;
     assert.equal(reportResult.state, "SUCCESS");
+    const licenseAssignment = await db.pool.query(
+      `SELECT a.state,a.principal_type,a.principal_id,r.state AS reservation_state
+         FROM license.assignments a
+         JOIN license.deployment_reservations r
+           ON r.tenant_id=a.tenant_id AND r.id=a.reservation_id
+        WHERE a.tenant_id=$1 AND r.deployment_target_id=$2`,
+      [tenantId, target.id],
+    );
+    assert.deepEqual(licenseAssignment.rows[0], {
+      state: "ACTIVE",
+      principal_type: "ASSET",
+      principal_id: assetId,
+      reservation_state: "ASSIGNED",
+    });
     const reportReplay = await post(
       gatewayUrl,
       `/api/v1/agent/deployments/${target.id}/commands/report`,

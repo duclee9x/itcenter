@@ -13,6 +13,24 @@ export async function assertAssetExists(input: {
     throw new ApplicationError("NOT_FOUND", "Asset was not found.");
   return true;
 }
+
+export async function assertAssetEligibleForLicense(input: {
+  tx: Transaction;
+  assetId: string;
+}) {
+  const result = await input.tx.query(
+    `SELECT id FROM asset.assets
+      WHERE tenant_id=$1 AND id=$2
+        AND lifecycle_state NOT IN ('RETIRED','DISPOSED')`,
+    [input.tx.tenantId, input.assetId],
+  );
+  if (!result.rowCount)
+    throw new ApplicationError(
+      "NOT_FOUND",
+      "Active asset was not found in this tenant.",
+    );
+  return true;
+}
 export async function createAsset(input: {
   tx: Transaction;
   assetCode: string;

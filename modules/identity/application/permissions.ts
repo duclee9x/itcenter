@@ -1,4 +1,24 @@
 import type { Permission } from "../domain/model.js";
+import type { Transaction } from "../../../packages/persistence/src/index.js";
+import { ApplicationError } from "../../../packages/api-contracts/src/index.js";
+
+export async function assertActiveLicenseUser(input: {
+  tx: Transaction;
+  userId: string;
+}) {
+  const result = await input.tx.query(
+    `SELECT id FROM identity.users
+      WHERE tenant_id=$1 AND id=$2 AND employment_status='ACTIVE'
+        AND archived_at IS NULL`,
+    [input.tx.tenantId, input.userId],
+  );
+  if (!result.rowCount)
+    throw new ApplicationError(
+      "NOT_FOUND",
+      "Active user was not found in this tenant.",
+    );
+  return true;
+}
 // Platform permission needed by the bootstrap operation query; no grant is implied.
 export const permissions: readonly Permission[] = [
   { code: "asset.create", resource_type: "asset", action: "create" },

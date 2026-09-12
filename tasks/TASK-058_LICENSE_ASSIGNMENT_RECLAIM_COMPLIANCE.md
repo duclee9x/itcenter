@@ -6,7 +6,7 @@ feature_id: F-035/F-036
 workflow_id: WF-015
 phase: P3
 priority: P0
-status: NOT_STARTED
+status: CODE_COMPLETE
 owner_domain: license
 ```
 
@@ -111,14 +111,16 @@ entitlement quantity as separate facts.
 Use protected command routes following repository conventions, including:
 
 ```text
-POST /api/v1/license-entitlements/{id}/commands/reserve
+POST /api/v1/license-entitlements/{id}/commands/assign
 POST /api/v1/license-assignments/{id}/commands/assign
 POST /api/v1/license-assignments/{id}/commands/activate
 POST /api/v1/license-assignments/{id}/commands/suspend
 POST /api/v1/license-assignments/{id}/commands/reclaim
 POST /api/v1/license-assignments/{id}/commands/complete-reclaim
+GET  /api/v1/license-assignments/{id}
 GET  /api/v1/license-entitlements/{id}/availability
 GET  /api/v1/license-compliance
+POST /api/v1/license-entitlements/{id}/commands/usage-observation
 ```
 
 Exact resource paths may follow the existing API style, but commands must
@@ -150,25 +152,28 @@ exception. Do not grant these permissions broadly through role defaults.
 
 ## Events
 
-Define or extend payload contracts before emission:
+Deployment reservation is invoked through a License application contract from
+Agent Gateway; it is not a caller-controlled public command. Define or extend
+payload contracts before emission:
 
 ```text
 LICENSE.ASSIGNED
 LICENSE.ACTIVATED
+LICENSE.SUSPENDED
 LICENSE.RECLAIM_PENDING
 LICENSE.RECLAIMED
 LICENSE.OVERUSED
 LICENSE.UNDERUSED
-SOFTWARE.DEPLOYMENT_LICENSE_RESERVED
-SOFTWARE.DEPLOYMENT_LICENSE_RELEASED
+LICENSE.RESERVED
+LICENSE.RESERVATION_RELEASED
+LICENSE.USAGE_OBSERVED
 ```
 
-If repository event naming or task precedence shows deployment reservation
-events should be License-owned instead, preserve one canonical fact and report
-the smallest contract adjustment before adding duplicate events. State changes,
-history, outbox, and required audit evidence commit atomically. External agent
-execution, inventory polling, and notifications remain outside the DB
-transaction.
+State changes, history, outbox, and required audit evidence commit atomically.
+External agent execution, inventory polling, and notifications remain outside
+the DB transaction. Provider-sourced usage observations require a trusted
+adapter; the public API accepts only an authorized manual attestation with an
+evidence reference.
 
 ## Required Tests
 
@@ -210,4 +215,28 @@ transaction.
 
 ## Completion Report
 
-To be filled after implementation and verification.
+Implemented License-owned assignment, deployment reservations, activation,
+suspension, reclaim, usage evidence, and tenant-scoped compliance. Added
+append-only assignment/reservation/usage/compliance facts and versioned
+capacity invariants. Entitlement updates now reject capacity reduction or
+license type/pool changes that invalidate live allocations.
+
+The API validates USER and ASSET principals through their owning modules and
+enforces stable License permissions, scope, idempotency, expected versions,
+audit, and outbox behavior. Software deployment obtains a durable reservation
+before agent dispatch; verified post-check activates it, safe pre-execution
+failure releases it, and uncertain installer outcomes keep the reservation.
+Compliance reports unsupported models or missing/stale usage as `UNKNOWN` and
+records `OVERUSED`/`UNDERUSED` facts only for countable allocations with the
+required evidence.
+
+Verification passed: local PostgreSQL migration and permission seed; 58 tests
+across unit (22), contract (2), migration (1), integration (18), and E2E (15);
+`npm run typecheck`; `npm run lint`; `npm run format:check`; and
+`git diff --check`. E2E coverage includes concurrent attempts for the final
+seat, deployment reservation/activation, reclaim verification, evidence-based
+underuse, and detection/audit/outbox of a legacy over-allocation.
+
+Remaining integration boundary: provider usage synchronization is not included;
+trusted provider adapters can use the application boundary later. Unsupported
+consumption models remain `UNKNOWN` until their policy is explicitly defined.

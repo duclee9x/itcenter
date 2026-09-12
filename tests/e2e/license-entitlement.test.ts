@@ -211,6 +211,234 @@ test("license entitlements and pools retain terms, scope, audit and expiry facts
     assert.equal(renewedData.data.current_term_version, 2);
     assert.equal(renewedData.data.version, 3);
 
+    const userId = randomUUID();
+    await db.pool.query(
+      `INSERT INTO identity.users
+         (id,tenant_id,display_code,username,primary_email,display_name,employment_status)
+       VALUES($1,$2,'USR-LICENSE-1','license.user','license@example.test','License User','ACTIVE')`,
+      [userId, tenantId],
+    );
+    const assigned = await post(
+      `/api/v1/license-entitlements/${entitlement.id}/commands/assign`,
+      "license-assign",
+      {
+        principal_type: "USER",
+        principal_id: userId,
+        reason: "Assign subscription to active user",
+      },
+    );
+    assert.equal(assigned.status, 201, await assigned.clone().text());
+    const assignment = (
+      (await assigned.json()) as {
+        data: { assignment_id: string; state: string };
+      }
+    ).data;
+    assert.equal(assignment.state, "ASSIGNED");
+    const activated = await post(
+      `/api/v1/license-assignments/${assignment.assignment_id}/commands/activate`,
+      "license-activate",
+      { expected_version: 1, reason: "Activate assigned seat" },
+    );
+    assert.equal(activated.status, 200, await activated.clone().text());
+    const allocatedTypeChange = await post(
+      `/api/v1/license-entitlements/${entitlement.id}/commands/update`,
+      "allocated-type-change",
+      {
+        expected_version: 3,
+        license_type: "PERPETUAL",
+        reason: "Attempt to change model with a live assignment",
+      },
+    );
+    assert.equal(allocatedTypeChange.status, 422);
+    const availability = await get(
+      `/api/v1/license-entitlements/${entitlement.id}/availability`,
+    );
+    assert.deepEqual(
+      (
+        (await availability.json()) as {
+          data: { assigned: number; available: number };
+        }
+      ).data,
+      {
+        entitlement_id: entitlement.id,
+        license_type: "PER_USER",
+        quantity: 52,
+        assigned: 1,
+        reserved: 0,
+        consumption_rule_supported: true,
+        available: 51,
+        effective_state: "ACTIVE",
+      },
+    );
+    const reclaimPending = await post(
+      `/api/v1/license-assignments/${assignment.assignment_id}/commands/reclaim`,
+      "license-reclaim",
+      { expected_version: 2, reason: "User no longer requires the software" },
+    );
+    assert.equal(reclaimPending.status, 200);
+    const incompleteReclaim = await post(
+      `/api/v1/license-assignments/${assignment.assignment_id}/commands/complete-reclaim`,
+      "license-reclaim-incomplete",
+      { expected_version: 3, reason: "Reclaim verified" },
+    );
+    assert.equal(incompleteReclaim.status, 400);
+    const reclaimed = await post(
+      `/api/v1/license-assignments/${assignment.assignment_id}/commands/complete-reclaim`,
+      "license-reclaim-complete",
+      {
+        expected_version: 3,
+        verification_reference: "uninstall-check-2026-001",
+        reason: "Uninstall confirmed and seat returned",
+      },
+    );
+    assert.equal(reclaimed.status, 200, await reclaimed.clone().text());
+    assert.equal(
+      ((await reclaimed.json()) as { data: { state: string } }).data.state,
+      "RECLAIMED",
+    );
+
+    const underusedUserId = randomUUID();
+    await db.pool.query(
+      `INSERT INTO identity.users
+         (id,tenant_id,display_code,username,primary_email,display_name,employment_status)
+       VALUES($1,$2,'USR-LICENSE-2','license.user2','license2@example.test','License User 2','ACTIVE')`,
+      [underusedUserId, tenantId],
+    );
+    const evidenceEntitlement = await post(
+      "/api/v1/license-entitlements",
+      "underuse-entitlement",
+      {
+        ...entitlementBody,
+        pool_id: null,
+        valid_from: new Date(Date.now() - 60_000).toISOString(),
+        valid_until: new Date(Date.now() + 365 * 86400000).toISOString(),
+        renewal_notice_days: 0,
+        quantity: 2,
+        reason: "Register second test entitlement",
+      },
+    );
+    assert.equal(
+      evidenceEntitlement.status,
+      201,
+      await evidenceEntitlement.clone().text(),
+    );
+    const evidenceEntitlementId = (
+      (await evidenceEntitlement.json()) as { data: { id: string } }
+    ).data.id;
+    const evidenceAssignment = await post(
+      `/api/v1/license-entitlements/${evidenceEntitlementId}/commands/assign`,
+      "underuse-assignment",
+      {
+        principal_type: "USER",
+        principal_id: underusedUserId,
+        reason: "Assign seat for usage compliance test",
+      },
+    );
+    assert.equal(evidenceAssignment.status, 201);
+    const evidenceAssignmentId = (
+      (await evidenceAssignment.json()) as { data: { assignment_id: string } }
+    ).data.assignment_id;
+    const evidenceActivation = await post(
+      `/api/v1/license-assignments/${evidenceAssignmentId}/commands/activate`,
+      "underuse-activation",
+      { expected_version: 1, reason: "Activate usage compliance test seat" },
+    );
+    assert.equal(evidenceActivation.status, 200);
+    const usageObservation = await post(
+      `/api/v1/license-entitlements/${evidenceEntitlementId}/commands/usage-observation`,
+      "usage-observation",
+      {
+        source: "MANUAL_ATTESTATION",
+        active_usage: 0,
+        observed_at: new Date().toISOString(),
+        inactivity_threshold_days: 30,
+        evidence_reference: "provider-snapshot-001",
+        reason: "Provider usage synchronization",
+      },
+    );
+    assert.equal(usageObservation.status, 201);
+    const compliance = await get("/api/v1/license-compliance");
+    assert.equal(compliance.status, 200, await compliance.clone().text());
+    const complianceRows = (
+      (await compliance.json()) as {
+        data: Array<{ entitlement_id: string; compliance_state: string }>;
+      }
+    ).data;
+    assert.equal(
+      complianceRows.find((row) => row.entitlement_id === evidenceEntitlementId)
+        ?.compliance_state,
+      "UNDERUSED",
+    );
+
+    const singleSeat = await post(
+      "/api/v1/license-entitlements",
+      "single-seat-entitlement",
+      {
+        ...entitlementBody,
+        pool_id: null,
+        quantity: 1,
+        valid_from: new Date(Date.now() - 60_000).toISOString(),
+        valid_until: new Date(Date.now() + 365 * 86400000).toISOString(),
+        renewal_notice_days: 0,
+        reason: "Register a single seat for concurrency test",
+      },
+    );
+    assert.equal(singleSeat.status, 201, await singleSeat.clone().text());
+    const singleSeatId = ((await singleSeat.json()) as { data: { id: string } })
+      .data.id;
+    const concurrentUserIds = [randomUUID(), randomUUID()];
+    await db.pool.query(
+      `INSERT INTO identity.users
+         (id,tenant_id,display_code,username,primary_email,display_name,employment_status)
+       VALUES($1,$3,'USR-LICENSE-RACE-1','license.race1','race1@example.test','License Race 1','ACTIVE'),
+             ($2,$3,'USR-LICENSE-RACE-2','license.race2','race2@example.test','License Race 2','ACTIVE')`,
+      [...concurrentUserIds, tenantId],
+    );
+    const concurrentAssignments = await Promise.all(
+      concurrentUserIds.map((principalId, index) =>
+        post(
+          `/api/v1/license-entitlements/${singleSeatId}/commands/assign`,
+          `license-race-${index}`,
+          {
+            principal_type: "USER",
+            principal_id: principalId,
+            reason: "Race for the final available seat",
+          },
+        ),
+      ),
+    );
+    assert.deepEqual(
+      concurrentAssignments.map((response) => response.status).sort(),
+      [201, 422],
+    );
+    const singleSeatAvailability = await get(
+      `/api/v1/license-entitlements/${singleSeatId}/availability`,
+    );
+    assert.equal(singleSeatAvailability.status, 200);
+    assert.equal(
+      ((await singleSeatAvailability.json()) as { data: { available: number } })
+        .data.available,
+      0,
+    );
+    const winningIndex = concurrentAssignments.findIndex(
+      (response) => response.status === 201,
+    );
+    // Represent a legacy/imported allocation discovered after a contract change.
+    // Application commands cannot create this over-allocation; the compliance
+    // worker must still detect and audit the authoritative database facts.
+    await db.pool.query(
+      `INSERT INTO license.assignments
+         (id,tenant_id,entitlement_id,principal_type,principal_id,state,
+          activated_at,created_by)
+       VALUES($1,$2,$3,'USER',$4,'ACTIVE',now(),'legacy-import')`,
+      [
+        randomUUID(),
+        tenantId,
+        singleSeatId,
+        concurrentUserIds[1 - winningIndex],
+      ],
+    );
+
     const invalidCost = await post(
       "/api/v1/license-entitlements",
       "invalid-cost",
@@ -281,10 +509,24 @@ test("license entitlements and pools retain terms, scope, audit and expiry facts
       tenantId,
       entitlement.id,
     );
+    const overusedEvent = await waitForComplianceEvent(
+      db.pool,
+      tenantId,
+      singleSeatId,
+      "LICENSE.OVERUSED",
+    );
     expiryController.abort();
     await expiryRun;
     assert.equal(expiryFailures.length, 0);
     assert.equal(expiredEvent.rows[0]!.count, 1);
+    assert.equal(overusedEvent.rows[0]!.count, 1);
+    const overuseFact = await db.pool.query(
+      "SELECT compliance_state,(payload->>'overage')::int AS overage FROM license.compliance_facts WHERE tenant_id=$1 AND entitlement_id=$2",
+      [tenantId, singleSeatId],
+    );
+    assert.deepEqual(overuseFact.rows, [
+      { compliance_state: "OVERUSED", overage: 1 },
+    ]);
     const expiringEvent = await db.pool.query(
       "SELECT count(*)::int AS count FROM platform.outbox_events WHERE tenant_id=$1 AND event_type='LICENSE.EXPIRING' AND aggregate_id=$2",
       [tenantId, entitlement.id],
@@ -310,6 +552,11 @@ test("license entitlements and pools retain terms, scope, audit and expiry facts
       [tenantId],
     );
     assert.equal(audits.rows[0]!.count, 1);
+    const underuseEvents = await db.pool.query(
+      "SELECT count(*)::int AS count FROM platform.outbox_events WHERE tenant_id=$1 AND event_type='LICENSE.UNDERUSED' AND payload->'payload'->>'entitlement_id'=$2",
+      [tenantId, evidenceEntitlementId],
+    );
+    assert.equal(underuseEvents.rows[0]!.count, 1);
     const expiringAudits = await db.pool.query(
       "SELECT count(*)::int AS count FROM audit.audit_events WHERE tenant_id=$1 AND event_type='LICENSE.EXPIRING'",
       [tenantId],
@@ -353,4 +600,27 @@ async function waitForExpiryEvent(
     await new Promise((resolve) => setTimeout(resolve, 25));
   }
   throw new Error("Worker did not emit LICENSE.EXPIRED in time.");
+}
+
+async function waitForComplianceEvent(
+  pool: {
+    query(
+      sql: string,
+      values: unknown[],
+    ): Promise<{ rows: Array<{ count: number }> }>;
+  },
+  tenantId: string,
+  entitlementId: string,
+  eventType: "LICENSE.OVERUSED" | "LICENSE.UNDERUSED",
+) {
+  const deadline = Date.now() + 5000;
+  while (Date.now() < deadline) {
+    const result = await pool.query(
+      "SELECT count(*)::int AS count FROM platform.outbox_events WHERE tenant_id=$1 AND event_type=$2 AND payload->'payload'->>'entitlement_id'=$3",
+      [tenantId, eventType, entitlementId],
+    );
+    if (result.rows[0]!.count > 0) return result;
+    await new Promise((resolve) => setTimeout(resolve, 25));
+  }
+  throw new Error(`Worker did not emit ${eventType} in time.`);
 }

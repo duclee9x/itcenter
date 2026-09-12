@@ -16,6 +16,11 @@ import {
   PostgresOutboxWriter,
 } from "../../../packages/messaging/src/index.js";
 import { PostgresAudit } from "../../../modules/audit/index.js";
+import {
+  activateDeploymentReservation,
+  releaseDeploymentReservation,
+  reserveLicenseForDeployment,
+} from "../../../modules/license/index.js";
 import { resolveDeploymentAgentContext } from "../../../modules/agent/index.js";
 import {
   claimDeploymentTarget,
@@ -38,6 +43,59 @@ export interface ArtifactDeliveryPort {
 
 export interface AgentDeploymentAdapters {
   artifactDelivery?: ArtifactDeliveryPort;
+}
+
+async function appendLicenseFact(input: {
+  tx: Transaction;
+  config: Config;
+  principal: Principal;
+  context: CorrelationContext;
+  eventType: string;
+  aggregateType: "LICENSE_RESERVATION" | "LICENSE_ASSIGNMENT";
+  aggregateId: string;
+  version: number;
+  key: string;
+  payload: Record<string, unknown>;
+  reason: string;
+}) {
+  const now = new Date().toISOString();
+  await new PostgresOutboxWriter(input.tx).append({
+    event_id: randomUUID(),
+    event_type: input.eventType,
+    schema_version: 1,
+    occurred_at: now,
+    producer: { service: input.config.serviceName, instance: "agent-gateway" },
+    aggregate: {
+      type: input.aggregateType,
+      id: input.aggregateId,
+      version: input.version,
+    },
+    actor: { type: input.principal.actor_type, id: input.principal.id },
+    correlation_id: input.context.correlation_id,
+    causation_id: input.context.causation_id,
+    tenant_id: input.principal.tenant_id,
+    organization_id: input.principal.tenant_id,
+    idempotency_key: input.key,
+    payload: input.payload as never,
+  });
+  await new PostgresAudit(input.tx).append({
+    id: randomUUID(),
+    tenant_id: input.principal.tenant_id,
+    event_type: input.eventType,
+    occurred_at: now,
+    actor: { type: input.principal.actor_type, id: input.principal.id },
+    action: { command_type: input.eventType },
+    subject: { entity_type: input.aggregateType, entity_id: input.aggregateId },
+    correlation_id: input.context.correlation_id,
+    causation_id: input.context.causation_id,
+    reason: { code: input.eventType, text: input.reason },
+    before: null,
+    after: input.payload as never,
+    outcome: { status: "SUCCESS" },
+    classification: "INTERNAL",
+    relations: [],
+    evidence: [],
+  });
 }
 
 async function parseBody(req: IncomingMessage) {
@@ -358,6 +416,35 @@ export async function handleAgentSoftwareDeploymentRoute(input: {
       }
       previous = await uow.run(principal.tenant_id, (tx) =>
         new PostgresIdempotencyStore(tx).execute(intent, async () => {
+          if (candidate.license_required) {
+            const reservation = await reserveLicenseForDeployment({
+              tx,
+              softwareProductId: candidate.product_id,
+              assetId: agentContext.asset_id,
+              deploymentTargetId: candidate.target_id,
+              actorId: principal.id,
+            });
+            if (reservation.created && reservation.id) {
+              await appendLicenseFact({
+                tx,
+                config,
+                principal,
+                context,
+                eventType: "LICENSE.RESERVED",
+                aggregateType: "LICENSE_RESERVATION",
+                aggregateId: reservation.id,
+                version: reservation.version,
+                key: `license-reserve:${candidate.target_id}`,
+                payload: {
+                  reservation_id: reservation.id,
+                  entitlement_id: reservation.entitlement_id,
+                  deployment_target_id: candidate.target_id,
+                  asset_id: agentContext.asset_id,
+                },
+                reason: "License seat reserved before deployment execution.",
+              });
+            }
+          }
           const leaseId = randomUUID();
           const now = new Date();
           const leaseExpiresAt = new Date(
@@ -532,6 +619,86 @@ export async function handleAgentSoftwareDeploymentRoute(input: {
           agentId: principal.id,
           report,
         });
+        if (changed.license_required && changed.outcome === "SUCCESS") {
+          const activated = await activateDeploymentReservation({
+            tx,
+            deploymentTargetId: reportPath![1]!,
+            softwareProductId: changed.product_id,
+            assetId: changed.asset_id,
+            actorId: principal.id,
+          });
+          if (activated.assignment_id && !activated.already_active) {
+            await appendLicenseFact({
+              tx,
+              config,
+              principal,
+              context,
+              eventType: "LICENSE.ASSIGNED",
+              aggregateType: "LICENSE_ASSIGNMENT",
+              aggregateId: activated.assignment_id,
+              version: 1,
+              key: `license-assignment:${reportPath![1]!}`,
+              payload: {
+                assignment_id: activated.assignment_id,
+                entitlement_id: activated.entitlement_id,
+                principal_type: "ASSET",
+                principal_id: changed.asset_id,
+                deployment_target_id: reportPath![1]!,
+              },
+              reason: "Verified deployment assigned a license to the asset.",
+            });
+            await appendLicenseFact({
+              tx,
+              config,
+              principal,
+              context,
+              eventType: "LICENSE.ACTIVATED",
+              aggregateType: "LICENSE_ASSIGNMENT",
+              aggregateId: activated.assignment_id,
+              version: activated.version ?? 2,
+              key: `license-activation:${reportPath![1]!}`,
+              payload: {
+                assignment_id: activated.assignment_id,
+                activated_at: new Date().toISOString(),
+                activation_source: "VERIFIED_SOFTWARE_DEPLOYMENT",
+              },
+              reason:
+                "Verified software deployment activated the license assignment.",
+            });
+          }
+        } else if (
+          changed.license_required &&
+          ["PRECHECK_FAILED", "ARTIFACT_REJECTED"].includes(report.outcome)
+        ) {
+          const released = await releaseDeploymentReservation({
+            tx,
+            deploymentTargetId: reportPath![1]!,
+            actorId: principal.id,
+            reason: `Safe pre-execution deployment failure: ${changed.outcome}.`,
+          });
+          if (released) {
+            await appendLicenseFact({
+              tx,
+              config,
+              principal,
+              context,
+              eventType: "LICENSE.RESERVATION_RELEASED",
+              aggregateType: "LICENSE_RESERVATION",
+              aggregateId: released.id,
+              version: released.version,
+              key: `license-release:${reportPath![1]}:${released.version}`,
+              payload: {
+                reservation_id: released.id,
+                entitlement_id: released.entitlement_id,
+                deployment_target_id: reportPath![1]!,
+                asset_id: released.asset_id,
+                reason: changed.outcome,
+              },
+              reason:
+                "Verified pre-execution failure released the reservation.",
+            });
+          }
+        }
         await appendReportEffects({
           tx,
           config,

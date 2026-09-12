@@ -2284,12 +2284,51 @@ principal_type:
 principal_id:
 ```
 
+## `LICENSE.RESERVED`
+
+```yaml
+reservation_id:
+entitlement_id:
+deployment_target_id:
+asset_id:
+```
+
+## `LICENSE.RESERVATION_RELEASED`
+
+```yaml
+reservation_id:
+entitlement_id:
+deployment_target_id:
+asset_id:
+reason:
+```
+
 ## `LICENSE.ACTIVATED`
 
 ```yaml
 assignment_id:
 activated_at:
 activation_source:
+```
+
+## `LICENSE.SUSPENDED`
+
+```yaml
+assignment_id:
+entitlement_id:
+principal_type:
+principal_id:
+reason:
+```
+
+## `LICENSE.USAGE_OBSERVED`
+
+```yaml
+entitlement_id:
+observation_id:
+source:
+active_usage:
+observed_at:
 ```
 
 ## `LICENSE.OVERUSED`

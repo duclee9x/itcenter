@@ -3,7 +3,10 @@ export {
   type LoginEffects,
   type OidcAuthenticationPort,
 } from "./application/authentication.js";
-export { permissions } from "./application/permissions.js";
+export {
+  permissions,
+  assertActiveLicenseUser,
+} from "./application/permissions.js";
 export { seedPermissions } from "./infrastructure/seed-permissions.js";
 export { evaluateAuthorization } from "./application/authorization.js";
 export type {

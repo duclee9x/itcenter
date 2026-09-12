@@ -1678,13 +1678,24 @@ license_pools:
 license_assignments:
   id:
   entitlement_id:
+  reservation_id:
   principal_type:
   principal_id:
+  quantity:
   state:
+  version:
   assigned_at:
   activated_at:
   reclaimed_at:
+  reclaim_verification_reference:
 ```
+
+License assignments and deployment reservations are License-owned. A typed
+principal reference is validated through the owning Identity or Asset
+application boundary; License does not mutate those domains. Assignment and
+reservation histories are append-only. `usage_observations` preserve the
+source, observation time, active-use count, optional inactivity threshold, and
+evidence reference used by compliance projections.
 
 ---
 

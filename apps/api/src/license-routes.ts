@@ -32,7 +32,15 @@ import {
   renewLicenseEntitlement,
   updateLicenseEntitlement,
   updateLicensePool,
+  createLicenseAssignment,
+  transitionLicenseAssignment,
+  recordLicenseUsageObservation,
+  listLicenseCompliance,
+  readLicenseAvailability,
+  readLicenseAssignment,
 } from "../../../modules/license/index.js";
+import { assertAssetEligibleForLicense } from "../../../modules/asset/index.js";
+import { assertActiveLicenseUser } from "../../../modules/identity/index.js";
 import { json } from "../../../packages/observability/src/index.js";
 
 async function bodyOf(req: IncomingMessage) {
@@ -198,6 +206,28 @@ async function entitlementAuthorizationScope(tx: Transaction, id: string) {
   );
 }
 
+async function assignmentAuthorizationScope(tx: Transaction, id: string) {
+  const result = await tx.query(
+    `SELECT p.pool_type,p.scope_reference
+       FROM license.assignments a
+       JOIN license.license_entitlements e
+         ON e.tenant_id=a.tenant_id AND e.id=a.entitlement_id
+       LEFT JOIN license.license_pools p
+         ON p.tenant_id=e.tenant_id AND p.id=e.pool_id
+      WHERE a.tenant_id=$1 AND a.id=$2`,
+    [tx.tenantId, id],
+  );
+  if (!result.rowCount)
+    throw new ApplicationError(
+      "NOT_FOUND",
+      "License assignment was not found.",
+    );
+  return licenseScope(
+    result.rows[0]!.pool_type,
+    result.rows[0]!.scope_reference,
+  );
+}
+
 function isPermissionDenied(error: unknown) {
   return (
     error instanceof ApplicationError && error.code === "PERMISSION_DENIED"
@@ -291,19 +321,38 @@ export async function handleLicenseRoute(input: {
   const path = new URL(req.url ?? "/", "http://localhost").pathname;
   const entitlements = path === "/api/v1/license-entitlements";
   const entitlement = /^\/api\/v1\/license-entitlements\/([^/]+)$/.exec(path);
+  const entitlementAvailability =
+    /^\/api\/v1\/license-entitlements\/([^/]+)\/availability$/.exec(path);
+  const assignment = /^\/api\/v1\/license-assignments\/([^/]+)$/.exec(path);
   const entitlementCommand =
-    /^\/api\/v1\/license-entitlements\/([^/]+)\/commands\/(update|renew)$/.exec(
+    /^\/api\/v1\/license-entitlements\/([^/]+)\/commands\/(update|renew|assign|usage-observation)$/.exec(
       path,
     );
+  const assignmentCommand =
+    /^\/api\/v1\/license-assignments\/([^/]+)\/commands\/(activate|suspend|reclaim|complete-reclaim)$/.exec(
+      path,
+    );
+  const compliance = path === "/api/v1/license-compliance";
   const pools = path === "/api/v1/license-pools";
   const pool = /^\/api\/v1\/license-pools\/([^/]+)$/.exec(path);
   const poolUpdate =
     /^\/api\/v1\/license-pools\/([^/]+)\/commands\/update$/.exec(path);
   const isRead =
-    method === "GET" && (entitlements || !!entitlement || pools || !!pool);
+    method === "GET" &&
+    (entitlements ||
+      !!entitlement ||
+      !!entitlementAvailability ||
+      !!assignment ||
+      pools ||
+      !!pool ||
+      compliance);
   const isWrite =
     method === "POST" &&
-    (entitlements || !!entitlementCommand || pools || !!poolUpdate);
+    (entitlements ||
+      !!entitlementCommand ||
+      !!assignmentCommand ||
+      pools ||
+      !!poolUpdate);
   if (!isRead && !isWrite) return false;
 
   const principal = await authenticate(
@@ -313,22 +362,70 @@ export async function handleLicenseRoute(input: {
   const isPoolRoute = pools || !!pool || !!poolUpdate;
   const targetId =
     entitlement?.[1] ??
+    entitlementAvailability?.[1] ??
     entitlementCommand?.[1] ??
+    assignment?.[1] ??
+    assignmentCommand?.[1] ??
     pool?.[1] ??
     poolUpdate?.[1] ??
     "catalog";
   const action = isRead
     ? "license.read"
-    : pools || !!poolUpdate
-      ? "license.pool.manage"
-      : "license.entitlement.manage";
+    : assignmentCommand
+      ? assignmentCommand[2] === "reclaim" ||
+        assignmentCommand[2] === "complete-reclaim"
+        ? "license.reclaim"
+        : "license.assign"
+      : entitlementCommand?.[2] === "assign"
+        ? "license.assign"
+        : entitlementCommand?.[2] === "usage-observation"
+          ? "license.compliance.resolve"
+          : pools || !!poolUpdate
+            ? "license.pool.manage"
+            : "license.entitlement.manage";
   const resourceType = isRead
-    ? "license"
-    : isPoolRoute
-      ? "license_pool"
-      : "license_entitlement";
+    ? compliance
+      ? "license_compliance"
+      : "license"
+    : assignmentCommand
+      ? "license_assignment"
+      : entitlementCommand?.[2] === "assign" ||
+          entitlementCommand?.[2] === "usage-observation"
+        ? "license_entitlement"
+        : isPoolRoute
+          ? "license_pool"
+          : "license_entitlement";
   if (isRead) {
     const data = await uow.run(principal.tenant_id, async (tx) => {
+      if (assignment) {
+        const scope = await assignmentAuthorizationScope(tx, assignment[1]!);
+        await authorizeRequest({
+          authorization,
+          principal,
+          action,
+          resourceType: "license_assignment",
+          resourceId: assignment[1]!,
+          scope,
+          context,
+        });
+        return readLicenseAssignment(tx, assignment[1]!);
+      }
+      if (entitlementAvailability) {
+        const scope = await entitlementAuthorizationScope(
+          tx,
+          entitlementAvailability[1]!,
+        );
+        await authorizeRequest({
+          authorization,
+          principal,
+          action,
+          resourceType: "license",
+          resourceId: entitlementAvailability[1]!,
+          scope,
+          context,
+        });
+        return readLicenseAvailability(tx, entitlementAvailability[1]!);
+      }
       if (entitlement) {
         const scope = await entitlementAuthorizationScope(tx, entitlement[1]!);
         await authorizeRequest({
@@ -354,6 +451,33 @@ export async function handleLicenseRoute(input: {
           context,
         });
         return readLicensePool(tx, pool[1]!);
+      }
+      if (compliance) {
+        const rows = (await listLicenseCompliance(tx)) as Array<
+          Record<string, unknown>
+        >;
+        const visible = [];
+        for (const row of rows) {
+          try {
+            await authorizeRequest({
+              authorization,
+              principal,
+              action,
+              resourceType,
+              resourceId: String(row.entitlement_id),
+              scope: licenseScope(row.pool_type, row.scope_reference),
+              context,
+            });
+            const publicRow = { ...row };
+            delete publicRow.pool_id;
+            delete publicRow.pool_type;
+            delete publicRow.scope_reference;
+            visible.push(publicRow);
+          } catch (error) {
+            if (!isPermissionDenied(error)) throw error;
+          }
+        }
+        return visible;
       }
       const rows = pools
         ? await listLicensePools(tx)
@@ -398,6 +522,8 @@ export async function handleLicenseRoute(input: {
     let scope: Readonly<Record<string, string>> = {};
     if (entitlements && body.pool_id) {
       scope = await poolAuthorizationScope(tx, requiredString(body, "pool_id"));
+    } else if (entitlements) {
+      scope = {};
     } else if (pools) {
       scope = licenseScope(
         requiredString(body, "pool_type"),
@@ -405,6 +531,8 @@ export async function handleLicenseRoute(input: {
       );
     } else if (poolUpdate) {
       scope = await poolAuthorizationScope(tx, poolUpdate[1]!);
+    } else if (assignmentCommand) {
+      scope = await assignmentAuthorizationScope(tx, assignmentCommand[1]!);
     } else {
       scope = await entitlementAuthorizationScope(tx, entitlementCommand![1]!);
       if (
@@ -646,6 +774,193 @@ export async function handleLicenseRoute(input: {
           after,
         });
         return { status: 200, body: after as never };
+      });
+    }
+    if (assignmentCommand) {
+      const routeAction = assignmentCommand[2]!;
+      const allowedFields = ["expected_version", "reason"];
+      if (routeAction === "complete-reclaim")
+        allowedFields.push("verification_reference");
+      allowFields(body, allowedFields);
+      const expectedVersion = integer(body, "expected_version");
+      const reason = safeFreeText(requiredString(body, "reason"), "reason");
+      const action =
+        routeAction === "complete-reclaim"
+          ? "COMPLETE_RECLAIM"
+          : routeAction === "reclaim"
+            ? "RECLAIM"
+            : routeAction.toUpperCase();
+      const operation = `LICENSE.ASSIGNMENT_${action}`;
+      const op = intent({
+        principal,
+        operation,
+        scope: assignmentCommand[1]!,
+        key,
+        body,
+      });
+      return store.execute(op, async () => {
+        const changed = await transitionLicenseAssignment({
+          tx,
+          assignmentId: assignmentCommand[1]!,
+          expectedVersion,
+          action: action as
+            "ACTIVATE" | "SUSPEND" | "RECLAIM" | "COMPLETE_RECLAIM",
+          actorId: principal.id,
+          reason,
+          ...(typeof body.verification_reference === "string"
+            ? { verificationReference: body.verification_reference }
+            : {}),
+        });
+        const eventType =
+          changed.state === "ACTIVE"
+            ? "LICENSE.ACTIVATED"
+            : changed.state === "SUSPENDED"
+              ? "LICENSE.SUSPENDED"
+              : changed.state === "RECLAIM_PENDING"
+                ? "LICENSE.RECLAIM_PENDING"
+                : "LICENSE.RECLAIMED";
+        const after = {
+          assignment_id: assignmentCommand[1]!,
+          entitlement_id: String(changed.entitlement_id),
+          principal_type: String(changed.principal_type),
+          principal_id: String(changed.principal_id),
+          state: String(changed.state),
+          version: changed.version,
+          ...(changed.reclaim_verification_reference
+            ? { verification_reference: changed.reclaim_verification_reference }
+            : {}),
+        };
+        await effects({
+          tx,
+          config,
+          principal,
+          context,
+          key,
+          eventType,
+          aggregateType: "LICENSE_ASSIGNMENT",
+          aggregateId: assignmentCommand[1]!,
+          version: changed.version,
+          action: operation,
+          reason,
+          before: changed.before,
+          after,
+        });
+        return { status: 200, body: after as never };
+      });
+    }
+    if (entitlementCommand?.[2] === "assign") {
+      allowFields(body, ["principal_type", "principal_id", "reason"]);
+      const principalType = requiredString(body, "principal_type");
+      if (principalType !== "USER" && principalType !== "ASSET")
+        throw new ApplicationError(
+          "VALIDATION_ERROR",
+          "principal_type is invalid.",
+        );
+      const principalId = requiredString(body, "principal_id");
+      const reason = safeFreeText(requiredString(body, "reason"), "reason");
+      const op = intent({
+        principal,
+        operation: "LICENSE.ASSIGNMENT_CREATE",
+        scope: entitlementCommand[1]!,
+        key,
+        body,
+      });
+      return store.execute(op, async () => {
+        if (principalType === "USER")
+          await assertActiveLicenseUser({ tx, userId: principalId });
+        else await assertAssetEligibleForLicense({ tx, assetId: principalId });
+        const assignment = await createLicenseAssignment({
+          tx,
+          entitlementId: entitlementCommand[1]!,
+          principalType,
+          principalId,
+          actorId: principal.id,
+          reason,
+        });
+        const after = {
+          assignment_id: String(assignment.id),
+          entitlement_id: String(assignment.entitlement_id),
+          principal_type: String(assignment.principal_type),
+          principal_id: String(assignment.principal_id),
+          state: String(assignment.state),
+          version: Number(assignment.version),
+        };
+        await effects({
+          tx,
+          config,
+          principal,
+          context,
+          key,
+          eventType: "LICENSE.ASSIGNED",
+          aggregateType: "LICENSE_ASSIGNMENT",
+          aggregateId: String(assignment.id),
+          version: Number(assignment.version),
+          action: "LICENSE.ASSIGNMENT_CREATE",
+          reason,
+          before: null,
+          after,
+        });
+        return { status: 201, body: after as never };
+      });
+    }
+    if (entitlementCommand?.[2] === "usage-observation") {
+      allowFields(body, [
+        "source",
+        "active_usage",
+        "observed_at",
+        "inactivity_threshold_days",
+        "evidence_reference",
+        "reason",
+      ]);
+      const source = requiredString(body, "source");
+      if (source !== "MANUAL_ATTESTATION")
+        throw new ApplicationError("VALIDATION_ERROR", "source is invalid.");
+      const activeUsage = integer(body, "active_usage");
+      const reason = safeFreeText(requiredString(body, "reason"), "reason");
+      const op = intent({
+        principal,
+        operation: "LICENSE.USAGE_OBSERVATION_CREATE",
+        scope: entitlementCommand[1]!,
+        key,
+        body,
+      });
+      return store.execute(op, async () => {
+        const observation = await recordLicenseUsageObservation({
+          tx,
+          entitlementId: entitlementCommand[1]!,
+          source,
+          activeUsage,
+          observedAt: requiredString(body, "observed_at"),
+          inactivityThresholdDays:
+            body.inactivity_threshold_days === undefined
+              ? null
+              : integer(body, "inactivity_threshold_days"),
+          evidenceReference: requiredString(body, "evidence_reference"),
+          actorId: principal.id,
+        });
+        const after = {
+          entitlement_id: entitlementCommand[1]!,
+          observation_id: observation.id,
+          source: observation.source,
+          active_usage: observation.active_usage,
+          observed_at: observation.observed_at,
+        };
+        await effects({
+          tx,
+          config,
+          principal,
+          context,
+          key,
+          eventType: "LICENSE.USAGE_OBSERVED",
+          aggregateType: "LICENSE_ENTITLEMENT",
+          aggregateId: entitlementCommand[1]!,
+          version: 1,
+          action: "LICENSE.USAGE_OBSERVATION_CREATE",
+          reason,
+          before: null,
+          after,
+        });
+        return { status: 201, body: after as never };
       });
     }
     const id = entitlementCommand![1]!;

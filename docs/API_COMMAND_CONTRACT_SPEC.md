@@ -1381,6 +1381,13 @@ GET  /license-pools/{id}
 POST /license-pools/{id}/commands/update
 POST /licenses/{id}/commands/assign
 POST /license-assignments/{id}/commands/reclaim
+POST /license-assignments/{id}/commands/activate
+POST /license-assignments/{id}/commands/suspend
+POST /license-assignments/{id}/commands/complete-reclaim
+GET  /license-assignments/{id}
+GET  /license-entitlements/{id}/availability
+GET  /license-compliance
+POST /license-entitlements/{id}/commands/usage-observation
 POST /license-exceptions/{id}/commands/approve
 POST /license-renewals/{id}/commands/decide
 ```

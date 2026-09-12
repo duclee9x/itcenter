@@ -1006,10 +1006,12 @@ artifact.revoke
 |---|---|---|---|
 | Entitlement + terms | `license_entitlements`, entitlement history | `LICENSE.ENTITLEMENT_CREATED`, `LICENSE.ENTITLEMENT_UPDATED`, `LICENSE.RENEWED`, `LICENSE.EXPIRED` | `license.entitlement.manage` |
 | Pool | `license_pools` | `LICENSE.POOL_CREATED`, `LICENSE.POOL_UPDATED` | `license.pool.manage` |
-| Assignment | `license_assignments` | `LICENSE.ASSIGNED` | `license.assign` |
-| Activation | assignment | `LICENSE.ACTIVATED` | system/integration |
-| Reclaim | assignment | `LICENSE.RECLAIMED` | `license.reclaim` |
-| Overuse | projection | `LICENSE.OVERUSED` | `license.read` |
+| Reservation | `deployment_reservations` | `LICENSE.RESERVED`, `LICENSE.RESERVATION_RELEASED` | Software application contract |
+| Assignment | `assignments`, assignment history | `LICENSE.ASSIGNED` | `license.assign` |
+| Activation | assignment | `LICENSE.ACTIVATED` | system/integration or `license.assign` |
+| Reclaim | assignment/history | `LICENSE.RECLAIM_PENDING`, `LICENSE.RECLAIMED` | `license.reclaim` |
+| Usage evidence | `usage_observations` | `LICENSE.USAGE_OBSERVED` | `license.compliance.resolve` |
+| Overuse | calculated projection | `LICENSE.OVERUSED` | `license.read` |
 | Expiry | entitlement | `LICENSE.EXPIRING` | `license.read` |
 
 ---

@@ -525,6 +525,45 @@ export async function updateLicenseEntitlement(input: {
   }
   const licenseType = validateLicenseType(input.licenseType);
   const quantity = validateQuantity(input.quantity);
+  const allocations = await input.tx.query(
+    `SELECT
+       coalesce((SELECT sum(a.quantity) FROM license.assignments a
+                  WHERE a.tenant_id=$1 AND a.entitlement_id=$2
+                    AND a.state IN ('ASSIGNED','ACTIVE','SUSPENDED','RECLAIM_PENDING')),0)::int
+       + coalesce((SELECT sum(r.quantity) FROM license.deployment_reservations r
+                    WHERE r.tenant_id=$1 AND r.entitlement_id=$2
+                      AND r.state='RESERVED'),0)::int AS allocated,
+       EXISTS(SELECT 1 FROM license.assignments a
+               WHERE a.tenant_id=$1 AND a.entitlement_id=$2
+                 AND a.state IN ('ASSIGNED','ACTIVE','SUSPENDED','RECLAIM_PENDING'))
+       OR EXISTS(SELECT 1 FROM license.deployment_reservations r
+                  WHERE r.tenant_id=$1 AND r.entitlement_id=$2
+                    AND r.state='RESERVED') AS has_allocations,
+       EXISTS(SELECT 1 FROM license.assignments a
+               WHERE a.tenant_id=$1 AND a.entitlement_id=$2
+                 AND a.state IN ('ASSIGNED','ACTIVE','SUSPENDED','RECLAIM_PENDING')
+                 AND NOT ((a.principal_type='USER' AND $3=ANY(ARRAY['PER_USER','NAMED_USER']))
+                       OR (a.principal_type='ASSET' AND $3=ANY(ARRAY['PER_DEVICE','SERVER_INSTANCE']))))
+          AS incompatible_assignment`,
+    [input.tx.tenantId, id, licenseType],
+  );
+  const allocated = Number(allocations.rows[0]!.allocated);
+  const hasAllocations = Boolean(allocations.rows[0]!.has_allocations);
+  if (allocated > quantity)
+    throw new ApplicationError(
+      "BUSINESS_RULE_VIOLATION",
+      "Quantity cannot be reduced below currently assigned and reserved seats.",
+    );
+  if (
+    hasAllocations &&
+    (licenseType !== current.license_type ||
+      poolId !== (current.pool_id as string | null) ||
+      allocations.rows[0]!.incompatible_assignment)
+  )
+    throw new ApplicationError(
+      "BUSINESS_RULE_VIOLATION",
+      "License type and pool cannot change while seats are assigned or reserved.",
+    );
   const purchasedAt = input.purchasedAt
     ? timestamp(input.purchasedAt, "purchased_at")
     : null;

@@ -1,4 +1,8 @@
-export { assertAssetExists, createAsset } from "./application/registry.js";
+export {
+  assertAssetExists,
+  assertAssetEligibleForLicense,
+  createAsset,
+} from "./application/registry.js";
 export {
   assignAsset,
   reserveAsset,

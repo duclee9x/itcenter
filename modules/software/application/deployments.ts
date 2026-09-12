@@ -102,12 +102,6 @@ async function loadDeployableVersion(
       "BUSINESS_RULE_VIOLATION",
       "Deployment requires a published version with an active approved artifact and valid security evidence.",
     );
-  if (row.license_required)
-    throw new ApplicationError(
-      "DEPENDENCY_UNAVAILABLE",
-      "License reservation is required but no License-domain reservation contract is configured.",
-      true,
-    );
   return row;
 }
 
@@ -514,12 +508,6 @@ export async function nextDeploymentCandidate(
   );
   if (!result.rowCount) return null;
   const row = result.rows[0]!;
-  if (String(row.license_required) === "true")
-    throw new ApplicationError(
-      "DEPENDENCY_UNAVAILABLE",
-      "License reservation is not configured; this deployment cannot be dispatched.",
-      true,
-    );
   if (
     row.classification !== "APPROVED" ||
     row.version_state !== "PUBLISHED" ||
@@ -543,6 +531,8 @@ export async function nextDeploymentCandidate(
   }
   return {
     target_id: String(row.target_id),
+    asset_id: input.assetId,
+    license_required: String(row.license_required) === "true",
     target_version: Number(row.target_version),
     target_state: String(row.target_state),
     campaign_id: String(row.campaign_id),
@@ -667,8 +657,8 @@ export async function reportDeploymentResult(input: {
   const rowResult = await input.tx.query(
     `SELECT t.*,c.id AS campaign_id,c.state AS campaign_state,c.version AS campaign_version,c.max_attempts,
             c.stop_on_security_failure,c.failure_threshold_percent,c.rollout_stage_percent,
-            c.software_version_id,c.product_id,c.artifact_version_id,
-            p.product_code,v.version_label,a.checksum_sha256
+       c.software_version_id,c.product_id,c.artifact_version_id,
+            p.product_code,p.license_required,v.version_label,a.checksum_sha256
        FROM software.deployment_targets t
        JOIN software.deployments c
          ON c.tenant_id=t.tenant_id AND c.id=t.campaign_id
@@ -1011,6 +1001,8 @@ export async function reportDeploymentResult(input: {
   return {
     id: String(row.id),
     campaign_id: String(row.campaign_id),
+    asset_id: String(row.asset_id),
+    product_id: String(row.product_id),
     state: targetState,
     outcome,
     retryable,
@@ -1018,6 +1010,7 @@ export async function reportDeploymentResult(input: {
     attempt_number: attemptNumber,
     target_version: Number(row.version) + 1,
     installation_id: installationId,
+    license_required: String(row.license_required) === "true",
     event_type: eventType,
     facts,
     reason: summary || outcome,

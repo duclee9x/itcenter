@@ -10,6 +10,7 @@ import { PostgresAudit } from "../../../modules/audit/index.js";
 import {
   recordDueEntitlementExpiryFacts,
   recordUpcomingEntitlementExpiringFacts,
+  recordLicenseComplianceFacts,
 } from "../../../modules/license/index.js";
 import type { WorkerTask } from "./host.js";
 
@@ -26,6 +27,71 @@ type ExpiringFact = {
   notice_days: number;
   emitted_at: string;
 };
+type ComplianceFact = {
+  id: string;
+  entitlement_id: string;
+  compliance_state: "OVERUSED" | "UNDERUSED";
+  aggregate_version: number;
+  evidence_key: string;
+  payload: Record<string, unknown>;
+};
+
+async function writeComplianceFact(input: {
+  tx: Transaction;
+  config: Config;
+  tenantId: string;
+  fact: ComplianceFact;
+}) {
+  const eventType = `LICENSE.${input.fact.compliance_state}`;
+  const now = new Date().toISOString();
+  const correlationId = randomUUID();
+  await new PostgresOutboxWriter(input.tx).append({
+    event_id: randomUUID(),
+    event_type: eventType,
+    schema_version: 1,
+    occurred_at: now,
+    producer: { service: input.config.serviceName, instance: "worker" },
+    aggregate: {
+      type: "LICENSE_ENTITLEMENT",
+      id: input.fact.entitlement_id,
+      version: input.fact.aggregate_version,
+    },
+    actor: { type: "SYSTEM", id: null },
+    correlation_id: correlationId,
+    causation_id: "license-compliance-monitor",
+    tenant_id: input.tenantId,
+    organization_id: input.tenantId,
+    idempotency_key: `license-compliance:${input.fact.id}:${input.fact.evidence_key}`,
+    payload: input.fact.payload as never,
+  });
+  await new PostgresAudit(input.tx).append({
+    id: randomUUID(),
+    tenant_id: input.tenantId,
+    event_type: eventType,
+    occurred_at: now,
+    actor: { type: "SYSTEM", id: null },
+    action: { command_type: "LICENSE.COMPLIANCE_FINDING_RECORDED" },
+    subject: {
+      entity_type: "LICENSE_ENTITLEMENT",
+      entity_id: input.fact.entitlement_id,
+    },
+    correlation_id: correlationId,
+    causation_id: "license-compliance-monitor",
+    reason: {
+      code: input.fact.compliance_state,
+      text:
+        input.fact.compliance_state === "OVERUSED"
+          ? "Supported seat allocations exceed the effective entitlement quantity."
+          : "Recent authoritative usage evidence is below assigned quantity.",
+    },
+    before: null,
+    after: input.fact.payload as never,
+    outcome: { status: "SUCCESS" },
+    classification: "INTERNAL",
+    relations: [],
+    evidence: [],
+  });
+}
 
 async function writeFact(input: {
   tx: Transaction;
@@ -157,9 +223,11 @@ export function licenseExpiryTask(input: {
                   AND t.valid_until<=now()+e.renewal_notice_days*interval '1 day'
                   AND NOT EXISTS (
                     SELECT 1 FROM license.entitlement_expiring_facts f
-                     WHERE f.tenant_id=t.tenant_id
+                    WHERE f.tenant_id=t.tenant_id
                        AND f.entitlement_id=t.entitlement_id
                        AND f.term_version=t.term_version)
+               UNION
+               SELECT tenant_id FROM license.license_entitlements
              ) due ORDER BY tenant_id LIMIT 1000`,
           );
           for (const { tenant_id: tenantId } of tenants.rows) {
@@ -183,6 +251,14 @@ export function licenseExpiryTask(input: {
                   config: input.config,
                   tenantId,
                   eventType: "LICENSE.EXPIRED",
+                  fact,
+                });
+              const findings = await recordLicenseComplianceFacts(tx);
+              for (const fact of findings)
+                await writeComplianceFact({
+                  tx,
+                  config: input.config,
+                  tenantId,
                   fact,
                 });
             });

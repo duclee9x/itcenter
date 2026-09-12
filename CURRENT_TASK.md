@@ -1,17 +1,17 @@
 # CURRENT TASK
 
-Task: `TASK-058` — License Assignment + Reclaim + Compliance
+Task: `TASK-060` — User Offboarding Orchestration
 
-Task specification: `tasks/TASK-058_LICENSE_ASSIGNMENT_RECLAIM_COMPLIANCE.md`
+Task specification: `tasks/TASK-060_USER_OFFBOARDING_ORCHESTRATION.md`
 
-Readiness: `READY`
+Readiness: `DEPENDENCIES_SATISFIED`
 
-Status: `NOT_STARTED`
+Status: `BLOCKED — SPEC_CONFLICT`
 
 Branch: `master`
 
-Previous completed task: TASK-057 — License Entitlement + Pool Model.
-Prerequisites TASK-031 and TASK-057 are satisfied. The generated contract
-requires a narrow License reservation port for Software deployment and leaves
-unsupported license consumption models as `UNKNOWN` until authoritative rules
-and evidence exist.
+Previous completed task: TASK-058 — License Assignment + Reclaim + Compliance.
+
+Before implementation, resolve the conflict documented in TASK-060: offboarding
+must release user License allocations, but TASK-058 permits reclaim only from
+ACTIVE/SUSPENDED while ASSIGNED allocations also hold capacity.
