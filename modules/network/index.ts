@@ -21,4 +21,10 @@ export {
 export type {
   NetworkException,
   NetworkExceptionQueuePort,
+  NetworkConfigurationPort,
+  NetworkTarget,
+  NetworkSnapshot,
+  NetworkApplyRequest,
+  NetworkRestoreRequest,
 } from "./application/ports.js";
+export { unavailableNetworkConfiguration } from "./application/ports.js";

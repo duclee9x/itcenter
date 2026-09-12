@@ -15,6 +15,27 @@ test("empty DB applies all migrations; rerun is idempotent and changed migration
     );
     // TASK-002 adds identity.sessions to the foundation schema.
     assert.equal(tables.rowCount, 15);
+    const domainSchemas = await db.pool.query(
+      "SELECT schema_name FROM information_schema.schemata WHERE schema_name = ANY($1::text[])",
+      [
+        [
+          "communication",
+          "control",
+          "asset",
+          "helpdesk",
+          "problem",
+          "audit_ops",
+          "incident",
+          "maintenance",
+          "monitoring",
+          "agent",
+          "automation",
+          "operations",
+          "network",
+        ],
+      ],
+    );
+    assert.equal(domainSchemas.rowCount, 13);
     const invalid = await db.pool.query(
       "SELECT column_name FROM information_schema.columns WHERE table_schema='platform' AND table_name='outbox_events'",
     );

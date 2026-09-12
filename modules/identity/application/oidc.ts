@@ -6,6 +6,9 @@ export interface OidcClaims {
   expiresAt: number;
   tenantId: string;
   userId: string;
+  auth_time?: number;
+  acr?: string;
+  amr?: string[];
 }
 export interface OidcVerifier {
   verify(token: string): Promise<OidcClaims>;
@@ -40,5 +43,23 @@ export function validateClaims(
     throw new ApplicationError(
       "AUTHENTICATION_REQUIRED",
       "Invalid or expired OIDC identity.",
+    );
+  if (
+    (claims.auth_time !== undefined &&
+      (!Number.isSafeInteger(claims.auth_time) ||
+        claims.auth_time < 0 ||
+        claims.auth_time > now)) ||
+    (claims.acr !== undefined &&
+      (typeof claims.acr !== "string" || claims.acr.length > 256)) ||
+    (claims.amr !== undefined &&
+      (!Array.isArray(claims.amr) ||
+        claims.amr.length > 16 ||
+        claims.amr.some(
+          (method) => typeof method !== "string" || method.length > 64,
+        )))
+  )
+    throw new ApplicationError(
+      "AUTHENTICATION_REQUIRED",
+      "Invalid OIDC authentication assurance claims.",
     );
 }

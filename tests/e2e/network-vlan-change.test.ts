@@ -35,6 +35,11 @@ test("controlled VLAN changes require approved implementation and record verific
   let tenant = "tenant-a";
   let permitted = true;
   let sawHighRiskContext = false;
+  let assurance: { auth_time?: number; acr?: string; amr?: string[] } = {
+    auth_time: Math.floor(Date.now() / 1000),
+    acr: "urn:itcenter:acr:mfa",
+    amr: ["pwd", "otp", "mfa"],
+  };
   const server = apiServer(
     loadConfig({
       DATABASE_SECRET_REF: "env:TEST",
@@ -44,7 +49,12 @@ test("controlled VLAN changes require approved implementation and record verific
     async () => true,
     {
       async authenticate() {
-        return { id: actorId, tenant_id: tenant, actor_type: "USER" };
+        return {
+          id: actorId,
+          tenant_id: tenant,
+          actor_type: "USER",
+          ...assurance,
+        };
       },
     },
     {
@@ -82,6 +92,25 @@ test("controlled VLAN changes require approved implementation and record verific
       rollback_plan: "Restore VLAN 20 and verify endpoint connectivity",
     });
   try {
+    assurance = { acr: "urn:itcenter:acr:mfa", amr: ["mfa"] };
+    const stepUpRequired = await create(changes[0]!, "step-up-required");
+    assert.equal(stepUpRequired.status, 401);
+    assert.match(
+      stepUpRequired.headers.get("www-authenticate") ?? "",
+      /insufficient_user_authentication.*max_age="300"/,
+    );
+    assurance = {
+      auth_time: Math.floor(Date.now() / 1000) - 301,
+      acr: "urn:itcenter:acr:mfa",
+      amr: ["mfa"],
+    };
+    const staleStepUp = await create(changes[0]!, "stale-step-up");
+    assert.equal(staleStepUp.status, 401);
+    assurance = {
+      auth_time: Math.floor(Date.now() / 1000),
+      acr: "urn:itcenter:acr:mfa",
+      amr: ["pwd", "otp", "mfa"],
+    };
     const created = await create(changes[0]!, "create-vlan-one");
     assert.equal(
       created.status,

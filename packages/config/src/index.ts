@@ -6,6 +6,8 @@ export interface Config {
   databaseSecretRef: string;
   logLevel: "debug" | "info" | "warn" | "error";
   serviceName: string;
+  networkChangeRequiredAcr: string;
+  networkChangeMaxAuthAgeSeconds: number;
 }
 export function loadConfig(
   env: NodeJS.ProcessEnv,
@@ -14,7 +16,12 @@ export function loadConfig(
 ): Config {
   const environment = env.APP_ENV ?? "local",
     port = Number(env.PORT ?? defaultPort),
-    logLevel = env.LOG_LEVEL ?? "info";
+    logLevel = env.LOG_LEVEL ?? "info",
+    networkChangeRequiredAcr =
+      env.NETWORK_CHANGE_REQUIRED_ACR ?? "urn:itcenter:acr:mfa",
+    networkChangeMaxAuthAgeSeconds = Number(
+      env.NETWORK_CHANGE_MAX_AUTH_AGE_SECONDS ?? 300,
+    );
   if (!["local", "test", "staging", "production"].includes(environment))
     throw new Error("Invalid APP_ENV");
   if (!Number.isInteger(port) || port < 1 || port > 65535)
@@ -23,6 +30,14 @@ export function loadConfig(
     throw new Error("Invalid LOG_LEVEL");
   if (!/^[a-z][a-z0-9-]{0,63}$/.test(serviceName))
     throw new Error("Invalid service name");
+  if (!/^[A-Za-z0-9:._-]{1,256}$/.test(networkChangeRequiredAcr))
+    throw new Error("Invalid NETWORK_CHANGE_REQUIRED_ACR");
+  if (
+    !Number.isInteger(networkChangeMaxAuthAgeSeconds) ||
+    networkChangeMaxAuthAgeSeconds < 60 ||
+    networkChangeMaxAuthAgeSeconds > 900
+  )
+    throw new Error("Invalid NETWORK_CHANGE_MAX_AUTH_AGE_SECONDS");
   const databaseSecretRef = env.DATABASE_SECRET_REF;
   if (
     !databaseSecretRef ||
@@ -44,6 +59,8 @@ export function loadConfig(
     databaseSecretRef,
     logLevel: logLevel as Config["logLevel"],
     serviceName,
+    networkChangeRequiredAcr,
+    networkChangeMaxAuthAgeSeconds,
   };
 }
 export interface SecretProvider {

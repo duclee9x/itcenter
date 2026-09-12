@@ -6,6 +6,8 @@ Run migrations before starting apps with `./local start`. When the database alre
 
 Migrations use immutable filenames and checksums. If an applied file differs, restore the original migration and create a new forward migration. A failed migration rolls back only itself; prior successful versions remain recorded. Production upgrades follow expand/backfill/switch/contract. Do not remove audit immutability triggers as a repair shortcut.
 
+Recovery example: the local volume had applied historical Asset migrations whose source had later been edited. Their exact original contents were recovered from disposable migration-test copies; the historical files were restored byte-for-byte, and the intended lifecycle default change moved into `asset/20260912_007_lifecycle_default.sql`. The complete migration chain was first applied to a clone of the volume, then to the local database. The local database now records 33 migrations with matching checksums. Never repair this condition by changing `migration_meta.applied` directly.
+
 Database tests create disposable databases with randomized `task000_` names. A crashed test can leave one behind; confirm ownership and active sessions before deleting test data. The test account requires CREATE DATABASE, but the production runtime should not have that privilege.
 
 Permission seeds are catalog-only. They neither create an admin user nor grant a role. A seed definition conflict requires a reviewed migration/catalog change.

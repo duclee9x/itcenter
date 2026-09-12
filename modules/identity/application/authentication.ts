@@ -100,6 +100,11 @@ export async function authenticateOidcLogin(input: {
       id: claims.userId,
       tenant_id: claims.tenantId,
       actor_type: "USER",
+      ...(claims.auth_time !== undefined
+        ? { auth_time: claims.auth_time }
+        : {}),
+      ...(claims.acr !== undefined ? { acr: claims.acr } : {}),
+      ...(claims.amr !== undefined ? { amr: [...claims.amr] } : {}),
       session_id: result.id,
       expires_at: result.expiresAt.toISOString(),
     };

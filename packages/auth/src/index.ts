@@ -3,6 +3,10 @@ export interface Principal {
   id: string;
   tenant_id: string;
   actor_type: string;
+  /** OIDC assurance claims copied only from a verified token. */
+  auth_time?: number;
+  acr?: string;
+  amr?: readonly string[];
 }
 export interface AuthorizationRequest {
   principal: Principal;
@@ -66,4 +70,29 @@ export async function authenticate(
       "Invalid authenticated principal.",
     );
   return principal;
+}
+
+export function requireStepUpMfa(
+  principal: Principal,
+  requirements: { requiredAcr: string; maxAgeSeconds: number; now?: number },
+): void {
+  const now = requirements.now ?? Math.floor(Date.now() / 1000);
+  const fresh =
+    Number.isSafeInteger(principal.auth_time) &&
+    principal.auth_time! <= now &&
+    now - principal.auth_time! <= requirements.maxAgeSeconds;
+  if (
+    principal.acr !== requirements.requiredAcr ||
+    !principal.amr?.includes("mfa") ||
+    !fresh
+  ) {
+    throw new ApplicationError(
+      "AUTHENTICATION_REQUIRED",
+      "Recent multi-factor authentication is required.",
+      false,
+      {
+        "WWW-Authenticate": `Bearer error="insufficient_user_authentication", acr_values="${requirements.requiredAcr}", max_age="${requirements.maxAgeSeconds}"`,
+      },
+    );
+  }
 }

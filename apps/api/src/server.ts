@@ -6,6 +6,7 @@ import {
 import {
   authenticate,
   authorize,
+  requireStepUpMfa,
   type AuthenticationPort,
   type AuthorizationPort,
 } from "../../../packages/auth/src/index.js";
@@ -477,6 +478,10 @@ export function apiServer(
           mfa_required: true,
           reauth_required: true,
         },
+      });
+      requireStepUpMfa(principal, {
+        requiredAcr: config.networkChangeRequiredAcr,
+        maxAgeSeconds: config.networkChangeMaxAuthAgeSeconds,
       });
       const command = vlanChangeCommand?.[2];
       const operation = vlanChangeCreate

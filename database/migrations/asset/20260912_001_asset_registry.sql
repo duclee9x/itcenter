@@ -19,7 +19,7 @@ CREATE TABLE asset.models (
 );
 CREATE TABLE asset.assets (
  id uuid PRIMARY KEY, tenant_id text NOT NULL, asset_code text NOT NULL, asset_tag text,
- serial_number text, asset_model_id uuid NOT NULL, lifecycle_state text NOT NULL DEFAULT 'PLANNED',
+ serial_number text, asset_model_id uuid NOT NULL, lifecycle_state text NOT NULL DEFAULT 'REGISTERED',
  operational_state text NOT NULL DEFAULT 'UNKNOWN', health_state text NOT NULL DEFAULT 'UNKNOWN',
  assignment_state text NOT NULL DEFAULT 'UNASSIGNED', warranty_state text NOT NULL DEFAULT 'UNKNOWN',
  compliance_state text NOT NULL DEFAULT 'UNKNOWN', risk_state text NOT NULL DEFAULT 'UNKNOWN',

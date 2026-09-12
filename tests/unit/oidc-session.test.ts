@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { validateClaims } from "../../modules/identity/application/oidc.js";
 import { authenticateOidcLogin } from "../../modules/identity/application/authentication.js";
+import { requireStepUpMfa } from "../../packages/auth/src/index.js";
 import {
   assertSessionActive,
   createSession,
@@ -27,6 +28,8 @@ test("OIDC claims require issuer audience subject tenant and expiry", () => {
     { ...base, subject: "" },
     { ...base, expiresAt: 100 },
     { ...base, tenantId: "other" },
+    { ...base, auth_time: 201 },
+    { ...base, amr: ["mfa", 4] as never },
   ])
     assert.throws(
       () =>
@@ -38,6 +41,61 @@ test("OIDC claims require issuer audience subject tenant and expiry", () => {
         }),
       { code: "AUTHENTICATION_REQUIRED" },
     );
+});
+test("step-up requires matching ACR, MFA AMR and recent auth_time", () => {
+  const requirements = {
+    requiredAcr: "urn:assurance:mfa",
+    maxAgeSeconds: 300,
+    now: 1000,
+  };
+  requireStepUpMfa(
+    {
+      id: "u",
+      tenant_id: "t",
+      actor_type: "USER",
+      auth_time: 950,
+      acr: requirements.requiredAcr,
+      amr: ["mfa"],
+    },
+    requirements,
+  );
+  for (const principal of [
+    {
+      id: "u",
+      tenant_id: "t",
+      actor_type: "USER",
+      auth_time: 950,
+      acr: "wrong",
+      amr: ["mfa"],
+    },
+    {
+      id: "u",
+      tenant_id: "t",
+      actor_type: "USER",
+      auth_time: 950,
+      acr: requirements.requiredAcr,
+      amr: ["pwd"],
+    },
+    {
+      id: "u",
+      tenant_id: "t",
+      actor_type: "USER",
+      auth_time: 699,
+      acr: requirements.requiredAcr,
+      amr: ["mfa"],
+    },
+    {
+      id: "u",
+      tenant_id: "t",
+      actor_type: "USER",
+      auth_time: 1001,
+      acr: requirements.requiredAcr,
+      amr: ["mfa"],
+    },
+  ])
+    assert.throws(() => requireStepUpMfa(principal, requirements), {
+      code: "AUTHENTICATION_REQUIRED",
+    });
 });
 test("session creation rejects non-active users and bounds expiry", async () => {
   const queries: string[] = [];
@@ -119,6 +177,9 @@ test("verified OIDC login creates a session and emits success effects", async ()
           expiresAt: 200,
           tenantId: "tenant-a",
           userId: "user-a",
+          auth_time: 95,
+          acr: "urn:assurance:mfa",
+          amr: ["pwd", "otp", "mfa"],
         };
       },
     },
@@ -141,6 +202,9 @@ test("verified OIDC login creates a session and emits success effects", async ()
     absoluteMs: 5000,
   });
   assert.equal(result.id, "user-a");
+  assert.equal(result.auth_time, 95);
+  assert.equal(result.acr, "urn:assurance:mfa");
+  assert.deepEqual(result.amr, ["pwd", "otp", "mfa"]);
   assert.ok(result.session_id);
   assert.deepEqual(events, ["AUTH.LOGIN_SUCCESS", "AUTH.LOGIN_SUCCESS"]);
 });

@@ -109,6 +109,9 @@ export function createHttpServer(
       throw new ApplicationError("NOT_FOUND", "Route not found.");
     } catch (error) {
       const response = errorResponse(error, context);
+      if (error instanceof ApplicationError)
+        for (const [name, value] of Object.entries(error.headers))
+          res.setHeader(name, value);
       json(res, response.status, response.body);
     }
   });

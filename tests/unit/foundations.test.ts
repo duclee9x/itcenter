@@ -26,8 +26,18 @@ test("configuration validates ports, environment, log level and secret refs", ()
     { APP_ENV: "unknown" },
     { LOG_LEVEL: "verbose" },
     { DATABASE_SECRET_REF: "password" },
+    { NETWORK_CHANGE_REQUIRED_ACR: "mfa\r\nInjected: header" },
+    { NETWORK_CHANGE_MAX_AUTH_AGE_SECONDS: "59" },
+    { NETWORK_CHANGE_MAX_AUTH_AGE_SECONDS: "901" },
   ])
     assert.throws(() => loadConfig({ ...env, ...values }));
+  assert.deepEqual(
+    [
+      loadConfig(env).networkChangeRequiredAcr,
+      loadConfig(env).networkChangeMaxAuthAgeSeconds,
+    ],
+    ["urn:itcenter:acr:mfa", 300],
+  );
   assert.throws(() => loadConfig({ ...env, APP_ENV: "production" }));
   const production = loadConfig({
     APP_ENV: "production",

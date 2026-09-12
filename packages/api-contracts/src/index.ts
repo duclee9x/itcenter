@@ -21,6 +21,7 @@ export class ApplicationError extends Error {
     public readonly code: ErrorCode,
     message: string,
     public readonly retryable = false,
+    public readonly headers: Readonly<Record<string, string>> = {},
   ) {
     super(message);
   }
