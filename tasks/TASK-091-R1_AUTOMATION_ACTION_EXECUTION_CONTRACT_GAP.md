@@ -64,16 +64,25 @@ capability, adopt this single baseline unless the owner revises it:
   each attempt has one durable `action_execution_id`, and agent acceptance
   and reports are idempotent by that identity.
 - Verification succeeds only after an authenticated heartbeat from the same
-  Agent is observed after dispatch. No compensating action is defined for a
-  restart; execution failures end in actionable human fallback.
-- Retry and verification limits must be explicit immutable capability/action
-  execution policy. Until concrete limits are approved and persisted, use one
-  execution attempt and no automatic retry; never infer a timeout or retry
-  count from examples.
+  Agent is observed within five minutes after the Agent accepts the command.
+  Timeout is measured from accepted dispatch. A timeout with uncertain action
+  outcome is not retried automatically; it enters human reconciliation. No
+  compensating action is defined for a restart.
+- Persist the initial action execution policy immutably with the capability
+  version: `max_attempts=1`, `max_elapsed_time=5 minutes`,
+  `verification_timeout=5 minutes`, no automatic retry/backoff and no
+  retryable execution errors. These values are proposed for TASK-091 v1 only;
+  later changes require a new reviewed policy/capability version.
 - Manual retry, if included, is an explicit authorized command using
   `execution.retry`, reason, expected version and idempotency, and it repeats
   the full security recheck. It does not override current policy, grant,
-  approval, conflict, target or kill-switch denial.
+  approval, conflict, target or kill-switch denial. A retry is allowed only
+  after the prior attempt's actual Agent state has been reconciled; the retry
+  creates a new attempt record linked to the same intent.
+- Execution cancellation is limited to a durable execution that has not yet
+  been accepted by the Agent. Once accepted, cancellation cannot assert that
+  the Agent action was stopped; reconciliation and human fallback are
+  required. Cancellation permission is proposed as `execution.cancel`.
 - Persist each attempt, dispatch/report evidence and verification separately
   from TASK-090 evaluation evidence. Never retry an outcome whose side effect
   is uncertain until canonical Agent state has been reconciled.
