@@ -2713,3 +2713,36 @@ amend/terminate, renewal complete/not-renewed and document finalize/version
 replacement). On `VERSION_CONFLICT`, stale approval context or uniqueness
 conflict, reload canonical state and re-evaluate intent; do not blindly retry
 or reuse approval bound to another immutable version/snapshot.
+
+---
+
+# 167. TASK-090 Event Evaluation and Action Intent Idempotency
+
+Production rule evaluation is idempotent by tenant + canonical source event
+identity + rule id + immutable rule version. Inbox redelivery must return or
+link the prior evaluation and must not create another effective intent,
+outbox event or conflict fallback.
+
+Canonical intent deduplication uses the relevant event/decision context,
+target, action domain, action type and canonicalized parameters. Equivalent
+intents from multiple rules link to one canonical intent while retaining all
+contributing rule/version/evaluation references. A replay with changed
+semantic action content is a distinct request and must not reuse the prior
+idempotency result. Same idempotency key with changed request content returns
+`IDEMPOTENCY_KEY_CONFLICT`.
+
+Conflict identity includes tenant, target resource, action domain, declared
+exclusivity group and relevant decision context. Concurrent incompatible
+intents must serialize through durable constraints/locking so all affected
+intents become non-executable and only one actionable fallback is created for
+that conflict identity. Do not select a winner by rule priority. Kill-switch
+state and linked approval context are rechecked in the transaction that
+promotes an intent to READY; TASK-091 rechecks them again before execution.
+Approval-event delivery and explicit human conflict resolution use durable
+idempotency and expected-version checks. Closing a Work Item alone does not
+change canonical conflict or intent state.
+
+Simulation may retain diagnostic evidence but uses a distinct mode and
+idempotency namespace. It cannot create an executable intent or be consumed by
+TASK-091. Historical replay is not implicit; future replay requires an
+explicit command, bounded policy and idempotent identity.

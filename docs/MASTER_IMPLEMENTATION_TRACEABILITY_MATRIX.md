@@ -873,40 +873,68 @@ Contract
 ### Tables
 
 ```text
-control.automation_rules
-control.automation_rule_versions
-control.rule_executions
-control.action_executions
+automation.rules
+automation.rule_versions
+automation.rule_evaluations
+automation.action_intents
+automation.action_intent_contributors
+automation.intent_conflicts
+automation.intent_conflict_members
+automation.rule_executions                 # TASK-091 execution evidence
+automation.action_executions               # TASK-091 execution evidence
 ```
 
 ### Commands
 
 ```text
+AUTOMATION.RULE.CREATE
+AUTOMATION.RULE.UPDATE_DRAFT
+AUTOMATION.RULE.PUBLISH_VERSION
 AUTOMATION.ACTIVATE
-AUTOMATION.DISABLE
+AUTOMATION.DEACTIVATE
 AUTOMATION.SIMULATE
-AUTOMATION.RETRY_ACTION
+AUTOMATION.EVENT.EVALUATE                  # internal event consumer
+AUTOMATION.INTENT.RECHECK_APPROVAL         # internal approval consumer
+AUTOMATION.INTENT.RESOLVE_CONFLICT
 ```
 
 ### Permissions
 
 ```text
+automation.rule.read
 automation.rule.create
 automation.rule.edit
+automation.simulate
 automation.activate_low_risk
-automation.execute_high_risk
+automation.activate_high_risk
+automation.disable
+automation.intent.read
+automation.intent.resolve
 ```
 
 ### Events
 
 ```text
-RULE.MATCHED
-AUTOMATION.STARTED
-AUTOMATION.ACTION_SUCCEEDED
-AUTOMATION.ACTION_FAILED
-AUTOMATION.HUMAN_FALLBACK
-AUTOMATION.COMPLETED
+AUTOMATION.RULE_CREATED
+AUTOMATION.RULE_VERSION_PUBLISHED
+AUTOMATION.RULE_ACTIVATED
+AUTOMATION.RULE_DEACTIVATED
+AUTOMATION.RULE_EVALUATED
+AUTOMATION.INTENT_CREATED
+AUTOMATION.INTENT_READY
+AUTOMATION.INTENT_DEDUPLICATED
+AUTOMATION.INTENT_BLOCKED
+AUTOMATION.INTENT_CONFLICTED
+AUTOMATION.INTENT_CONFLICT_RESOLVED
 ```
+
+TASK-090 owns rule definition/versioning, event-only evaluation, simulation,
+policy gates and durable intent through READY/BLOCKED/CONFLICTED. It never
+executes an action. TASK-091 consumes only eligible intents and owns
+execution/retry/verification/compensation events and state. Conflict
+resolution is fail-closed with one human fallback; rule priority is not a
+winner-selection policy. Schedule, temporal/windowed and absence-of-event
+triggers are outside TASK-090.
 
 ---
 

@@ -1661,12 +1661,28 @@ SLA state should usually be engine-managed, not manually patched.
 ```text
 GET  /automation-rules
 POST /automation-rules
+POST /automation-rules/{id}/commands/update-draft
+POST /automation-rules/{id}/commands/publish
 POST /automation-rules/{id}/commands/activate
-POST /automation-rules/{id}/commands/disable
+POST /automation-rules/{id}/commands/deactivate
 POST /automation-rules/{id}/commands/simulate
-POST /rule-executions/{id}/commands/retry
-POST /rule-executions/{id}/commands/cancel
+GET  /action-intents/{id}
+POST /automation-conflicts/{id}/commands/resolve
 ```
+
+TASK-090 commands are `AUTOMATION.RULE.CREATE`,
+`AUTOMATION.RULE.UPDATE_DRAFT`, `AUTOMATION.RULE.PUBLISH_VERSION`,
+`AUTOMATION.ACTIVATE`, `AUTOMATION.DEACTIVATE`, `AUTOMATION.SIMULATE` and
+`AUTOMATION.INTENT.RESOLVE_CONFLICT`. Event-consumer evaluation and approval
+recheck are internal `AUTOMATION.EVENT.EVALUATE` and
+`AUTOMATION.INTENT.RECHECK_APPROVAL` commands. A command carries tenant/resource scope,
+expected version, idempotency key and correlation/causation identifiers where
+applicable. Simulation is read-only with respect to target domains and cannot
+create an executable Action Intent.
+
+`AUTOMATION.RETRY_ACTION` and execution cancellation/retry routes are owned by
+TASK-091, not TASK-090. Action Intent reads are scoped and do not expose raw
+event payloads or protected context.
 
 ---
 

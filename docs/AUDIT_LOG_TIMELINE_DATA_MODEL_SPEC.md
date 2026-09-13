@@ -3515,3 +3515,32 @@ linkage creates no Work Item. Create actionable work only for configured
 renewal action, invalid/missing/ambiguous source, deterministic-allocation
 failure, total reconciliation failure or integrity exception. Resolving a
 Work Item does not mutate canonical cost provenance.
+
+---
+
+# 214. TASK-090 Rule Evaluation and Action Intent Evidence
+
+Audit rule creation/draft changes, version publication, activation and
+deactivation, simulation classification, production evaluation, condition
+results, policy decisions, kill-switch blocks, intent creation/deduplication/
+conflict and human fallback. Preserve tenant, initiating actor or service
+principal, rule id/version, source event reference, evaluation/intent IDs,
+target reference, safe action reference, policy outcome/reason, approval
+reference/context hash where applicable, before/after, correlation and
+causation references. Retain sufficient evidence to explain a non-match as
+well as a match. Do not copy unnecessary raw event payload or secrets into
+audit.
+
+Audit is append-only. Rule version changes, deactivation, conflict resolution
+and later TASK-091 execution results append evidence; they do not rewrite an
+earlier evaluation or Action Intent explanation.
+
+Explicit human conflict resolution records the resolver, reason, chosen
+compatible intent set and resulting eligibility decision. It cannot override
+policy DENY, required approval, target permission or kill-switch state.
+
+Timeline may show rule publication/activation and operator-relevant blocked,
+conflicted or ready-intent milestones using protected references. It is a
+derived view and does not replace the audit/evaluation ledger. Normal
+successful evaluation need not create a Work Item; an unresolved conflict or
+other actionable human fallback is linked to one idempotent Work Item.

@@ -3784,6 +3784,12 @@ elapsed_business_seconds:
 
 # 50. Automation Event Catalog
 
+The `RULE.MATCHED` and `AUTOMATION.ACTION_*`, retry, rollback and completion
+events below describe execution-stage behavior owned by TASK-091 (or an
+existing earlier safe-automation workflow). TASK-090 emits only the
+rule-decision and Action Intent events defined in the following subsection;
+an intent event never claims that the action ran.
+
 ## `RULE.MATCHED`
 
 ```yaml
@@ -3866,6 +3872,134 @@ rule_execution_id:
 result:
 completed_at:
 ```
+
+### TASK-090 rule-decision and Action Intent events
+
+These events describe rule evaluation and intent lifecycle only. They do not
+assert that an action executed. Event envelope carries the standard tenant,
+aggregate version, actor/service principal, correlation, causation and
+idempotency metadata. Payloads use canonical references and safe reason codes;
+they exclude raw event bodies, credentials, secrets and unnecessary protected
+business data.
+
+## `AUTOMATION.RULE_CREATED`
+
+```yaml
+rule_id:
+rule_version:
+rule_state: DRAFT
+owner_reference:
+```
+
+## `AUTOMATION.RULE_VERSION_PUBLISHED`
+
+```yaml
+rule_id:
+rule_version:
+version_content_hash:
+published_at:
+```
+
+## `AUTOMATION.RULE_ACTIVATED`
+
+```yaml
+rule_id:
+rule_version:
+safety_level:
+approval_reference: null  # present when required
+```
+
+## `AUTOMATION.RULE_DEACTIVATED`
+
+```yaml
+rule_id:
+rule_version:
+reason_code:
+```
+
+## `AUTOMATION.RULE_EVALUATED`
+
+```yaml
+evaluation_id:
+mode: PRODUCTION | SIMULATION
+source_event_id:
+source_event_type:
+rule_id:
+rule_version:
+match_result:
+condition_evidence_reference:
+policy_decision: ALLOW | DENY | REQUIRE_APPROVAL
+policy_reason_code:
+intent_references: []
+```
+
+## `AUTOMATION.INTENT_CREATED`
+
+```yaml
+intent_id:
+source_event_id:
+target_type:
+target_id:
+action_domain:
+action_type:
+intent_state:
+policy_decision:
+approval_reference: null
+contributor_references: []
+```
+
+## `AUTOMATION.INTENT_DEDUPLICATED`
+
+```yaml
+canonical_intent_id:
+source_event_id:
+contributor_references: []
+deduplication_reference:
+```
+
+## `AUTOMATION.INTENT_READY`
+
+```yaml
+intent_id:
+policy_decision:
+approval_reference: null
+eligibility_context_hash:
+```
+
+## `AUTOMATION.INTENT_BLOCKED`
+
+```yaml
+intent_id:
+policy_decision: DENY | REQUIRE_APPROVAL
+reason_code:
+kill_switch_blocked: false
+approval_reference: null
+```
+
+## `AUTOMATION.INTENT_CONFLICTED`
+
+```yaml
+conflict_reference:
+conflict_scope_reference:
+intent_references: []
+contributor_references: []
+human_fallback_reference:
+```
+
+## `AUTOMATION.INTENT_CONFLICT_RESOLVED`
+
+```yaml
+conflict_reference:
+selected_intent_references: []
+blocked_intent_references: []
+resolved_by:
+resolution_reason_code:
+```
+
+TASK-091 owns events that assert action start, success, failure, retry,
+verification, rollback/compensation or execution completion. A
+`READY` intent is an eligible request to attempt execution, not a completed
+business fact.
 
 ---
 

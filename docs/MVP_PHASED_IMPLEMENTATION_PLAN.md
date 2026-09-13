@@ -1592,6 +1592,14 @@ Recommendation Engine
 
 # 93. Phase 5 Automation Maturity Levels
 
+TASK-090 provides the versioned event-triggered Rules Engine, simulation,
+condition/policy evaluation, conflict handling and durable Action Intents.
+TASK-090 does not execute actions. TASK-091 consumes eligible intents and
+owns self-healing/action execution, retry, verification and compensation.
+TASK-090 supports ordinary comparisons against current event/context fields;
+scheduled, delayed, absence-of-event and temporal/windowed triggers require a
+future explicit contract.
+
 ## Level 1
 
 ```text

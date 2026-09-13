@@ -2915,7 +2915,7 @@ automation_rule_versions:
 
 ---
 
-## 34.3 `rule_executions`
+## 34.3 `rule_executions` — TASK-091 execution record
 
 ```yaml
 rule_executions:
@@ -2930,9 +2930,134 @@ rule_executions:
   completed_at:
 ```
 
+## 34.4 TASK-090 Rule Version and Action Intent Contract
+
+The canonical owner is the Automation domain. Names below are logical
+entities; repository naming conventions may adjust table names without
+changing the invariants.
+
+```yaml
+automation.rules:
+  id:
+  tenant_id:
+  code:
+  name:
+  owner_user_id:
+  owner_team_id:
+  purpose:
+  review_date:
+  state: DRAFT | ACTIVE | INACTIVE
+  active_version_id:
+  draft_version_id:
+  version:
+  created_at:
+  updated_at:
+
+automation.rule_versions:
+  id:
+  tenant_id:
+  rule_id:
+  version:
+  state: DRAFT | PUBLISHED
+  trigger_json:       # EVENT only for TASK-090
+  condition_json:
+  action_json:
+  safety_level:
+  requires_approval:
+  activation_approval_id: # required when high-risk activation policy applies
+  activation_context_hash:
+  content_hash:
+  created_by:
+  created_at:
+  published_by:
+  published_at:
+
+automation.rule_evaluations:
+  id:
+  tenant_id:
+  source_event_id:
+  source_event_type:
+  rule_id:
+  rule_version:
+  mode: PRODUCTION | SIMULATION
+  match_result:
+  condition_evidence_json:
+  policy_decision: ALLOW | DENY | REQUIRE_APPROVAL
+  policy_reason_code:
+  context_hash:
+  action_intent_ids:
+  correlation_id:
+  created_at:
+
+automation.action_intents:
+  id:
+  tenant_id:
+  source_event_id:
+  target_type:
+  target_id:
+  action_domain:
+  action_type:
+  normalized_parameters_json:
+  policy_decision:
+  approval_id:
+  approval_context_hash:
+  deduplication_key:
+  conflict_scope_key:
+  state: READY | PENDING_APPROVAL | BLOCKED | CONFLICTED | CANCELLED |
+         EXECUTING | SUCCEEDED | FAILED
+  reason_code:
+  correlation_id:
+  created_at:
+
+automation.action_intent_contributors:
+  tenant_id:
+  action_intent_id:
+  rule_id:
+  rule_version:
+  evaluation_id:
+  created_at:
+
+automation.intent_conflicts:
+  id:
+  tenant_id:
+  conflict_scope_key:
+  state: OPEN | RESOLVED
+  resolution:
+  resolved_by:
+  resolution_reason:
+  created_at:
+  resolved_at:
+
+automation.intent_conflict_members:
+  tenant_id:
+  conflict_id:
+  action_intent_id:
+  resolution_state:
+  created_at:
+```
+
+Published `rule_versions` are immutable. Durable tenant-scoped uniqueness
+must protect rule code/version, evaluation identity
+`tenant_id + source_event_id + rule_id + rule_version`, canonical identical
+intent identity for a relevant event/decision context, and contributor
+identity. Concurrent conflict detection must ensure incompatible intents are
+all non-executable and create at most one fallback per conflict scope.
+All candidate intents from matching rules for one event/decision context are
+conflict-checked before any becomes READY; concurrent producers serialize on
+the durable conflict identity.
+Conflict resolution is an explicit authorized Automation command. It records
+the chosen compatible intent set, actor and reason, and rechecks approval,
+policy, target scope and kill-switch guards; it cannot override policy DENY.
+
+TASK-090 owns Action Intent creation and pre-execution state only. TASK-091
+owns `EXECUTING` and execution outcomes (`SUCCEEDED`, `FAILED`, compensation
+states or equivalent). Work Queue is a reference/projection, not the intent
+source of truth. No Action Intent table may store raw secrets or full
+sensitive source-event payloads.
+
 ---
 
-## 34.4 `action_executions`
+## 34.5 `action_executions` — TASK-091 action record
 
 ```yaml
 action_executions:

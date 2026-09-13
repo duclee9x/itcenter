@@ -1,16 +1,16 @@
 # Current Task
 
-No implementation task is active. `TASK-076` — Phase 4 Procurement-to-Asset
-Integration Gate — is `SATISFIED / CODE_COMPLETE`.
+`TASK-090` — Advanced Rules Engine + Policy-Gated Automation — is the current
+planned task and is `READY / NOT_STARTED`.
 
-Task contract: `tasks/TASK-076_PHASE4_PROCUREMENT_TO_ASSET_INTEGRATION_GATE.md`
+Normative contract: [TASK-090](tasks/TASK-090_ADVANCED_RULES_ENGINE_POLICY_GATED_AUTOMATION.md)
 
-Implementation report: `tasks/TASK-076_IMPLEMENTATION_REPORT.md`
+The contract/planning reconciliation is complete. Runtime implementation has
+not started. TASK-090 owns event-triggered rule versioning, simulation,
+condition/policy evaluation, conflict handling and durable Action Intent
+creation. TASK-091 owns action execution, self-healing, retries, verification
+and compensation. Do not implement TASK-090 runtime until explicitly asked to
+continue.
 
-The Phase 4 integration gate is complete. The local environment has no
-commercial-document ObjectStore adapter and reports
-`UNAVAILABLE_NOT_READY`; production storage is not asserted ready.
-
-Next planning candidates are TASK-090 and TASK-095. Both remain
-`BLOCKED / NOT_STARTED` with `GENERATE_ON_READY`; reconcile their detailed
-contracts before assigning runtime implementation.
+The separate `AGENTS.md` modification predates this planning update and is
+outside the TASK-090 change.

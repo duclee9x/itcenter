@@ -329,6 +329,8 @@ APPROVAL
 PROCUREMENT_EXCEPTION
 CONTRACT_ACTION
 AUTOMATION_FAILURE
+AUTOMATION_CONFLICT
+AUTOMATION_REVIEW
 SECURITY_REVIEW
 ```
 
@@ -2077,3 +2079,27 @@ Cụm workflow này đạt yêu cầu khi:
 - Work item dedupe/merge/reopen có rule.
 - Exports và reports có audit trail.
 - Guardrails chống dashboard overload, stale data và dead-end reporting được áp dụng.
+
+---
+
+# 117. TASK-090 Automation Conflict and Review Work
+
+Create one actionable Work Item for an unresolved mutually incompatible
+Action Intent conflict, missing approval policy/request that has no canonical
+Approval Work Item, unsupported action or target, or evaluation integrity
+failure that needs human action. The item
+references the canonical conflict/evaluation/intent records, every affected
+rule/version and source event, a safe reason code and correlation reference.
+Use durable identity based on tenant + conflict/evaluation identity so event
+redelivery and competing evaluations do not create duplicate work. Use
+`AUTOMATION_CONFLICT` for incompatible intents and `AUTOMATION_REVIEW` for
+other evaluation/policy exceptions. An existing pending Approval Work Item
+remains the human approval task; do not create a duplicate automation review
+item for the same approval wait.
+
+Do not create Work Items for every event, condition miss, deduplicated
+successful intent or ordinary READY intent. Work Queue is an actionable
+projection, not the source of truth for rule/evaluation/intent state. Resolving
+the item does not itself promote or execute an intent; an authorized explicit
+resolution must update the canonical Automation-owned intent state, and
+TASK-091 still rechecks execution eligibility.

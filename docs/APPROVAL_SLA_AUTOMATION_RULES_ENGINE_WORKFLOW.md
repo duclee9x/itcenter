@@ -1985,6 +1985,98 @@ deployment
 
 ---
 
+# TASK-090 Normative Rules Engine Boundary
+
+This section is normative for TASK-090 and clarifies the broader automation
+catalog above. TASK-090 supports event triggers only. Schedule, recurring,
+delayed, absence-of-event, sustained-condition and occurrence-window triggers
+require a future explicit scheduler/windowed-rule contract. Ordinary numeric,
+string and set comparisons against the current event/context remain supported.
+
+For TASK-090, Rule lifecycle is `DRAFT`, `ACTIVE` or `INACTIVE` (or equivalent
+repository representation), while version lifecycle is independently
+`DRAFT` or `PUBLISHED`. Broader review/deprecation/retirement states remain
+future governance states unless their transitions are explicitly defined.
+High-risk activation requires an approved `AUTOMATION_RULE_ACTIVATION` request
+in the same tenant targeting the rule and exact published version, bound to
+its immutable content/context.
+
+TASK-090 owns rule definition/versioning, validation, publication,
+activation/deactivation, simulation, event matching, condition evaluation,
+policy/safety gate decisions, durable Action Intent creation,
+deduplication/conflict detection, human fallback for unresolved conflicts,
+kill-switch enforcement, and decision audit/outbox/timeline/observability.
+Published versions are immutable. Editing a published definition creates a
+new version. Production event evaluation uses only the active published
+version. Evaluation and intent history retain their exact rule/version and
+are not rewritten by later rule changes.
+
+Simulation uses the production evaluator/policy semantics as far as practical
+but cannot create an executable intent, mutate a target domain, or invoke an
+action adapter. Simulation evidence is marked separately from production
+evaluation.
+
+Policy evaluation returns `ALLOW`, `DENY` or `REQUIRE_APPROVAL`. A match alone
+does not authorize an action. `ALLOW` may produce a READY intent only after
+permission, tenant/resource scope, target, conflict and kill-switch checks.
+`DENY` is non-executable. `REQUIRE_APPROVAL` remains non-executable until an
+appropriately scoped Approval Engine request bound to the intent/action
+context with purpose `AUTOMATION_ACTION_INTENT` is approved. TASK-090 does not
+decide approvals or invent a missing
+approval policy. The most restrictive decision applies when deduplicated
+contributors differ: DENY, then REQUIRE_APPROVAL, then ALLOW.
+
+On Approval Engine decision delivery, an idempotent internal intent
+re-evaluation validates same-tenant target, approval purpose, exact intent and
+context hash, current conflict state and kill switch. A valid APPROVED request
+may promote the intent to READY. Rejected, expired, cancelled, stale or
+mismatched approval remains non-executable. TASK-091 rechecks again immediately
+before acting.
+
+An Action Intent is a durable request, not a completed action. Identical
+normalized actions for the same target and event/decision context deduplicate
+to one canonical intent while retaining every contributing rule/version.
+Compatible intents for one target may coexist. Conflict is only defined for
+mutually incompatible actions sharing a declared tenant/target/action-domain/
+exclusivity-group/decision-context scope; target identity alone is not a
+conflict. Rule priority never resolves business-action conflicts. Conflicting
+intents are non-executable and create one idempotent actionable human fallback
+with all source references.
+
+Conflict resolution is explicit. An authorized human selects the compatible
+intent set to retain with reason, expected version and idempotency key. The
+command rechecks policy, approval, target scope and kill switch, cannot
+override DENY, and records the selected and blocked intents. Resolving the
+Work Item alone does not resolve the canonical conflict.
+
+For one source event/decision context, stage candidates from all matching
+active rule versions and complete deduplication/conflict detection before any
+candidate becomes READY. Concurrent producers for the same conflict identity
+serialize durably; no intent in an unresolved conflict is eligible for
+TASK-091.
+
+The automation kill switch overrides intent promotion. Evidence is retained;
+new intents are blocked and cannot be consumed by TASK-091. TASK-091 must
+recheck kill switch, READY state, policy, approval and conflict eligibility
+immediately before execution.
+
+TASK-090 stops at durable intent creation and the states READY/BLOCKED/
+CONFLICTED (or equivalent pending-approval state). TASK-091 owns consuming
+eligible intents and all action execution, self-healing, retry, verification,
+timeout, compensation/rollback, execution result and execution-failure
+escalation. TASK-090 must not call remediation, business mutation, agent,
+script or webhook adapters.
+
+Event evaluation is idempotent by tenant + source event identity + rule id +
+immutable rule version. Historical replay is out of scope; any future replay
+must be explicit and idempotent. Work Items are created only for unresolved conflicts, missing
+required approval/policy, unsupported action/target or evaluation integrity
+failures requiring human action. Normal successful matching creates no Work
+Item. Events emitted by TASK-090 describe rule decisions/intents only; actual
+execution-result events belong to TASK-091.
+
+---
+
 # 105. Guardrails
 
 System must not:

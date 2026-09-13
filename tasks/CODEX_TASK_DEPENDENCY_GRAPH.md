@@ -349,3 +349,8 @@ TASK-000
 ```
 
 This is the default backbone, not a prohibition on safe parallel work once dependencies are satisfied.
+
+P5 automation boundary: TASK-090 evaluates event-triggered rules and creates
+durable policy-gated Action Intents. TASK-091 consumes only eligible intents
+and owns action execution, self-healing, retry, verification and
+compensation. TASK-090 never invokes a remediation adapter.

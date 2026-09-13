@@ -2,21 +2,28 @@
 
 ## Current Task
 
-No implementation task is active. TASK-076 — Phase 4 Procurement-to-Asset
-Integration Gate — is `SATISFIED / CODE_COMPLETE`. Its implementation report
-is `tasks/TASK-076_IMPLEMENTATION_REPORT.md`.
+`TASK-090` — Advanced Rules Engine + Policy-Gated Automation — is the current
+planned task, `READY / NOT_STARTED`. Its normative contract is
+`tasks/TASK-090_ADVANCED_RULES_ENGINE_POLICY_GATED_AUTOMATION.md`.
 
-The gate added explicit Contract alert scheduling, immutable cost provenance
-for Asset and License targets, idempotent cross-domain linking, bounded retry
-with actionable fallback, and ObjectStore capability reporting. PostgreSQL
-E2E, typecheck, lint and formatting verification passed.
+Planning reconciliation is complete; runtime implementation has not started.
+TASK-090 owns rule definition/versioning, event-only evaluation, simulation,
+policy gates, Action Intent deduplication/conflict handling, and durable intent
+creation. It does not execute actions. TASK-091 owns eligible-intent
+consumption, action execution, self-healing, retry, verification, timeout,
+compensation and execution-result state. Continue implementation only after
+an explicit instruction.
 
-The local environment reports commercial-document storage as
-`UNAVAILABLE_NOT_READY`. A present adapter without an explicit production
-verification signal is not reported as production-ready.
+TASK-095 remains `BLOCKED / NOT_STARTED` pending its detailed implementation
+contract.
 
-TASK-090 and TASK-095 remain `BLOCKED / NOT_STARTED` pending their detailed
-implementation contracts; reconcile planning readiness before runtime work.
+The preceding completed task is TASK-076 — Phase 4 Procurement-to-Asset
+Integration Gate (`SATISFIED / CODE_COMPLETE`); see
+`tasks/TASK-076_IMPLEMENTATION_REPORT.md`. The local environment reports
+commercial-document storage as `UNAVAILABLE_NOT_READY`; production storage is
+not asserted ready.
+
+The pre-existing `AGENTS.md` modification is excluded from TASK-090 planning.
 
 ## Last Completed Task — TASK-076
 

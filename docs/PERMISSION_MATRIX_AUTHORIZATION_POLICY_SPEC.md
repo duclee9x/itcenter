@@ -864,11 +864,32 @@ automation.rule.create
 automation.rule.edit
 automation.simulate
 automation.activate_low_risk
+automation.activate_high_risk
 automation.disable
-execution.retry
+automation.intent.read
+automation.intent.resolve
 ```
 
-High-risk activation requires approval.
+High-risk activation requires an approved, version/context-bound approval
+request in addition to the command permission. `automation.activate_high_risk`
+does not grant action execution. TASK-090 does not execute actions.
+
+Action Intents are visible only within tenant/resource scope through
+`automation.intent.read`. The Automation Principal's permissions for the
+proposed target action are checked explicitly; the rule or its owner cannot
+borrow permissions from the principal who authored or activated the rule.
+Approval decisions continue to require the Approval Engine's
+`approval.decide` permission.
+
+`execution.retry` is reserved for TASK-091 execution operators and is not a
+TASK-090 rule-management permission. TASK-091 separately applies target-domain
+permissions and rechecks approval, scope and kill-switch eligibility before
+executing an intent.
+
+`automation.intent.resolve` is a human permission requiring tenant/resource
+scope, reason, expected version and idempotency. It allows explicit selection
+of compatible intents after conflict review; it cannot override policy DENY,
+required approval, current kill-switch state or target-domain permission.
 
 ---
 

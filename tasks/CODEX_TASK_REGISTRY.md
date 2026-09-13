@@ -201,7 +201,7 @@ Only generate a detailed `TASK-xxx_*.md` when the task becomes `READY` or is the
 | `TASK-075` | `F-045/F-046` | `WF-P06/WF-016` | P4 | P1 | Contract + Renewal + Commercial Document Governance | TASK-070, TASK-074, TASK-075-R1 | **SATISFIED** | CODE_COMPLETE | `TASK-075_CONTRACT_RENEWAL_COMMERCIAL_DOCUMENT_GOVERNANCE.md` |
 | `TASK-076-R1` | `PHASE-GATE` | `P4-E2E` | P4 | P0 | Contract Alert + Asset/License Cost Provenance Integration Contract | TASK-071, TASK-072, TASK-073, TASK-074, TASK-075 | **SATISFIED** | CODE_COMPLETE | `TASK-076-R1_PHASE4_INTEGRATION_GATE_CONTRACT.md` |
 | `TASK-076` | `PHASE-GATE` | `P4-E2E` | P4 | P0 | Phase 4 Procurement-to-Asset Integration Gate | TASK-071, TASK-072, TASK-073, TASK-074, TASK-075, TASK-076-R1 | **SATISFIED** | CODE_COMPLETE | `TASK-076_PHASE4_PROCUREMENT_TO_ASSET_INTEGRATION_GATE.md` |
-| `TASK-090` | `F-049` | `WF-AUT02` | P5 | P1 | Advanced Rules Engine + Policy-Gated Automation | TASK-039, TASK-061, TASK-076 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |
+| `TASK-090` | `F-049` | `WF-AUT02` | P5 | P1 | Advanced Rules Engine + Policy-Gated Automation | TASK-039, TASK-061, TASK-076 | **READY** | NOT_STARTED | `TASK-090_ADVANCED_RULES_ENGINE_POLICY_GATED_AUTOMATION.md` |
 | `TASK-091` | `F-049` | `WF-AUT02` | P5 | P1 | Controlled Self-Healing + Compensation | TASK-031, TASK-053, TASK-090 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |
 | `TASK-092` | `F-050` | `WF-INT01` | P5 | P2 | Advanced Incident Correlation | TASK-033, TASK-051, TASK-090 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |
 | `TASK-093` | `KNOWLEDGE-DEFLECTION` | `WF-PC-K` | P5 | P2 | Knowledge Deflection + Self-Service Recommendations | TASK-037, TASK-061, TASK-092 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |
@@ -341,8 +341,8 @@ reports and commits confirm TASK-015 (`32c3267`), TASK-036 (`e043c31`) and
 TASK-038 (`296336a`) are `CODE_COMPLETE`.
 
 ```text
-CURRENT = NONE (TASK-076 SATISFIED; no implementation task selected)
-NEXT = Reconcile P5 task readiness and generate a detailed contract before implementation
+CURRENT = TASK-090 (READY / NOT_STARTED; normative contract complete; runtime not started)
+NEXT = Await explicit instruction to implement TASK-090
 TASK-059 = SATISFIED (CODE_COMPLETE)
 TASK-061 = SATISFIED (CODE_COMPLETE)
 TASK-070-R1 = SATISFIED (CODE_COMPLETE)
@@ -359,6 +359,7 @@ TASK-075-R1 = SATISFIED (CODE_COMPLETE; specification only)
 TASK-075 = SATISFIED (CODE_COMPLETE; see TASK-075_IMPLEMENTATION_REPORT.md)
 TASK-076-R1 = SATISFIED (CODE_COMPLETE; specification only)
 TASK-076 = SATISFIED (CODE_COMPLETE; see TASK-076_IMPLEMENTATION_REPORT.md)
+TASK-090 = READY / NOT_STARTED (contract reconciled; implementation has not started)
 ```
 
 TASK-061's acceptance criteria and verification gates passed; its implementation
@@ -388,8 +389,13 @@ resolved the Contract alert and Asset/License cost-provenance `SPEC_GAP` as a
 specification-only remediation. TASK-076 runtime integration and its
 PostgreSQL E2E verification are complete; the local ObjectStore capability is
 explicitly `UNAVAILABLE_NOT_READY` and is recorded in its implementation
-report. TASK-090 and TASK-095 remain blocked pending their detailed contracts;
-dependency readiness alone does not make an undocumented task implementable.
+report. TASK-090's declared dependencies TASK-039, TASK-061 and TASK-076 are
+SATISFIED. Its normative rules-engine contract is reconciled in
+`TASK-090_ADVANCED_RULES_ENGINE_POLICY_GATED_AUTOMATION.md`; TASK-090 is READY /
+NOT_STARTED and runtime implementation has not started. TASK-090 owns rule
+versioning/evaluation/policy and durable Action Intent creation; TASK-091 owns
+action execution, self-healing, retry, verification and compensation. TASK-095
+remains blocked pending its detailed contract.
 
 ---
 

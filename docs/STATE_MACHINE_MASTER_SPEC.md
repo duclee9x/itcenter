@@ -1785,22 +1785,52 @@ RUNNING/WARNING/CRITICAL → MET
 
 # 75. Automation Rule Lifecycle
 
-States:
+Rule lifecycle states:
 
 ```text
 DRAFT
-REVIEW
 ACTIVE
-DISABLED
-DEPRECATED
-RETIRED
+INACTIVE
 ```
+
+Rule definition versions have an independent `DRAFT` / `PUBLISHED` lifecycle.
+Published versions are immutable. Editing a published definition creates a
+new draft version; an active rule continues to reference its prior active
+published version until a new published version is explicitly activated.
+
+```text
+none → AUTOMATION.RULE.CREATE → DRAFT
+DRAFT → AUTOMATION.RULE.PUBLISH_VERSION → INACTIVE
+INACTIVE → AUTOMATION.ACTIVATE → ACTIVE
+ACTIVE → AUTOMATION.DEACTIVATE → INACTIVE
+ACTIVE or INACTIVE + edit → new mutable draft version; published versions unchanged
+```
+
+Only an active published version evaluates production events. Activation,
+deactivation and publication do not rewrite historical evaluations/intents.
+High-risk activation uses the existing approval gate.
 
 ---
 
 # 76. Automation Execution State Machine
 
-States:
+TASK-090 Action Intent states and TASK-091 execution states are separate
+ownership stages. TASK-090 may create/promote an intent only through
+`READY`, `BLOCKED`, `CONFLICTED`, or a non-executable approval-pending state.
+It cannot transition an intent into execution or report an action result.
+
+```text
+PROPOSED → policy ALLOW + all guards → READY
+PROPOSED → policy DENY / kill switch / invalid target → BLOCKED
+PROPOSED → policy REQUIRE_APPROVAL → PENDING_APPROVAL (non-executable)
+PROPOSED or READY → incompatible intent in same conflict scope → CONFLICTED
+PENDING_APPROVAL → bound approval approved + all guards rechecked → READY
+CONFLICTED → explicit authorized resolution + all guards rechecked → READY / PENDING_APPROVAL / BLOCKED
+```
+
+TASK-091 may claim only an eligible `READY` intent after rechecking current
+policy, approval, conflict and kill-switch status. The following execution
+states are owned by TASK-091:
 
 ```text
 QUEUED
@@ -1814,6 +1844,8 @@ FAILED
 COMPENSATED
 CANCELLED
 ```
+
+Execution outcomes do not rewrite TASK-090 policy/evaluation evidence.
 
 ---
 
@@ -2294,6 +2326,7 @@ state_machine:
 | Contract | DRAFT |
 | Approval | PENDING |
 | Automation Execution | QUEUED |
+| Action Intent | READY, PENDING_APPROVAL, BLOCKED or CONFLICTED according to policy outcome |
 | Work Item | NEW |
 
 ---
