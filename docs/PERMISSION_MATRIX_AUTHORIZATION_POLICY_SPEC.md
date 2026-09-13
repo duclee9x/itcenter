@@ -2666,3 +2666,9 @@ Metric access does not grant underlying Ticket, Incident, Asset or Procurement
 record access: drill-down rechecks that domain's read permission and returns no
 unauthorized IDs, titles, snippets or counts. No cross-tenant analytics,
 schedule-delivery or custom-formula permission exists in v1.
+
+Legacy SLA target-purpose classification requires the narrow
+`sla.target_purpose.manage` permission scoped to the same-tenant `sla_target`.
+Reading governed KPI aggregates does not grant this configuration permission.
+The Reporting system principal, if used for KPI-004, receives only tenant-
+scoped SLA outcome read access and never target-purpose mutation.

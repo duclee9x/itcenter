@@ -218,7 +218,8 @@ Only generate a detailed `TASK-xxx_*.md` when the task becomes `READY` or is the
 | `TASK-094` | `F-050` | `WF-017/WF-INT01` | P5 | P2 | Risk + Replacement Scoring | TASK-038, TASK-050, TASK-058, TASK-059, TASK-094-R1, TASK-094-R2, TASK-094-R3 | **SATISFIED** | CODE_COMPLETE | `TASK-094_ASSET_RISK_REPLACEMENT_SCORING.md` |
 | `TASK-095-R1` | `F-048` | `WF-RPT01` | P5 | P0 | Governed KPI + Analytics Contract | TASK-039, TASK-061, TASK-076, TASK-093, TASK-094 | **SATISFIED** | CODE_COMPLETE | `TASK-095-R1_GOVERNED_KPI_ANALYTICS_CONTRACT.md` |
 | `TASK-095-R2` | `F-048` | `WF-RPT01` | P5 | P0 | Historical State Timeline Foundation | TASK-095-R1, TASK-092, TASK-039 | **SATISFIED** | CODE_COMPLETE | `TASK-095-R2_HISTORICAL_STATE_TIMELINE_FOUNDATION.md` |
-| `TASK-095` | `F-048` | `WF-RPT01` | P5 | P1 | Advanced Reporting + Governed KPI + Analytics | TASK-039, TASK-061, TASK-076, TASK-092, TASK-093, TASK-094, TASK-095-R1, TASK-095-R2 | **READY** | IN_PROGRESS | `TASK-095_ADVANCED_REPORTING_GOVERNED_KPI_ANALYTICS.md` |
+| `TASK-095-R3` | `F-048` | `WF-RPT01` | P5 | P0 | Typed SLA Target Purpose Foundation | TASK-095-R1, TASK-095-R2, TASK-039 | **SATISFIED** | CODE_COMPLETE | `TASK-095-R3_TYPED_SLA_TARGET_PURPOSE_FOUNDATION.md` |
+| `TASK-095` | `F-048` | `WF-RPT01` | P5 | P1 | Advanced Reporting + Governed KPI + Analytics | TASK-039, TASK-061, TASK-076, TASK-092, TASK-093, TASK-094, TASK-095-R1, TASK-095-R2, TASK-095-R3 | **READY** | IN_PROGRESS | `TASK-095_ADVANCED_REPORTING_GOVERNED_KPI_ANALYTICS.md` |
 | `TASK-096` | `F-050` | `WF-INT01` | P5 | P2 | Explainable Recommendation Layer | TASK-090, TASK-092, TASK-093, TASK-094, TASK-095 | **WAITING_DEPENDENCY** | NOT_STARTED | `GENERATE_ON_READY` |
 | `TASK-097` | `PHASE-GATE` | `P5-E2E` | P5 | P0 | Phase 5 System Integration + Intelligence Gate | TASK-091, TASK-092, TASK-093, TASK-094, TASK-095, TASK-096 | **WAITING_DEPENDENCY** | NOT_STARTED | `GENERATE_ON_READY` |
 
@@ -340,7 +341,8 @@ Only generate a detailed `TASK-xxx_*.md` when the task becomes `READY` or is the
 - **TASK-094 — Risk + Replacement Scoring:** `CODE_COMPLETE`; see `TASK-094_IMPLEMENTATION_REPORT.md`. Scores remain decision support and use only canonical evidence boundaries.
 - **TASK-095-R1 — Governed KPI + Analytics Contract:** `CODE_COMPLETE`; the governed nine-KPI v1 contract, UTC/snapshot/revision, security, CSV and exclusion semantics are persisted without runtime changes.
 - **TASK-095-R2 — Historical State Timeline Foundation:** `CODE_COMPLETE`; Incident and Work Queue historical state, forward-only legacy coverage, and Root relationship-at-time semantics are implemented and verified. See `tasks/TASK-095-R2_IMPLEMENTATION_REPORT.md`.
-- **TASK-095 — Advanced Reporting + Governed KPI + Analytics:** `READY / IN_PROGRESS`; TASK-095-R2 resolved the historical-state dependency. Main TASK-095 remains in progress; drill-down and acceptance closure are not claimed complete.
+- **TASK-095-R3 — Typed SLA Target Purpose Foundation:** `CODE_COMPLETE`; typed target purpose, explicit legacy classification, and the tenant-scoped Resolution SLA query are implemented and verified. See `tasks/TASK-095-R3_IMPLEMENTATION_REPORT.md`.
+- **TASK-095 — Advanced Reporting + Governed KPI + Analytics:** `READY / IN_PROGRESS`; R2 historical reconstruction and R3 typed Resolution SLA evidence prerequisites are satisfied. Reporting drill-down and acceptance closure are not claimed complete.
 - **TASK-096 — Explainable Recommendation Layer:** Automation, correlation, knowledge, scoring and analytics available.
 - **TASK-097 — Phase 5 System Integration + Intelligence Gate:** Advanced automation/intelligence capabilities integrated.
 
@@ -358,8 +360,8 @@ reports and commits confirm TASK-015 (`32c3267`), TASK-036 (`e043c31`) and
 TASK-038 (`296336a`) are `CODE_COMPLETE`.
 
 ```text
-CURRENT = TASK-095 (READY / IN_PROGRESS; R2 historical-state foundation is complete.)
-NEXT = TASK-095 remains in progress. TASK-096 and TASK-097 are WAITING_DEPENDENCY.
+CURRENT = TASK-095 (READY / IN_PROGRESS; R1, R2 and R3 prerequisites are satisfied.)
+NEXT = Continue TASK-095 acceptance closure. TASK-096 and TASK-097 are WAITING_DEPENDENCY until TASK-095 is CODE_COMPLETE.
 TASK-059 = SATISFIED (CODE_COMPLETE)
 TASK-061 = SATISFIED (CODE_COMPLETE)
 TASK-070-R1 = SATISFIED (CODE_COMPLETE)
@@ -393,7 +395,8 @@ TASK-094-R3 = SATISFIED / CODE_COMPLETE (Incident–Asset reliability and canoni
 TASK-094 = SATISFIED / CODE_COMPLETE (scoring runtime implemented and verified; see TASK-094_IMPLEMENTATION_REPORT.md)
 TASK-095-R1 = SATISFIED / CODE_COMPLETE (normative contract remediation only; see TASK-095-R1_GOVERNED_KPI_ANALYTICS_CONTRACT.md)
 TASK-095-R2 = SATISFIED / CODE_COMPLETE (historical Incident and Work Queue state foundation; see TASK-095-R2_IMPLEMENTATION_REPORT.md)
-TASK-095 = READY / IN_PROGRESS (R2 prerequisite satisfied; main TASK-095 remains in progress; see TASK-095_ADVANCED_REPORTING_GOVERNED_KPI_ANALYTICS.md)
+TASK-095-R3 = SATISFIED / CODE_COMPLETE (typed SLA target purpose and canonical Resolution outcome query; see TASK-095-R3_IMPLEMENTATION_REPORT.md)
+TASK-095 = READY / IN_PROGRESS (R1/R2/R3 prerequisites satisfied; remaining main-task acceptance work is not complete)
 TASK-096 = WAITING_DEPENDENCY / NOT_STARTED (TASK-095 is not complete)
 TASK-097 = WAITING_DEPENDENCY / NOT_STARTED (TASK-095 and TASK-096 are not complete)
 ```
@@ -464,8 +467,9 @@ the governed v1 KPI/report contract: nine fixed KPI definitions, UTC periods,
 immutable revisions, canonical source boundaries, controlled dimensions,
 freshness, RBAC drill-down and aggregate CSV are explicit. TASK-095-R2 now
 provides append-only Incident and Work Queue state history for late historical
-snapshots. TASK-095 remains `READY / IN_PROGRESS`; the main task is not
-complete. TASK-096 and TASK-097 remain `WAITING_DEPENDENCY / NOT_STARTED`.
+snapshots. TASK-095-R3 adds typed canonical SLA purpose and clears the final
+declared source dependency; TASK-095 is now `READY / IN_PROGRESS`, not complete.
+TASK-096 and TASK-097 remain `WAITING_DEPENDENCY / NOT_STARTED`.
 
 ---
 

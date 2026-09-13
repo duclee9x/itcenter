@@ -2172,3 +2172,12 @@ Legacy baseline anchors establish coverage from the anchor forward only. The
 a cutoff; late snapshots require complete source-history coverage. Earlier
 periods with only a legacy current-state anchor are UNAVAILABLE/limited
 coverage, never a guess from today's state.
+
+KPI-004 consumes the SLA-owned `ResolutionSlaOutcomeQuery`. A target qualifies
+only when its typed purpose is `RESOLUTION`; names and condition text are not
+classification authority. The query uses canonical final outcome time with
+UTC `[start_at,end_at)` membership and returns `AVAILABLE_EMPTY` only when the
+source proves there are no Resolution obligations. Potentially relevant
+`UNKNOWN` target purpose is `AMBIGUOUS_TARGET_PURPOSE`; missing finalization
+time or query failure is unavailable, never an empty denominator. Reporting
+does not implement SLA clocks or mutate target configuration.

@@ -3106,3 +3106,10 @@ TASK-095-R1 is `CODE_COMPLETE` specification-only. TASK-095-R2 adds the
 Incident and Work Queue historical-state foundations required for accurate
 late daily snapshots. The Reporting runtime remains `IN_PROGRESS` pending its
 separate drill-down and acceptance closure.
+
+TASK-095-R3 adds typed Control Plane SLA target purpose and a canonical
+Resolution outcome query for KPI-004. Legacy targets default to UNKNOWN with
+no textual inference; ambiguous outcomes and missing canonical finalization
+time fail closed. R3 is `CODE_COMPLETE` and clears the TASK-095
+`SCOPE_DEPENDENCY`; the main Reporting task remains `READY / IN_PROGRESS` for
+its remaining acceptance work.

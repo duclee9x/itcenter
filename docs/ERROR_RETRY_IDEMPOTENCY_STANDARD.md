@@ -2876,3 +2876,11 @@ only when lifecycle state changes. A replay with unchanged state creates no
 extra transition. Entity version provides deterministic sequence ordering
 when timestamps tie. Trigger failure aborts the owning mutation; retry and
 command idempotency remain owned by the application command path.
+
+SLA target-purpose classification uses both the canonical request idempotency
+ledger and a tenant/actor/idempotency uniqueness constraint on immutable
+classification evidence. The target row is locked and expected-version
+checked. Replaying the same request returns its prior classification without
+another target version, audit or outbox effect; reusing the key for different
+semantics conflicts. Purpose-history triggers enforce append-only storage only;
+authorization and classification rules remain in the application layer.

@@ -3191,3 +3191,10 @@ history in the same transaction. A trigger error aborts the state mutation.
 Triggers do not authorize, validate business transitions or publish events.
 Reporting reads state-at application ports and never selects these private
 tables. Legacy baselines establish forward-only coverage.
+
+SLA targets are owned by Control Plane. `target_purpose` is a constrained
+typed column; legacy values become `UNKNOWN`. Append-only purpose-change
+evidence records authorized one-time classification of a legacy target.
+Reporting consumes the Control Plane Resolution SLA query and does not read
+SLA tables directly to infer purpose. Target/policy and instance/target
+relationships are tenant-composite constrained.

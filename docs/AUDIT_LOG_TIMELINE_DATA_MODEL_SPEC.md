@@ -3681,3 +3681,8 @@ for audit, outbox or operator timeline. Any future correction is an explicit
 audited superseding record; transition history is never silently updated or
 deleted. Legacy anchors state only that the current value is trusted from the
 anchor timestamp forward.
+
+`SLA.SET_TARGET_PURPOSE` audit evidence records old/new typed purpose, target,
+actor, reason, target version, correlation, idempotency and the immutable
+classification-history reference. Reporting reads purpose but never edits
+classification or rewrites historical SLA outcomes.

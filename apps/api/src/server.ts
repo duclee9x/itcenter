@@ -1,5 +1,6 @@
 import type { Config } from "../../../packages/config/src/index.js";
 import { handleAssetScoringRoute } from "./asset-scoring-routes.js";
+import { handleSlaTargetPurposeRoute } from "./sla-target-purpose-routes.js";
 import {
   createHttpServer,
   json,
@@ -274,6 +275,17 @@ export function apiServer(
   objectStore?: ObjectStore,
 ) {
   return createHttpServer(config, ready, async (req, res, context) => {
+    if (
+      await handleSlaTargetPurposeRoute({
+        req,
+        res,
+        context,
+        authentication,
+        authorization,
+        uow,
+      })
+    )
+      return true;
     if (
       await handleAssetScoringRoute({
         req,

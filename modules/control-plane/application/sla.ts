@@ -4,6 +4,7 @@ import {
   ApplicationError,
   assertVersion,
 } from "../../../packages/api-contracts/src/index.js";
+import type { SlaTargetPurpose } from "./sla-target-purpose.js";
 const allowed: Record<string, string[]> = {
   RUNNING: ["PAUSED", "WARNING", "CRITICAL", "BREACHED", "MET", "CANCELLED"],
   PAUSED: ["RUNNING", "CANCELLED"],
@@ -21,7 +22,10 @@ export async function startSla(input: {
   now: string;
 }) {
   const target = await input.tx.query(
-    "SELECT id, sla_policy_id, duration_minutes FROM control.sla_targets WHERE tenant_id=$1 AND id=$2",
+    `SELECT t.id,t.sla_policy_id,t.duration_minutes,t.target_purpose,p.version AS policy_version
+       FROM control.sla_targets t JOIN control.sla_policies p
+         ON p.tenant_id=t.tenant_id AND p.id=t.sla_policy_id
+      WHERE t.tenant_id=$1 AND t.id=$2`,
     [input.tx.tenantId, input.targetId],
   );
   if (!target.rowCount)
@@ -32,14 +36,14 @@ export async function startSla(input: {
   );
   const id = randomUUID();
   await input.tx.query(
-    "INSERT INTO control.sla_instances(id,tenant_id,object_type,object_id,target_id,policy_version,started_at,due_at) VALUES($1,$2,$3,$4,$5,(SELECT version FROM control.sla_policies WHERE id=$6),$7,$8)",
+    "INSERT INTO control.sla_instances(id,tenant_id,object_type,object_id,target_id,policy_version,started_at,due_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8)",
     [
       id,
       input.tx.tenantId,
       input.objectType,
       input.objectId,
       input.targetId,
-      target.rows[0]!.sla_policy_id,
+      target.rows[0]!.policy_version,
       input.now,
       due.toISOString(),
     ],
@@ -52,6 +56,7 @@ export async function startSla(input: {
     id,
     object_type: input.objectType,
     object_id: input.objectId,
+    target_purpose: target.rows[0]!.target_purpose as SlaTargetPurpose,
     state: "RUNNING",
     due_at: due.toISOString(),
     version: 1,

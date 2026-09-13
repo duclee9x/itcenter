@@ -2967,3 +2967,13 @@ TASK-095-R2 adds internal owning-domain state-at query contracts. They return
 result, plus aggregate coverage (`COMPLETE`/`PARTIAL`). Queries are tenant
 scoped, use effective time with version/sequence tie-breaking, and never
 substitute current state for missing pre-anchor history.
+
+`POST /api/v1/sla-targets/{id}/commands/set-purpose` implements
+`SLA.SET_TARGET_PURPOSE` for authorized legacy classification. It requires a
+typed non-UNKNOWN purpose, `reason`, `expected_version`, and `Idempotency-Key`;
+the operation is tenant scoped and writes classification history, audit and
+outbox evidence atomically. New SLA target creation/configuration must supply
+typed `target_purpose`. The internal `ResolutionSlaOutcomeQuery` accepts a UTC
+`[start_at,end_at)` interval and reports `AVAILABLE`, `AVAILABLE_EMPTY`,
+`AMBIGUOUS_TARGET_PURPOSE`, or finalization/query unavailability. Only
+`RESOLUTION` outcomes are KPI-004 obligations.

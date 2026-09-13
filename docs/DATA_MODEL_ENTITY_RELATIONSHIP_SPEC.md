@@ -2894,11 +2894,14 @@ sla_policies:
 ```yaml
 sla_targets:
   id:
+  tenant_id:
   sla_policy_id:
   name:
   duration_minutes:
   start_condition:
   stop_condition:
+  target_purpose: RESPONSE | ACKNOWLEDGE | RESOLUTION | RESTORE | OTHER | UNKNOWN
+  version:
 ```
 
 ---
@@ -2918,6 +2921,13 @@ sla_instances:
   paused_duration_seconds:
   completed_at:
 ```
+
+`target_purpose` is typed canonical data. Existing rows migrate to `UNKNOWN`
+without name/condition heuristics. Classification corrections for legacy rows
+are preserved in append-only `sla_target_purpose_changes`; a purpose correction
+is not inferred from text. `sla_instances.target_id` and `policy_version` bind
+the obligation to its canonical target and policy version. `completed_at` is
+the final outcome/evaluation timestamp used for Resolution SLA reporting.
 
 ---
 

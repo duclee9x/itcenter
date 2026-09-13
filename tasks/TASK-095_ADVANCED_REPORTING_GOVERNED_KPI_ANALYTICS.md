@@ -230,3 +230,12 @@ history. A legacy baseline is forward-only and must not be used to invent
 pre-anchor state. TASK-095-R2 is complete; its report records the history
 coverage and query contract. Main TASK-095 remains in progress until its own
 acceptance and verification gates pass.
+
+TASK-095-R3 supplies the typed SLA target-purpose prerequisite for KPI-004.
+The main task consumes only Control Plane `ResolutionSlaOutcomeQuery`; it must
+not infer purpose from names, condition text or duration. Legacy UNKNOWN
+purposes that could affect the requested population make the source ambiguous
+and unavailable, rather than disappearing from a supposedly complete ratio.
+TASK-095-R3 is `CODE_COMPLETE`; it is a required direct prerequisite alongside
+R1 and R2. The main task remains `IN_PROGRESS` until its own acceptance and
+verification gates pass.

@@ -5689,3 +5689,10 @@ state-history trigger appends only domain evidence in the same transaction;
 owning commands retain their existing outbox/audit responsibilities and one
 command must not emit duplicate external events because history is enabled.
 Transition records reference the entity version/sequence and effective time.
+
+`SLA.TARGET_PURPOSE_CLASSIFIED` is emitted by the canonical authorized
+classification command after its database transaction commits through the
+outbox. It references the SLA target, prior and resulting typed purpose,
+target version, reason, actor, correlation and idempotency context. It does not
+contain SLA clocks or Ticket contents. The append-only target-purpose history
+is persistence evidence and does not independently publish an event.

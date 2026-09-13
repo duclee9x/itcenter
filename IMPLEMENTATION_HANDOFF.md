@@ -2,13 +2,13 @@
 
 ## Current Task
 
-TASK-095 — Advanced Reporting + Governed KPI + Analytics — remains
-`READY / IN_PROGRESS`. TASK-095-R2 — Historical State Timeline Foundation —
-is `CODE_COMPLETE`, and its historical point-in-time state dependency is
-resolved. R2 added append-only Incident and Work Queue state history,
-forward-only legacy coverage anchors and owning-domain state-at queries. It
-does not finish TASK-095 or add Reporting drill-down. See
-`tasks/TASK-095-R2_IMPLEMENTATION_REPORT.md`.
+TASK-095 — Advanced Reporting + Governed KPI + Analytics — is
+`READY / IN_PROGRESS`. TASK-095-R1, R2 and R3 are `CODE_COMPLETE`. R2 added
+append-only Incident and Work Queue history with forward-only legacy coverage;
+R3 added typed SLA target purpose and the canonical Resolution SLA outcome
+query. KPI-004 now fails closed on ambiguous UNKNOWN-purpose evidence and uses
+canonical `completed_at`. See `tasks/TASK-095-R3_IMPLEMENTATION_REPORT.md`.
+Continue TASK-095 acceptance closure only; do not begin TASK-096.
 
 TASK-094 — Asset Risk + Replacement Scoring — is `CODE_COMPLETE`; see
 `tasks/TASK-094_IMPLEMENTATION_REPORT.md`. Scoring uses immutable Risk and
@@ -24,10 +24,10 @@ It explicitly excludes scheduling, custom formulas, cross-tenant analytics, FX,
 XLSX/PDF and underlying-record bulk export.
 
 TASK-095-R1 — Governed KPI + Analytics Contract — is `CODE_COMPLETE`
-(specification only). TASK-095 has its governed contract and now has its R2
-historical-state dependency satisfied; the main task remains `IN_PROGRESS`.
-TASK-096 and TASK-097 remain `WAITING_DEPENDENCY / NOT_STARTED` because
-TASK-095 is not complete.
+(specification only). TASK-095-R2 and R3 implementation prerequisites are
+complete. TASK-095 remains `IN_PROGRESS` while its main acceptance suite,
+drill-down and remaining closure work continue. TASK-096 and TASK-097 remain
+`WAITING_DEPENDENCY / NOT_STARTED` because TASK-095 is not complete.
 
 TASK-093 is `CODE_COMPLETE`; see
 `tasks/TASK-093_IMPLEMENTATION_REPORT.md`.
@@ -37,9 +37,11 @@ fail-closed `unavailableAuthentication` adapter. Configure the existing
 enrolled-Agent AuthenticationPort before accepting real Agent requests.
 
 TASK-095's detailed contract is
-`tasks/TASK-095_ADVANCED_REPORTING_GOVERNED_KPI_ANALYTICS.md`. R2 closure is
-complete; this handoff does not authorize work beyond the current TASK-095
-scope.
+`tasks/TASK-095_ADVANCED_REPORTING_GOVERNED_KPI_ANALYTICS.md`. R2/R3 closure is
+complete. Existing TASK-095 runtime WIP remains uncommitted and preserved;
+`AGENTS.md` has unrelated changes and remains outside the TASK-095-R3 commit.
+R3 resolves the typed SLA-purpose dependency but does not complete main
+TASK-095 or authorize TASK-096.
 
 ## Last Completed Task — TASK-094
 

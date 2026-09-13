@@ -2286,3 +2286,21 @@ execution. TASK-091 v1 has one automatic attempt, zero automatic business
 retries and no compensation. Manual retry requires explicit reconciliation
 and a new linked execution; cancellation is allowed only before dispatch.
 See the detailed contract in the Agent workflow and TASK-091 task contract.
+
+## TASK-095-R3 — Typed SLA Target Purpose
+
+Every SLA target has a constrained `target_purpose`: `RESPONSE`,
+`ACKNOWLEDGE`, `RESOLUTION`, `RESTORE`, `OTHER` or `UNKNOWN`. Purpose is
+canonical configuration; target names, start/stop-condition text, descriptions
+and duration are not classification evidence. New target writes provide an
+explicit typed purpose. Existing unclassified targets migrate to `UNKNOWN`;
+there is no text-based backfill. `UNKNOWN` is not `OTHER` and cannot satisfy a
+Resolution SLA query.
+
+An authorized `SLA.SET_TARGET_PURPOSE` command may classify a legacy UNKNOWN
+target once, with reason, expected target version, idempotency, audit and
+outbox. An explicit purpose is changed only by creating a new policy/target
+version. SLA instances retain their canonical target reference and policy
+version; the final `completed_at` written when a final outcome is recorded is
+the period-membership timestamp. No SLA clock, calendar, pause or breach
+semantics change here.
