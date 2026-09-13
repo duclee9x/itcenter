@@ -2138,3 +2138,24 @@ UNKNOWN creates no candidate. PLAN/PRIORITY may feed the TASK-059 human
 replacement review path, never Procurement directly. Recalculations and
 repeated source events must not flood the queue. Work Queue remains a
 projection and cannot change computed assessment or human disposition.
+
+## TASK-095 Governed KPI + Analytics v1
+
+TASK-095 defines exactly nine system-governed KPI definitions: open Tickets,
+active Incident episodes, actionable Work Queue, resolution SLA compliance,
+confirmed Knowledge resolution, known-Incident deflection, critical Asset Risk,
+Replacement PLAN/PRIORITY and actual Procurement spend by currency. The
+detailed definitions, sources, formulas, dimensions and required tests are in
+`tasks/TASK-095_ADVANCED_REPORTING_GOVERNED_KPI_ANALYTICS.md`.
+
+All KPI periods use UTC `[start_at,end_at)`. Results distinguish COMPLETE,
+COMPLETE_EMPTY, PARTIAL, STALE and UNAVAILABLE; source failure and UNKNOWN are
+not zero. Daily live-count history is a point-in-time snapshot, ratios retain
+numerator/denominator and range ratios use their sums, never averaged daily
+percentages. Late/corrected source evidence creates an immutable next revision.
+
+V1 permits catalog/current/history/drill-down and aggregate CSV only. It
+excludes scheduled or email delivery, XLSX/PDF, custom formulas/SQL/code/DSL,
+cross-tenant analytics, FX, external BI and bulk underlying-record export.
+Reporting is read-only: KPI value or threshold cannot change domain state,
+create Automation or change Work Queue state.

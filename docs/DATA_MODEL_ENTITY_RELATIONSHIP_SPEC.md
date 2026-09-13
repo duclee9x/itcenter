@@ -4878,3 +4878,16 @@ canonical Warranty rows and the versioned `WARRANTY_STATE_V1` interpretation;
 the Asset Warranty dimension is a derived projection with policy/evidence
 reference and UTC evaluation date. Overlapping plausible Warranty records
 produce UNKNOWN, never an arbitrary winner.
+
+## TASK-095 Reporting entities
+
+`reporting.kpi_definitions` stores immutable system-governed KPI ID/version,
+formula and source semantics, allowed dimensions, unit, freshness/access
+classification, effective time and supersession reference. Tenant users cannot
+write a formula. `reporting.kpi_result_snapshots` is append-only with tenant,
+KPI/version, UTC period, snapshot type, canonical dimensions, value/unit,
+optional numerator/denominator, status/completeness, source watermarks,
+as-of/generated timestamps and positive revision. Enforce unique tenant +
+KPI/version + period + dimension fingerprint + revision. `reporting` also owns
+tenant/source watermarks and safe failure/lag metadata. Historical results do
+not overwrite earlier revisions.

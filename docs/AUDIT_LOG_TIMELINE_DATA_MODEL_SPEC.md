@@ -3664,3 +3664,14 @@ outbox events and an audit record in one Asset transaction. Policy versions
 and verified acquisition-date evidence have separate actor/reason/source
 audit. Routine worker recalculation records the explicit scoring system
 principal; no source history or supplier document is copied to the timeline.
+
+## TASK-095 reporting audit and export history
+
+KPI definition/version publication and deprecation are governance audit
+events. Snapshot revisions retain definition/version, tenant, period,
+dimensions, source-watermark references, status and revision lineage without
+copying raw source records. Aggregate CSV export audit records actor, tenant,
+KPI/version, period, filters/dimensions, snapshot revision/as-of, format,
+record count and generated artifact reference where one exists. Ordinary KPI
+reads are operational telemetry, not compliance audit; drill-down is
+independently authorized and must not reveal inaccessible evidence.

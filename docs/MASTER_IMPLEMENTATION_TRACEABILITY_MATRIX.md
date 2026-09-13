@@ -3091,3 +3091,16 @@ without text inference or cross-domain SQL.
 TASK-094 runtime implementation and verification are recorded in
 `tasks/TASK-094_IMPLEMENTATION_REPORT.md`. TASK-095 readiness is recalculated
 from its declared dependencies separately; completion does not start it.
+
+### TASK-095 governed KPI + analytics contract
+
+| Capability | Owner / source | Acceptance evidence |
+|---|---|---|
+| Governed KPI catalog | Reporting `KPIDefinition` | exactly KPI-001 through KPI-009; immutable versions and controlled dimensions; no custom formula/SQL/DSL |
+| Result history | Reporting snapshot/watermark projection | UTC periods, complete/empty/partial/stale/unavailable semantics, immutable late-data revisions and lineage |
+| Canonical evidence | domain reporting query ports | Ticket, Incident/Root, Work Queue, SLA, TASK-093, TASK-094 and CostProvenance; Search is never KPI authority |
+| Access and export | AuthorizationPort + aggregate CSV | metric/export/financial grants, tenant isolation, independent drill-down authorization and formula-injection protection |
+| Safety | Reporting read/projection module | no schedule/email/XLSX/PDF/FX/cross-tenant analytics; no workflow, Work Queue or Automation mutation |
+
+TASK-095-R1 is `CODE_COMPLETE` specification-only. TASK-095 is
+`READY / NOT_STARTED`; runtime is not started by this reconciliation.

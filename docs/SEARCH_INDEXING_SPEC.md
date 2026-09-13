@@ -2659,3 +2659,11 @@ material applicability-target state events refresh affected documents. Only
 currently active canonical applicability targets contribute to the indexed
 current context; free-text and legacy references never become canonical
 evidence.
+
+## TASK-095 reporting boundary
+
+Search may assist authorized resource discovery or report navigation only. It
+is not a canonical source for KPI-001 through KPI-009, including SLA,
+deflection, scoring or CostProvenance results. Search freshness must not be
+represented as reporting source freshness, and no Search document may bypass
+KPI, drill-down, financial or export authorization.

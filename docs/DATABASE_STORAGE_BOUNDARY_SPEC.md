@@ -3170,3 +3170,14 @@ Monitoring, Maintenance, Warranty and Procurement remain their respective
 evidence owners. Procurement's scoring query accepts only Asset-owned
 deterministic received-unit references and reads Procurement receipt/cost
 records without querying Asset tables.
+
+## TASK-095 Reporting storage boundary
+
+Reporting owns only derived, rebuildable tenant-scoped `KPIDefinition`,
+immutable `KPIResultSnapshot` revisions and `ReportingSourceWatermark` state.
+Domain source history remains owned by Ticket, Incident, Work Queue, SLA,
+Knowledge, Asset and Procurement. Reporting consumes owning-domain read ports
+or approved projections; it does not join private domain tables or become a
+canonical business-state store. Snapshot identity is tenant + KPI/version +
+period + canonical dimensions, with revision appended on material late or
+corrected source evidence. Search is never a KPI source of truth.

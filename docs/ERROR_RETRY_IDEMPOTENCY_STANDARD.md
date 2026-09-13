@@ -2858,3 +2858,15 @@ not assigned a guessed key. Warranty projection refresh is serialized by the
 Asset row and idempotent for the same state, evidence and policy version.
 Periodic date refresh does not duplicate projection events; a time-boundary
 state change updates the derived Asset version and emits one outbox event.
+
+## TASK-095 reporting replay and freshness
+
+Reporting materialization is replay-safe by tenant, KPI/version, UTC period,
+canonical dimension fingerprint and source generation. The same generation
+does not append a duplicate revision; a material late/corrected generation
+appends exactly one next immutable revision. Competing workers serialize on
+durable uniqueness/transaction rules. Projection/source failure does not fail a
+source-domain transaction: it records safe failure/lag and returns STALE or
+UNAVAILABLE according to the KPI contract. Rebuild never mutates source data.
+Aggregate CSV binds the selected latest or explicit revision/as-of so an export
+cannot silently race to a different result.

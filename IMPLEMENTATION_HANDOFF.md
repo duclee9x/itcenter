@@ -8,16 +8,17 @@ Replacement assessments, owning-domain evidence queries and explicit scoped
 authorization. Economic repair evidence is unavailable because no canonical
 repair-cost ledger exists; no estimated costs or FX are used.
 
-TASK-095 — Advanced Reporting + Governed KPI + Analytics — is
-`BLOCKED / NOT_STARTED` (`SPEC_GAP / PLANNING_REQUIRED`). Its dependencies
-TASK-039, TASK-061 and TASK-076 are satisfied, but the repository has no
-detailed TASK-095 contract and the workflow does not normatively define the v1
-KPI inventory/formulas, source/time/deduplication semantics, completeness,
-freshness/history, scope authorization, cost/currency, or whether export,
-scheduling and custom formulas are in scope. Current remediation:
-TASK-095-R1 — Governed KPI + Analytics Contract
-(`READY / NOT_STARTED`; specification only). No runtime implementation is
-authorized. TASK-096 and TASK-097 remain `WAITING_DEPENDENCY / NOT_STARTED`.
+TASK-095-R1 — Governed KPI + Analytics Contract — is `CODE_COMPLETE`
+(specification only). It defines exactly nine governed KPIs, UTC intervals,
+source and deduplication semantics, result status/freshness, immutable
+historical revisions, controlled dimensions, RBAC drill-down and aggregate CSV.
+It explicitly excludes scheduling, custom formulas, cross-tenant analytics, FX,
+XLSX/PDF and underlying-record bulk export.
+
+TASK-095 — Advanced Reporting + Governed KPI + Analytics — is now
+`READY / NOT_STARTED`; TASK-039, TASK-061, TASK-076, TASK-093, TASK-094 and
+TASK-095-R1 are satisfied. Runtime remains unstarted and requires explicit
+authorization. TASK-096 and TASK-097 remain `WAITING_DEPENDENCY / NOT_STARTED`.
 
 TASK-093 is `CODE_COMPLETE`; see
 `tasks/TASK-093_IMPLEMENTATION_REPORT.md`.
@@ -26,9 +27,9 @@ Deployment note: `apps/agent-gateway/src/main.ts` continues to use the
 fail-closed `unavailableAuthentication` adapter. Configure the existing
 enrolled-Agent AuthenticationPort before accepting real Agent requests.
 
-TASK-095-R1 records the exact normative decisions needed before runtime work.
-TASK-095 has not started; do not begin runtime implementation until R1 is
-complete and TASK-095 is explicitly authorized.
+TASK-095 runtime has not started. Its detailed contract is
+`tasks/TASK-095_ADVANCED_REPORTING_GOVERNED_KPI_ANALYTICS.md`; do not begin
+implementation until explicitly authorized.
 
 ## Last Completed Task — TASK-094
 

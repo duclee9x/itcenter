@@ -2948,6 +2948,16 @@ TASK-094-R2 prerequisite commands/ports:
   unavailable evidence.
 - `WarrantyAssetQuery(tenant, asset_id, as_of)` requires `warranty.read` and
   returns minimum effective Warranty evidence plus `WARRANTY_STATE_V1`. A
-  failed query propagates unavailable/error; an empty successful query is
-  UNKNOWN / NO_WARRANTY. `ASSET.WARRANTY_STATE_PROJECTED` is an internal
-  worker-owned derived projection, not a Warranty lifecycle command.
+failed query propagates unavailable/error; an empty successful query is
+UNKNOWN / NO_WARRANTY. `ASSET.WARRANTY_STATE_PROJECTED` is an internal
+worker-owned derived projection, not a Warranty lifecycle command.
+
+### TASK-095 Reporting query contracts
+
+Reporting exposes tenant-scoped read contracts for KPI catalog, current result,
+UTC period/history, allowed dimensions, reauthorized drill-down and aggregate
+CSV. Requests validate KPI/version, UTC `[start,end)`, controlled filters and
+dimensions; unsupported dimensions are validation errors. No request accepts
+SQL, executable expressions or arbitrary grouping. CSV uses the same result
+authorization path, binds KPI/version/period/dimensions/revision/as-of, and
+contains aggregates only. Reporting queries have no workflow side effects.

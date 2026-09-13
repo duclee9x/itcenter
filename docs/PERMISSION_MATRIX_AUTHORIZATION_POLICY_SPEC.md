@@ -2654,3 +2654,15 @@ narrow resource type rather than pretending the Asset ID is an Incident ID.
 Internal scheduled
 Warranty projection is restricted to the tenant-bound worker context and does
 not create a general-purpose system grant. No wildcard permission is used.
+
+## TASK-095 Reporting authorization
+
+`metric.read` authorizes the governed KPI catalog/current/history subject to
+tenant and resource scope. `report.export` is additionally required for
+aggregate CSV. KPI-009 requires a narrow Procurement cost-read capability;
+TASK-095 runtime must reuse an existing equivalent or register
+`procurement.cost.read`, never require `procurement.manage` for an aggregate.
+Metric access does not grant underlying Ticket, Incident, Asset or Procurement
+record access: drill-down rechecks that domain's read permission and returns no
+unauthorized IDs, titles, snippets or counts. No cross-tenant analytics,
+schedule-delivery or custom-formula permission exists in v1.

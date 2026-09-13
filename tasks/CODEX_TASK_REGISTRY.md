@@ -216,8 +216,8 @@ Only generate a detailed `TASK-xxx_*.md` when the task becomes `READY` or is the
 | `TASK-094-R2` | `F-050` | `WF-017/WF-INT01` | P5 | P0 | Asset Scoring Prerequisite Foundations | TASK-038, TASK-059, TASK-060, TASK-094-R1 | **SATISFIED** | CODE_COMPLETE | `TASK-094-R2_ASSET_SCORING_PREREQUISITE_FOUNDATIONS.md` |
 | `TASK-094-R3` | `F-050` | `WF-017/WF-INT01` | P5 | P0 | Incident–Asset Reliability + Warranty State Foundation | TASK-033, TASK-038, TASK-051, TASK-094-R1, TASK-094-R2 | **SATISFIED** | CODE_COMPLETE | `TASK-094-R3_INCIDENT_ASSET_RELIABILITY_WARRANTY_FOUNDATION.md` |
 | `TASK-094` | `F-050` | `WF-017/WF-INT01` | P5 | P2 | Risk + Replacement Scoring | TASK-038, TASK-050, TASK-058, TASK-059, TASK-094-R1, TASK-094-R2, TASK-094-R3 | **SATISFIED** | CODE_COMPLETE | `TASK-094_ASSET_RISK_REPLACEMENT_SCORING.md` |
-| `TASK-095-R1` | `F-048` | `WF-RPT01` | P5 | P0 | Governed KPI + Analytics Contract | TASK-039, TASK-061, TASK-076 | **READY** | NOT_STARTED | `TASK-095-R1_GOVERNED_KPI_ANALYTICS_CONTRACT.md` |
-| `TASK-095` | `F-048` | `WF-RPT01` | P5 | P1 | Advanced Reporting + Governed KPI + Analytics | TASK-039, TASK-061, TASK-076, TASK-095-R1 | **BLOCKED — SPEC_GAP / PLANNING_REQUIRED** | NOT_STARTED | `GENERATE_ON_READY` |
+| `TASK-095-R1` | `F-048` | `WF-RPT01` | P5 | P0 | Governed KPI + Analytics Contract | TASK-039, TASK-061, TASK-076, TASK-093, TASK-094 | **SATISFIED** | CODE_COMPLETE | `TASK-095-R1_GOVERNED_KPI_ANALYTICS_CONTRACT.md` |
+| `TASK-095` | `F-048` | `WF-RPT01` | P5 | P1 | Advanced Reporting + Governed KPI + Analytics | TASK-039, TASK-061, TASK-076, TASK-093, TASK-094, TASK-095-R1 | **READY** | NOT_STARTED | `TASK-095_ADVANCED_REPORTING_GOVERNED_KPI_ANALYTICS.md` |
 | `TASK-096` | `F-050` | `WF-INT01` | P5 | P2 | Explainable Recommendation Layer | TASK-090, TASK-092, TASK-093, TASK-094, TASK-095 | **WAITING_DEPENDENCY** | NOT_STARTED | `GENERATE_ON_READY` |
 | `TASK-097` | `PHASE-GATE` | `P5-E2E` | P5 | P0 | Phase 5 System Integration + Intelligence Gate | TASK-091, TASK-092, TASK-093, TASK-094, TASK-095, TASK-096 | **WAITING_DEPENDENCY** | NOT_STARTED | `GENERATE_ON_READY` |
 
@@ -337,8 +337,8 @@ Only generate a detailed `TASK-xxx_*.md` when the task becomes `READY` or is the
 - **TASK-094-R2 — Asset Scoring Prerequisite Foundations:** `CODE_COMPLETE`; Maintenance evidence, TASK-059 candidate boundary and Offboarding recovery/Risk separation implemented and verified.
 - **TASK-094-R3 — Incident–Asset Reliability + Warranty State Foundation:** `CODE_COMPLETE`; see `tasks/TASK-094-R3_IMPLEMENTATION_REPORT.md`. No scoring runtime was implemented.
 - **TASK-094 — Risk + Replacement Scoring:** `CODE_COMPLETE`; see `TASK-094_IMPLEMENTATION_REPORT.md`. Scores remain decision support and use only canonical evidence boundaries.
-- **TASK-095-R1 — Governed KPI + Analytics Contract:** `READY / NOT_STARTED`; specification-only reconciliation of the missing v1 KPI/report semantics.
-- **TASK-095 — Advanced Reporting + Governed KPI + Analytics:** `BLOCKED / NOT_STARTED`; blocker `SPEC_GAP / PLANNING_REQUIRED`. Dependencies TASK-039, TASK-061 and TASK-076 are satisfied, but no implementable detailed contract exists; see TASK-095-R1.
+- **TASK-095-R1 — Governed KPI + Analytics Contract:** `CODE_COMPLETE`; the governed nine-KPI v1 contract, UTC/snapshot/revision, security, CSV and exclusion semantics are persisted without runtime changes.
+- **TASK-095 — Advanced Reporting + Governed KPI + Analytics:** `READY / NOT_STARTED`; dependencies TASK-039, TASK-061, TASK-076, TASK-093, TASK-094 and TASK-095-R1 are satisfied. See the detailed task contract.
 - **TASK-096 — Explainable Recommendation Layer:** Automation, correlation, knowledge, scoring and analytics available.
 - **TASK-097 — Phase 5 System Integration + Intelligence Gate:** Advanced automation/intelligence capabilities integrated.
 
@@ -356,8 +356,8 @@ reports and commits confirm TASK-015 (`32c3267`), TASK-036 (`e043c31`) and
 TASK-038 (`296336a`) are `CODE_COMPLETE`.
 
 ```text
-CURRENT = TASK-095-R1 (READY / NOT_STARTED; normative planning only.)
-NEXT = Complete TASK-095-R1 before reconsidering TASK-095. TASK-095 is BLOCKED / NOT_STARTED by SPEC_GAP / PLANNING_REQUIRED; TASK-096 and TASK-097 are WAITING_DEPENDENCY.
+CURRENT = TASK-095 (READY / NOT_STARTED; detailed governed KPI contract is complete; await explicit authorization.)
+NEXT = TASK-095 is ready. TASK-096 and TASK-097 are WAITING_DEPENDENCY.
 TASK-059 = SATISFIED (CODE_COMPLETE)
 TASK-061 = SATISFIED (CODE_COMPLETE)
 TASK-070-R1 = SATISFIED (CODE_COMPLETE)
@@ -389,8 +389,8 @@ TASK-094-R1 = SATISFIED / CODE_COMPLETE (normative contract and required spec up
 TASK-094-R2 = SATISFIED / CODE_COMPLETE (typed Maintenance evidence, TASK-059 candidate port, and Offboarding recovery/Risk separation; see TASK-094-R2_IMPLEMENTATION_REPORT.md)
 TASK-094-R3 = SATISFIED / CODE_COMPLETE (Incident–Asset reliability and canonical Warranty state/query foundations; no scoring runtime; see TASK-094-R3_IMPLEMENTATION_REPORT.md)
 TASK-094 = SATISFIED / CODE_COMPLETE (scoring runtime implemented and verified; see TASK-094_IMPLEMENTATION_REPORT.md)
-TASK-095-R1 = READY / NOT_STARTED (normative contract remediation only; see TASK-095-R1_GOVERNED_KPI_ANALYTICS_CONTRACT.md)
-TASK-095 = BLOCKED / NOT_STARTED (SPEC_GAP / PLANNING_REQUIRED; declared TASK-039, TASK-061 and TASK-076 dependencies are satisfied, but KPI/report v1 contract is incomplete)
+TASK-095-R1 = SATISFIED / CODE_COMPLETE (normative contract remediation only; see TASK-095-R1_GOVERNED_KPI_ANALYTICS_CONTRACT.md)
+TASK-095 = READY / NOT_STARTED (TASK-039, TASK-061, TASK-076, TASK-093, TASK-094 and TASK-095-R1 are satisfied; see TASK-095_ADVANCED_REPORTING_GOVERNED_KPI_ANALYTICS.md)
 TASK-096 = WAITING_DEPENDENCY / NOT_STARTED (TASK-095 is not complete)
 TASK-097 = WAITING_DEPENDENCY / NOT_STARTED (TASK-095 and TASK-096 are not complete)
 ```
@@ -456,11 +456,12 @@ indexing, canonical presentation checks, the Incident recommendation query
 and Ticket source provenance. TASK-093 runtime is `SATISFIED / CODE_COMPLETE`;
 see `TASK-093_IMPLEMENTATION_REPORT.md`. TASK-094's R1 scoring contract and
 R2/R3 evidence foundations are satisfied; scoring runtime is
-`CODE_COMPLETE` with immutable, separate assessments. TASK-095 dependencies
-TASK-039, TASK-061 and TASK-076 are satisfied, but the workflow does not define
-an implementable governed v1 KPI/report contract. TASK-095 is therefore
-`BLOCKED / NOT_STARTED` by `SPEC_GAP / PLANNING_REQUIRED`; TASK-095-R1 is the
-current planning task. TASK-096 and TASK-097 remain
+`CODE_COMPLETE` with immutable, separate assessments. TASK-095-R1 completed
+the governed v1 KPI/report contract: nine fixed KPI definitions, UTC periods,
+immutable revisions, canonical source boundaries, controlled dimensions,
+freshness, RBAC drill-down and aggregate CSV are explicit. TASK-095 is
+`READY / NOT_STARTED` with TASK-039, TASK-061, TASK-076, TASK-093, TASK-094
+and TASK-095-R1 satisfied. TASK-096 and TASK-097 remain
 `WAITING_DEPENDENCY / NOT_STARTED`.
 
 ---
