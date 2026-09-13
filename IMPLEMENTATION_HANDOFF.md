@@ -2,11 +2,16 @@
 
 ## Current Task
 
+TASK-094-R1 — Risk + Replacement Scoring Contract — is
+`BLOCKED / NOT_STARTED` (`SPEC_GAP / PLANNING_REQUIRED`). The normative
+workflow contains illustrative score factors/examples but does not define an
+implementable profile. See
+`tasks/TASK-094-R1_RISK_REPLACEMENT_SCORING_CONTRACT.md` for source findings
+and unresolved decisions. TASK-094 runtime is `BLOCKED / NOT_STARTED`; do not
+implement scoring or begin TASK-095 until the decisions are resolved.
+
 TASK-093 is `CODE_COMPLETE`; see
-`tasks/TASK-093_IMPLEMENTATION_REPORT.md`. TASK-094 is `READY / NOT_STARTED`
-because all declared dependencies TASK-038, TASK-050, TASK-058 and TASK-059
-are satisfied. Its detailed task contract remains marked `GENERATE_ON_READY`.
-Do not start TASK-094 without explicit instruction.
+`tasks/TASK-093_IMPLEMENTATION_REPORT.md`.
 
 Deployment note: `apps/agent-gateway/src/main.ts` continues to use the
 fail-closed `unavailableAuthentication` adapter. Configure the existing
@@ -37,8 +42,9 @@ Knowledge Deflection + Self-Service Recommendations (`CODE_COMPLETE`). See
   mutation and no TASK-090/091 remediation path.
 - Full verification passed: `npm test` (143 tests), typecheck, lint/boundaries,
   format check, migration/PostgreSQL integration and `git diff --check`.
-- TASK-094 recalculates to `READY / NOT_STARTED` from its declared dependency
-  set. No TASK-094 implementation was started.
+- TASK-094's dependencies TASK-038, TASK-050, TASK-058 and TASK-059 are
+  satisfied, but the missing scoring contract is a `SPEC_GAP`. No TASK-094
+  implementation was started.
 
 ## Last Completed Remediation — TASK-093-R2
 

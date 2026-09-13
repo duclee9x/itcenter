@@ -212,7 +212,8 @@ Only generate a detailed `TASK-xxx_*.md` when the task becomes `READY` or is the
 | `TASK-093-R2A` | `KNOWLEDGE-DEFLECTION` | `WF-PC-K` | P5 | P0 | Canonical Service + Platform/Environment Reference Foundation | TASK-037, TASK-054 | **SATISFIED** | CODE_COMPLETE | `TASK-093-R2A_CANONICAL_SERVICE_PLATFORM_REFERENCE_FOUNDATION.md` |
 | `TASK-093-R2` | `KNOWLEDGE-DEFLECTION` | `WF-PC-K` | P5 | P0 | Knowledge Recommendation Foundation | TASK-037, TASK-061, TASK-092, TASK-093-R1, TASK-093-R2A | **SATISFIED** | CODE_COMPLETE | `TASK-093-R2_KNOWLEDGE_RECOMMENDATION_FOUNDATION.md` |
 | `TASK-093` | `KNOWLEDGE-DEFLECTION` | `WF-PC-K` | P5 | P2 | Knowledge Deflection + Self-Service Recommendations | TASK-037, TASK-061, TASK-092, TASK-093-R1, TASK-093-R2 | **SATISFIED** | CODE_COMPLETE | `TASK-093_KNOWLEDGE_DEFLECTION_SELF_SERVICE_RECOMMENDATIONS.md` |
-| `TASK-094` | `F-050` | `WF-017/WF-INT01` | P5 | P2 | Risk + Replacement Scoring | TASK-038, TASK-050, TASK-058, TASK-059 | **READY** | NOT_STARTED | `GENERATE_ON_READY` |
+| `TASK-094-R1` | `F-050` | `WF-017/WF-INT01` | P5 | P0 | Risk + Replacement Scoring Contract | TASK-038, TASK-050, TASK-058, TASK-059 | **BLOCKED** | NOT_STARTED | `TASK-094-R1_RISK_REPLACEMENT_SCORING_CONTRACT.md` |
+| `TASK-094` | `F-050` | `WF-017/WF-INT01` | P5 | P2 | Risk + Replacement Scoring | TASK-038, TASK-050, TASK-058, TASK-059, TASK-094-R1 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |
 | `TASK-095` | `F-048` | `WF-RPT01` | P5 | P1 | Advanced Reporting + Governed KPI + Analytics | TASK-039, TASK-061, TASK-076 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |
 | `TASK-096` | `F-050` | `WF-INT01` | P5 | P2 | Explainable Recommendation Layer | TASK-090, TASK-092, TASK-093, TASK-094, TASK-095 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |
 | `TASK-097` | `PHASE-GATE` | `P5-E2E` | P5 | P0 | Phase 5 System Integration + Intelligence Gate | TASK-091, TASK-092, TASK-093, TASK-094, TASK-095, TASK-096 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |
@@ -329,7 +330,8 @@ Only generate a detailed `TASK-xxx_*.md` when the task becomes `READY` or is the
 - **TASK-091 — Controlled Self-Healing + Compensation:** Agent execution, controlled change and rules engine available.
 - **TASK-092 — Advanced Incident Correlation:** Incident history, topology and rule engine available.
 - **TASK-093 — Knowledge Deflection + Self-Service Recommendations:** Knowledge foundation, search and correlation available.
-- **TASK-094 — Risk + Replacement Scoring:** Maintenance, audit, license and replacement history available.
+- **TASK-094-R1 — Risk + Replacement Scoring Contract:** `BLOCKED / NOT_STARTED`; missing normative scoring decisions are recorded in `TASK-094-R1_RISK_REPLACEMENT_SCORING_CONTRACT.md`.
+- **TASK-094 — Risk + Replacement Scoring:** `BLOCKED / NOT_STARTED` pending TASK-094-R1; do not infer weights, thresholds, signal semantics or automated consequences.
 - **TASK-095 — Advanced Reporting + Governed KPI + Analytics:** Stable canonical data and governed events across P1-P4.
 - **TASK-096 — Explainable Recommendation Layer:** Automation, correlation, knowledge, scoring and analytics available.
 - **TASK-097 — Phase 5 System Integration + Intelligence Gate:** Advanced automation/intelligence capabilities integrated.
@@ -348,8 +350,8 @@ reports and commits confirm TASK-015 (`32c3267`), TASK-036 (`e043c31`) and
 TASK-038 (`296336a`) are `CODE_COMPLETE`.
 
 ```text
-CURRENT = TASK-094 (READY / NOT_STARTED; all declared dependencies TASK-038, TASK-050, TASK-058 and TASK-059 are SATISFIED. Detailed task contract remains marked GENERATE_ON_READY.)
-NEXT = Stop. TASK-093 is CODE_COMPLETE. Do not begin TASK-094 without explicit instruction.
+CURRENT = TASK-094-R1 (BLOCKED / NOT_STARTED; normative product decisions listed in TASK-094-R1_RISK_REPLACEMENT_SCORING_CONTRACT.md are unresolved.)
+NEXT = Stop. Do not implement TASK-094 or begin TASK-095.
 TASK-059 = SATISFIED (CODE_COMPLETE)
 TASK-061 = SATISFIED (CODE_COMPLETE)
 TASK-070-R1 = SATISFIED (CODE_COMPLETE)
@@ -377,7 +379,8 @@ TASK-093-R1 = SATISFIED / CODE_COMPLETE (normative contract persisted; canonical
 TASK-093-R2A = SATISFIED / CODE_COMPLETE (canonical reference foundation only; no recommendation runtime; see TASK-093-R2A_IMPLEMENTATION_REPORT.md)
 TASK-093-R2 = SATISFIED / CODE_COMPLETE (Knowledge recommendation foundations implemented and fully verified; no RecommendationSession, ranking, feedback, deflection or recommendation API)
 TASK-093 = SATISFIED / CODE_COMPLETE (recommendation, ranking, presentation, feedback, explicit resolution and canonical Ticket escalation implemented; see TASK-093_IMPLEMENTATION_REPORT.md)
-TASK-094 = READY / NOT_STARTED (all declared dependencies are SATISFIED; detailed task contract remains GENERATE_ON_READY; no implementation started)
+TASK-094-R1 = BLOCKED / NOT_STARTED (SPEC_GAP / PLANNING_REQUIRED; exact unresolved decisions are listed in TASK-094-R1_RISK_REPLACEMENT_SCORING_CONTRACT.md)
+TASK-094 = BLOCKED / NOT_STARTED (SPEC_GAP / PLANNING_REQUIRED; depends on TASK-094-R1; runtime implementation not started)
 ```
 
 TASK-061's acceptance criteria and verification gates passed; its implementation
@@ -439,10 +442,11 @@ Service, Platform and ServiceEnvironment references; TASK-093-R2 added and
 verified Knowledge audience/read authorization, typed applicability, Search
 indexing, canonical presentation checks, the Incident recommendation query
 and Ticket source provenance. TASK-093 runtime is `SATISFIED / CODE_COMPLETE`;
-see `TASK-093_IMPLEMENTATION_REPORT.md`. TASK-094's declared dependencies
-TASK-038, TASK-050, TASK-058 and TASK-059 are all satisfied, so TASK-094 is
-`READY / NOT_STARTED`; its detailed task contract remains marked
-`GENERATE_ON_READY` and no implementation has begun.
+see `TASK-093_IMPLEMENTATION_REPORT.md`. TASK-094's declared foundation
+dependencies TASK-038, TASK-050, TASK-058 and TASK-059 are satisfied, but its
+scoring semantics are not normative. TASK-094-R1 and TASK-094 are
+`BLOCKED / NOT_STARTED` (`SPEC_GAP / PLANNING_REQUIRED`); no runtime
+implementation has begun.
 
 ---
 
