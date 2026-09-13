@@ -880,6 +880,10 @@ automation.action_intents
 automation.action_intent_contributors
 automation.intent_conflicts
 automation.intent_conflict_members
+automation.action_capabilities
+automation.action_policies                   # immutable tenant policy versions
+authorization.automation_principals          # canonical service identities
+authorization.automation_principal_grants    # tenant/resource-scoped grants
 automation.rule_executions                 # TASK-091 execution evidence
 automation.action_executions               # TASK-091 execution evidence
 ```
@@ -896,6 +900,11 @@ AUTOMATION.SIMULATE
 AUTOMATION.EVENT.EVALUATE                  # internal event consumer
 AUTOMATION.INTENT.RECHECK_APPROVAL         # internal approval consumer
 AUTOMATION.INTENT.RESOLVE_CONFLICT
+AUTOMATION.ACTION_POLICY.CREATE
+AUTOMATION.ACTION_POLICY.UPDATE_DRAFT
+AUTOMATION.ACTION_POLICY.ACTIVATE
+AUTOMATION.ACTION_POLICY.DEACTIVATE
+AUTOMATION.INTENT.REEVALUATE_POLICY          # explicit; no silent promotion
 ```
 
 ### Permissions
@@ -910,6 +919,10 @@ automation.activate_high_risk
 automation.disable
 automation.intent.read
 automation.intent.resolve
+automation.policy.read
+automation.policy.create
+automation.policy.update
+automation.policy.activate
 ```
 
 ### Events
@@ -926,15 +939,24 @@ AUTOMATION.INTENT_DEDUPLICATED
 AUTOMATION.INTENT_BLOCKED
 AUTOMATION.INTENT_CONFLICTED
 AUTOMATION.INTENT_CONFLICT_RESOLVED
+AUTOMATION.ACTION_POLICY_CREATED
+AUTOMATION.ACTION_POLICY_VERSION_PUBLISHED
+AUTOMATION.ACTION_POLICY_ACTIVATED
+AUTOMATION.ACTION_POLICY_DEACTIVATED
 ```
 
 TASK-090 owns rule definition/versioning, event-only evaluation, simulation,
-policy gates and durable intent through READY/BLOCKED/CONFLICTED. It never
-executes an action. TASK-091 consumes only eligible intents and owns
-execution/retry/verification/compensation events and state. Conflict
-resolution is fail-closed with one human fallback; rule priority is not a
-winner-selection policy. Schedule, temporal/windowed and absence-of-event
-triggers are outside TASK-090.
+policy gates and durable intent through READY/BLOCKED/CONFLICTED. READY
+requires an explicit applicable tenant Action Policy AND a canonical
+tenant/resource-scoped SYSTEM_AUTOMATION grant evaluated through
+AuthorizationPort; absent or failed checks deny. Rule author permissions do
+not confer execution authority, and no wildcard grant or bootstrap ALLOW is
+permitted. Immutable policy/principal/scope decision evidence is retained.
+TASK-091 must recheck current policy, principal authorization, approval,
+conflict, kill switch and target eligibility immediately before execution.
+TASK-090 never executes an action. Conflict resolution is fail-closed with one
+human fallback; rule priority is not a winner-selection policy. Schedule,
+temporal/windowed and absence-of-event triggers are outside TASK-090.
 
 ---
 

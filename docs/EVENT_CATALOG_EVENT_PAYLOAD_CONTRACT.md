@@ -3917,6 +3917,58 @@ rule_version:
 reason_code:
 ```
 
+## `AUTOMATION.ACTION_POLICY_CREATED`
+
+```yaml
+action_policy_id:
+tenant_id:
+action_type:
+target_type:
+policy_version:
+mode: DENY | ALLOW | REQUIRE_APPROVAL
+actor_reference:
+correlation_id:
+```
+
+## `AUTOMATION.ACTION_POLICY_VERSION_PUBLISHED`
+
+```yaml
+action_policy_id:
+tenant_id:
+policy_version:
+policy_content_hash:
+published_at:
+actor_reference:
+correlation_id:
+```
+
+## `AUTOMATION.ACTION_POLICY_ACTIVATED`
+
+```yaml
+action_policy_id:
+tenant_id:
+policy_version:
+effective_from:
+actor_reference:
+correlation_id:
+```
+
+## `AUTOMATION.ACTION_POLICY_DEACTIVATED`
+
+```yaml
+action_policy_id:
+tenant_id:
+policy_version:
+reason_code:
+actor_reference:
+correlation_id:
+```
+
+These events report policy administration and must not carry resource
+selectors, raw parameter constraints or sensitive policy contents. Principal
+grant changes use the canonical Authorization domain's existing grant
+audit/event contract; Automation is not a second grant system.
+
 ## `AUTOMATION.RULE_EVALUATED`
 
 ```yaml
@@ -3930,6 +3982,18 @@ match_result:
 condition_evidence_reference:
 policy_decision: ALLOW | DENY | REQUIRE_APPROVAL
 policy_reason_code:
+action_capability_reference:
+action_capability_version:
+action_policy_reference: null
+action_policy_version: null
+principal_reference:
+authorization_permission:
+authorization_scope_reference:
+authorization_decision: ALLOW | DENY
+authorization_reason_code:
+kill_switch_decision:
+conflict_decision:
+approval_context_hash: null
 intent_references: []
 ```
 
@@ -3944,6 +4008,13 @@ action_domain:
 action_type:
 intent_state:
 policy_decision:
+action_policy_reference: null
+action_policy_version: null
+principal_reference:
+authorization_permission:
+authorization_scope_reference:
+authorization_decision: ALLOW | DENY
+authorization_reason_code:
 approval_reference: null
 contributor_references: []
 ```
@@ -3962,6 +4033,11 @@ deduplication_reference:
 ```yaml
 intent_id:
 policy_decision:
+action_policy_reference: null
+action_policy_version: null
+principal_reference:
+authorization_decision: ALLOW | DENY
+authorization_reason_code:
 approval_reference: null
 eligibility_context_hash:
 ```
@@ -3974,6 +4050,11 @@ policy_decision: DENY | REQUIRE_APPROVAL
 reason_code:
 kill_switch_blocked: false
 approval_reference: null
+action_policy_reference: null
+action_policy_version: null
+principal_reference:
+authorization_decision: DENY
+authorization_reason_code:
 ```
 
 ## `AUTOMATION.INTENT_CONFLICTED`

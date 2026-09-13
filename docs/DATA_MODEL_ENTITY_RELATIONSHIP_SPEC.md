@@ -2983,8 +2983,19 @@ automation.rule_evaluations:
   mode: PRODUCTION | SIMULATION
   match_result:
   condition_evidence_json:
+  action_capability_id:
+  action_capability_version:
+  action_policy_id:
+  action_policy_version:
+  automation_principal_id:
+  authorization_permission:
+  authorization_scope_reference:
+  authorization_decision: ALLOW | DENY
   policy_decision: ALLOW | DENY | REQUIRE_APPROVAL
   policy_reason_code:
+  kill_switch_decision:
+  conflict_decision:
+  approval_context_hash:
   context_hash:
   action_intent_ids:
   correlation_id:
@@ -2999,6 +3010,14 @@ automation.action_intents:
   action_domain:
   action_type:
   normalized_parameters_json:
+  action_capability_id:
+  action_capability_version:
+  action_policy_id:
+  action_policy_version:
+  automation_principal_id:
+  authorization_permission:
+  authorization_scope_reference:
+  authorization_decision: ALLOW | DENY
   policy_decision:
   approval_id:
   approval_context_hash:
@@ -3035,7 +3054,79 @@ automation.intent_conflict_members:
   action_intent_id:
   resolution_state:
   created_at:
+
+automation.action_capabilities: # canonical allow-listed catalog entry/version
+  id:
+  version:
+  action_type:
+  target_type:
+  required_permission:
+  safety_class: SAFE_AUTOMATION | CONTROLLED | HIGH_RISK | PROHIBITED
+  automatic_execution_supported:
+  approval_allowed:
+  approval_required_by_capability:
+  conflict_group:
+  parameter_schema_json: # typed/allow-listed; never executable code
+  executor_type:
+  active:
+  content_hash:
+
+automation.action_policies:
+  id:
+  tenant_id:
+  action_type:
+  target_type:
+  version:
+  mode: DENY | ALLOW | REQUIRE_APPROVAL
+  resource_scope_json:
+  parameter_constraints_json:
+  approval_requirement:
+  active:
+  effective_from:
+  effective_to:
+  created_by:
+  changed_by:
+  reason:
+  audit_reference:
+  created_at:
+  published_at:
+
+authorization.automation_principals: # canonical service identity
+  id:
+  principal_type: SYSTEM_AUTOMATION
+  service_identity:
+  active:
+
+authorization.automation_principal_grants:
+  id:
+  tenant_id:
+  principal_id:
+  permission_or_capability:
+  resource_scope_json:
+  active:
+  valid_from:
+  valid_to:
+  created_by:
+  changed_by:
+  reason:
+  audit_reference:
+  created_at:
 ```
+
+The catalog and policy versions are immutable after publication/activation;
+changes create a new version. Principal grants remain canonical scoped
+Authorization data and are checked through `AuthorizationPort`. The logical
+entities above do not authorize wildcard grants. A fresh tenant with no
+applicable policy has effective decision `DENY`. Policy/authorization backend
+errors, unresolved principal, tenant or target, and missing scope data fail
+closed. Historical evaluations and intents retain the capability, policy,
+principal, permission/scope and decisions used at evaluation. Changes never
+rewrite that evidence. TASK-091 rechecks current policy, principal
+authorization, approval, conflict, kill switch and target eligibility
+immediately before execution. Durable constraints must prevent multiple
+equally applicable active policy versions for a tenant/action/target/effective
+context; an ambiguous overlap is a fail-closed integrity error, not a
+permissive-policy selection rule.
 
 Published `rule_versions` are immutable. Durable tenant-scoped uniqueness
 must protect rule code/version, evaluation identity

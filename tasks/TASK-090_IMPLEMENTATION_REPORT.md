@@ -1,7 +1,10 @@
 # TASK-090 Implementation Report
 
-**Status:** `BLOCKED` — the rule and Action Intent implementation is present,
-but runtime policy and Automation Principal adapters are unavailable.
+**Status:** `IN_PROGRESS` — the Rule/evaluation/Action Intent vertical slice
+is implemented. TASK-090-R1 has closed the normative Action Policy and System
+Automation Principal contract gap; runtime policy/grant persistence and
+AuthorizationPort wiring remain unimplemented, so production continues to
+deny by default and cannot produce a `READY` intent.
 
 ## Existing foundation
 
@@ -32,29 +35,29 @@ adapter or action-policy evaluator exists in the repository.
 - Added the automation permission catalog and Operations source types for
   actionable conflict/review work.
 
-## Blocker
+## Remaining implementation work
 
 `AutomationPolicyPort` and `ActionAuthorization` have explicit deny-all
 defaults. The worker currently wires those defaults, and there is no existing
 per-action policy implementation or System Automation Principal model that
 can be safely used to authorize a target action. Consequently event
 evaluations are retained and intents are blocked; production cannot create a
-`READY` intent. The allow/approval paths are exercised through test adapters,
-but wiring a real policy and principal would require an existing normative
-policy source and a properly scoped principal authorization adapter. Inventing
-either would weaken the documented security boundary.
+`READY` intent. The allow/approval paths are exercised through test adapters.
+TASK-090-R1 now defines the normative Action Capability Catalog, tenant Action
+Policy, scoped `SYSTEM_AUTOMATION` identity/grants, decision evidence,
+deny-by-default behavior and TASK-091 execution-time rechecks. Implementing
+those adapters and their persistence is remaining TASK-090 work; the current
+deny-all wiring must remain until that implementation passes the contract.
 
-**SCOPE_DEPENDENCY:** provide/configure the normative Automation Policy and
-System Automation Principal authorization adapters.
-
-**SECURITY_CONCERN:** do not replace the deny-all defaults or derive action
-authority from the Rule author until those adapters enforce explicit tenant
-and target scope.
-
-**SPEC_CONFLICT:** none found. The blocker is missing runtime capability, not
-conflicting business rules.
+**SPEC_CONFLICT:** none. Remaining work is runtime implementation, not a
+normative conflict or unresolved planning/security blocker. The former
+planning `SCOPE_DEPENDENCY` and `SECURITY_CONCERN` are resolved by
+TASK-090-R1's normative contract; no runtime authorization gap is represented
+as an approved bypass.
 
 TASK-091 remains `BLOCKED` on TASK-090. No TASK-091 implementation was started.
+TASK-090 remains `IN_PROGRESS`, and this report does not claim the acceptance
+gate passed.
 
 ## Files and persistence
 

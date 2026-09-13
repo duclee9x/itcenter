@@ -6,11 +6,11 @@ feature_id: F-049
 workflow_id: WF-AUT02
 phase: P5
 priority: P1
-status: BLOCKED
-readiness: BLOCKED
-implementation_status: BLOCKED
+status: IN_PROGRESS
+readiness: IN_PROGRESS
+implementation_status: IN_PROGRESS
 owner_domain: Automation / Control Plane
-depends_on: TASK-039, TASK-061, TASK-076
+depends_on: TASK-039, TASK-061, TASK-076, TASK-090-R1
 ```
 
 ## 1. Objective
@@ -22,11 +22,12 @@ future action; it never performs the requested business or remediation action.
 
 ## Current implementation status
 
-The current implementation is `BLOCKED`; see
-`TASK-090_IMPLEMENTATION_REPORT.md`. The repository has no configured
-Automation Policy evaluator or System Automation Principal authorization
-adapter. Runtime therefore denies action intents by default, and no production
-intent can become `READY`. Keep TASK-091 blocked until TASK-090 passes its
+The event-driven Rule and Action Intent vertical slice is implemented. The
+normative Action Policy and System Automation Principal contract is defined by
+[`TASK-090-R1`](TASK-090-R1_AUTOMATION_ACTION_POLICY_SYSTEM_PRINCIPAL_AUTHORIZATION_CONTRACT.md).
+Runtime policy/grant persistence and authorization wiring remain to be
+implemented; the worker continues to deny by default until then. TASK-090 is
+`IN_PROGRESS`, not complete. Keep TASK-091 blocked until TASK-090 passes its
 completion gate.
 
 ## 2. Required Specifications
@@ -183,6 +184,17 @@ and `PROHIBITED_AUTO`. Existing policy determines their decision; TASK-090
 does not infer missing per-action policy. `PROHIBITED_AUTO` cannot become an
 executable intent. High-risk rule activation follows the existing approval
 requirement. A matched rule alone never authorizes an action.
+
+The more specific deny-by-default Action Capability, tenant Action Policy and
+`SYSTEM_AUTOMATION` principal authorization contract is defined by
+[`TASK-090-R1`](TASK-090-R1_AUTOMATION_ACTION_POLICY_SYSTEM_PRINCIPAL_AUTHORIZATION_CONTRACT.md)
+and the normative workflow section. It governs READY eligibility: supported
+catalog entry, applicable active tenant policy, policy constraints, canonical
+scoped AuthorizationPort grant, kill switch, conflict and required approval
+must all pass. Missing policy defaults to DENY. Do not wire a default ALLOW or
+wildcard principal grant. Preserve policy/capability versions,
+principal/permission/scope and decisions in evidence. TASK-091 rechecks current
+policy and authorization immediately before execution.
 
 ## 9. Action Intent, Deduplication and Conflict
 

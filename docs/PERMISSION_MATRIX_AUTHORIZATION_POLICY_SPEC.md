@@ -1655,6 +1655,14 @@ System Admin
 
 # 66. Automation Principal
 
+Automation evaluation/execution resolves an explicit service identity of type
+`SYSTEM_AUTOMATION` (or the equivalent canonical service-principal model).
+It is tenant-bound, is not a human or Rule-author impersonation, and has no
+implicit administrator or wildcard privileges. A principal's action grants
+are evaluated by the existing AuthorizationPort and canonical grant model,
+including tenant and resource scope. A Rule's creator/publisher/activator
+permissions never confer action authority.
+
 Automation executes under:
 
 ```text
@@ -1666,6 +1674,30 @@ or controlled system principal.
 Permission must be explicit.
 
 Rule cannot gain permission just because creator had it.
+
+### TASK-090-R1 Action Policy Administration and Principal Grants
+
+Tenant Action Policy is a separate decision from Authorization. Both an
+explicit active tenant policy and a valid scoped `SYSTEM_AUTOMATION` grant
+are required; missing policy defaults to `DENY`. Policy decisions are
+`DENY`, `ALLOW` or `REQUIRE_APPROVAL`; approval cannot bypass principal
+authorization, tenant/resource scope, conflict or kill switch.
+
+Policy administration requires distinct tenant-scoped permissions:
+
+```text
+automation.policy.read
+automation.policy.create
+automation.policy.update
+automation.policy.activate
+```
+
+These do not grant Rule management or action execution. Principal grants must
+identify tenant, service principal, action permission/capability, resource
+scope, active/validity and audit metadata. No implicit `*`, admin, superuser,
+all-tenant or all-resource grant is allowed. Use the existing
+AuthorizationPort; do not introduce a parallel scope evaluator. See the
+normative [TASK-090-R1 contract](../tasks/TASK-090-R1_AUTOMATION_ACTION_POLICY_SYSTEM_PRINCIPAL_AUTHORIZATION_CONTRACT.md).
 
 ---
 

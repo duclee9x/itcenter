@@ -1684,6 +1684,33 @@ create an executable Action Intent.
 TASK-091, not TASK-090. Action Intent reads are scoped and do not expose raw
 event payloads or protected context.
 
+### TASK-090-R1 policy management surface
+
+If exposed through the API, tenant Action Policy management uses explicit
+commands and permissions; principal grants remain managed by canonical
+Authorization administration:
+
+```text
+GET  /api/v1/automation-action-policies
+POST /api/v1/automation-action-policies
+POST /api/v1/automation-action-policies/{id}/commands/update-draft
+POST /api/v1/automation-action-policies/{id}/commands/activate
+POST /api/v1/automation-action-policies/{id}/commands/deactivate
+```
+
+Command intents are `AUTOMATION.ACTION_POLICY.CREATE`,
+`AUTOMATION.ACTION_POLICY.UPDATE_DRAFT`, `AUTOMATION.ACTION_POLICY.ACTIVATE`
+and `AUTOMATION.ACTION_POLICY.DEACTIVATE`. Mutations require tenant scope,
+the corresponding `automation.policy.*` permission, expected version,
+idempotency key, reason, audit and correlation metadata as applicable.
+Published/active versions are immutable; updates produce a new version. No
+API creates wildcard or implicit-ALLOW policy/grants. An explicit
+`AUTOMATION.INTENT.REEVALUATE_POLICY` (or equivalent authorized command) is
+required to reconsider a previously blocked intent after policy changes; no
+silent background promotion is allowed. Exact route availability is an
+implementation decision, but command semantics and authorization are
+normative. See the TASK-090-R1 contract.
+
 ---
 
 # 70. Work Queue API

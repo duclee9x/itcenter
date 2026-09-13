@@ -3539,6 +3539,18 @@ Explicit human conflict resolution records the resolver, reason, chosen
 compatible intent set and resulting eligibility decision. It cannot override
 policy DENY, required approval, target permission or kill-switch state.
 
+TASK-090-R1 additionally requires append-only evidence for Action Capability
+selection, tenant Action Policy creation/version/activation/deactivation,
+principal resolution, permission and resource-scope authorization, approval
+binding, and explicit blocked-intent policy re-evaluation. Record policy
+id/version, capability id/version, service-principal reference, permission,
+scope reference, policy and authorization decisions, safe reason code, actor,
+tenant, target reference and correlation. Do not place raw scope selectors,
+secrets, sensitive event payloads or executable parameters in broad
+audit/timeline records. Authorization grant changes remain owned and audited
+by the canonical Authorization domain. Policy changes append new evidence and
+never rewrite earlier decisions.
+
 Timeline may show rule publication/activation and operator-relevant blocked,
 conflicted or ready-intent milestones using protected references. It is a
 derived view and does not replace the audit/evaluation ledger. Normal

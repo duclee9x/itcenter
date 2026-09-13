@@ -2067,6 +2067,143 @@ timeout, compensation/rollback, execution result and execution-failure
 escalation. TASK-090 must not call remediation, business mutation, agent,
 script or webhook adapters.
 
+## TASK-090-R1 Automation Action Policy and Principal Authorization Contract
+
+This section is normative for action eligibility and closes the TASK-090
+security contract gap. Automation is deny-by-default. A matched Rule, its
+author, publisher or activation approver grants no authority to perform the
+proposed action. The only path to a production `READY` intent is:
+
+```text
+active Rule/version
+→ supported Action Capability
+→ applicable active tenant Action Policy
+→ target/parameter policy constraints
+→ tenant-bound SYSTEM_AUTOMATION principal resolution
+→ canonical permission and resource-scope authorization
+→ kill-switch check
+→ conflict check
+→ required approval check
+→ READY
+```
+
+Missing or ambiguous evidence at any step fails closed. Policy-store,
+authorization-store or principal-resolver failure, unsupported action, invalid
+scope, unresolved target or ambiguous tenant must never produce READY. Preserve
+bounded evaluation evidence and create actionable human fallback when an
+operator must resolve the failure. TASK-090 performs no action execution.
+
+### Action Capability Catalog
+
+The Automation domain maintains or consumes a canonical, versioned,
+allow-listed Action Capability Catalog. Each entry defines `action_type`,
+`target_type`, required execution permission/capability, safety class,
+automatic-execution support, approval eligibility/requirements, conflict or
+exclusivity group, typed parameter schema and supported executor type. An
+arbitrary action string is never executable. Catalog absence, unsupported
+executor, invalid parameters or missing conflict semantics yields `DENY` and
+a non-executable intent; create human fallback where appropriate.
+
+Safety classes are `SAFE_AUTOMATION`, `CONTROLLED`, `HIGH_RISK` and
+`PROHIBITED` (legacy names may map only when their semantics are identical).
+`PROHIBITED` always denies automation. `HIGH_RISK` cannot become automatically
+executable absent explicit applicable tenant policy and all required approval
+and security controls. Rule priority is never a safety or authorization input.
+
+### Tenant Action Policy
+
+Each tenant must have an explicit tenant-scoped Action Policy to authorize an
+action category. A policy identifies tenant, action type, target type, mode
+(`DENY`, `ALLOW`, `REQUIRE_APPROVAL`), resource scope/selector, parameter
+constraints, approval requirement, active/effective interval, immutable
+version, creator/changer, reason and audit reference. No applicable policy,
+inactive/expired policy, invalid policy or unsupported target/parameters means
+`DENY`; there is no wildcard or implicit `ALLOW` bootstrap policy.
+Applicable policy selection must be deterministic and unambiguous for the
+tenant, action, target and effective time. Overlapping equally applicable
+policies are a configuration-integrity failure and fail closed; do not select
+the more permissive result.
+
+Capability support, Action Policy and authorization grants are distinct:
+policy answers whether the tenant permits this automation category;
+authorization answers whether this principal may perform it on this target.
+Both must pass. `REQUIRE_APPROVAL` remains non-executable until a valid
+approval is satisfied; approval never bypasses policy denial, authorization,
+tenant/resource scope, conflict or kill switch.
+
+Active/published policy versions are immutable. A change creates a new
+version. Historical evaluation and Action Intent evidence retains the exact
+policy id/version and decision; later policy changes never rewrite history.
+More permissive policy changes do not silently promote old blocked intents.
+Any retry/re-evaluation must be an explicit authorized operation, idempotent
+and auditable; no background resurrection is allowed.
+
+### System Automation Principal and Authorization
+
+Production evaluation resolves an explicit internal principal of type
+`SYSTEM_AUTOMATION` (or equivalent canonical service identity), bound to the
+tenant, action, target/resource scope and correlation context. It is neither a
+human user, a tenantless superuser, an administrator impersonation nor the
+Rule author's identity. Tenant is obtained from canonical event/target
+context and checked against the canonical target; tenant values inside Rule
+parameters are untrusted. Cross-tenant automation is denied.
+
+The principal resolver supplies canonical `ActorContext`; it does not invent
+privileges. Existing `AuthorizationPort` and canonical authorization/grant
+data decide required permission and resource scope. Principal grants are
+explicitly tenant-scoped and identify service principal, permission/capability,
+target/resource scope, active/validity interval and audit metadata. No
+implicit `*`, administrator, superuser, all-tenant or all-resource grant is
+permitted. A permission without matching target scope is insufficient.
+
+Rule-authoring permissions and policy-administration permissions are separate
+from action execution grants. Rule create/edit/publication/activation never
+confers execution rights. Policy management requires the distinct
+`automation.policy.read`, `automation.policy.create`,
+`automation.policy.update` and `automation.policy.activate` permissions, with
+tenant scope, separation of duties and audit. It does not grant permission to
+author Rules or execute actions by itself.
+
+### Decision evidence and READY invariant
+
+Every decision records the exact Action Capability/catalog version where
+versioned, tenant Action Policy id/version, principal identity, permission and
+resource scope evaluated, policy decision, authorization decision, approval
+reference/context, kill-switch result, conflict result and canonical reason
+codes. This evidence is immutable and sufficient to explain why an intent was
+allowed or blocked without copying sensitive source-event data.
+
+An Action Intent may become `READY` only if its source Rule/version was active
+at evaluation; the action is supported; active applicable policy permits it;
+target and parameters satisfy policy; `SYSTEM_AUTOMATION` is authorized for
+the exact tenant and resource scope; any required approval is valid and bound
+to intent, action, target, normalized parameters/context hash, tenant and
+policy/Rule context; no unresolved conflict, cancellation, duplication or
+supersession applies; and the current kill switch permits it. Failure or
+missing evidence leaves the intent non-executable.
+
+Each `READY` value is an eligibility decision, not a permanent authorization
+token. TASK-091 must immediately before execution recheck the current kill
+switch, tenant Action Policy, principal permission and resource scope,
+approval/context validity, conflict/cancellation and target eligibility.
+Revoked policy/grant or any changed context blocks execution and records the
+reason. TASK-091 owns that execution-time recheck and all execution outcomes.
+
+### Policy and grant failure handling
+
+Unsupported actions, invalid policy, missing/ambiguous tenant or target,
+missing scope data, principal resolution failure and policy/authorization
+backend failure are fail-closed outcomes. Retain explainable evaluation
+evidence and create one idempotent actionable fallback when human action is
+needed. A safe initial positive integration test may use an already-supported
+`RESTART_AGENT` capability only with explicit test-tenant `ALLOW` policy and a
+specific `agent.restart` grant/scope. Tests must also prove absent policy,
+grant, tenant match or resource scope cannot reach READY. Production defaults
+remain deny-by-default.
+
+The normative remediation and its acceptance criteria are tracked in
+[`TASK-090-R1`](../tasks/TASK-090-R1_AUTOMATION_ACTION_POLICY_SYSTEM_PRINCIPAL_AUTHORIZATION_CONTRACT.md).
+
 Event evaluation is idempotent by tenant + source event identity + rule id +
 immutable rule version. Historical replay is out of scope; any future replay
 must be explicit and idempotent. Work Items are created only for unresolved conflicts, missing
