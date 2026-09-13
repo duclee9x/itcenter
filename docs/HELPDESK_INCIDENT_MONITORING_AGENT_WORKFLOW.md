@@ -1209,7 +1209,19 @@ AGENT.OFFLINE
 AGENT.OFFLINE_THRESHOLD
 AGENT.RECOVERY_STARTED
 AGENT.ONLINE
+AGENT.AUTOMATION_ACTION_ACCEPTED
+AGENT.AUTOMATION_ACTION_REJECTED
 ```
+
+For TASK-091 `RESTART_AGENT`, the authenticated Agent Gateway records a
+durable command receipt before returning the fixed typed command. The Agent
+uses `command_id` for deduplication and separately acknowledges acceptance or
+reports a typed rejection. Acceptance is not restart success. Verification
+requires a subsequent authenticated heartbeat for the same tenant and Agent
+with a new `agent_runtime_id`; ordinary heartbeat/session reconnection does
+not prove restart. The Gateway must be configured with an enrolled-Agent
+authentication adapter; its unavailable-authentication default remains
+fail-closed.
 
 ---
 

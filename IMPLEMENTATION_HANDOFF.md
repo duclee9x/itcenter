@@ -11,8 +11,8 @@ tenant-scoped Action Policy, tenant-bound `SYSTEM_AUTOMATION` principal and
 canonical scoped authorization. Missing policy/grant remains deny-by-default.
 TASK-090 never executes actions.
 
-TASK-091 is `READY / NOT_STARTED`: TASK-031, TASK-053, TASK-090 and
-TASK-091-R1 are satisfied and its detailed contract is generated at
+TASK-091 is `READY / IN_PROGRESS`: TASK-031, TASK-053, TASK-090 and
+TASK-091-R1 are satisfied and its detailed contract is at
 `tasks/TASK-091_CONTROLLED_SELF_HEALING_COMPENSATION.md`. TASK-091-R1 is a
 normative/specification-only remediation at
 `tasks/TASK-091-R1_AUTOMATION_ACTION_EXECUTION_CONTRACT_GAP.md`.
@@ -24,8 +24,18 @@ positive new-runtime-marker verification within five minutes; one automatic
 attempt, zero automatic business retries, no compensation, and UNKNOWN plus
 human fallback for ambiguous outcomes. Cancel is safe only before proven
 acceptance; manual retry requires explicit reconciliation and new linked IDs.
-No TASK-091 runtime implementation has started. Stop; do not implement until
-an explicit continuation instruction.
+The execution vertical slice, migrations, API/Agent Gateway protocol,
+worker projection and E2E tests are implemented. Full checks currently pass.
+One `SPEC_GAP` remains: no deadline/trigger is defined to classify an
+ambiguous `DISPATCHED` execution with no authenticated Agent `ACCEPTED` as
+`UNKNOWN`. The fixed five-minute verification deadline begins only after
+acceptance, so no timeout was inferred. See
+`tasks/TASK-091_IMPLEMENTATION_REPORT.md`. Keep TASK-091 IN_PROGRESS and do
+not start TASK-092 until this is clarified and implemented.
+
+Deployment note: `apps/agent-gateway/src/main.ts` continues to use the
+fail-closed `unavailableAuthentication` adapter. Configure the existing
+enrolled-Agent AuthenticationPort before accepting real Agent requests.
 
 TASK-095 remains `BLOCKED / NOT_STARTED` pending its detailed implementation
 contract.
@@ -36,8 +46,8 @@ Integration Gate (`SATISFIED / CODE_COMPLETE`); see
 commercial-document storage as `UNAVAILABLE_NOT_READY`; production storage is
 not asserted ready.
 
-The pre-existing `AGENTS.md` modification remains outside the TASK-090 runtime
-commit.
+The pre-existing `AGENTS.md` modification remains outside the TASK-091
+runtime commit.
 
 ## Last Completed Remediation — TASK-091-R1
 

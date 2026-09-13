@@ -6,9 +6,9 @@ feature_id: F-049
 workflow_id: WF-AUT02
 phase: P5
 priority: P1
-status: NOT_STARTED
+status: IN_PROGRESS
 readiness: READY
-implementation_status: NOT_STARTED
+implementation_status: IN_PROGRESS
 owner_domain: Automation / Agent
 depends_on: TASK-031, TASK-053, TASK-090, TASK-091-R1
 ```

@@ -67,3 +67,10 @@ export interface AutomationPolicyPort {
     approvalRequired: boolean;
   }>;
 }
+
+export interface ExecutionSecurityPorts
+  extends
+    ActionCapabilityPort,
+    AutomationTargetPort,
+    ActionAuthorization,
+    AutomationPolicyPort {}

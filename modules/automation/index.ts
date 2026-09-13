@@ -21,12 +21,25 @@ export type {
   ActionCapabilityPort,
   AutomationPolicyPort,
   AutomationTargetPort,
+  ExecutionSecurityPorts,
 } from "./application/ports.js";
 export {
   denyUnconfiguredActionCapabilities,
   denyUnconfiguredAutomationTarget,
 } from "./application/ports.js";
 export { PostgresAutomationSecurity } from "./infrastructure/postgres-security.js";
+export {
+  createAutomaticExecution,
+  claimAgentRestart,
+  readDispatchedAgentCommand,
+  recordExecutionAcceptance,
+  recordExecutionRejection,
+  observeAgentRuntime,
+  markExpiredExecutionsUnknown,
+  readActionExecution,
+  cancelActionExecution,
+  retryActionExecution,
+} from "./application/executions.js";
 export {
   createActionPolicyDraft,
   updateActionPolicyDraft,
@@ -101,5 +114,15 @@ export const permissions = [
     code: "automation.policy.activate",
     resource_type: "automation_action_policy",
     action: "activate",
+  },
+  {
+    code: "execution.retry",
+    resource_type: "action_execution",
+    action: "retry",
+  },
+  {
+    code: "execution.cancel",
+    resource_type: "action_execution",
+    action: "cancel",
   },
 ] as const;

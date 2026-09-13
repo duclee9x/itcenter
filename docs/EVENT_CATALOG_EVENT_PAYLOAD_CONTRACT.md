@@ -1330,7 +1330,30 @@ agent_id:
 asset_id:
 restored_at:
 agent_version:
+last_seen_at:
 agent_runtime_id: # authenticated per-process restart marker; no secrets
+agent_session_id: # authenticated connection/session reference; no credentials
+```
+
+## `AGENT.AUTOMATION_ACTION_ACCEPTED`
+
+```yaml
+agent_id:
+command_id:
+execution_id:
+accepted_at:
+```
+
+This fact acknowledges the exact fixed typed Agent command. It does not prove
+that the requested action completed successfully.
+
+## `AGENT.AUTOMATION_ACTION_REJECTED`
+
+```yaml
+agent_id:
+command_id:
+execution_id:
+reason_code: UNSUPPORTED_CAPABILITY | LOCAL_SAFETY_DENIED | AGENT_BUSY | COMMAND_EXPIRED
 ```
 
 ---

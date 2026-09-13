@@ -1,6 +1,12 @@
 export {
   issueEnrollmentToken,
   recordHeartbeat,
+  recordAutomationActionDelivery,
+  readPendingAutomationAction,
+  readRestartBaseline,
+  isRegisteredAgent,
+  acceptAutomationAction,
+  rejectAutomationAction,
   recordInventory,
   resolveDeploymentAgentContext,
 } from "./application/agent.js";

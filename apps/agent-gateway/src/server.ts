@@ -22,6 +22,7 @@ import {
   resolveSoftwareExceptionWorkItem,
 } from "../../../modules/work-queue/index.js";
 import { randomUUID } from "node:crypto";
+import { handleAgentAutomationActionRoute } from "./automation-action-routes.js";
 import {
   handleAgentSoftwareDeploymentRoute,
   type AgentDeploymentAdapters,
@@ -48,6 +49,17 @@ export function agentServer(
       req.headers.authorization,
     );
     if (!uow) return false;
+    if (
+      await handleAgentAutomationActionRoute({
+        req,
+        res,
+        context,
+        config,
+        principal,
+        uow,
+      })
+    )
+      return true;
     if (
       await handleAgentAssetWipeRoute({
         req,
@@ -117,6 +129,25 @@ export function agentServer(
     const now = new Date().toISOString();
     const result = await uow.run(principal.tenant_id, async (tx) => {
       if (req.url === "/api/v1/agent/heartbeat") {
+        if (
+          input.agent_runtime_id !== undefined &&
+          (typeof input.agent_runtime_id !== "string" ||
+            !/^[0-9a-f-]{36}$/i.test(input.agent_runtime_id))
+        )
+          throw new ApplicationError(
+            "VALIDATION_ERROR",
+            "agent_runtime_id must be a UUID when provided.",
+          );
+        if (
+          input.session_id !== undefined &&
+          (typeof input.session_id !== "string" ||
+            !input.session_id.length ||
+            input.session_id.length > 200)
+        )
+          throw new ApplicationError(
+            "VALIDATION_ERROR",
+            "session_id must be a non-empty string of at most 200 characters when provided.",
+          );
         const agent = await recordHeartbeat({
           tx,
           agentId: principal.id,
@@ -125,6 +156,12 @@ export function agentServer(
               ? input.agent_version
               : "unknown",
           now,
+          ...(typeof input.agent_runtime_id === "string"
+            ? { runtimeId: input.agent_runtime_id }
+            : {}),
+          ...(typeof input.session_id === "string"
+            ? { sessionId: input.session_id }
+            : {}),
         });
         await new PostgresOutboxWriter(tx).append({
           event_id: randomUUID(),
@@ -139,7 +176,7 @@ export function agentServer(
           tenant_id: principal.tenant_id,
           organization_id: principal.tenant_id,
           idempotency_key: randomUUID(),
-          payload: agent,
+          payload: agent as never,
         });
         return agent;
       }

@@ -130,6 +130,22 @@ export const permissions: readonly Permission[] = [
   { code: "role_binding.read", resource_type: "role_binding", action: "read" },
   { code: "rbac.manage", resource_type: "rbac", action: "manage" },
   { code: "agent.enroll", resource_type: "agent", action: "enroll" },
+  { code: "agent.restart", resource_type: "agent", action: "restart" },
+  {
+    code: "automation.intent.read",
+    resource_type: "action_intent",
+    action: "read",
+  },
+  {
+    code: "execution.retry",
+    resource_type: "action_execution",
+    action: "retry",
+  },
+  {
+    code: "execution.cancel",
+    resource_type: "action_execution",
+    action: "cancel",
+  },
   { code: "incident.create", resource_type: "incident", action: "create" },
   { code: "incident.update", resource_type: "incident", action: "update" },
   {

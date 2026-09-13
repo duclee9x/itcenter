@@ -348,13 +348,33 @@ export async function createAutomationReviewWorkItem(input: {
   return item.rows[0]!.id;
 }
 
+export async function createAutomationExecutionWorkItem(input: {
+  tx: Transaction;
+  executionId: string;
+  title: string;
+}): Promise<string> {
+  const id = randomUUID();
+  await input.tx.query(
+    `INSERT INTO operations.work_items(id,tenant_id,source_type,source_id,title,priority,owner_team_id)
+     VALUES($1,$2,'AUTOMATION_EXECUTION',$3,$4,'HIGH','AUTOMATION')
+     ON CONFLICT(tenant_id,source_type,source_id) DO NOTHING`,
+    [id, input.tx.tenantId, input.executionId, input.title],
+  );
+  const item = await input.tx.query<{ id: string }>(
+    "SELECT id FROM operations.work_items WHERE tenant_id=$1 AND source_type='AUTOMATION_EXECUTION' AND source_id=$2",
+    [input.tx.tenantId, input.executionId],
+  );
+  return item.rows[0]!.id;
+}
+
 export async function recordAutomationTimelineEvent(input: {
   tx: Transaction;
   entityType:
     | "AUTOMATION_RULE"
     | "AUTOMATION_ACTION_POLICY"
     | "ACTION_INTENT"
-    | "AUTOMATION_CONFLICT";
+    | "AUTOMATION_CONFLICT"
+    | "ACTION_EXECUTION";
   entityId: string;
   eventType: string;
   summary: string;
