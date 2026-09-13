@@ -2,7 +2,17 @@
 
 ## Current Task
 
-TASK-094 — Asset Risk + Replacement Scoring — is `READY / NOT_STARTED`. TASK-094-R1 is complete; TASK-094-R2 and TASK-094-R3 are `CODE_COMPLETE`. R3 adds only canonical Incident–Asset linkage/reliability queries and canonical Warranty state/query authority. Do not implement scoring until explicitly instructed, infer evidence from free text, bypass TASK-059, or query cross-domain private tables. TASK-095 has not started.
+TASK-094 — Asset Risk + Replacement Scoring — is `CODE_COMPLETE`; see
+`tasks/TASK-094_IMPLEMENTATION_REPORT.md`. Scoring uses immutable Risk and
+Replacement assessments, owning-domain evidence queries and explicit scoped
+authorization. Economic repair evidence is unavailable because no canonical
+repair-cost ledger exists; no estimated costs or FX are used.
+
+TASK-095 — Advanced Reporting + Governed KPI + Analytics — is
+`READY / NOT_STARTED` because its declared dependencies TASK-039, TASK-061 and
+TASK-076 are satisfied. Readiness is reconciled only; wait for explicit
+authorization before starting. TASK-096 and TASK-097 remain
+`WAITING_DEPENDENCY / NOT_STARTED`.
 
 TASK-093 is `CODE_COMPLETE`; see
 `tasks/TASK-093_IMPLEMENTATION_REPORT.md`.
@@ -11,8 +21,25 @@ Deployment note: `apps/agent-gateway/src/main.ts` continues to use the
 fail-closed `unavailableAuthentication` adapter. Configure the existing
 enrolled-Agent AuthenticationPort before accepting real Agent requests.
 
-TASK-095 remains `BLOCKED / NOT_STARTED` pending its detailed implementation
-contract.
+TASK-095 has not started. Its detailed implementation contract has not been
+generated or reconciled in this handoff.
+
+## Last Completed Task — TASK-094
+
+Asset Risk + Replacement Scoring (`CODE_COMPLETE`). See
+`tasks/TASK-094_IMPLEMENTATION_REPORT.md`.
+
+- Added separate immutable Risk and Replacement assessment histories and
+  exact versioned v1 scoring; current Risk projection becomes UNKNOWN when
+  stale or ineligible.
+- Added verified acquisition/useful-life policy evidence, scoped scoring
+  principal and scheduled recalculation through Incident, Monitoring,
+  Maintenance, Warranty and Procurement query boundaries.
+- PLAN/PRIORITY uses TASK-059 human review; CRITICAL Risk creates one
+  durably deduplicated review item. No Procurement, lifecycle or TASK-091
+  action is triggered by score.
+- Full verification passed: `npm test` (163 tests), typecheck, lint/boundary,
+  format, migration/PostgreSQL integration, E2E and `git diff --check`.
 
 ## Last Completed Remediation — TASK-094-R3
 
@@ -22,8 +49,8 @@ Incident–Asset links/history and Incident/Monitoring reliability query
 boundaries, plus Maintenance-owned `WARRANTY_STATE_V1`, canonical Warranty
 query and idempotent scheduled Asset projection refresh. Full `npm test`
 passed (153 tests), migration tests, typecheck, lint/boundaries, format check
-and `git diff --check`. TASK-094 is now READY / NOT_STARTED; scoring and
-TASK-095 remain unimplemented.
+and `git diff --check`. TASK-094-R3 supplied the evidence foundations consumed
+by the subsequent TASK-094 runtime implementation above.
 
 The preceding completed task is TASK-076 — Phase 4 Procurement-to-Asset
 Integration Gate (`SATISFIED / CODE_COMPLETE`); see
@@ -32,7 +59,7 @@ commercial-document storage as `UNAVAILABLE_NOT_READY`; production storage is
 not asserted ready.
 
 The pre-existing `AGENTS.md` modification remains outside the TASK-092,
-TASK-092-R2, TASK-093-R2 and TASK-093 commits.
+TASK-092-R2, TASK-093-R2, TASK-093 and TASK-094 commits.
 
 ## Last Completed Task — TASK-093
 

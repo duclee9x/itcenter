@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { PostgresOutboxWriter } from "../../../packages/messaging/src/index.js";
 import type { Transaction } from "../../../packages/persistence/src/index.js";
 import {
   ApplicationError,
@@ -41,7 +42,7 @@ export async function transitionLifecycle(input: {
       "expected_version and reason are required.",
     );
   const result = await input.tx.query(
-    "SELECT id,lifecycle_state,version FROM asset.assets WHERE tenant_id=$1 AND id=$2 FOR UPDATE",
+    "SELECT id,lifecycle_state,risk_state,version FROM asset.assets WHERE tenant_id=$1 AND id=$2 FOR UPDATE",
     [input.tx.tenantId, input.assetId],
   );
   if (!result.rowCount)
@@ -54,10 +55,45 @@ export async function transitionLifecycle(input: {
       `Invalid asset lifecycle transition to ${input.targetState}.`,
     );
   const version = input.expectedVersion + 1;
-  await input.tx.query(
-    "UPDATE asset.assets SET lifecycle_state=$1, assignment_state=CASE WHEN $1='RESERVED' THEN 'RESERVED' WHEN $1='AVAILABLE' THEN 'UNASSIGNED' ELSE assignment_state END,updated_at=now(),version=$2 WHERE tenant_id=$3 AND id=$4",
-    [input.targetState, version, input.tx.tenantId, input.assetId],
+  const riskEligible = ["ASSIGNED", "IN_USE", "REPAIR"].includes(
+    input.targetState,
   );
+  await input.tx.query(
+    `UPDATE asset.assets SET lifecycle_state=$1,
+       assignment_state=CASE WHEN $1='RESERVED' THEN 'RESERVED' WHEN $1='AVAILABLE' THEN 'UNASSIGNED' ELSE assignment_state END,
+       risk_state=CASE WHEN $5 THEN risk_state ELSE 'UNKNOWN' END,
+       risk_assessment_id=CASE WHEN $5 THEN risk_assessment_id ELSE NULL END,
+       risk_assessment_valid_until=CASE WHEN $5 THEN risk_assessment_valid_until ELSE NULL END,
+       updated_at=now(),version=$2 WHERE tenant_id=$3 AND id=$4`,
+    [
+      input.targetState,
+      version,
+      input.tx.tenantId,
+      input.assetId,
+      riskEligible,
+    ],
+  );
+  if (!riskEligible && asset.risk_state !== "UNKNOWN")
+    await new PostgresOutboxWriter(input.tx).append({
+      event_id: randomUUID(),
+      event_type: "ASSET.RISK_BAND_CHANGED",
+      schema_version: 1,
+      occurred_at: new Date().toISOString(),
+      producer: { service: "asset", instance: "lifecycle" },
+      aggregate: { type: "ASSET", id: input.assetId, version },
+      actor: { type: input.actorType, id: input.actorId },
+      correlation_id: input.correlationId,
+      causation_id: input.commandType ?? `ASSET.${input.targetState}`,
+      tenant_id: input.tx.tenantId,
+      organization_id: input.tx.tenantId,
+      idempotency_key: `asset-risk-ineligible:${input.assetId}:${version}`,
+      payload: {
+        asset_id: input.assetId,
+        from_band: asset.risk_state,
+        to_band: "UNKNOWN",
+        reason_code: "ASSET_LIFECYCLE_NOT_SCORING_ELIGIBLE",
+      } as never,
+    });
   await input.tx.query(
     "INSERT INTO asset.lifecycle_transitions(id,tenant_id,asset_id,from_state,to_state,command_type,actor_type,actor_id,reason,correlation_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)",
     [

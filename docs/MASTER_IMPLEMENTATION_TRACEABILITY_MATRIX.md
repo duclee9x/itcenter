@@ -3063,9 +3063,9 @@ deflection, or recommendation APIs; those remain TASK-093.
 | Scope boundary | TASK-094-R2 only | no scoring assessments, scoring formulas, policy, worker, Risk Work Queue or recalculation implemented |
 
 Detailed implementation contract: `tasks/TASK-094_ASSET_RISK_REPLACEMENT_SCORING.md`.
-TASK-094's prerequisite `SCOPE_DEPENDENCY` items are resolved by TASK-094-R2
-and TASK-094-R3. Runtime scoring remains `READY / NOT_STARTED` and must consume
-these domain-owned boundaries without text inference or cross-domain SQL.
+TASK-094's prerequisite `SCOPE_DEPENDENCY` items were resolved by TASK-094-R2
+and TASK-094-R3. Runtime scoring now consumes these domain-owned boundaries
+without text inference or cross-domain SQL.
 
 ### TASK-094-R3 reliability and Warranty foundations
 
@@ -3077,3 +3077,17 @@ these domain-owned boundaries without text inference or cross-domain SQL.
 | Warranty authority | Maintenance source + `WarrantyAssetQuery` | UTC `WARRANTY_STATE_V1`, 90-day EXPIRING threshold, ambiguous/missing evidence UNKNOWN |
 | Warranty projection | Asset derived dimension + worker | canonical enum only, minute reconciliation across temporal boundaries, idempotent state/outbox update |
 | Scope boundary | TASK-094-R3 only | no Risk/Replacement assessment, scoring formula/worker, candidate recommendation or Work Queue risk item |
+
+### TASK-094 scoring runtime
+
+| Capability | Owner / persistence | Acceptance evidence |
+|---|---|---|
+| Immutable assessments and freshness | Asset risk/replacement assessment history and latest projection | separate versioned profiles, 0..100 scores, evidence contributions, completeness, 24-hour validity and stale-safe reads |
+| Evidence composition | Asset application over Incident, Monitoring, Maintenance, Warranty and Procurement query ports | tenant-scoped queries, Root/episode dedupe, unknown evidence lowers completeness, verified age and canonical Warranty state |
+| Useful-life and acquisition | Asset versioned category policy and append-only verified acquisition evidence; Procurement posted-receipt provenance query | no `Asset.created_at` guessing; receipt references are resolved within Procurement without cross-domain table reads |
+| Decision support | TASK-059 candidate port and Operations Work Queue | PLAN/PRIORITY only recommends human review; CRITICAL Risk creates one durably deduplicated review item |
+| Safety and replay | scoped `SYSTEM_ASSET_SCORING`, REPEATABLE READ transaction and durable assessment identity | no PO, lifecycle/assignment mutation, TASK-091 invocation or wildcard grant; repeated work is idempotent |
+
+TASK-094 runtime implementation and verification are recorded in
+`tasks/TASK-094_IMPLEMENTATION_REPORT.md`. TASK-095 readiness is recalculated
+from its declared dependencies separately; completion does not start it.

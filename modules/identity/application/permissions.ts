@@ -30,6 +30,36 @@ export async function assertActiveLicenseUser(input: {
 export const permissions: readonly Permission[] = [
   { code: "asset.read", resource_type: "asset", action: "read" },
   {
+    code: "asset.scoring.read",
+    resource_type: "asset",
+    action: "scoring.read",
+  },
+  {
+    code: "asset.scoring.recalculate",
+    resource_type: "asset",
+    action: "scoring.recalculate",
+  },
+  {
+    code: "asset.scoring.manage_policy",
+    resource_type: "asset_replacement_policy",
+    action: "manage",
+  },
+  {
+    code: "asset.acquisition.verify",
+    resource_type: "asset",
+    action: "acquisition.verify",
+  },
+  {
+    code: "asset.cost_evidence.read",
+    resource_type: "asset_cost_evidence",
+    action: "read",
+  },
+  {
+    code: "goods_receipt.asset_provenance.read",
+    resource_type: "goods_receipt_asset_provenance",
+    action: "read",
+  },
+  {
     code: "goods_receipt.read",
     resource_type: "goods_receipt",
     action: "read",

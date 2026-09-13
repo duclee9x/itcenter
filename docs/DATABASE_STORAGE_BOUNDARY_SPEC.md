@@ -3164,5 +3164,9 @@ with tenant-composite references to both owning domains. Monitoring owns its
 validated Asset identity and reliability episode query. Maintenance owns
 Warranty source rows; Asset stores only the canonical derived state, UTC
 evaluation date, policy version and evidence reference. A scheduled worker
-coordinates tenant-scoped owning-domain application ports; scoring and its
-assessment storage are not part of R3.
+coordinates tenant-scoped owning-domain application ports. TASK-094 stores
+only assessments and minimal evidence summaries in Asset storage; Incident,
+Monitoring, Maintenance, Warranty and Procurement remain their respective
+evidence owners. Procurement's scoring query accepts only Asset-owned
+deterministic received-unit references and reads Procurement receipt/cost
+records without querying Asset tables.

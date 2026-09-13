@@ -2834,7 +2834,10 @@ from a valid newer assessment. A CRITICAL Risk Work Item and TASK-059
 candidate upsert are idempotent across recalculation/redelivery. Do not
 automatically retry through a second business decision after an uncertain
 candidate command; reconcile the canonical TASK-059 result first. 24-hour
-expiry changes current freshness to STALE without rewriting history.
+expiry changes current freshness to STALE without rewriting history. Scoring
+transactions request REPEATABLE READ at BEGIN so Asset and evidence-query
+results share a consistent database snapshot; serialization failure is left
+for scheduled reconciliation rather than mixing snapshots.
 
 TASK-094-R2 Maintenance classification commands use idempotency and expected
 order version; completed classification is immutable. TASK-059 recommendation

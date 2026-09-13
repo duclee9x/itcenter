@@ -204,3 +204,8 @@ These are recorded as `SCOPE_DEPENDENCY` in the TASK-094 detailed contract.
 No dependencies are replaced with free-text inference, cross-domain direct
 SQL, or lossy state rewriting. TASK-094 remains blocked until the owning
 boundaries are made implementable.
+
+Resolution status: TASK-094-R2 and TASK-094-R3 supplied the required owning
+domain boundaries. TASK-094 runtime implementation and verification are
+recorded in `tasks/TASK-094_IMPLEMENTATION_REPORT.md`; the historical
+dependency analysis above is retained as the R1 planning record.

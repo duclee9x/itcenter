@@ -19,6 +19,7 @@ import { automationConflictWorkItemsTask } from "./automation-conflict-work-item
 import { automationExecutionTask } from "./automation-executions.js";
 import { incidentCorrelationTask } from "./incident-correlation.js";
 import { warrantyStateProjectionTask } from "./warranty-state-projection.js";
+import { assetScoringTask } from "./asset-scoring.js";
 const config = loadConfig(process.env, "worker", 3002);
 const log = logger(config);
 const pool = createPool(
@@ -80,6 +81,12 @@ host.start([
     uow: new PostgresUnitOfWork(pool),
     config,
     reportFailure: () => log("error", "asset.warranty_projection.failed"),
+  }),
+  assetScoringTask({
+    pool,
+    uow: new PostgresUnitOfWork(pool),
+    config,
+    reportFailure: () => log("error", "asset.scoring.failed"),
   }),
 ]);
 const server = createHttpServer(config, async () => false);

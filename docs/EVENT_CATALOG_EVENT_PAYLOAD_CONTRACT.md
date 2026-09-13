@@ -5663,8 +5663,11 @@ Define/adapt the following reference-based event semantics:
 - `ASSET.REPLACEMENT_RECOMMENDED`: assessment reference, band and TASK-059
   candidate reference where one was created through the canonical command.
 
-Useful-life policy changes and material scoring-profile activation must emit
-versioned references sufficient to enqueue idempotent recalculation. Events
+Useful-life policy versioning emits `ASSET.REPLACEMENT_POLICY_VERSIONED`;
+verified acquisition evidence emits `ASSET.ACQUISITION_DATE_VERIFIED`.
+Assessment events carry `as_of`, `valid_until`, profile/version and
+reference-only evidence summaries, sufficient for idempotent downstream
+refresh. Events
 must not contain full histories, invoices, supplier/commercial documents or
 protected Asset payloads. Events describe assessments, not approval or Asset
 replacement execution.

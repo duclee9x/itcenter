@@ -3658,3 +3658,9 @@ retain the validated Monitoring event reference. Warranty source evidence
 remains Maintenance-owned; derived Asset projection events retain only state,
 policy version, evaluation date, evidence reference and reason code. Ordinary
 projection refreshes do not create duplicate source audit records.
+
+TASK-094 assessment creation writes immutable assessment rows, reference-based
+outbox events and an audit record in one Asset transaction. Policy versions
+and verified acquisition-date evidence have separate actor/reason/source
+audit. Routine worker recalculation records the explicit scoring system
+principal; no source history or supplier document is copied to the timeline.

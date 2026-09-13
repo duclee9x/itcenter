@@ -8,8 +8,8 @@ feature_id: F-050
 workflow_id: WF-017/WF-INT01
 phase: P5
 priority: P2
-status: NOT_STARTED
-readiness: READY
+status: CODE_COMPLETE
+readiness: SATISFIED
 blocker: NONE
 owner_domain: asset
   depends_on: TASK-038, TASK-050, TASK-058, TASK-059, TASK-094-R1, TASK-094-R2, TASK-094-R3
@@ -20,10 +20,9 @@ and the referenced specification sections. TASK-094 is decision support; it
 does not approve or execute replacement, procurement, retirement, disposal,
 assignment change or automation.
 
-`TASK-094-R3` has implemented and verified the required Incident–Asset
-reliability and Warranty state foundations. See
-`tasks/TASK-094-R3_IMPLEMENTATION_REPORT.md`. TASK-094 is READY / NOT_STARTED;
-R3 does not implement scoring.
+`TASK-094-R3` implemented and verified the Incident–Asset reliability and
+Warranty state foundations. TASK-094 runtime scoring is implemented and
+verified; see `tasks/TASK-094_IMPLEMENTATION_REPORT.md`.
 
 ## Scope
 

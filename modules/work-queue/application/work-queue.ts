@@ -122,6 +122,34 @@ export async function createIncidentCorrelationFailureWorkItem(input: {
   );
 }
 
+export async function upsertAssetRiskReviewWorkItem(input: {
+  tx: Transaction;
+  assetId: string;
+  assessmentId: string;
+  score: number;
+  correlationId: string;
+}): Promise<void> {
+  await input.tx.query(
+    `INSERT INTO operations.work_items
+       (id,tenant_id,source_type,source_id,title,priority,owner_team_id,context_json)
+     VALUES($1,$2,'ASSET_RISK_REVIEW',$3,'Review critical Asset operational risk','HIGH','ASSET',$4)
+     ON CONFLICT DO NOTHING`,
+    [
+      randomUUID(),
+      input.tx.tenantId,
+      input.assessmentId,
+      JSON.stringify({
+        asset_id: input.assetId,
+        assessment_id: input.assessmentId,
+        score: input.score,
+        correlation_id: input.correlationId,
+        action:
+          "Review current Asset Risk assessment; this item does not change the computed score.",
+      }),
+    ],
+  );
+}
+
 export async function recordIncidentCorrelationTimelineEvent(input: {
   tx: Transaction;
   incidentId: string;

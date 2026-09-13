@@ -1,4 +1,5 @@
 import type { Config } from "../../../packages/config/src/index.js";
+import { handleAssetScoringRoute } from "./asset-scoring-routes.js";
 import {
   createHttpServer,
   json,
@@ -273,6 +274,18 @@ export function apiServer(
   objectStore?: ObjectStore,
 ) {
   return createHttpServer(config, ready, async (req, res, context) => {
+    if (
+      await handleAssetScoringRoute({
+        req,
+        res,
+        context,
+        config,
+        authentication,
+        authorization,
+        uow,
+      })
+    )
+      return true;
     if (
       await handleKnowledgeRecommendationRoute({
         req,

@@ -4860,6 +4860,13 @@ classification defaults to `UNKNOWN`. TASK-059 candidate rows store the latest
 recommendation assessment/profile references separately from candidate
 lifecycle state. These are prerequisite fields, not scoring assessments.
 
+TASK-094 adds separate append-only `asset.risk_assessments` and
+`asset.replacement_assessments`, a rebuildable `asset.scoring_latest`
+projection, immutable tenant/category useful-life policy versions and
+append-only verified acquisition evidence. The Asset's `risk_state` is only a
+derived current Risk projection; stale or ineligible assessments read as
+UNKNOWN. `Asset.created_at` is never acquisition evidence.
+
 TASK-094-R3 adds Incident-owned `IncidentAssetLink` (`AFFECTED_ASSET`) and
 append-only link history. The active relationship is unique per tenant,
 Incident and Asset; both Incident and Asset references are same-tenant

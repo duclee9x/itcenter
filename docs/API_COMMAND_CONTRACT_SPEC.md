@@ -2895,17 +2895,20 @@ score, band, completeness, profile/version, `as_of`, freshness/`valid_until`
 and explainable evidence references; it must not expose cost documents or
 cross-tenant evidence.
 
-Provide an explicit idempotent `ASSET.SCORING.RECALCULATE` (or equivalent)
-command guarded by `asset.scoring.recalculate`, expected Asset version and
-correlation context. Useful-life policy create/version/activate operations use
+Provide an explicit idempotent `ASSET.SCORING.RECALCULATE` command at
+`POST /api/v1/assets/{id}/commands/recalculate-scoring`, guarded by
+`asset.scoring.recalculate`, required `expected_version`, Idempotency-Key and
+correlation context. Useful-life policy create/version operations use
 `asset.scoring.manage_policy`, tenant/category scope, versioning, reason, audit
 and idempotency. A verified acquisition-date command, if required by existing
 Asset storage, requires source kind, actor/reason, expected version, audit and
 idempotency. It must not accept a guessed timestamp from `created_at`.
 
-Automated triggers enqueue scoring through the standard worker/outbox path;
-queries never recalculate implicitly. Candidate creation is delegated to the
-TASK-059 owning application command/port. TASK-094 APIs do not approve a
+Automated triggers enqueue scoring through the standard worker/event path;
+queries never recalculate implicitly. `GET /api/v1/assets/{id}/assessments`
+returns immutable history and marks latest projection freshness. Candidate
+creation is delegated to the TASK-059 owning application command/port.
+TASK-094 APIs do not approve a
 candidate, create a PO, or mutate Asset lifecycle/assignment.
 
 TASK-094-R2 prerequisite commands/ports:

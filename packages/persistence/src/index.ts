@@ -9,18 +9,29 @@ export interface Transaction extends SqlExecutor {
   readonly tenantId: string;
 }
 export interface UnitOfWork {
-  run<T>(tenantId: string, work: (tx: Transaction) => Promise<T>): Promise<T>;
+  run<T>(
+    tenantId: string,
+    work: (tx: Transaction) => Promise<T>,
+    options?: {
+      isolationLevel?: "READ COMMITTED" | "REPEATABLE READ" | "SERIALIZABLE";
+    },
+  ): Promise<T>;
 }
 export class PostgresUnitOfWork implements UnitOfWork {
   constructor(private readonly pool: pg.Pool) {}
   async run<T>(
     tenantId: string,
     work: (tx: Transaction) => Promise<T>,
+    options: {
+      isolationLevel?: "READ COMMITTED" | "REPEATABLE READ" | "SERIALIZABLE";
+    } = {},
   ): Promise<T> {
     if (!tenantId.trim()) throw new Error("Tenant context is required");
     const client = await this.pool.connect();
     try {
-      await client.query("BEGIN");
+      await client.query(
+        `BEGIN ISOLATION LEVEL ${options.isolationLevel ?? "READ COMMITTED"}`,
+      );
       await client.query("SELECT set_config('app.tenant_id', $1, true)", [
         tenantId,
       ]);

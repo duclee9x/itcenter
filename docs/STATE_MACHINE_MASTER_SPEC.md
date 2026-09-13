@@ -2975,6 +2975,12 @@ it is UNKNOWN when no usable assessment exists or its 24-hour validity has
 expired. A lifecycle transition out of eligible in-service states invalidates
 the current projection without deleting historical assessments.
 
+`asset.risk_state` is refreshed by the Asset-owned scoring transaction and a
+scheduled stale-projection reconciler. At 24 hours, or after an ineligible
+lifecycle transition, current reads resolve Risk to UNKNOWN. Historical
+assessment rows remain queryable with `STALE` freshness; neither assessment
+history nor Replacement assessment history is rewritten.
+
 Human acknowledgement/defer/reject/approve decisions are stored separately
 through the TASK-059 review workflow. Score change cannot override or
 terminalize a human decision. Only canonical TASK-059 and Procurement

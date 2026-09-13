@@ -50,7 +50,7 @@ test("empty DB applies all migrations; rerun is idempotent and changed migration
       "SELECT schemaname,tablename FROM pg_tables WHERE schemaname IN ('identity','platform','audit')",
     );
     // TASK-090-R1, TASK-092 and TASK-094-R2 add canonical principal/recovery storage.
-    assert.equal(tables.rowCount, 24);
+    assert.equal(tables.rowCount, 25);
     const domainSchemas = await db.pool.query(
       "SELECT schema_name FROM information_schema.schemata WHERE schema_name = ANY($1::text[])",
       [

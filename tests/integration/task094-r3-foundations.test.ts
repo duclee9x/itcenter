@@ -535,14 +535,14 @@ test("Warranty query is canonical and Asset projection refresh is idempotent acr
   }
 });
 
-test("TASK-094-R3 introduces no scoring or candidate creation persistence", async () => {
+test("TASK-094 scoring persistence is added by the later scoring task", async () => {
   const db = await testDatabase();
   try {
     const result = await db.pool.query(
       `SELECT tablename FROM pg_tables WHERE schemaname='asset'
         AND tablename IN ('risk_assessments','replacement_assessments','replacement_policies')`,
     );
-    assert.equal(result.rowCount, 0);
+    assert.equal(result.rowCount, 3);
   } finally {
     await db.close();
   }

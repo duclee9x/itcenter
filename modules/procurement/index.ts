@@ -72,3 +72,4 @@ export {
   type CostSourceType,
   type CostBasis,
 } from "./application/cost-provenance.js";
+export { queryAssetScoringEvidence } from "./application/asset-scoring-evidence.js";

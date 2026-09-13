@@ -44,7 +44,7 @@ async function authorizeAssetRead(input: {
       id: input.assetId,
       tenant_id: input.tx.tenantId,
     },
-    scope: {},
+    scope: { asset: input.assetId, tenant: input.tx.tenantId },
     context: { correlation_id: input.correlationId },
   });
 }

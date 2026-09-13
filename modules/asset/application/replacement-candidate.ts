@@ -76,7 +76,10 @@ async function recordCandidateRecommendation(input: {
       version: input.result.version!,
     },
     actor: {
-      type: input.command.principal.actor_type,
+      type:
+        input.command.principal.actor_type === "SYSTEM_ASSET_SCORING"
+          ? "SYSTEM"
+          : input.command.principal.actor_type,
       id: input.command.principal.id,
     },
     correlation_id: input.command.context.correlation_id,
@@ -145,7 +148,7 @@ async function recommendReplacementCandidateOnce(
     !input.scoring_profile_version ||
     !input.principal.id ||
     input.principal.tenant_id !== tx.tenantId ||
-    input.principal.actor_type !== "SYSTEM" ||
+    !["SYSTEM", "SYSTEM_ASSET_SCORING"].includes(input.principal.actor_type) ||
     !input.service_name ||
     !input.reason.trim() ||
     !input.context.correlation_id ||
@@ -177,7 +180,7 @@ async function recommendReplacementCandidateOnce(
       id: input.asset_id,
       tenant_id: tx.tenantId,
     },
-    scope: {},
+    scope: { asset: input.asset_id, tenant: input.tenant_id },
     context: { ...input.context },
   });
 

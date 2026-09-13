@@ -118,7 +118,7 @@ export async function queryWarrantyAsset(input: {
       id: input.assetId,
       tenant_id: input.tx.tenantId,
     },
-    scope: {},
+    scope: { asset: input.assetId, tenant: input.tx.tenantId },
     context: { correlation_id: input.correlationId },
   });
   const result = await evaluateWarrantyForAsset(input);
@@ -246,7 +246,7 @@ export async function queryMaintenanceAssetHistory(input: {
       id: input.assetId,
       tenant_id: input.tx.tenantId,
     },
-    scope: {},
+    scope: { asset: input.assetId, tenant: input.tx.tenantId },
     context: { ...input.context },
   });
   const rows = await input.tx.query(

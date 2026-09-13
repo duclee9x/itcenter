@@ -22,6 +22,17 @@ export {
   type ReplacementCandidateRecommendationResult,
 } from "./application/replacement-candidate.js";
 export {
+  listScoringAssetIds,
+  expireAssetRiskProjections,
+  readAssetAssessments,
+  recalculateAssetAssessments,
+  type ScoringActor,
+} from "./application/scoring.js";
+export {
+  recordVerifiedAcquisitionDate,
+  saveAssetReplacementPolicy,
+} from "./application/scoring-governance.js";
+export {
   listWarrantyProjectionAssetIds,
   projectWarrantyState,
   type AssetWarrantyProjectionState,

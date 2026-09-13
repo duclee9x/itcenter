@@ -1,7 +1,11 @@
 import type { Transaction } from "../../../packages/persistence/src/index.js";
 export interface AuthorizationInput {
   principalId: string;
-  principalType?: "USER" | "SYSTEM_AUTOMATION" | "SYSTEM_CORRELATION";
+  principalType?:
+    | "USER"
+    | "SYSTEM_AUTOMATION"
+    | "SYSTEM_CORRELATION"
+    | "SYSTEM_ASSET_SCORING";
   tenantId: string;
   action: string;
   resourceType: string;
@@ -28,7 +32,8 @@ export async function evaluateAuthorization(
     return { result: "DENY", reason: "Tenant scope does not match" };
   if (
     input.principalType === "SYSTEM_AUTOMATION" ||
-    input.principalType === "SYSTEM_CORRELATION"
+    input.principalType === "SYSTEM_CORRELATION" ||
+    input.principalType === "SYSTEM_ASSET_SCORING"
   ) {
     const effectiveAt =
       input.at ??
@@ -37,7 +42,9 @@ export async function evaluateAuthorization(
     const principalTable =
       input.principalType === "SYSTEM_AUTOMATION"
         ? "identity.automation_principals"
-        : "identity.correlation_principals";
+        : input.principalType === "SYSTEM_CORRELATION"
+          ? "identity.correlation_principals"
+          : "identity.asset_scoring_principals";
     const rows = await tx.query<{
       code: string;
       role_code: string;

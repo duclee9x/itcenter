@@ -2130,7 +2130,9 @@ than a complete assessment. A stale assessment is not current decision
 evidence; show its freshness explicitly and treat current Risk as UNKNOWN.
 
 Only a current CRITICAL Operational Risk assessment creates/upserts one
-`ASSET_RISK_REVIEW` Work Queue item per unresolved review. HIGH is reportable
+`ASSET_RISK_REVIEW` Work Queue item per unresolved Asset review. A durable
+partial unique index serializes concurrent assessments for the same Asset.
+HIGH is reportable
 without an automatic Work Item. Replacement MONITOR/REVIEW is reporting only;
 UNKNOWN creates no candidate. PLAN/PRIORITY may feed the TASK-059 human
 replacement review path, never Procurement directly. Recalculations and

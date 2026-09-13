@@ -1857,3 +1857,8 @@ episode identity is UNAVAILABLE. Query boundaries are tenant-scoped,
 read-only and authorization-checked through the narrow
 `incident.asset_history.read` capability; the Asset aggregate query is not
 misrepresented as access to one arbitrary Incident.
+
+TASK-094 consumes the same Incident and Monitoring application queries under
+`SYSTEM_ASSET_SCORING`; it derives Incident episodes from direct Asset links
+and uses Monitoring's canonical correlation IDs to remove duplicate failure
+episodes. The scoring domain does not read Incident or Monitoring tables.

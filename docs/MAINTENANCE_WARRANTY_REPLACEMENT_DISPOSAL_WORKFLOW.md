@@ -2240,9 +2240,9 @@ invokes TASK-091.
 
 Maintenance owns typed corrective/preventive classification and the
 Maintenance Asset History query. Free-text descriptions are never a scoring
-classification. Until that canonical capability exists, corrective burden
-is unavailable and TASK-094 implementation is blocked by the recorded
-`SCOPE_DEPENDENCY`.
+classification. TASK-094 consumes these records through the query boundary;
+unknown completed classification lowers completeness rather than being
+treated as zero corrective burden.
 
 ## TASK-094-R2 scoring prerequisites
 
@@ -2263,7 +2263,8 @@ uniqueness, human review state and terminal disposition. `CREATED`,
 `TERMINAL_DISPOSITION_EXISTS`, `INELIGIBLE` and `CONFLICT` are explicit
 outcomes. The command records assessment references/history and creates the
 review work item/outbox/audit for material candidate changes. It never issues
-procurement or changes Asset lifecycle. TASK-094 has not implemented scoring.
+procurement or changes Asset lifecycle. TASK-094 uses this boundary for
+human review recommendations and does not approve or execute replacement.
 
 ### TASK-094-R3 Warranty state authority
 
@@ -2276,5 +2277,5 @@ an explicit reason; overlapping plausible records are never resolved by
 choosing the newest or longest record. The 90/60/30/7-day reminders are
 notification milestones, not separate Warranty states. A tenant-scoped
 worker refreshes projections idempotently at least once per minute so time
-boundaries are observed even without a Warranty row mutation. Scoring is not
-part of R3.
+boundaries are observed even without a Warranty row mutation. Scoring was not
+part of R3; TASK-094 now consumes this query and projection.

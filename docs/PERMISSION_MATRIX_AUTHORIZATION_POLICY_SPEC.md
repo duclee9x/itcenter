@@ -2628,6 +2628,13 @@ Incident, Monitoring, Maintenance and Procurement query permissions remain
 owned and enforced by those domains; approval does not substitute for
 authorization.
 
+TASK-094 runtime provisions `SYSTEM_ASSET_SCORING` per tenant and uses only
+explicit resource-scoped grants for scoring, Asset evidence reads and the
+TASK-059 candidate recommendation command. Provisioning is fail-closed; no
+default role receives these grants and GLOBAL/TENANT/wildcard grants are
+rejected for this principal type. Human recalculation, policy management and
+acquisition-date verification use their separate user permissions.
+
 TASK-094-R2 uses least-privilege capabilities: Maintenance classification
 changes require `maintenance.manage`; completed Asset-history reads require
 `maintenance.read` against a tenant-scoped Maintenance resource through the
