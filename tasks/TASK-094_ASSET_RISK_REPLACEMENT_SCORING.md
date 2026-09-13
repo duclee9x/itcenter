@@ -9,10 +9,9 @@ workflow_id: WF-017/WF-INT01
 phase: P5
 priority: P2
 status: NOT_STARTED
-readiness: BLOCKED
+readiness: READY
 owner_domain: asset
-depends_on: TASK-038, TASK-050, TASK-058, TASK-059, TASK-094-R1
-blocker: SCOPE_DEPENDENCY (Maintenance typed classification; TASK-059 command port; Asset risk_state compatibility)
+  depends_on: TASK-038, TASK-050, TASK-058, TASK-059, TASK-094-R1, TASK-094-R2
 ```
 
 Normative scoring rules are in `TASK-094-R1_RISK_REPLACEMENT_SCORING_CONTRACT.md`
@@ -215,26 +214,28 @@ Define events equivalent to `ASSET.RISK_ASSESSED`,
 Events reference assessment IDs and minimal evidence summaries. Audit and
 timeline preserve computed assessments separately from human decisions.
 
-## Existing implementation dependencies (blocking)
+## Implementation prerequisites
 
-1. **Maintenance classification:** current `maintenance.orders` has no typed
-   corrective/preventive classification; title and description are free text.
-   Maintenance must add an owning-domain classification and read contract
-   before TASK-094 can calculate the required corrective-maintenance group.
-   Legacy rows must remain unknown/unclassified; do not infer from text.
-2. **TASK-059 application boundary:** candidate creation is currently exposed
-   through API-route persistence and no reusable Asset application command/
-   port is exported. TASK-059 must expose its canonical candidate command
-   before TASK-094 integrates without direct table writes.
-3. **Asset risk-state compatibility:** offboarding currently interprets
-   `asset.assets.risk_state = 'MISSING'` as missing-Asset evidence, while this
-   contract makes the field a derived Risk-band projection and requires
-   UNKNOWN when no valid assessment exists. Resolve this existing overloaded
-   use into a separate canonical missing/presence signal before projection
-   writes; TASK-094 must not erase or reinterpret missing-Asset evidence.
+The three repository dependencies identified during R1 were resolved by
+`TASK-094-R2` without implementing scoring:
 
-These are `SCOPE_DEPENDENCY` blockers, not reasons to use free text, cross-domain
-SQL, or weakened scoring. No remediation subtask is created here.
+1. **Maintenance classification:** Maintenance now owns typed
+   `CORRECTIVE`/`PREVENTIVE`/`INSPECTION`/`OTHER`/`UNKNOWN` classification and
+   a tenant-scoped completed Asset history query. Legacy classifications remain
+   `UNKNOWN`; completed classification is immutable; ambiguous UNKNOWN history
+   is explicit.
+2. **TASK-059 application boundary:** Asset now exports an authorized,
+   idempotent Replacement Candidate recommendation command with explicit
+   lifecycle outcomes, durable one-active-candidate protection, and terminal
+   disposition suppression. TASK-094 must call this boundary rather than write
+   TASK-059 persistence directly.
+3. **Asset Risk-state compatibility:** Offboarding now owns typed return
+   recovery state. Asset Risk is constrained to `LOW`, `MEDIUM`, `HIGH`,
+   `CRITICAL` or `UNKNOWN`; legacy `MISSING` meaning is preserved in a
+   deterministically linked recovery record or reconciliation evidence.
+
+These prerequisites are verified and no longer block TASK-094. TASK-094 itself
+remains `READY / NOT_STARTED` until its scoring runtime is explicitly started.
 
 ## Required verification
 

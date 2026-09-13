@@ -35,12 +35,23 @@ export async function migrate(
     ].map((owner) =>
       owner === "asset"
         ? { owner, before: "20260912_010_received_unit_registration.sql" }
-        : owner === "operations"
-          ? { owner, before: "20260914_001_contract_document_sources.sql" }
-          : owner === "problem"
-            ? { owner, before: "20260918_001_task093_knowledge_foundation.sql" }
-            : { owner },
+        : owner === "identity"
+          ? { owner, before: "20260919_001_offboarding_asset_recovery.sql" }
+          : owner === "operations"
+            ? { owner, before: "20260914_001_contract_document_sources.sql" }
+            : owner === "problem"
+              ? {
+                  owner,
+                  before: "20260918_001_task093_knowledge_foundation.sql",
+                }
+              : { owner },
     ),
+    // Offboarding recovery evidence references the Asset-owned assignment and
+    // clearance identities, so its additive extension runs after Asset core.
+    {
+      owner: "identity",
+      after: "20260916_002_task092_correlation_permissions.sql",
+    },
     { owner: "software", before: "20260912_002_deployment.sql" },
     { owner: "artifact" },
     { owner: "software", after: "20260912_001_catalog.sql" },

@@ -2907,3 +2907,23 @@ Automated triggers enqueue scoring through the standard worker/outbox path;
 queries never recalculate implicitly. Candidate creation is delegated to the
 TASK-059 owning application command/port. TASK-094 APIs do not approve a
 candidate, create a PO, or mutate Asset lifecycle/assignment.
+
+TASK-094-R2 prerequisite commands/ports:
+
+- `MAINTENANCE.CREATE` requires typed classification; `UNKNOWN` is reserved
+  for legacy/import paths. `MAINTENANCE.CLASSIFICATION_UPDATE` requires
+  `maintenance.manage`, reason and expected version and is denied after a
+  terminal order state. The Maintenance Asset History query is tenant-scoped,
+  read-only and returns `AVAILABLE` with zero rows distinctly from query
+  failure.
+- TASK-059's `recommendReplacementCandidate` command requires
+  `replacement.create_candidate` authorization for the tenant/Asset and
+  assessment/profile evidence. It returns explicit recommendation outcomes,
+  preserves active candidate human state and does not recreate after terminal
+  disposition. Material create/update writes history, outbox/audit and the
+  canonical review Work Item in the same unit of work.
+- `OFFBOARDING.ASSET_RECOVERY_STATE` is a tenant/case/Asset-scoped,
+  idempotent, expected-clearance-version command with reason. Operators may
+  classify an unresolved request `UNRETURNED`/`MISSING`; restoration to
+  `PENDING_RETURN` requires a canonical pending Asset return request.
+  `RETURNED` is recorded only after Asset-domain completion is confirmed.

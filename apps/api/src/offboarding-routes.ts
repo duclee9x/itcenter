@@ -30,6 +30,7 @@ import {
   beginOffboardingReconciliation,
   endOffboardingReconciliation,
   resolveOffboardingRecoveryAction,
+  setOffboardingAssetRecoveryState,
 } from "../../../modules/identity/index.js";
 import {
   cancelReturnRequest,
@@ -177,16 +178,42 @@ async function processClearances(input: {
               readReturnRequestState(tx, ref.return_request_id!),
             );
             if (state.status === "FULFILLED")
-              await input.uow.run(input.tenantId, (tx) =>
-                recordOffboardingClearance({
+              await input.uow.run(input.tenantId, async (tx) => {
+                const changed = await setOffboardingAssetRecoveryState({
                   tx,
                   caseId: input.caseId,
-                  type: "ASSET_RETURN",
-                  resourceId: String(task.resource_id),
-                  state: "SUCCEEDED",
-                  detail: "Asset return was confirmed by the Asset domain.",
-                }),
-              );
+                  assetId: String(task.resource_id),
+                  expectedVersion: Number(task.version),
+                  state: "RETURNED",
+                  verifiedReturn: true,
+                  actorId: input.actorId,
+                  reason:
+                    "Return completion verified through the Asset-owned request.",
+                  correlationId: input.context.correlation_id,
+                });
+                if (!changed.noOp)
+                  await effects({
+                    tx,
+                    config: input.config,
+                    principal: input.principal,
+                    context: input.context,
+                    key: `${input.key}:asset-recovery:${task.resource_id}:returned`,
+                    eventType: "OFFBOARDING.ASSET_RECOVERY_STATE_CHANGED",
+                    caseId: input.caseId,
+                    aggregateType: "OFFBOARDING_ASSET_RECOVERY",
+                    aggregateId: changed.clearance_id,
+                    version: changed.version,
+                    reason: "Asset-owned return request completed.",
+                    payload: {
+                      offboarding_case_id: input.caseId,
+                      asset_id: String(task.resource_id),
+                      clearance_id: changed.clearance_id,
+                      from_state: changed.from_state ?? null,
+                      state: changed.state,
+                      version: changed.version,
+                    },
+                  });
+              });
           }
         } catch {
           /* keep clearance actionable */
@@ -197,7 +224,13 @@ async function processClearances(input: {
     );
     for (const a of assets) {
       try {
-        if (a.risk_state === "MISSING") {
+        const recovery = existing.clearances.find(
+          (clearance) =>
+            clearance.clearance_type === "ASSET_RETURN" &&
+            clearance.resource_id === a.id,
+        );
+        const recoveryState = recovery?.asset_recovery_state ?? null;
+        if (recoveryState === "MISSING" || recoveryState === "UNRETURNED") {
           await input.uow.run(input.tenantId, async (tx) => {
             await recordOffboardingClearance({
               tx,
@@ -205,31 +238,71 @@ async function processClearances(input: {
               type: "ASSET_RETURN",
               resourceId: a.id,
               state: "BLOCKED",
-              detail: `Asset ${a.asset_code} is marked missing; investigate or record an approved exception.`,
+              detail: `Asset ${a.asset_code} recovery is ${recoveryState}; investigate or record an approved exception.`,
             });
             await createOffboardingWorkItem({
               tx,
               caseId: input.caseId,
-              title: `Investigate missing asset ${a.asset_code} during offboarding`,
+              title:
+                recoveryState === "MISSING"
+                  ? `Investigate missing asset ${a.asset_code} during offboarding`
+                  : `Resolve unreturned asset ${a.asset_code} during offboarding`,
             });
           });
           continue;
         }
-        if (a.return_request_id) {
+        if (recoveryState === "RETURNED") {
           await input.uow.run(input.tenantId, (tx) =>
             recordOffboardingClearance({
               tx,
               caseId: input.caseId,
               type: "ASSET_RETURN",
               resourceId: a.id,
-              state: "PENDING",
+              state: "SUCCEEDED",
+              detail: `Asset ${a.asset_code} return recovery is confirmed.`,
+            }),
+          );
+          continue;
+        }
+        if (a.return_request_id) {
+          await input.uow.run(input.tenantId, async (tx) => {
+            const changed = await setOffboardingAssetRecoveryState({
+              tx,
+              caseId: input.caseId,
+              assetId: a.id,
+              expectedVersion: recovery?.version ?? 0,
+              state: "PENDING_RETURN",
+              actorId: input.actorId,
+              reason: input.reason,
               detail: JSON.stringify({
-                asset_id: a.id,
                 return_request_id: a.return_request_id,
                 asset_version: a.version,
               }),
-            }),
-          );
+              correlationId: input.context.correlation_id,
+            });
+            if (!changed.noOp)
+              await effects({
+                tx,
+                config: input.config,
+                principal: input.principal,
+                context: input.context,
+                key: `${input.key}:asset-recovery:${a.id}:pending`,
+                eventType: "OFFBOARDING.ASSET_RECOVERY_STATE_CHANGED",
+                caseId: input.caseId,
+                aggregateType: "OFFBOARDING_ASSET_RECOVERY",
+                aggregateId: changed.clearance_id,
+                version: changed.version,
+                reason: input.reason,
+                payload: {
+                  offboarding_case_id: input.caseId,
+                  asset_id: a.id,
+                  clearance_id: changed.clearance_id,
+                  from_state: changed.from_state ?? null,
+                  state: changed.state,
+                  version: changed.version,
+                },
+              });
+          });
           continue;
         }
         const request = await input.uow.run(input.tenantId, (tx) =>
@@ -242,18 +315,42 @@ async function processClearances(input: {
           }),
         );
         await input.uow.run(input.tenantId, async (tx) => {
-          await recordOffboardingClearance({
+          const recoveryChange = await setOffboardingAssetRecoveryState({
             tx,
             caseId: input.caseId,
-            type: "ASSET_RETURN",
-            resourceId: a.id,
-            state: "PENDING",
+            assetId: a.id,
+            expectedVersion: recovery?.version ?? 0,
+            state: "PENDING_RETURN",
+            actorId: input.actorId,
+            reason: input.reason,
             detail: JSON.stringify({
-              asset_id: a.id,
               return_request_id: request.return_request_id,
               asset_version: request.version,
             }),
+            correlationId: input.context.correlation_id,
           });
+          if (!recoveryChange.noOp)
+            await effects({
+              tx,
+              config: input.config,
+              principal: input.principal,
+              context: input.context,
+              key: `${input.key}:asset-recovery:${a.id}:pending`,
+              eventType: "OFFBOARDING.ASSET_RECOVERY_STATE_CHANGED",
+              caseId: input.caseId,
+              aggregateType: "OFFBOARDING_ASSET_RECOVERY",
+              aggregateId: recoveryChange.clearance_id,
+              version: recoveryChange.version,
+              reason: input.reason,
+              payload: {
+                offboarding_case_id: input.caseId,
+                asset_id: a.id,
+                clearance_id: recoveryChange.clearance_id,
+                from_state: recoveryChange.from_state ?? null,
+                state: recoveryChange.state,
+                version: recoveryChange.version,
+              },
+            });
           await effects({
             tx,
             config: input.config,
@@ -527,8 +624,12 @@ export async function handleOffboardingRoute(input: {
     /^\/api\/v1\/offboarding-cases\/([^/]+)\/commands\/(start|resume|mark-ready|complete|cancel|request-cancel|complete-cancellation|reconcile|resolve-recovery|resolve-clearance)$/.exec(
       path,
     );
+  const assetRecovery =
+    /^\/api\/v1\/offboarding-cases\/([^/]+)\/assets\/([^/]+)\/commands\/recovery-state$/.exec(
+      path,
+    );
   if (
-    !(method === "POST" && (start || create || cmd)) &&
+    !(method === "POST" && (start || create || cmd || assetRecovery)) &&
     !(method === "GET" && one)
   )
     return false;
@@ -540,9 +641,11 @@ export async function handleOffboardingRoute(input: {
     ? start[1]!
     : create
       ? create[1]!
-      : cmd
-        ? cmd[1]!
-        : one?.[1];
+      : assetRecovery
+        ? assetRecovery[1]!
+        : cmd
+          ? cmd[1]!
+          : one?.[1];
   if (!resourceId)
     throw new ApplicationError(
       "NOT_FOUND",
@@ -738,6 +841,101 @@ export async function handleOffboardingRoute(input: {
       ),
       meta: context,
     });
+    return true;
+  }
+  if (assetRecovery) {
+    fields(b, ["expected_clearance_version", "state", "reason"]);
+    const state = text(b, "state");
+    if (!["PENDING_RETURN", "UNRETURNED", "MISSING"].includes(state))
+      throw new ApplicationError(
+        "VALIDATION_ERROR",
+        "Unsupported Asset recovery state.",
+      );
+    const caseId = assetRecovery[1]!;
+    const assetId = assetRecovery[2]!;
+    if (state === "PENDING_RETURN") {
+      const recoveryCase = await uow.run(principal.tenant_id, (tx) =>
+        readOffboardingCase(tx, caseId),
+      );
+      const assignedAssets = await uow.run(principal.tenant_id, (tx) =>
+        listUserAssetsForOffboarding(tx, recoveryCase.user_id),
+      );
+      if (
+        !assignedAssets.some(
+          (asset) =>
+            asset.id === assetId &&
+            asset.return_request_id &&
+            asset.return_state === "PENDING",
+        )
+      )
+        throw new ApplicationError(
+          "BUSINESS_RULE_VIOLATION",
+          "A canonical pending Asset return request is required to restore PENDING_RETURN.",
+        );
+    }
+    const result = await uow.run(principal.tenant_id, (tx) =>
+      new PostgresIdempotencyStore(tx).execute(
+        {
+          principalId: principal.id,
+          operation: "OFFBOARDING.ASSET_RECOVERY_STATE",
+          businessScope: `${caseId}:${assetId}`,
+          key,
+          semanticRequest: b as never,
+          expiresAt: new Date(Date.now() + 86400000),
+        },
+        async () => {
+          const changed = await setOffboardingAssetRecoveryState({
+            tx,
+            caseId,
+            assetId,
+            expectedVersion: int(b, "expected_clearance_version"),
+            state: state as "PENDING_RETURN" | "UNRETURNED" | "MISSING",
+            actorId: principal.id,
+            reason: text(b, "reason"),
+            correlationId: context.correlation_id,
+          });
+          await effects({
+            tx,
+            config,
+            principal,
+            context,
+            key,
+            eventType: "OFFBOARDING.ASSET_RECOVERY_STATE_CHANGED",
+            caseId,
+            aggregateType: "OFFBOARDING_ASSET_RECOVERY",
+            aggregateId: changed.clearance_id,
+            version: changed.version,
+            reason: text(b, "reason"),
+            payload: {
+              offboarding_case_id: caseId,
+              asset_id: assetId,
+              clearance_id: changed.clearance_id,
+              from_state: changed.from_state ?? null,
+              state: changed.state,
+              version: changed.version,
+            },
+          });
+          return { status: 200, body: changed as never };
+        },
+      ),
+    );
+    const current = await uow.run(principal.tenant_id, (tx) =>
+      readOffboardingCase(tx, caseId),
+    );
+    if (["IN_PROGRESS", "BLOCKED"].includes(current.state))
+      await processClearances({
+        uow,
+        tenantId: principal.tenant_id,
+        caseId,
+        userId: current.user_id,
+        actorId: principal.id,
+        reason: text(b, "reason"),
+        config,
+        principal,
+        context,
+        key,
+      });
+    json(res, result.status, { data: result.body, meta: context });
     return true;
   }
   const caseId = cmd![1]!;

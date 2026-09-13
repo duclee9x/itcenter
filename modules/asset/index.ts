@@ -16,3 +16,8 @@ export {
   transferAsset,
   transitionLifecycle,
 } from "./application/lifecycle.js";
+export {
+  recommendReplacementCandidate,
+  type ReplacementCandidateRecommendation,
+  type ReplacementCandidateRecommendationResult,
+} from "./application/replacement-candidate.js";

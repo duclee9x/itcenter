@@ -404,7 +404,7 @@ export async function listUserAssetsForOffboarding(
   userId: string,
 ) {
   const rows = await tx.query(
-    `SELECT a.id,a.asset_code,a.assignment_state,a.risk_state,a.lifecycle_state,a.version,rr.id AS return_request_id,
+    `SELECT a.id,a.asset_code,a.assignment_state,a.lifecycle_state,a.version,rr.id AS return_request_id,
             rr.status AS return_state
        FROM asset.assignments x JOIN asset.assets a ON a.tenant_id=x.tenant_id AND a.id=x.asset_id
        LEFT JOIN asset.return_requests rr ON rr.tenant_id=x.tenant_id AND rr.assignment_id=x.id AND rr.status='PENDING'
@@ -416,7 +416,6 @@ export async function listUserAssetsForOffboarding(
     id: String(row.id),
     asset_code: String(row.asset_code),
     assignment_state: String(row.assignment_state),
-    risk_state: String(row.risk_state),
     lifecycle_state: String(row.lifecycle_state),
     version: Number(row.version),
     return_request_id: row.return_request_id

@@ -724,7 +724,7 @@ test("a missing assigned asset blocks offboarding and reconciliation resumes aft
     [modelId, tenant, categoryId],
   );
   await db.pool.query(
-    "INSERT INTO asset.assets(id,tenant_id,asset_code,asset_model_id,lifecycle_state,assignment_state,risk_state) VALUES($1,$2,'AST-OFF-MISSING',$3,'ASSIGNED','ASSIGNED','MISSING')",
+    "INSERT INTO asset.assets(id,tenant_id,asset_code,asset_model_id,lifecycle_state,assignment_state,risk_state) VALUES($1,$2,'AST-OFF-MISSING',$3,'ASSIGNED','ASSIGNED','UNKNOWN')",
     [assetId, tenant, modelId],
   );
   await db.pool.query(
@@ -775,15 +775,88 @@ test("a missing assigned asset blocks offboarding and reconciliation resumes aft
         id: string;
         state: string;
         version: number;
-        clearances: Array<{ state: string }>;
+        clearances: Array<{
+          state: string;
+          version: number;
+          resource_id: string;
+          asset_recovery_state: string;
+        }>;
       };
     };
-    assert.equal(payload.data.state, "BLOCKED");
-    assert.ok(payload.data.clearances.some((c) => c.state === "BLOCKED"));
+    assert.equal(payload.data.state, "IN_PROGRESS");
+    const returnClearance = payload.data.clearances.find(
+      (clearance) => clearance.resource_id === assetId,
+    );
+    assert.equal(returnClearance?.asset_recovery_state, "PENDING_RETURN");
+    assert.ok(returnClearance);
+    const unreturned = await post(
+      `/api/v1/offboarding-cases/${payload.data.id}/assets/${assetId}/commands/recovery-state`,
+      "unreturned-mark",
+      {
+        expected_clearance_version: returnClearance.version,
+        state: "UNRETURNED",
+        reason: "The return obligation is overdue and unresolved",
+      },
+    );
+    assert.equal(unreturned.status, 200);
+    const unreturnedCase = await fetch(
+      `${base}/api/v1/offboarding-cases/${payload.data.id}`,
+      { headers: { authorization: "Bearer e2e" } },
+    );
+    const unreturnedPayload = (await unreturnedCase.json()) as {
+      data: {
+        clearances: Array<{ version: number; asset_recovery_state: string }>;
+      };
+    };
+    const unreturnedClearance = unreturnedPayload.data.clearances.find(
+      (clearance) => clearance.asset_recovery_state === "UNRETURNED",
+    );
+    assert.ok(unreturnedClearance);
+    const missing = await post(
+      `/api/v1/offboarding-cases/${payload.data.id}/assets/${assetId}/commands/recovery-state`,
+      "missing-mark",
+      {
+        expected_clearance_version: unreturnedClearance.version,
+        state: "MISSING",
+        reason: "Operator confirmed the assigned Asset cannot be located",
+      },
+    );
+    assert.equal(missing.status, 200);
+    const riskAfterMissing = await db.pool.query(
+      "SELECT risk_state FROM asset.assets WHERE tenant_id=$1 AND id=$2",
+      [tenant, assetId],
+    );
+    assert.equal(riskAfterMissing.rows[0]!.risk_state, "UNKNOWN");
+    const blocked = await fetch(
+      `${base}/api/v1/offboarding-cases/${payload.data.id}`,
+      {
+        headers: { authorization: "Bearer e2e" },
+      },
+    );
+    const blockedPayload = (await blocked.json()) as {
+      data: {
+        state: string;
+        version: number;
+        clearances: Array<{
+          state: string;
+          version: number;
+          asset_recovery_state: string;
+        }>;
+      };
+    };
+    assert.equal(blockedPayload.data.state, "BLOCKED");
+    assert.ok(
+      blockedPayload.data.clearances.some(
+        (c) => c.state === "BLOCKED" && c.asset_recovery_state === "MISSING",
+      ),
+    );
     const premature = await post(
       `/api/v1/offboarding-cases/${payload.data.id}/commands/mark-ready`,
       "missing-ready",
-      { expected_version: 3, reason: "Cannot close with missing asset" },
+      {
+        expected_version: blockedPayload.data.version,
+        reason: "Cannot close with missing asset",
+      },
     );
     assert.equal(premature.status, 422);
     const item = await db.pool.query(
@@ -791,10 +864,21 @@ test("a missing assigned asset blocks offboarding and reconciliation resumes aft
       [tenant, payload.data.id],
     );
     assert.equal(item.rows[0]!.state, "NEW");
-    await db.pool.query(
-      "UPDATE asset.assets SET risk_state='UNKNOWN' WHERE tenant_id=$1 AND id=$2",
-      [tenant, assetId],
+    const blockedReturn = blockedPayload.data.clearances.find(
+      (c) => c.asset_recovery_state === "MISSING",
     );
+    assert.ok(blockedReturn);
+    const located = await post(
+      `/api/v1/offboarding-cases/${payload.data.id}/assets/${assetId}/commands/recovery-state`,
+      "missing-located",
+      {
+        expected_clearance_version: blockedReturn.version,
+        state: "PENDING_RETURN",
+        reason:
+          "Asset was located and is now available for the existing return request",
+      },
+    );
+    assert.equal(located.status, 200);
     const retried = await post(
       `/api/v1/offboarding-cases/${payload.data.id}/commands/reconcile`,
       "missing-reconcile",
@@ -802,10 +886,18 @@ test("a missing assigned asset blocks offboarding and reconciliation resumes aft
     );
     assert.equal(retried.status, 200);
     const after = (await retried.json()) as {
-      data: { state: string; clearances: Array<{ state: string }> };
+      data: {
+        state: string;
+        clearances: Array<{ state: string; asset_recovery_state: string }>;
+      };
     };
     assert.equal(after.data.state, "IN_PROGRESS");
-    assert.ok(after.data.clearances.some((c) => c.state === "PENDING"));
+    assert.ok(
+      after.data.clearances.some(
+        (c) =>
+          c.state === "PENDING" && c.asset_recovery_state === "PENDING_RETURN",
+      ),
+    );
   } finally {
     await new Promise<void>((resolve, reject) =>
       api.close((error) => (error ? reject(error) : resolve())),

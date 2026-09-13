@@ -1516,9 +1516,32 @@ received_at:
 asset_id:
 last_known_location_id:
 last_seen_at:
-risk_state:
+offboarding_case_id:
+clearance_id:
+recovery_state: # MISSING; Asset Risk is not changed
 investigation_id:
 ```
+
+`ASSET.MISSING` records an Offboarding/return recovery determination. It must
+not write `asset.risk_state`; canonical Asset Risk is `LOW`, `MEDIUM`, `HIGH`,
+`CRITICAL` or `UNKNOWN`.
+
+## `OFFBOARDING.ASSET_RECOVERY_STATE_CHANGED`
+
+```yaml
+offboarding_case_id:
+asset_id:
+clearance_id:
+from_state:
+state: # PENDING_RETURN, RETURNED, UNRETURNED, MISSING
+version:
+reason:
+correlation_id:
+```
+
+`RETURNED` is emitted only after the Asset-owned return request is confirmed
+complete. Recovery state changes do not modify Asset Risk, Health, Operational,
+Assignment or Lifecycle dimensions.
 
 ---
 
@@ -1592,7 +1615,23 @@ asset_id:
 source_type:
 source_id:
 maintenance_type:
+classification: # CORRECTIVE, PREVENTIVE, INSPECTION, OTHER, UNKNOWN
 ```
+
+## `MAINTENANCE.CLASSIFICATION_CHANGED`
+
+```yaml
+maintenance_order_id:
+asset_id:
+from_classification:
+classification:
+version:
+reason:
+correlation_id:
+```
+
+The event applies only before the order reaches a terminal state. Completed
+classification is immutable and is retained as typed scoring evidence.
 
 ---
 
@@ -1722,6 +1761,22 @@ asset_id:
 score:
 reasons:
 ```
+
+## `REPLACEMENT.CANDIDATE_RECOMMENDATION_UPDATED`
+
+```yaml
+replacement_plan_id:
+asset_id:
+assessment_id:
+score:
+band:
+profile_id:
+profile_version:
+state:
+```
+
+The event updates recommendation evidence only. It preserves candidate
+lifecycle and human review state; it does not approve or execute replacement.
 
 ## `REPLACEMENT.APPROVED`
 

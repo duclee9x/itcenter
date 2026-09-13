@@ -3053,7 +3053,16 @@ deflection, or recommendation APIs; those remain TASK-093.
 | Current projections and review work | Asset latest projection + Operations Work Queue projection | 24-hour freshness, stale Risk is UNKNOWN, one deduplicated Work Item only for current CRITICAL Risk |
 | Safety / boundaries | Asset scoring principal and owning-domain query contracts | no score-triggered PO/lifecycle/assignment/TASK-091 action; tenant/scope enforced; source documents and histories not leaked |
 
+### TASK-094 prerequisite foundation — TASK-094-R2
+
+| Capability | Owner / persistence | Acceptance evidence |
+|---|---|---|
+| Typed Maintenance classification/history | Maintenance orders and `MaintenanceAssetHistoryQuery` | legacy `UNKNOWN`, explicit typed creation, completed classification immutable, UNKNOWN history reported as ambiguous |
+| Replacement Candidate recommendation boundary | Asset/TASK-059 application command | `AuthorizationPort`, idempotency, one-active candidate, review-state preservation, terminal disposition suppression |
+| Offboarding Asset recovery | Identity Offboarding clearance + append-only recovery history | `MISSING`/`UNRETURNED` remain recovery states; Asset Risk is canonical and legacy meaning is preserved without guessed linkage |
+| Scope boundary | TASK-094-R2 only | no scoring assessments, scoring formulas, policy, worker, Risk Work Queue or recalculation implemented |
+
 Detailed implementation contract: `tasks/TASK-094_ASSET_RISK_REPLACEMENT_SCORING.md`.
-Current readiness is blocked by the explicitly recorded Maintenance
-classification, TASK-059 application-port and Asset `risk_state` compatibility
-dependencies; do not substitute free text or cross-domain SQL.
+TASK-094's former repository-level `SCOPE_DEPENDENCY` items are resolved by
+TASK-094-R2. Runtime scoring remains `READY / NOT_STARTED` and must consume
+these domain-owned boundaries without text inference or cross-domain SQL.

@@ -2218,3 +2218,22 @@ Cụm workflow này đạt yêu cầu khi:
 - External/vendor access có sponsor + expiry.
 - Identity Work Queue chỉ chứa actionable exceptions.
 - Permissions, notification, SLA, idempotency và audit trail đầy đủ.
+
+## TASK-094-R2 — Asset return recovery is not Asset Risk
+
+An Asset's `risk_state` is only `LOW`, `MEDIUM`, `HIGH`, `CRITICAL` or
+`UNKNOWN`; Offboarding must never use `MISSING` there. Return recovery belongs
+to the tenant-scoped Offboarding Asset Return clearance and its append-only
+history, with `PENDING_RETURN`, `RETURNED`, `UNRETURNED` and `MISSING` states.
+The Asset assignment may remain `PENDING_RETURN` while the Offboarding
+clearance is `UNRETURNED` or `MISSING`. Only the Asset-owned completed return
+request may establish `RETURNED`. Recovery changes require the existing
+Offboarding authorization, expected-version/idempotency checks, reason,
+correlation, audit and outbox. Detecting a missing Asset does not retire,
+dispose, reassign, or change its Risk/Health/Operational dimensions.
+
+Legacy Asset `risk_state=MISSING` values normalize to `UNKNOWN`. When exactly
+one same-tenant Asset Return clearance deterministically identifies the
+Offboarding recovery record, migration preserves `MISSING` there; otherwise it
+preserves a migration evidence record marked for reconciliation and creates
+no guessed Offboarding relationship.

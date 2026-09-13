@@ -621,9 +621,9 @@ Second Verification
 Nếu vẫn không tìm thấy:
 
 ```text
-ASSET.MISSING
-→ Risk escalation
-→ Investigation
+Offboarding Asset recovery = MISSING
+→ actionable Offboarding/return investigation
+→ Asset risk_state remains UNKNOWN until a Risk assessment exists
 ```
 
 ---

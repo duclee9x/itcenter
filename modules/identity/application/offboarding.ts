@@ -250,6 +250,7 @@ export type OffboardingCaseRecord = {
     state: string;
     detail: string;
     evidence_reference: string | null;
+    asset_recovery_state?: string | null;
     version: number;
   }>;
   recovery_actions: Array<{
@@ -273,7 +274,7 @@ export async function readOffboardingCase(
   if (!result.rowCount)
     throw new ApplicationError("NOT_FOUND", "Offboarding case was not found.");
   const clearances = await tx.query(
-    "SELECT id,clearance_type,resource_id,state,detail,evidence_reference,version FROM identity.offboarding_clearance_tasks WHERE tenant_id=$1 AND offboarding_case_id=$2 ORDER BY clearance_type,resource_id",
+    "SELECT id,clearance_type,resource_id,state,detail,evidence_reference,asset_recovery_state,version FROM identity.offboarding_clearance_tasks WHERE tenant_id=$1 AND offboarding_case_id=$2 ORDER BY clearance_type,resource_id",
     [tx.tenantId, caseId],
   );
   const recovery = await tx.query(
@@ -285,6 +286,119 @@ export async function readOffboardingCase(
     clearances: clearances.rows,
     recovery_actions: recovery.rows,
   } as OffboardingCaseRecord;
+}
+
+export async function setOffboardingAssetRecoveryState(input: {
+  tx: Transaction;
+  caseId: string;
+  assetId: string;
+  expectedVersion: number;
+  state: "PENDING_RETURN" | "RETURNED" | "UNRETURNED" | "MISSING";
+  verifiedReturn?: boolean;
+  actorId: string;
+  reason: string;
+  detail?: string;
+  correlationId: string;
+}) {
+  const reason = safeReason(input.reason);
+  const existing = await input.tx.query(
+    "SELECT id,state,asset_recovery_state,version FROM identity.offboarding_clearance_tasks WHERE tenant_id=$1 AND offboarding_case_id=$2 AND clearance_type='ASSET_RETURN' AND resource_id=$3 FOR UPDATE",
+    [input.tx.tenantId, input.caseId, input.assetId],
+  );
+  const actualVersion = existing.rowCount
+    ? Number(existing.rows[0]!.version)
+    : 0;
+  assertVersion(actualVersion, input.expectedVersion);
+  const prior = existing.rows[0]?.asset_recovery_state
+    ? String(existing.rows[0].asset_recovery_state)
+    : null;
+  if (prior === input.state)
+    return {
+      clearance_id: String(existing.rows[0]!.id),
+      asset_id: input.assetId,
+      state: input.state,
+      version: actualVersion,
+      noOp: true,
+    };
+  if (
+    (input.state === "UNRETURNED" || input.state === "MISSING") &&
+    !["PENDING_RETURN", "UNRETURNED"].includes(prior ?? "")
+  )
+    throw new ApplicationError(
+      "BUSINESS_RULE_VIOLATION",
+      "Only an unresolved pending return can be classified as unreturned or missing.",
+    );
+  if (input.state === "RETURNED") {
+    if (!input.verifiedReturn)
+      throw new ApplicationError(
+        "PERMISSION_DENIED",
+        "Asset-domain return verification is required.",
+      );
+    if (![null, "PENDING_RETURN", "UNRETURNED", "MISSING"].includes(prior))
+      throw new ApplicationError(
+        "BUSINESS_RULE_VIOLATION",
+        "Only an unresolved return recovery can be confirmed as returned.",
+      );
+  }
+  const id = existing.rowCount ? String(existing.rows[0]!.id) : randomUUID();
+  const version = actualVersion + 1;
+  const clearanceState =
+    input.state === "RETURNED"
+      ? "SUCCEEDED"
+      : input.state === "UNRETURNED" || input.state === "MISSING"
+        ? "BLOCKED"
+        : "PENDING";
+  if (existing.rowCount) {
+    await input.tx.query(
+      "UPDATE identity.offboarding_clearance_tasks SET state=$1,detail=$2,asset_recovery_state=$3,version=$4,updated_at=now() WHERE tenant_id=$5 AND id=$6 AND version=$7",
+      [
+        clearanceState,
+        input.detail ?? reason,
+        input.state,
+        version,
+        input.tx.tenantId,
+        id,
+        actualVersion,
+      ],
+    );
+  } else {
+    await input.tx.query(
+      "INSERT INTO identity.offboarding_clearance_tasks(id,tenant_id,offboarding_case_id,clearance_type,resource_id,state,detail,asset_recovery_state,version) VALUES($1,$2,$3,'ASSET_RETURN',$4,$5,$6,$7,$8)",
+      [
+        id,
+        input.tx.tenantId,
+        input.caseId,
+        input.assetId,
+        clearanceState,
+        input.detail ?? reason,
+        input.state,
+        version,
+      ],
+    );
+  }
+  await input.tx.query(
+    "INSERT INTO identity.offboarding_asset_recovery_history(id,tenant_id,clearance_id,asset_id,version,from_state,to_state,actor_id,reason,correlation_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)",
+    [
+      randomUUID(),
+      input.tx.tenantId,
+      id,
+      input.assetId,
+      version,
+      prior,
+      input.state,
+      input.actorId,
+      reason,
+      input.correlationId,
+    ],
+  );
+  return {
+    clearance_id: id,
+    asset_id: input.assetId,
+    from_state: prior,
+    state: input.state,
+    version,
+    noOp: false,
+  };
 }
 
 export async function recordOffboardingClearance(input: {

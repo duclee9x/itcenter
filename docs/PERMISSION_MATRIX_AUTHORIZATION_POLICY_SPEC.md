@@ -2627,3 +2627,13 @@ tenantless, Asset-owner impersonation or general administrator authority.
 Incident, Monitoring, Maintenance and Procurement query permissions remain
 owned and enforced by those domains; approval does not substitute for
 authorization.
+
+TASK-094-R2 uses least-privilege capabilities: Maintenance classification
+changes require `maintenance.manage`; completed Asset-history reads require
+`maintenance.read` against a tenant-scoped Maintenance resource through the
+`AuthorizationPort`; candidate recommendations require
+`replacement.create_candidate` against the same-tenant Asset through TASK-059
+authorization; recovery state changes require `identity.offboard` (plus
+existing exception permission for waiver). Permission catalog registration
+does not grant roles. The scoring System principal is not introduced or
+granted by R2. No wildcard or implicit authorization is added.

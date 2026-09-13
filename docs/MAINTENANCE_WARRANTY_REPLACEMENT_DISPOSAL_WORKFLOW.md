@@ -2243,3 +2243,24 @@ Maintenance Asset History query. Free-text descriptions are never a scoring
 classification. Until that canonical capability exists, corrective burden
 is unavailable and TASK-094 implementation is blocked by the recorded
 `SCOPE_DEPENDENCY`.
+
+## TASK-094-R2 scoring prerequisites
+
+Maintenance orders carry typed classification `CORRECTIVE`, `PREVENTIVE`,
+`INSPECTION`, `OTHER` or `UNKNOWN`. New operator-created orders require an
+explicit non-UNKNOWN classification; legacy rows default to `UNKNOWN` and are
+never classified from title, description or notes. Classification may be
+corrected with version control before terminal completion and is immutable
+after completion. The owning Maintenance query returns completed per-Asset
+records within a supplied window, including UNKNOWN rows; an empty successful
+query is distinct from a failed/unavailable query. Unknown completed work makes
+future corrective-burden evidence ambiguous rather than zero.
+
+TASK-059 exposes an Asset application command for assessment-backed candidate
+recommendations. It serializes on the Asset and preserves one-active-candidate
+uniqueness, human review state and terminal disposition. `CREATED`,
+`UPDATED_ACTIVE`, `ACTIVE_ALREADY_CURRENT`,
+`TERMINAL_DISPOSITION_EXISTS`, `INELIGIBLE` and `CONFLICT` are explicit
+outcomes. The command records assessment references/history and creates the
+review work item/outbox/audit for material candidate changes. It never issues
+procurement or changes Asset lifecycle. TASK-094 has not implemented scoring.

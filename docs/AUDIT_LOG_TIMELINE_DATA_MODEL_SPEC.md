@@ -3639,3 +3639,14 @@ Timeline may report Risk band changes, Replacement reassessment and
 TASK-059 candidate creation using assessment references and minimal summaries.
 Do not expose full Incident, Monitoring, invoice or supplier documents, and
 do not claim that a score approved or executed an Asset replacement.
+
+TASK-094-R2 classification corrections preserve Maintenance actor,
+prior/new typed classification, order version, reason and correlation through
+the existing command evidence path. TASK-059 candidate recommendation create
+or assessment-reference update writes candidate history, outbox/audit and one
+deduplicated review Work Item; replay of an already-current assessment has no
+duplicate side effects. Offboarding recovery changes preserve from/to state,
+clearance/Asset/case references, actor, reason, version and correlation in
+append-only `offboarding_asset_recovery_history`. Migration retains
+`risk_state=MISSING` as either linked recovery history or explicit unlinked
+Asset migration evidence; current Risk becomes UNKNOWN.

@@ -2,17 +2,7 @@
 
 ## Current Task
 
-TASK-094-R1 — Asset Risk + Replacement Scoring Contract — is
-`SATISFIED / CODE_COMPLETE` (normative/specification only). See
-`tasks/TASK-094-R1_RISK_REPLACEMENT_SCORING_CONTRACT.md` and
-`tasks/TASK-094_ASSET_RISK_REPLACEMENT_SCORING.md`. TASK-094 remains
-`BLOCKED / NOT_STARTED` by these exact `SCOPE_DEPENDENCY` items: Maintenance
-needs typed corrective/preventive order classification; TASK-059 needs a
-reusable candidate application command/port; and the existing
-`risk_state='MISSING'` Offboarding behavior needs a separate canonical
-missing/presence signal before `risk_state` can become the derived Risk
-projection. Do not implement scoring through free-text inference or direct
-cross-domain table access. TASK-095 has not started.
+TASK-094 — Risk + Replacement Scoring — is `READY / NOT_STARTED`. TASK-094-R1 is the normative scoring contract; TASK-094-R2 prerequisite foundations are `CODE_COMPLETE` and verified. R2 added typed Maintenance classification/history, the authorized/idempotent TASK-059 Replacement Candidate application boundary, and Offboarding-owned Asset recovery separate from Asset Risk. See `tasks/TASK-094-R2_IMPLEMENTATION_REPORT.md`. No scoring runtime has been started; do not infer evidence from free text, bypass TASK-059, or query cross-domain private tables. TASK-095 has not started.
 
 TASK-093 is `CODE_COMPLETE`; see
 `tasks/TASK-093_IMPLEMENTATION_REPORT.md`.

@@ -229,6 +229,11 @@ export const permissions: readonly Permission[] = [
     resource_type: "maintenance",
     action: "manage",
   },
+  {
+    code: "maintenance.read",
+    resource_type: "maintenance",
+    action: "read",
+  },
   { code: "audit.start", resource_type: "audit", action: "start" },
   {
     code: "audit.record_observation",

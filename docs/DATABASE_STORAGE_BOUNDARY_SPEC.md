@@ -3149,3 +3149,12 @@ and cannot authorize or rank a current decision. Assessment payloads store
 references and minimal contributions, not whole Incident/Monitoring/Invoice
 documents. Exact entity fields and uniqueness semantics are defined in
 `tasks/TASK-094_ASSET_RISK_REPLACEMENT_SCORING.md`.
+
+TASK-094-R2 keeps completed-work classification and its Asset history query
+inside Maintenance. Replacement recommendations enter TASK-059 through the
+Asset application command, which owns candidate history, active uniqueness,
+outbox/audit and review work. Offboarding Asset recovery state/history stays
+in Identity's existing return-clearance aggregate; Asset `risk_state` is
+constrained to `LOW`, `MEDIUM`, `HIGH`, `CRITICAL`, `UNKNOWN`. Legacy
+`MISSING` normalization preserves exact same-tenant clearance matches and
+retains unlinked migration evidence without inventing an Offboarding record.

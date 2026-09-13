@@ -405,10 +405,24 @@ identity.offboarding_clearance_tasks:
   clearance_type: # ACCESS, ASSET_RETURN, LICENSE
   resource_id:
   state: # PENDING, SUCCEEDED, BLOCKED, WAIVED, ACCEPTED_EXCEPTION
+  asset_recovery_state: # nullable: PENDING_RETURN, RETURNED, UNRETURNED, MISSING; ASSET_RETURN only
   detail:
   evidence_reference:
   authorized_by:
   version:
+
+identity.offboarding_asset_recovery_history:
+  id:
+  tenant_id:
+  clearance_id:
+  asset_id:
+  version:
+  from_state:
+  to_state: # PENDING_RETURN, RETURNED, UNRETURNED, MISSING
+  actor_id:
+  reason:
+  correlation_id:
+  occurred_at:
 
 identity.offboarding_recovery_actions:
   id:
@@ -4839,3 +4853,9 @@ Procurement `CostProvenance`/`CostAllocation`; score records retain minimal
 source references and same-currency amounts only where authorized. Maintenance
 classification remains Maintenance-owned. Do not persist cross-domain copies
 of source histories or raw payloads.
+
+TASK-094-R2 adds `maintenance.orders.classification` (`CORRECTIVE`,
+`PREVENTIVE`, `INSPECTION`, `OTHER`, `UNKNOWN`) and `completed_at`; legacy
+classification defaults to `UNKNOWN`. TASK-059 candidate rows store the latest
+recommendation assessment/profile references separately from candidate
+lifecycle state. These are prerequisite fields, not scoring assessments.

@@ -61,7 +61,9 @@ import {
 import {
   createMaintenance,
   createWarranty,
+  maintenanceClassifications,
   transitionMaintenance,
+  updateMaintenanceClassification,
 } from "../../../modules/maintenance/index.js";
 import {
   createIncident,
@@ -708,6 +710,10 @@ export function apiServer(
             : null;
     const maintenanceTransitionMatch =
       /^\/api\/v1\/maintenance\/([^/]+)\/commands\/transition$/.exec(
+        req.url ?? "",
+      );
+    const maintenanceClassificationMatch =
+      /^\/api\/v1\/maintenance\/([^/]+)\/commands\/classification$/.exec(
         req.url ?? "",
       );
     const isWarrantyCreate = req.url === "/api/v1/warranties";
@@ -1363,7 +1369,10 @@ export function apiServer(
     }
     if (
       req.method === "POST" &&
-      (maintenanceTransitionMatch || isWarrantyCreate || isMaintenanceCreate)
+      (maintenanceTransitionMatch ||
+        maintenanceClassificationMatch ||
+        isWarrantyCreate ||
+        isMaintenanceCreate)
     ) {
       const principal = await authenticate(
         authentication,
@@ -1392,7 +1401,9 @@ export function apiServer(
         resource: {
           type: "maintenance",
           id:
-            maintenanceTransitionMatch?.[1] ?? String(input.asset_id ?? "new"),
+            maintenanceTransitionMatch?.[1] ??
+            maintenanceClassificationMatch?.[1] ??
+            String(input.asset_id ?? "new"),
           tenant_id: principal.tenant_id,
         },
         scope: {},
@@ -1404,76 +1415,141 @@ export function apiServer(
             principalId: principal.id,
             operation: maintenanceTransitionMatch
               ? "MAINTENANCE.TRANSITION"
-              : isWarrantyCreate
-                ? "WARRANTY.CREATE"
-                : "MAINTENANCE.CREATE",
+              : maintenanceClassificationMatch
+                ? "MAINTENANCE.CLASSIFICATION_UPDATE"
+                : isWarrantyCreate
+                  ? "WARRANTY.CREATE"
+                  : "MAINTENANCE.CREATE",
             businessScope:
               maintenanceTransitionMatch?.[1] ??
+              maintenanceClassificationMatch?.[1] ??
               String(input.asset_id ?? "new"),
             key,
             semanticRequest: input as never,
             expiresAt: new Date(Date.now() + 86400000),
           },
           async () => {
-            const value = maintenanceTransitionMatch
-              ? await transitionMaintenance({
+            if (
+              (maintenanceClassificationMatch || isMaintenanceCreate) &&
+              !maintenanceClassifications
+                .filter((item) => item !== "UNKNOWN")
+                .includes(input.classification as never)
+            )
+              throw new ApplicationError(
+                "VALIDATION_ERROR",
+                "A supported maintenance classification is required.",
+              );
+            const value = maintenanceClassificationMatch
+              ? await updateMaintenanceClassification({
                   tx,
-                  id: maintenanceTransitionMatch[1]!,
+                  id: maintenanceClassificationMatch[1]!,
                   expectedVersion: input.expected_version as number,
-                  targetState: input.target_state as string,
+                  classification: input.classification as Exclude<
+                    (typeof maintenanceClassifications)[number],
+                    "UNKNOWN"
+                  >,
                   reason: input.reason as string,
                 })
-              : isWarrantyCreate
-                ? await createWarranty({
+              : maintenanceTransitionMatch
+                ? await transitionMaintenance({
                     tx,
-                    assetId: input.asset_id as string,
-                    provider: input.provider as string,
-                    contractRef: input.contract_ref as string | undefined,
-                    startsAt: input.starts_at as string,
-                    endsAt: input.ends_at as string,
-                    coverage: input.coverage as string,
+                    id: maintenanceTransitionMatch[1]!,
+                    expectedVersion: input.expected_version as number,
+                    targetState: input.target_state as string,
+                    reason: input.reason as string,
                   })
-                : await (async () => {
-                    await assertAssetEligibleForMaintenance({
+                : isWarrantyCreate
+                  ? await createWarranty({
                       tx,
                       assetId: input.asset_id as string,
-                    });
-                    return createMaintenance({
-                      tx,
-                      assetId: input.asset_id as string,
-                      title: input.title as string,
-                      description: input.description as string,
-                      warrantyId: input.warranty_id as string | undefined,
-                    });
-                  })();
+                      provider: input.provider as string,
+                      contractRef: input.contract_ref as string | undefined,
+                      startsAt: input.starts_at as string,
+                      endsAt: input.ends_at as string,
+                      coverage: input.coverage as string,
+                    })
+                  : await (async () => {
+                      await assertAssetEligibleForMaintenance({
+                        tx,
+                        assetId: input.asset_id as string,
+                      });
+                      return createMaintenance({
+                        tx,
+                        assetId: input.asset_id as string,
+                        title: input.title as string,
+                        description: input.description as string,
+                        classification: input.classification as Exclude<
+                          (typeof maintenanceClassifications)[number],
+                          "UNKNOWN"
+                        >,
+                        warrantyId: input.warranty_id as string | undefined,
+                      });
+                    })();
             const output = value as unknown as Record<string, unknown>;
             const eventType = maintenanceTransitionMatch
               ? "MAINTENANCE.STATE_CHANGED"
-              : isWarrantyCreate
-                ? "WARRANTY.CREATED"
-                : "MAINTENANCE.CREATED";
+              : maintenanceClassificationMatch
+                ? "MAINTENANCE.CLASSIFICATION_CHANGED"
+                : isWarrantyCreate
+                  ? "WARRANTY.CREATED"
+                  : "MAINTENANCE.CREATED";
             const now = new Date().toISOString();
-            await new PostgresOutboxWriter(tx).append({
-              event_id: randomUUID(),
-              event_type: eventType,
-              schema_version: 1,
-              occurred_at: now,
-              producer: { service: config.serviceName, instance: "api" },
-              aggregate: {
-                type: isWarrantyCreate ? "WARRANTY" : "MAINTENANCE",
-                id: value.id,
-                version: (output.version as number | undefined) ?? 1,
-              },
-              actor: { type: principal.actor_type, id: principal.id },
-              correlation_id: context.correlation_id,
-              causation_id: context.causation_id,
-              tenant_id: principal.tenant_id,
-              organization_id: principal.tenant_id,
-              idempotency_key: key,
-              payload: value,
-            });
+            if (!(maintenanceClassificationMatch && output.noOp === true))
+              await new PostgresOutboxWriter(tx).append({
+                event_id: randomUUID(),
+                event_type: eventType,
+                schema_version: 1,
+                occurred_at: now,
+                producer: { service: config.serviceName, instance: "api" },
+                aggregate: {
+                  type: isWarrantyCreate ? "WARRANTY" : "MAINTENANCE",
+                  id: value.id,
+                  version: (output.version as number | undefined) ?? 1,
+                },
+                actor: { type: principal.actor_type, id: principal.id },
+                correlation_id: context.correlation_id,
+                causation_id: context.causation_id,
+                tenant_id: principal.tenant_id,
+                organization_id: principal.tenant_id,
+                idempotency_key: key,
+                payload: value,
+              });
+            if (maintenanceClassificationMatch && output.noOp !== true) {
+              await new PostgresAudit(tx).append({
+                id: randomUUID(),
+                tenant_id: principal.tenant_id,
+                event_type: eventType,
+                occurred_at: now,
+                actor: { type: principal.actor_type, id: principal.id },
+                action: { command_type: "MAINTENANCE.CLASSIFICATION_UPDATE" },
+                subject: { entity_type: "MAINTENANCE", entity_id: value.id },
+                correlation_id: context.correlation_id,
+                causation_id: context.causation_id,
+                reason: {
+                  code: "CLASSIFICATION_CORRECTED",
+                  text: String(input.reason ?? ""),
+                },
+                before: {
+                  classification: String(
+                    output.from_classification ?? "UNKNOWN",
+                  ),
+                },
+                after: {
+                  classification: String(
+                    output.classification ?? input.classification,
+                  ),
+                },
+                outcome: { status: "SUCCESS" },
+                classification: "INTERNAL",
+                relations: [],
+                evidence: [],
+              });
+            }
             return {
-              status: maintenanceTransitionMatch ? 200 : 201,
+              status:
+                maintenanceTransitionMatch || maintenanceClassificationMatch
+                  ? 200
+                  : 201,
               body: value as never,
             };
           },

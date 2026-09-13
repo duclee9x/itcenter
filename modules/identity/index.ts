@@ -34,4 +34,5 @@ export {
   resolveOffboardingRecoveryAction,
   beginOffboardingReconciliation,
   endOffboardingReconciliation,
+  setOffboardingAssetRecoveryState,
 } from "./application/offboarding.js";

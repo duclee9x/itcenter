@@ -2835,3 +2835,13 @@ candidate upsert are idempotent across recalculation/redelivery. Do not
 automatically retry through a second business decision after an uncertain
 candidate command; reconcile the canonical TASK-059 result first. 24-hour
 expiry changes current freshness to STALE without rewriting history.
+
+TASK-094-R2 Maintenance classification commands use idempotency and expected
+order version; completed classification is immutable. TASK-059 recommendation
+processing serializes on the tenant Asset row and retains the DB unique
+constraint for one active candidate per Asset. Same assessment/profile replay
+returns `ACTIVE_ALREADY_CURRENT`; it does not duplicate candidate history,
+Work Queue, outbox or audit. Offboarding recovery commands fence clearance
+state by expected version, and repeated command keys do not duplicate recovery
+history or events. Legacy Risk normalization is an evidence-preserving
+migration; ambiguous rows are not linked by guesswork.

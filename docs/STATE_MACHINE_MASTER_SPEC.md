@@ -2979,3 +2979,14 @@ Human acknowledgement/defer/reject/approve decisions are stored separately
 through the TASK-059 review workflow. Score change cannot override or
 terminalize a human decision. Only canonical TASK-059 and Procurement
 commands may advance their respective workflows.
+
+### TASK-094-R2 prerequisite state separation
+
+Maintenance classification is `CORRECTIVE`, `PREVENTIVE`, `INSPECTION`,
+`OTHER` or `UNKNOWN`. Completed classifications are immutable. Offboarding
+Asset recovery state is `PENDING_RETURN`, `RETURNED`, `UNRETURNED` or
+`MISSING`, and belongs to the Offboarding return clearance. `MISSING` is not a
+Risk state; canonical Asset Risk values are `LOW`, `MEDIUM`, `HIGH`,
+`CRITICAL`, `UNKNOWN`. Asset Risk remains `UNKNOWN` until a valid scoring
+assessment exists. A verified Asset return is the only source of recovery
+`RETURNED`.
