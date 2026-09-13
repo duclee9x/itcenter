@@ -96,7 +96,14 @@ Full repository verification is recorded below after the final run:
 - TASK-092-R2: targeted incident-correlation unit tests — 11 passed;
   `npm run typecheck`, `npm run lint`, `npm run format:check` and
   `git diff --check` passed.
-- TASK-092-R2 full `npm test` attempt: the 48 unit tests and 2 contract tests
-  passed, then the migration suite stopped before connecting because
-  `TEST_DATABASE_URL` is not configured. Integration and E2E suites therefore
-  did not run in this environment. No database migration was changed.
+- Full verification reconciliation used the existing local PostgreSQL
+  container. `TEST_DATABASE_URL` was constructed for the test process from
+  that container's configured connection values; the credential was not
+  printed, hard-coded or persisted.
+- `npm test` — 130 passed across unit/architecture (48), contract (2),
+  migration (1), PostgreSQL integration (26) and E2E (53). This includes the
+  TASK-092 worker correlation integration cases and correlation API E2E.
+- `npm run typecheck`, `npm run lint` (including boundary checks),
+  `npm run format:check` and `git diff --check` — passed.
+- The earlier environment-pending condition is cleared. No migration was
+  needed for TASK-092-R2.

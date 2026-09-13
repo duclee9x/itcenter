@@ -46,12 +46,15 @@ previous unscoped assumption.
   different Site, different tenant, blank switch identity, and the requirement
   that both observations must be FRESH.
 - Targeted incident-correlation unit tests — 11 passed.
+- Full `npm test` using the existing local PostgreSQL container — 130 passed:
+  unit/architecture 48, contract 2, migration 1, integration 26 and E2E 53.
+  `TEST_DATABASE_URL` was supplied only to the test process using container
+  configuration; the credential was not printed or persisted.
 - `npm run typecheck` — passed.
 - `npm run lint` — passed, including boundary checks.
 - `npm run format:check` and `git diff --check` — passed.
-- `npm test` reached the migration suite after 48 unit and 2 contract tests
-  passed, then stopped because `TEST_DATABASE_URL` is not configured;
-  migration, integration and E2E DB-backed suites could not run.
+- The initial missing `TEST_DATABASE_URL` condition is resolved; no
+  `VERIFICATION_PENDING_ENVIRONMENT` remains.
 - No TASK-093 implementation or planning-contract work was started. TASK-093
   remains `BLOCKED / NOT_STARTED` because its detailed contract is missing.
 - The pre-existing `AGENTS.md` change is unrelated and excluded.
