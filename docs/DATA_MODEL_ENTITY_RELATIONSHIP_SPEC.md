@@ -1104,6 +1104,13 @@ INSERT alone is insufficient. Candidate reads and writes are tenant-scoped;
 cross-tenant candidates must not leak existence or scores. See the TASK-092
 contract for exact predicates and all decision fields.
 
+The correlation consumer's bounded retry ledger is persisted separately as
+`incident.correlation_processing_failures`, keyed by tenant + source event.
+It records the subject Incident, failed-attempt count, retry/exhaustion/
+resolution state, next attempt time, sanitized error code and correlation
+reference. Exhaustion creates an actionable Work Queue reference; this ledger
+does not become Incident or CorrelationDecision state.
+
 ---
 
 # 15. Service Domain

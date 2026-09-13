@@ -16,6 +16,11 @@ export async function correlateIncident(input: {
       "BUSINESS_RULE_VIOLATION",
       "An incident cannot correlate to itself.",
     );
+  if (input.relatedEntityType === "INCIDENT")
+    throw new ApplicationError(
+      "BUSINESS_RULE_VIOLATION",
+      "Incident Root relationships must use the explicit correlation attach command.",
+    );
   if (
     !input.reason.trim() ||
     (input.score !== undefined && (input.score < 0 || input.score > 1))
@@ -30,24 +35,12 @@ export async function correlateIncident(input: {
   );
   if (incidents.rowCount !== 2)
     throw new ApplicationError("NOT_FOUND", "Incident was not found.");
-  if (input.relatedEntityType === "TICKET") {
-    const ticket = await input.tx.query(
-      "SELECT id FROM helpdesk.tickets WHERE tenant_id=$1 AND id=$2",
-      [input.tx.tenantId, input.relatedEntityId],
-    );
-    if (!ticket.rowCount)
-      throw new ApplicationError("NOT_FOUND", "Ticket was not found.");
-  } else {
-    const child = await input.tx.query(
-      "SELECT id FROM incident.incidents WHERE tenant_id=$1 AND id=$2",
-      [input.tx.tenantId, input.relatedEntityId],
-    );
-    if (!child.rowCount)
-      throw new ApplicationError(
-        "NOT_FOUND",
-        "Related incident was not found.",
-      );
-  }
+  const ticket = await input.tx.query(
+    "SELECT id FROM helpdesk.tickets WHERE tenant_id=$1 AND id=$2",
+    [input.tx.tenantId, input.relatedEntityId],
+  );
+  if (!ticket.rowCount)
+    throw new ApplicationError("NOT_FOUND", "Ticket was not found.");
   await input.tx.query(
     "INSERT INTO incident.relations(id,tenant_id,root_incident_id,related_entity_type,related_entity_id,relation_reason,correlation_score) VALUES($1,$2,$3,$4,$5,$6,$7) ON CONFLICT DO NOTHING",
     [
@@ -60,11 +53,6 @@ export async function correlateIncident(input: {
       input.score ?? null,
     ],
   );
-  if (input.relatedEntityType === "INCIDENT")
-    await input.tx.query(
-      "UPDATE incident.incidents SET root_incident_id=$1,updated_at=now() WHERE tenant_id=$2 AND id=$3",
-      [input.rootIncidentId, input.tx.tenantId, input.relatedEntityId],
-    );
   return {
     root_incident_id: input.rootIncidentId,
     related_entity_type: input.relatedEntityType,

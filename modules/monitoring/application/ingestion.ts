@@ -3,6 +3,7 @@ import { ApplicationError } from "../../../packages/api-contracts/src/index.js";
 export type NormalizedMonitoringEvent = {
   source: string;
   provider_event_id: string;
+  source_correlation_key: string | null;
   asset_id: string | null;
   service_id: string | null;
   metric: string;
@@ -20,6 +21,7 @@ export function normalizeMonitoringEvent(
   const metric = input.metric;
   const observedAt = input.observed_at;
   const severity = input.severity;
+  const correlationKey = input.source_correlation_key;
   if (
     [source, providerEventId, metric, observedAt, severity].some(
       (value) => typeof value !== "string" || !value.trim(),
@@ -28,6 +30,17 @@ export function normalizeMonitoringEvent(
     throw new ApplicationError(
       "VALIDATION_ERROR",
       "source, provider_event_id, metric, severity and observed_at are required.",
+    );
+  if (
+    correlationKey !== undefined &&
+    correlationKey !== null &&
+    (typeof correlationKey !== "string" ||
+      !correlationKey.trim() ||
+      correlationKey.trim().length > 256)
+  )
+    throw new ApplicationError(
+      "VALIDATION_ERROR",
+      "source_correlation_key must be a non-empty string up to 256 characters.",
     );
   const sourceValue = source as string;
   const providerEventIdValue = providerEventId as string;
@@ -70,6 +83,8 @@ export function normalizeMonitoringEvent(
   return {
     source: sourceValue,
     provider_event_id: providerEventIdValue,
+    source_correlation_key:
+      typeof correlationKey === "string" ? correlationKey.trim() : null,
     asset_id: (input.asset_id as string | null | undefined) ?? null,
     service_id: (input.service_id as string | null | undefined) ?? null,
     metric: metricValue,

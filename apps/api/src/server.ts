@@ -43,6 +43,7 @@ import {
   createTicketWorkItem,
   resolveNetworkExceptionWorkItem,
   resolveWorkItem,
+  recordIncidentCorrelationTimelineEvent,
 } from "../../../modules/work-queue/index.js";
 import { normalizeMonitoringEvent } from "../../../modules/monitoring/index.js";
 import { issueEnrollmentToken } from "../../../modules/agent/index.js";
@@ -65,6 +66,10 @@ import {
 import {
   createIncident,
   correlateIncident,
+  attachIncidentToRoot,
+  detachIncidentFromRoot,
+  rejectIncidentCorrelation,
+  readIncidentCorrelationHistory,
   declareMajor,
   publishCommunication,
   transitionIncident,
@@ -622,6 +627,20 @@ export function apiServer(
       /^\/api\/v1\/incidents\/([^/]+)\/commands\/correlate$/.exec(
         req.url ?? "",
       );
+    const incidentCorrelationAttachMatch =
+      /^\/api\/v1\/incidents\/([^/]+)\/commands\/correlation-attach$/.exec(
+        req.url ?? "",
+      );
+    const incidentCorrelationDetachMatch =
+      /^\/api\/v1\/incidents\/([^/]+)\/commands\/correlation-detach$/.exec(
+        req.url ?? "",
+      );
+    const incidentCorrelationRejectMatch =
+      /^\/api\/v1\/incidents\/([^/]+)\/commands\/correlation-reject$/.exec(
+        req.url ?? "",
+      );
+    const incidentCorrelationHistoryMatch =
+      /^\/api\/v1\/incidents\/([^/]+)\/correlations$/.exec(req.url ?? "");
     const majorMatch =
       /^\/api\/v1\/incidents\/([^/]+)\/commands\/declare-major$/.exec(
         req.url ?? "",
@@ -2001,6 +2020,219 @@ export function apiServer(
       json(res, result.status, { data: result.body, meta: context });
       return true;
     }
+    if (req.method === "GET" && incidentCorrelationHistoryMatch) {
+      const principal = await authenticate(
+        authentication,
+        req.headers.authorization,
+      );
+      await authorize(authorization, {
+        principal,
+        action: "incident.correlation.read",
+        resource: {
+          type: "incident_correlation",
+          id: incidentCorrelationHistoryMatch[1]!,
+          tenant_id: principal.tenant_id,
+        },
+        scope: {},
+        context: { ...context },
+      });
+      const data = await uow.run(principal.tenant_id, (tx) =>
+        readIncidentCorrelationHistory(tx, incidentCorrelationHistoryMatch[1]!),
+      );
+      json(res, 200, { data, meta: context });
+      return true;
+    }
+    if (
+      req.method === "POST" &&
+      (incidentCorrelationAttachMatch ||
+        incidentCorrelationDetachMatch ||
+        incidentCorrelationRejectMatch)
+    ) {
+      const principal = await authenticate(
+        authentication,
+        req.headers.authorization,
+      );
+      const key = req.headers["idempotency-key"];
+      if (typeof key !== "string" || !key.trim())
+        throw new ApplicationError(
+          "VALIDATION_ERROR",
+          "Idempotency-Key is required.",
+        );
+      const body = await new Promise<string>((resolve) => {
+        let data = "";
+        req.on("data", (chunk) => (data += chunk));
+        req.on("end", () => resolve(data));
+      });
+      let input: Record<string, unknown>;
+      try {
+        input = (body ? JSON.parse(body) : {}) as Record<string, unknown>;
+      } catch {
+        throw new ApplicationError("VALIDATION_ERROR", "Invalid JSON request.");
+      }
+      const incidentId = (incidentCorrelationAttachMatch ??
+        incidentCorrelationDetachMatch ??
+        incidentCorrelationRejectMatch)![1]!;
+      const attach = !!incidentCorrelationAttachMatch;
+      const detach = !!incidentCorrelationDetachMatch;
+      if (
+        !Number.isSafeInteger(input.expected_version) ||
+        typeof input.reason !== "string" ||
+        !input.reason.trim()
+      )
+        throw new ApplicationError(
+          "VALIDATION_ERROR",
+          "expected_version and reason are required.",
+        );
+      if (!detach && typeof input.decision_id !== "string")
+        throw new ApplicationError(
+          "VALIDATION_ERROR",
+          "decision_id is required.",
+        );
+      const action = detach
+        ? "incident.correlation.detach"
+        : "incident.correlation.review";
+      await authorize(authorization, {
+        principal,
+        action,
+        resource: {
+          type: "incident",
+          id: incidentId,
+          tenant_id: principal.tenant_id,
+        },
+        scope: {},
+        context: { ...context },
+      });
+      if (attach) {
+        if (typeof input.root_incident_id !== "string")
+          throw new ApplicationError(
+            "VALIDATION_ERROR",
+            "root_incident_id is required.",
+          );
+        await authorize(authorization, {
+          principal,
+          action: "incident.correlation.review",
+          resource: {
+            type: "incident",
+            id: input.root_incident_id,
+            tenant_id: principal.tenant_id,
+          },
+          scope: {},
+          context: { ...context },
+        });
+      }
+      const operation = attach
+        ? "INCIDENT.CORRELATION_ATTACH"
+        : detach
+          ? "INCIDENT.CORRELATION_DETACH"
+          : "INCIDENT.CORRELATION_REJECT";
+      const result = await uow.run(principal.tenant_id, (tx) =>
+        new PostgresIdempotencyStore(tx).execute(
+          {
+            principalId: principal.id,
+            operation,
+            businessScope: incidentId,
+            key,
+            semanticRequest: input as never,
+            expiresAt: new Date(Date.now() + 86400000),
+          },
+          async () => {
+            const reason = input.reason as string;
+            const value = attach
+              ? await attachIncidentToRoot({
+                  tx,
+                  incidentId,
+                  rootIncidentId: input.root_incident_id as string,
+                  decisionId: input.decision_id as string,
+                  expectedVersion: input.expected_version as number,
+                  actorId: principal.id,
+                  reason,
+                  correlationId: context.correlation_id,
+                })
+              : detach
+                ? await detachIncidentFromRoot({
+                    tx,
+                    incidentId,
+                    expectedVersion: input.expected_version as number,
+                    actorId: principal.id,
+                    reason,
+                  })
+                : await rejectIncidentCorrelation({
+                    tx,
+                    incidentId,
+                    decisionId: input.decision_id as string,
+                    expectedVersion: input.expected_version as number,
+                    actorId: principal.id,
+                    reason,
+                    correlationId: context.correlation_id,
+                  });
+            const eventType = attach
+              ? "INCIDENT.LINKED_TO_ROOT"
+              : detach
+                ? "INCIDENT.DETACHED_FROM_ROOT"
+                : "INCIDENT.CORRELATION_REJECTED";
+            const now = new Date().toISOString();
+            const output = value as unknown as Record<string, unknown>;
+            const aggregateVersion =
+              (output.version as number | undefined) ??
+              (input.expected_version as number);
+            await new PostgresOutboxWriter(tx).append({
+              event_id: randomUUID(),
+              event_type: eventType,
+              schema_version: 1,
+              occurred_at: now,
+              producer: { service: config.serviceName, instance: "api" },
+              aggregate: {
+                type: "INCIDENT",
+                id: incidentId,
+                version: aggregateVersion,
+              },
+              actor: { type: principal.actor_type, id: principal.id },
+              correlation_id: context.correlation_id,
+              causation_id: context.causation_id,
+              tenant_id: principal.tenant_id,
+              organization_id: principal.tenant_id,
+              idempotency_key: key,
+              payload: value as never,
+            });
+            await new PostgresAudit(tx).append({
+              id: randomUUID(),
+              tenant_id: principal.tenant_id,
+              event_type: eventType,
+              occurred_at: now,
+              actor: { type: principal.actor_type, id: principal.id },
+              action: { command_type: operation },
+              subject: { entity_type: "INCIDENT", entity_id: incidentId },
+              correlation_id: context.correlation_id,
+              causation_id: context.causation_id,
+              reason: { code: operation, text: reason },
+              before: (detach
+                ? { root_incident_id: output.root_incident_id }
+                : null) as never,
+              after: value as never,
+              outcome: { status: "SUCCESS" },
+              classification: "INTERNAL",
+              relations: [],
+              evidence: [],
+            });
+            await recordIncidentCorrelationTimelineEvent({
+              tx,
+              incidentId,
+              eventType,
+              summary: attach
+                ? `Manually attached to Root ${String(output.root_incident_id)}`
+                : detach
+                  ? `Detached from Root ${String(output.root_incident_id)}`
+                  : "Correlation recommendation rejected by operator",
+              payload: value,
+              sourceEventId: randomUUID(),
+            });
+            return { status: 200, body: value };
+          },
+        ),
+      );
+      json(res, result.status, { data: result.body, meta: context });
+      return true;
+    }
     if (
       req.method === "POST" &&
       (req.url === "/api/v1/incidents" ||
@@ -2274,12 +2506,13 @@ export function apiServer(
           },
           async () => {
             const inserted = await tx.query(
-              "INSERT INTO monitoring.events(id,tenant_id,source,provider_event_id,asset_id,service_id,metric,observed_value,threshold,severity,observed_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) ON CONFLICT (tenant_id,source,provider_event_id) DO NOTHING RETURNING id,source,provider_event_id,asset_id,service_id,metric,observed_value,threshold,severity,observed_at",
+              "INSERT INTO monitoring.events(id,tenant_id,source,provider_event_id,source_correlation_key,asset_id,service_id,metric,observed_value,threshold,severity,observed_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) ON CONFLICT (tenant_id,source,provider_event_id) DO NOTHING RETURNING id,source,provider_event_id,source_correlation_key,asset_id,service_id,metric,observed_value,threshold,severity,observed_at",
               [
                 randomUUID(),
                 principal.tenant_id,
                 event.source,
                 event.provider_event_id,
+                event.source_correlation_key,
                 event.asset_id,
                 event.service_id,
                 event.metric,
@@ -2293,7 +2526,7 @@ export function apiServer(
               inserted.rows[0] ??
               (
                 await tx.query(
-                  "SELECT id,source,provider_event_id,asset_id,service_id,metric,observed_value,threshold,severity,observed_at FROM monitoring.events WHERE tenant_id=$1 AND source=$2 AND provider_event_id=$3",
+                  "SELECT id,source,provider_event_id,source_correlation_key,asset_id,service_id,metric,observed_value,threshold,severity,observed_at FROM monitoring.events WHERE tenant_id=$1 AND source=$2 AND provider_event_id=$3",
                   [principal.tenant_id, event.source, event.provider_event_id],
                 )
               ).rows[0];
@@ -2324,7 +2557,7 @@ export function apiServer(
               tenant_id: principal.tenant_id,
               organization_id: principal.tenant_id,
               idempotency_key: key,
-              payload: observation,
+              payload: { monitoring_event_id: observation.id },
             });
             await new PostgresAudit(tx).append({
               id: randomUUID(),
@@ -2341,7 +2574,7 @@ export function apiServer(
               causation_id: context.causation_id,
               reason: { code: "MONITORING_INGESTED", text: event.source },
               before: null,
-              after: observation,
+              after: { monitoring_event_id: observation.id },
               outcome: { status: "SUCCESS" },
               classification: "INTERNAL",
               relations: [],

@@ -2809,3 +2809,12 @@ reloads canonical state and records review/conflict evidence where needed; it
 must never silently replace an active Root. Cluster uniqueness races reload
 the canonical Root. In-memory locking and SELECT-before-INSERT alone are not
 sufficient. Work Item creation for the same unresolved decision is idempotent.
+
+The TASK-092 Incident Correlation event consumer uses a bounded component
+policy: at most five total processing attempts per source event. Failures are
+retried after 1, 2, 4 and 8 seconds (with a 30-second maximum backoff cap);
+the fifth failed attempt exhausts the budget. Exhaustion is durable, blocks
+further automatic processing and creates one actionable correlation review
+Work Item with audit/timeline evidence. A successful retry marks the failure
+ledger resolved. This retry ledger is independent of Incident and
+CorrelationDecision state and never replays remediation actions.

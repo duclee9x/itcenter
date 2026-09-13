@@ -115,6 +115,17 @@ export async function transitionIncident(input: {
       input.incidentId,
     ],
   );
+  if (input.targetState === "CLOSED" || input.targetState === "CANCELLED") {
+    await input.tx.query(
+      `UPDATE incident.correlation_clusters SET status='ENDED',ended_at=now(),ended_reason='ROOT_INCIDENT_TERMINAL'
+        WHERE tenant_id=$1 AND root_incident_id=$2 AND status='ACTIVE'`,
+      [input.tx.tenantId, input.incidentId],
+    );
+    await input.tx.query(
+      "DELETE FROM incident.correlation_active_suppressions WHERE tenant_id=$1 AND root_incident_id=$2",
+      [input.tx.tenantId, input.incidentId],
+    );
+  }
   return {
     id: input.incidentId,
     from_state: String(incident.state),

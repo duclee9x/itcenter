@@ -206,7 +206,7 @@ Only generate a detailed `TASK-xxx_*.md` when the task becomes `READY` or is the
 | `TASK-091-R1` | `F-049` | `WF-AUT02` | P5 | P0 | Automation Action Execution + Verification Contract | TASK-090 | **SATISFIED** | CODE_COMPLETE | `TASK-091-R1_AUTOMATION_ACTION_EXECUTION_CONTRACT_GAP.md` |
 | `TASK-091` | `F-049` | `WF-AUT02` | P5 | P1 | Controlled Self-Healing + Compensation | TASK-031, TASK-053, TASK-090, TASK-091-R1 | **SATISFIED** | CODE_COMPLETE | `TASK-091_CONTROLLED_SELF_HEALING_COMPENSATION.md` |
 | `TASK-092-R1` | `F-050` | `WF-INT01` | P5 | P0 | Advanced Incident Correlation Contract | TASK-033, TASK-051, TASK-090 | **SATISFIED** | CODE_COMPLETE | `TASK-092-R1_ADVANCED_INCIDENT_CORRELATION_CONTRACT.md` |
-| `TASK-092` | `F-050` | `WF-INT01` | P5 | P2 | Advanced Incident Correlation | TASK-033, TASK-051, TASK-090, TASK-092-R1 | **READY** | NOT_STARTED | `TASK-092_ADVANCED_INCIDENT_CORRELATION.md` |
+| `TASK-092` | `F-050` | `WF-INT01` | P5 | P2 | Advanced Incident Correlation | TASK-033, TASK-051, TASK-090, TASK-092-R1 | **SATISFIED** | CODE_COMPLETE | `TASK-092_ADVANCED_INCIDENT_CORRELATION.md` |
 | `TASK-093` | `KNOWLEDGE-DEFLECTION` | `WF-PC-K` | P5 | P2 | Knowledge Deflection + Self-Service Recommendations | TASK-037, TASK-061, TASK-092 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |
 | `TASK-094` | `F-050` | `WF-017/WF-INT01` | P5 | P2 | Risk + Replacement Scoring | TASK-038, TASK-050, TASK-058, TASK-059 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |
 | `TASK-095` | `F-048` | `WF-RPT01` | P5 | P1 | Advanced Reporting + Governed KPI + Analytics | TASK-039, TASK-061, TASK-076 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |
@@ -412,13 +412,19 @@ TASK-091-R1 are satisfied. Runtime implementation and repository verification
 are complete, including the 30-second acceptance deadline, separately timed
 verification, timeout race and append-only late-evidence reconciliation. See
 `TASK-091_IMPLEMENTATION_REPORT.md`. TASK-092-R1 resolved the
-`SPEC_GAP / PLANNING_REQUIRED` by defining its versioned scoring profile,
-candidate ambiguity and Root-creation rules, immutable decision and
-relationship history, manual attach/detach/suppression, scoped authorization,
-events/audit, durable uniqueness and acceptance tests. TASK-092's declared
-dependencies TASK-033, TASK-051 and TASK-090 are CODE_COMPLETE and its
-normative contract is complete; readiness is READY / NOT_STARTED. Runtime
-implementation has not started and must wait for explicit instruction.
+`SPEC_GAP / PLANNING_REQUIRED` with a versioned scoring profile, candidate
+ambiguity and Root-creation rules, immutable decision and relationship
+history, manual attach/detach/suppression, scoped authorization, events/audit,
+durable uniqueness and acceptance tests. TASK-092 runtime implementation is
+`CODE_COMPLETE`; see `TASK-092_IMPLEMENTATION_REPORT.md`. Its dependencies
+TASK-033, TASK-051, TASK-090 and TASK-092-R1 are satisfied.
+
+TASK-093's declared dependencies TASK-037, TASK-061 and TASK-092 are now
+satisfied. Its detailed normative implementation contract is still absent
+(`GENERATE_ON_READY`), so implementation readiness remains BLOCKED with
+`SPEC_GAP / PLANNING_REQUIRED`. No TASK-093 business rules or runtime code
+were generated as part of TASK-092; do not begin TASK-093 until its contract
+is explicitly authorized and complete.
 
 ---
 

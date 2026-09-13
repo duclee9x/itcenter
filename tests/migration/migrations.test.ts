@@ -13,8 +13,8 @@ test("empty DB applies all migrations; rerun is idempotent and changed migration
     const tables = await db.pool.query(
       "SELECT schemaname,tablename FROM pg_tables WHERE schemaname IN ('identity','platform','audit')",
     );
-    // TASK-090-R1 adds the explicit System Automation principal registry.
-    assert.equal(tables.rowCount, 22);
+    // TASK-090-R1 and TASK-092 add explicit Automation/Correlation principals.
+    assert.equal(tables.rowCount, 23);
     const domainSchemas = await db.pool.query(
       "SELECT schema_name FROM information_schema.schemata WHERE schema_name = ANY($1::text[])",
       [

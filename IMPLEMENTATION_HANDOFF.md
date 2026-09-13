@@ -2,14 +2,12 @@
 
 ## Current Task
 
-TASK-092 — Advanced Incident Correlation — is `READY / NOT_STARTED`.
-TASK-092-R1 is `CODE_COMPLETE` (normative/specification remediation only),
-resolving the explicit `SPEC_GAP / PLANNING_REQUIRED`. The workflow/state/
-data/API/event/permission/audit/idempotency/traceability specs and detailed
-`tasks/TASK-092_ADVANCED_INCIDENT_CORRELATION.md` contract are complete.
-Dependencies TASK-033, TASK-051, TASK-090 and TASK-092-R1 are satisfied.
-Runtime work has not started. Stop here and wait for explicit instruction
-before implementing TASK-092.
+TASK-093 — Knowledge Deflection + Self-Service Recommendations — remains
+`BLOCKED / NOT_STARTED`. Its dependencies TASK-037, TASK-061 and TASK-092 are
+satisfied, but the detailed normative implementation contract is missing
+(`GENERATE_ON_READY`); readiness is `SPEC_GAP / PLANNING_REQUIRED`. No
+TASK-093 business rules or runtime implementation were generated. Author and
+reconcile the detailed contract before implementation.
 
 Deployment note: `apps/agent-gateway/src/main.ts` continues to use the
 fail-closed `unavailableAuthentication` adapter. Configure the existing
@@ -24,8 +22,22 @@ Integration Gate (`SATISFIED / CODE_COMPLETE`); see
 commercial-document storage as `UNAVAILABLE_NOT_READY`; production storage is
 not asserted ready.
 
-The pre-existing `AGENTS.md` modification remains outside the TASK-092-R1
-remediation commit.
+The pre-existing `AGENTS.md` modification remains outside the TASK-092
+implementation commit.
+
+## Last Completed Task — TASK-092
+
+Advanced Incident Correlation (`CODE_COMPLETE`). See
+`tasks/TASK-092_IMPLEMENTATION_REPORT.md`.
+
+- Added tenant-scoped event evaluation with the versioned 0..100 scoring
+  profile, immutable candidate/decision evidence, deterministic-only Root
+  creation, automatic high-confidence linking and review fallback.
+- Added scoped `SYSTEM_CORRELATION` authorization, manual attach/reject/detach
+  APIs, durable Root/cluster uniqueness, detach suppression, audit/outbox/
+  timeline and bounded worker retry fallback.
+- Verification passed: `npm test` (128 tests), typecheck, lint/boundaries,
+  format check and `git diff --check`.
 
 ## Last Completed Remediation — TASK-092-R1
 
@@ -35,8 +47,8 @@ normative v1 score/evidence profile, high-confidence auto-link gates,
 deterministic Root creation, human review, immutable decisions and link
 history, attach/detach/suppression, scoped `SYSTEM_CORRELATION` authorization,
 events, audit, Work Queue, concurrency and acceptance tests are now explicit.
-No runtime code was implemented. TASK-092 readiness is READY / NOT_STARTED;
-do not begin it without an explicit instruction.
+The remediation itself contained no runtime changes; TASK-092 runtime is now
+CODE_COMPLETE as recorded above.
 
 ## Last Completed Remediation — TASK-091-R1
 

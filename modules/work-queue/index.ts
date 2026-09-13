@@ -28,4 +28,7 @@ export {
   createAutomationExecutionWorkItem,
   updateAutomationExecutionWorkItemContext,
   recordAutomationTimelineEvent,
+  createIncidentCorrelationReviewWorkItem,
+  createIncidentCorrelationFailureWorkItem,
+  recordIncidentCorrelationTimelineEvent,
 } from "./application/work-queue.js";

@@ -17,6 +17,7 @@ import { costProvenanceTask } from "./cost-provenance.js";
 import { automationEvaluatorTask } from "./automation-evaluator.js";
 import { automationConflictWorkItemsTask } from "./automation-conflict-work-items.js";
 import { automationExecutionTask } from "./automation-executions.js";
+import { incidentCorrelationTask } from "./incident-correlation.js";
 const config = loadConfig(process.env, "worker", 3002);
 const log = logger(config);
 const pool = createPool(
@@ -67,6 +68,11 @@ host.start([
     pool,
     uow: new PostgresUnitOfWork(pool),
     reportFailure: () => log("error", "automation.execution.failed"),
+  }),
+  incidentCorrelationTask({
+    pool,
+    uow: new PostgresUnitOfWork(pool),
+    reportFailure: () => log("error", "incident.correlation.failed"),
   }),
 ]);
 const server = createHttpServer(config, async () => false);

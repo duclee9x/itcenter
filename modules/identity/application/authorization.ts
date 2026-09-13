@@ -1,7 +1,7 @@
 import type { Transaction } from "../../../packages/persistence/src/index.js";
 export interface AuthorizationInput {
   principalId: string;
-  principalType?: "USER" | "SYSTEM_AUTOMATION";
+  principalType?: "USER" | "SYSTEM_AUTOMATION" | "SYSTEM_CORRELATION";
   tenantId: string;
   action: string;
   resourceType: string;
@@ -26,7 +26,18 @@ export async function evaluateAuthorization(
   const at = input.at ?? new Date();
   if (input.tenantId !== tx.tenantId)
     return { result: "DENY", reason: "Tenant scope does not match" };
-  if (input.principalType === "SYSTEM_AUTOMATION") {
+  if (
+    input.principalType === "SYSTEM_AUTOMATION" ||
+    input.principalType === "SYSTEM_CORRELATION"
+  ) {
+    const effectiveAt =
+      input.at ??
+      (await tx.query<{ at: Date }>("SELECT clock_timestamp() AS at")).rows[0]!
+        .at;
+    const principalTable =
+      input.principalType === "SYSTEM_AUTOMATION"
+        ? "identity.automation_principals"
+        : "identity.correlation_principals";
     const rows = await tx.query<{
       code: string;
       role_code: string;
@@ -35,19 +46,26 @@ export async function evaluateAuthorization(
       source: string;
     }>(
       `SELECT p.code,r.code AS role_code,rb.scope_type,rb.scope_id,rb.source
-       FROM identity.automation_principals ap
+       FROM ${principalTable} ap
        JOIN identity.role_bindings rb ON rb.tenant_id=ap.tenant_id
-         AND rb.principal_id=ap.id AND rb.principal_type='SYSTEM_AUTOMATION'
+         AND rb.principal_id=ap.id
        JOIN identity.roles r ON r.tenant_id=rb.tenant_id AND r.id=rb.role_id
        JOIN identity.role_permissions rp ON rp.tenant_id=r.tenant_id AND rp.role_id=r.id
        JOIN identity.permissions p ON p.id=rp.permission_id
        WHERE ap.tenant_id=$1 AND ap.id=$2 AND ap.active=true
-         AND rb.revoked_at IS NULL AND rb.valid_from<=$3
+         AND rb.principal_type=$6 AND rb.revoked_at IS NULL AND rb.valid_from<=$3
          AND (rb.valid_until IS NULL OR rb.valid_until>$3)
          AND p.code=$4 AND lower(p.resource_type)=lower($5)
          AND r.status='ACTIVE'
        FOR SHARE OF ap,rb,r,rp`,
-      [input.tenantId, input.principalId, at, input.action, input.resourceType],
+      [
+        input.tenantId,
+        input.principalId,
+        effectiveAt,
+        input.action,
+        input.resourceType,
+        input.principalType,
+      ],
     );
     const denied = rows.rows.find((row) => row.source === "EXPLICIT_DENY");
     if (denied)
@@ -57,14 +75,15 @@ export async function evaluateAuthorization(
       };
     const match = rows.rows.find(
       (row) =>
-        !["GLOBAL", "TENANT"].includes(row.scope_type) &&
+        row.scope_type !== "GLOBAL" &&
         row.scope_id !== "*" &&
-        input.scope[row.scope_type.toLowerCase()] === row.scope_id,
+        input.scope[row.scope_type.toLowerCase()] === row.scope_id &&
+        (row.scope_type !== "TENANT" || input.scope.tenant === input.tenantId),
     );
     return match
       ? {
           result: "ALLOW",
-          reason: `System Automation grant ${match.code} covers ${match.scope_type}:${match.scope_id}`,
+          reason: `System principal grant ${match.code} covers ${match.scope_type}:${match.scope_id}`,
           matched: {
             role: match.role_code,
             permission: match.code,
@@ -74,7 +93,7 @@ export async function evaluateAuthorization(
         }
       : {
           result: "DENY",
-          reason: "No active scoped System Automation grant covers this target",
+          reason: "No active scoped system principal grant covers this target",
         };
   }
   const rows = await tx.query(

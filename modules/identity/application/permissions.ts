@@ -154,6 +154,26 @@ export const permissions: readonly Permission[] = [
     action: "correlate",
   },
   {
+    code: "incident.correlation.read",
+    resource_type: "incident_correlation",
+    action: "read",
+  },
+  {
+    code: "incident.correlation.link",
+    resource_type: "incident",
+    action: "correlation.link",
+  },
+  {
+    code: "incident.correlation.review",
+    resource_type: "incident",
+    action: "correlation.review",
+  },
+  {
+    code: "incident.correlation.detach",
+    resource_type: "incident",
+    action: "correlation.detach",
+  },
+  {
     code: "incident.declare_major",
     resource_type: "incident",
     action: "declare_major",

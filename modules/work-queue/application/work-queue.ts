@@ -79,6 +79,73 @@ export async function upsertCostProvenanceWorkItem(input: {
     [randomUUID(), input.tx.tenantId, input.sourceId, input.title],
   );
 }
+
+export async function createIncidentCorrelationReviewWorkItem(input: {
+  tx: Transaction;
+  decisionId: string;
+  title: string;
+}): Promise<void> {
+  await input.tx.query(
+    `INSERT INTO operations.work_items
+       (id,tenant_id,source_type,source_id,title,priority,owner_team_id,context_json)
+     VALUES($1,$2,'CORRELATION_REVIEW',$3,$4,'HIGH','INCIDENT',jsonb_build_object('decision_id',$3::uuid))
+     ON CONFLICT(tenant_id,source_type,source_id) DO NOTHING`,
+    [randomUUID(), input.tx.tenantId, input.decisionId, input.title],
+  );
+}
+
+export async function createIncidentCorrelationFailureWorkItem(input: {
+  tx: Transaction;
+  eventId: string;
+  incidentId: string;
+  attemptCount: number;
+  errorCode: string;
+}): Promise<void> {
+  await input.tx.query(
+    `INSERT INTO operations.work_items
+       (id,tenant_id,source_type,source_id,title,priority,owner_team_id,context_json)
+     VALUES($1,$2,'CORRELATION_REVIEW',$3,'Incident correlation processing failed after bounded retries','HIGH','INCIDENT',$4)
+     ON CONFLICT(tenant_id,source_type,source_id) DO NOTHING`,
+    [
+      randomUUID(),
+      input.tx.tenantId,
+      input.eventId,
+      JSON.stringify({
+        source_event_id: input.eventId,
+        incident_id: input.incidentId,
+        attempt_count: input.attemptCount,
+        reason_code: input.errorCode,
+        action:
+          "Review the incident and retry correlation after resolving the processing failure.",
+      }),
+    ],
+  );
+}
+
+export async function recordIncidentCorrelationTimelineEvent(input: {
+  tx: Transaction;
+  incidentId: string;
+  eventType: string;
+  summary: string;
+  payload: unknown;
+  sourceEventId: string;
+}): Promise<void> {
+  await input.tx.query(
+    `INSERT INTO operations.timeline_events
+       (id,tenant_id,entity_type,entity_id,event_type,summary,payload,source_event_id)
+     VALUES($1,$2,'INCIDENT',$3,$4,$5,$6,$7)
+     ON CONFLICT(tenant_id,source_event_id) DO NOTHING`,
+    [
+      randomUUID(),
+      input.tx.tenantId,
+      input.incidentId,
+      input.eventType,
+      input.summary,
+      JSON.stringify(input.payload ?? {}),
+      input.sourceEventId,
+    ],
+  );
+}
 export async function createTicketWorkItem(input: {
   tx: Transaction;
   ticketId: string;

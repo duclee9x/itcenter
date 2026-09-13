@@ -2403,6 +2403,13 @@ replay idempotency, explanation/audit/outbox/Work Queue, and proof that no
 remediation executor is called. Detailed normative contract:
 `tasks/TASK-092_ADVANCED_INCIDENT_CORRELATION.md`.
 
+Runtime implementation is recorded in
+`tasks/TASK-092_IMPLEMENTATION_REPORT.md`: tenant-scoped event consumption,
+immutable decision/candidate evidence, deterministic Root creation/linking,
+human attach/reject/detach APIs, scoped `SYSTEM_CORRELATION` authorization,
+deduplication, bounded retry fallback and PostgreSQL race coverage. TASK-092
+does not call TASK-091 or mutate monitoring/topology facts.
+
 ```text
 Workflow:
 WF-003 + WF-020
