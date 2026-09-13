@@ -7,9 +7,11 @@ import type {
   Transaction,
 } from "../../../packages/persistence/src/index.js";
 import { PostgresAudit } from "../../../modules/audit/index.js";
+import { readAgentRuntimeEvidence } from "../../../modules/agent/index.js";
 import {
   createAutomationExecutionWorkItem,
   recordAutomationTimelineEvent,
+  updateAutomationExecutionWorkItemContext,
 } from "../../../modules/work-queue/index.js";
 import {
   createAutomaticExecution,
@@ -31,6 +33,7 @@ const ACTION_EVENTS = [
   "AUTOMATION.ACTION_FAILED",
   "AUTOMATION.ACTION_UNKNOWN",
   "AUTOMATION.ACTION_CANCELLED",
+  "AUTOMATION.ACTION_RECONCILIATION_EVIDENCE_RECORDED",
 ];
 const CONSUMED_EVENTS = [
   "AUTOMATION.INTENT_READY",
@@ -66,6 +69,8 @@ function summary(type: string) {
       return "Restart command cancelled before Agent acceptance";
     case "AUTOMATION.ACTION_FAILED":
       return "Agent restart execution failed";
+    case "AUTOMATION.ACTION_RECONCILIATION_EVIDENCE_RECORDED":
+      return "Late Agent evidence recorded for reconciliation";
     default:
       return "Agent restart execution updated";
   }
@@ -91,6 +96,10 @@ async function project(tx: Transaction, event: EventEnvelope) {
     event.event_type === "AUTOMATION.ACTION_UNKNOWN" ||
     event.event_type === "AUTOMATION.ACTION_FAILED"
   ) {
+    const agentId = String(event.payload.target_agent_id ?? "");
+    const latestAgentEvidence = agentId
+      ? await readAgentRuntimeEvidence({ tx, agentId })
+      : null;
     await createAutomationExecutionWorkItem({
       tx,
       executionId,
@@ -98,6 +107,36 @@ async function project(tx: Transaction, event: EventEnvelope) {
         event.event_type === "AUTOMATION.ACTION_UNKNOWN"
           ? "Agent restart outcome is unknown; reconcile Agent before any retry"
           : "Agent restart failed and requires operator review",
+      context: {
+        intent_id: event.payload.intent_id,
+        execution_id: executionId,
+        agent_id: agentId || null,
+        command_id: event.payload.command_id ?? null,
+        dispatched_at: event.payload.dispatched_at ?? null,
+        acceptance_deadline_at: event.payload.acceptance_deadline_at ?? null,
+        reason_code: event.payload.reason_code ?? null,
+        latest_agent_evidence: latestAgentEvidence
+          ? {
+              status: latestAgentEvidence.status,
+              runtime_id: latestAgentEvidence.agent_runtime_id,
+              session_id: latestAgentEvidence.agent_session_id,
+              last_seen_at: latestAgentEvidence.last_seen_at,
+            }
+          : null,
+        reconciliation_guidance:
+          "Confirm the Agent runtime and command outcome before any manual retry.",
+      },
+    });
+  }
+  if (
+    event.event_type === "AUTOMATION.ACTION_RECONCILIATION_EVIDENCE_RECORDED"
+  ) {
+    await updateAutomationExecutionWorkItemContext({
+      tx,
+      executionId,
+      context: {
+        latest_reconciliation_evidence: event.payload.evidence,
+      },
     });
   }
   await new PostgresAudit(tx).append({
@@ -152,7 +191,13 @@ export async function applyAutomationExecutionEvent(
         typeof agentId === "string" &&
         typeof acceptedAt === "string"
       )
-        await recordExecutionAcceptance(tx, { commandId, agentId, acceptedAt });
+        await recordExecutionAcceptance(tx, {
+          commandId,
+          agentId,
+          acceptedAt,
+          sourceEventId: delivered.event_id,
+          correlationId: delivered.correlation_id,
+        });
       return;
     }
     if (delivered.event_type === "AGENT.AUTOMATION_ACTION_REJECTED") {
@@ -171,12 +216,15 @@ export async function applyAutomationExecutionEvent(
     if (delivered.event_type === "AGENT.ONLINE") {
       const agentId = delivered.aggregate.id,
         runtime = delivered.payload.agent_runtime_id,
-        observed = delivered.payload.last_seen_at;
+        observed = delivered.payload.last_seen_at,
+        session = delivered.payload.agent_session_id;
       if (typeof runtime === "string" && typeof observed === "string")
         await observeAgentRuntime(tx, {
           agentId,
           runtimeId: runtime,
+          sessionId: typeof session === "string" ? session : null,
           observedAt: observed,
+          sourceEventId: delivered.event_id,
         });
       return;
     }
@@ -209,7 +257,7 @@ export function automationExecutionTask(input: {
             }
           }
           const tenants = await input.pool.query<{ tenant_id: string }>(
-            "SELECT DISTINCT tenant_id FROM automation.action_executions WHERE state IN ('ACCEPTED','VERIFYING') AND verification_deadline<=now() LIMIT 100",
+            "SELECT DISTINCT tenant_id FROM automation.action_executions WHERE (state='DISPATCHED' AND acceptance_deadline_at<=now()) OR (state IN ('ACCEPTED','VERIFYING') AND verification_deadline<=now()) LIMIT 100",
           );
           for (const row of tenants.rows) {
             if (signal.aborted) break;

@@ -352,19 +352,41 @@ export async function createAutomationExecutionWorkItem(input: {
   tx: Transaction;
   executionId: string;
   title: string;
+  context?: Record<string, unknown>;
 }): Promise<string> {
   const id = randomUUID();
   await input.tx.query(
-    `INSERT INTO operations.work_items(id,tenant_id,source_type,source_id,title,priority,owner_team_id)
-     VALUES($1,$2,'AUTOMATION_EXECUTION',$3,$4,'HIGH','AUTOMATION')
-     ON CONFLICT(tenant_id,source_type,source_id) DO NOTHING`,
-    [id, input.tx.tenantId, input.executionId, input.title],
+    `INSERT INTO operations.work_items(id,tenant_id,source_type,source_id,title,priority,owner_team_id,context_json)
+     VALUES($1,$2,'AUTOMATION_EXECUTION',$3,$4,'HIGH','AUTOMATION',$5::jsonb)
+     ON CONFLICT(tenant_id,source_type,source_id) DO UPDATE SET
+       context_json=operations.work_items.context_json || EXCLUDED.context_json,
+       last_action_at=now(),version=operations.work_items.version+1`,
+    [
+      id,
+      input.tx.tenantId,
+      input.executionId,
+      input.title,
+      JSON.stringify(input.context ?? {}),
+    ],
   );
   const item = await input.tx.query<{ id: string }>(
     "SELECT id FROM operations.work_items WHERE tenant_id=$1 AND source_type='AUTOMATION_EXECUTION' AND source_id=$2",
     [input.tx.tenantId, input.executionId],
   );
   return item.rows[0]!.id;
+}
+
+export async function updateAutomationExecutionWorkItemContext(input: {
+  tx: Transaction;
+  executionId: string;
+  context: Record<string, unknown>;
+}) {
+  await input.tx.query(
+    `UPDATE operations.work_items
+        SET context_json=context_json || $1::jsonb,last_action_at=now(),version=version+1
+      WHERE tenant_id=$2 AND source_type='AUTOMATION_EXECUTION' AND source_id=$3`,
+    [JSON.stringify(input.context), input.tx.tenantId, input.executionId],
+  );
 }
 
 export async function recordAutomationTimelineEvent(input: {

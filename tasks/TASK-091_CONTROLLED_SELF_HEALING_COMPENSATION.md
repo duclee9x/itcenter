@@ -6,9 +6,9 @@ feature_id: F-049
 workflow_id: WF-AUT02
 phase: P5
 priority: P1
-status: IN_PROGRESS
+status: CODE_COMPLETE
 readiness: READY
-implementation_status: IN_PROGRESS
+implementation_status: CODE_COMPLETE
 owner_domain: Automation / Agent
 depends_on: TASK-031, TASK-053, TASK-090, TASK-091-R1
 ```
@@ -107,6 +107,21 @@ PENDING → CLAIMED → DISPATCHED → ACCEPTED → VERIFYING → SUCCEEDED
            └→ CANCELLED (only when non-acceptance is proven)
 ```
 
+`DISPATCHED` persists `acceptance_deadline_at = dispatched_at + 30 seconds`
+for `RESTART_AGENT` v1. An exact authenticated Agent acknowledgement with
+`accepted_at < acceptance_deadline_at` transitions to `ACCEPTED`; only then
+does the independent five-minute verification deadline begin. If the row is
+still `DISPATCHED` when the acceptance deadline is due, it transitions to
+`UNKNOWN` with `AGENT_ACCEPTANCE_TIMEOUT`. This 30-second value is specific
+to this capability/version and is not a global automation timeout.
+
+If timeout wins the serialized race, late acceptance or a later new-runtime
+heartbeat is stored as append-only reconciliation evidence. Neither evidence
+may transition `UNKNOWN` back to `ACCEPTED`, `VERIFYING` or `SUCCEEDED`.
+Create/update the existing actionable Work Item with execution, intent,
+Agent, command, dispatch/deadline, reason and latest non-secret Agent/session
+evidence for human reconciliation.
+
 Terminal states are `SUCCEEDED`, `FAILED`, `UNKNOWN`, `CANCELLED`. A
 pre-dispatch security failure becomes `FAILED` with reason evidence and no
 dispatch. If delivery/acceptance is ambiguous, cancellation is forbidden and
@@ -168,6 +183,8 @@ Automation owns `action_executions` containing at minimum:
 - preflight policy/authorization/approval/conflict/kill-switch evidence;
 - immutable pre-execution baseline and fixed command snapshot;
 - dispatch, acceptance, verification-deadline and completion timestamps;
+- immutable `acceptance_deadline_at = dispatched_at + 30 seconds`;
+- append-only late acceptance/runtime reconciliation evidence;
 - verification/result evidence, canonical reason code and Work Item reference;
 - actor/reason and correlation identifiers for manual operations.
 
@@ -246,6 +263,7 @@ AUTOMATION.ACTION_SUCCEEDED
 AUTOMATION.ACTION_FAILED
 AUTOMATION.ACTION_UNKNOWN
 AUTOMATION.ACTION_CANCELLED
+AUTOMATION.ACTION_RECONCILIATION_EVIDENCE_RECORDED
 ```
 
 Consume `AUTOMATION.INTENT_READY` and canonical authenticated Agent
@@ -354,11 +372,14 @@ PERMISSION_DENIED
 
 For `RESTART_AGENT` v1: one automatic attempt, zero automatic business
 retries, no backoff, no compensation. Transport redelivery reuses the same
-command ID and is Agent-deduplicated. Verification deadline is five minutes
-from authenticated acceptance. Timeout/ambiguous outcome is UNKNOWN, creates
-one human fallback and is not retried. Manual retry requires explicit
-reconciliation and creates a new linked attempt; it repeats all security
-checks.
+command ID and is Agent-deduplicated. A separate 30-second acceptance
+deadline begins at durable dispatch; no authenticated acceptance by that
+deadline becomes `UNKNOWN` with `AGENT_ACCEPTANCE_TIMEOUT`, without creating
+another command. Only authenticated acceptance starts the independent
+five-minute verification deadline. Late acceptance/runtime evidence remains
+append-only and does not resurrect `UNKNOWN`. Each `UNKNOWN` outcome creates
+one human fallback. Manual retry requires explicit reconciliation and
+creates a new linked attempt; it repeats all security checks.
 
 ## 24. Observability
 
@@ -385,6 +406,7 @@ Never log Agent credentials or arbitrary command payloads.
 - worker crash after dispatch does not redispatch;
 - cancel/accept race permits cancel only when non-acceptance is proven;
 - verification event/deadline race has one terminal outcome;
+- acceptance-timeout/Agent-acceptance race has one serialized winner;
 - one Work Item per UNKNOWN execution.
 
 ### Agent/API/event E2E
@@ -395,6 +417,11 @@ Never log Agent credentials or arbitrary command payloads.
 - old-session heartbeat does not verify; new runtime ID after acceptance
   does verify within five minutes;
 - verification timeout and lost ACK become UNKNOWN;
+- no acceptance by 30 seconds after dispatch becomes UNKNOWN;
+- verification timer starts from `accepted_at`, never from dispatch;
+- timeout processing is idempotent and produces one human fallback;
+- late acceptance/runtime evidence is retained without state resurrection;
+- timeout never creates another command or automatic attempt;
 - explicit Agent rejection becomes FAILED;
 - command redelivery with same ID never restarts twice; changed payload
   conflicts;

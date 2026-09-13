@@ -2273,12 +2273,16 @@ Agent identity/tenant. Failure or uncertainty prevents dispatch and is
 recorded with a reason.
 
 Execution uses a separate Action Execution record and authenticated Agent
-Gateway protocol. TASK-091 captures a pre-execution runtime baseline; Agent
-acceptance is not success. Only authenticated post-acceptance evidence of a
-new Agent runtime within five minutes proves `SUCCEEDED`. Timeout or ambiguous
-delivery is `UNKNOWN`, creates one actionable human fallback, and is not
-retried automatically. TASK-091 v1 has one automatic attempt, zero automatic
-business retries and no compensation. Manual retry requires explicit
-reconciliation and a new linked execution; cancellation is allowed only
-before proven Agent acceptance. See the detailed contract in the Agent
-workflow and TASK-091 task contract.
+Gateway protocol. `DISPATCHED` persists a separate capability-specific
+30-second `RESTART_AGENT` acceptance deadline. Missing authenticated
+acceptance at that deadline becomes `UNKNOWN` with
+`AGENT_ACCEPTANCE_TIMEOUT`, creates one actionable human fallback and is not
+retried. Acceptance before the deadline starts a distinct five-minute
+verification window from `accepted_at`; acceptance alone is not success.
+Only authenticated post-acceptance evidence of a new Agent runtime within
+that window proves `SUCCEEDED`. Late acceptance/runtime evidence after
+`UNKNOWN` is append-only reconciliation evidence and does not resurrect the
+execution. TASK-091 v1 has one automatic attempt, zero automatic business
+retries and no compensation. Manual retry requires explicit reconciliation
+and a new linked execution; cancellation is allowed only before dispatch.
+See the detailed contract in the Agent workflow and TASK-091 task contract.

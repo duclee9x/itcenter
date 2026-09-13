@@ -1,42 +1,34 @@
 # TASK-091 Implementation Report
 
-**Status:** `IN_PROGRESS`. The TASK-091 execution vertical slice is
-implemented and its current checks pass. Completion is held on one unresolved
-normative detail: when to classify a dispatched command with no authenticated
-Agent acceptance as `UNKNOWN`. The five-minute verification window starts
-only after acceptance; no pre-acceptance deadline or trigger is defined.
-TASK-091 remains open until that behavior is settled and implemented.
+**Status:** `CODE_COMPLETE` for the TASK-091 v1 runtime contract. Production
+Agent authentication adapter configuration remains an environment capability.
 
 ## Implemented
 
-- Added a separate Automation `action_executions` aggregate with immutable
-  execution identity, command snapshot, attempts, state transitions, preflight
-  evidence, verification baseline/result and append-only task audit.
-- Automatic execution creation consumes only a tenant-scoped `READY` intent
-  for the allow-listed `RESTART_AGENT` capability. The authenticated Agent
-  pull route rechecks capability, current tenant policy, scoped
-  `SYSTEM_AUTOMATION` authorization, approval, conflict, kill switch, target
-  identity and runtime baseline before dispatch.
-- Added an Agent-owned durable command receipt keyed by tenant, Agent and
-  command ID. Re-delivery returns the same command after verifying its
-  content hash. Acceptance and typed rejection are authenticated, scoped and
-  emitted as outbox facts. The Agent module owns receipt and runtime-baseline
-  reads; Automation owns execution state.
-- Added positive restart verification from a later authenticated heartbeat
-  with a new `agent_runtime_id`. A normal heartbeat, old runtime marker or
-  command acceptance cannot mark execution successful. An accepted execution
-  whose five-minute verification period expires becomes `UNKNOWN`.
-- Added tenant/resource-authorized execution reads, expected-version and
-  idempotent cancellation before dispatch, and reconciled manual retry with
-  new execution/command IDs. No automatic retry or compensation is present.
-- Added idempotent timeline/audit projection and one `AUTOMATION_EXECUTION`
-  Work Queue item for terminal `FAILED`/`UNKNOWN` outcomes.
-- Added task-specific Agent/Automation/Operations migrations, API routes,
-  worker wiring, permission codes, canonical errors and Agent event contracts.
+- The Automation domain stores a separate immutable Action Execution attempt
+  for `RESTART_AGENT`; the Agent Gateway uses the existing fail-closed
+  `AuthenticationPort`, canonical Agent identity and tenant ownership, typed
+  command envelope, stable command ID and durable Agent-side delivery receipt.
+- Dispatch now persists `acceptance_deadline_at = dispatched_at + 30 seconds`.
+  Authenticated acceptance before that deadline moves execution to
+  `VERIFYING` and starts the independent five-minute verification deadline
+  from `accepted_at`. No acceptance by the first deadline transitions to
+  `UNKNOWN / AGENT_ACCEPTANCE_TIMEOUT`; the verification timer does not start.
+- Timeout processing is durable and idempotent. The accepted-vs-timeout race
+  serializes on the execution row/version. A timeout winner cannot be
+  resurrected by late acceptance or a later runtime marker; those facts are
+  retained in the append-only reconciliation evidence table and update the
+  same actionable Work Item context. A timed-out command is not redispatched.
+- Pre-dispatch security rechecks, one automatic attempt, no automatic business
+  retry/compensation, safe cancellation, explicit reconciled manual retry,
+  audit/outbox/timeline projection and one UNKNOWN/FAILED human fallback
+  remain in force.
+- Added immutable acceptance-deadline and reconciliation-evidence database
+  structures, plus structured Work Queue context for execution reconciliation.
 
 ## API and events
 
-Operator API:
+The operator API remains:
 
 ```text
 GET  /api/v1/automation/action-executions/{execution_id}
@@ -44,7 +36,7 @@ POST /api/v1/automation/action-executions/{execution_id}/commands/cancel
 POST /api/v1/automation/action-executions/{execution_id}/commands/retry
 ```
 
-Authenticated Agent Gateway API:
+The authenticated Agent Gateway remains:
 
 ```text
 POST /api/v1/agent/automation-actions/claim
@@ -52,42 +44,33 @@ POST /api/v1/agent/automation-actions/{command_id}/commands/accept
 POST /api/v1/agent/automation-actions/{command_id}/commands/report
 ```
 
-Added Agent facts `AGENT.AUTOMATION_ACTION_ACCEPTED` and
-`AGENT.AUTOMATION_ACTION_REJECTED`; execution-state events use the existing
-TASK-091 `AUTOMATION.*` contract.
+`AUTOMATION.ACTION_UNKNOWN` now carries dispatch and acceptance-deadline
+context. `AUTOMATION.ACTION_RECONCILIATION_EVIDENCE_RECORDED` records late
+authenticated acceptance/runtime evidence without changing the terminal
+execution. Agent credentials are excluded.
 
 ## Verification
 
-- `npm test`: passed, 110 tests (36 unit/architecture, 2 contract, 1
-  migration, 21 integration, 50 E2E).
-- `npm run typecheck`: passed.
-- `npm run lint`: passed, including module-boundary checks.
-- `npm run format:check`: passed.
-- `git diff --check`: passed.
-- TASK-091 PostgreSQL E2E: 6 tests pass for authenticated dispatch and
-  idempotent redelivery, positive restart evidence, tenant and kill-switch
-  denial, grant/scope/policy rechecks, cancellation, `UNKNOWN` verification
-  timeout/Work Queue fallback and reconciled manual retry.
+- TASK-091 PostgreSQL E2E: 8 tests pass, including 30-second deadline
+  persistence, the separate accepted-at verification clock, timeout to
+  UNKNOWN, no redispatch, one Work Item, late acceptance/runtime evidence,
+  idempotent timeout processing and accepted-vs-timeout serialization.
+- Full repository gates: `npm test`, `npm run typecheck`, `npm run lint`,
+  `npm run format:check`, migration tests and `git diff --check` passed.
 
-## Remaining blocker and deployment constraint
+## Deployment capability
 
-`SPEC_GAP`: TASK-091-R1 requires ambiguous delivery without proven Agent
-acceptance to resolve as `UNKNOWN`, but defines no deadline or event that
-distinguishes normal waiting from an acceptance acknowledgement that will
-never arrive. The five-minute deadline is explicitly anchored to the
-authoritative `ACCEPTED` timestamp and cannot be reused before acceptance.
-The current implementation therefore safely forbids cancellation after
-`DISPATCHED` but cannot autonomously resolve a permanently unacknowledged
-dispatch. No timeout has been invented.
-
-The checked-in Agent Gateway entry point is wired to
-`unavailableAuthentication`, which remains fail-closed. Deployment must
-provide the existing enrolled-Agent `AuthenticationPort` adapter; tests use
-an isolated authenticated Agent adapter. No Agent credentials or permissive
-fallback were added.
+`apps/agent-gateway/src/main.ts` continues to use
+`unavailableAuthentication`, which is deliberately fail-closed. A production
+deployment must configure an enrolled-Agent `AuthenticationPort` adapter
+compatible with the existing Agent authentication/channel contract. Automated
+tests use a controlled authenticated fake; this does not assert that
+production credentials or adapter configuration exist.
 
 ## Governance
 
-TASK-091 remains `IN_PROGRESS`, not `CODE_COMPLETE`. TASK-092 was not started
-or reconciled. The pre-existing `AGENTS.md` working-tree change is excluded
-from TASK-091 changes and commit.
+TASK-091 is `CODE_COMPLETE`. TASK-092's declared dependencies TASK-033,
+TASK-051 and TASK-090 are all `CODE_COMPLETE`; its derived registry readiness
+is reconciled to `READY / NOT_STARTED`. No TASK-092 contract or runtime work
+was started. The pre-existing `AGENTS.md` change is excluded from the
+TASK-091 commit.

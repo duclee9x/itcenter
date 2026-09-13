@@ -4160,6 +4160,7 @@ intent_id:
 target_agent_id:
 action_type: RESTART_AGENT
 dispatched_at:
+acceptance_deadline_at: # dispatched_at + 30 seconds for RESTART_AGENT v1
 correlation_id:
 ```
 
@@ -4191,7 +4192,25 @@ reason_code:
 work_item_id:
 reconciliation_required: true
 completed_at:
+dispatched_at:
+acceptance_deadline_at: # required for AGENT_ACCEPTANCE_TIMEOUT
 ```
+
+## `AUTOMATION.ACTION_RECONCILIATION_EVIDENCE_RECORDED`
+
+```yaml
+execution_id:
+intent_id:
+target_agent_id:
+command_id:
+evidence_type: LATE_AGENT_ACCEPTED | LATE_RESTART_RUNTIME
+evidence:
+state: UNKNOWN
+reason_code: LATE_EVIDENCE_AFTER_UNKNOWN
+```
+
+This event records late evidence without changing terminal `UNKNOWN` state.
+Evidence is durably deduplicated by execution and evidence identity.
 
 ## `AUTOMATION.ACTION_CANCELLED`
 
@@ -4206,9 +4225,12 @@ completed_at:
 Emit transition events only after the owning transaction commits. Repeated
 processing cannot duplicate the effective outbox event. `ACTION_ACCEPTED` is
 not success; only `ACTION_SUCCEEDED` carries positive post-restart evidence.
-`ACTION_UNKNOWN` does not imply failure or authorize retry. TASK-091 v1 has
-no automatic retry or compensation event because it has zero automatic
-retries and no compensator.
+`ACTION_UNKNOWN` does not imply failure or authorize retry. `RESTART_AGENT`
+v1 has a 30-second acceptance deadline from dispatch and an independent
+five-minute verification deadline from `accepted_at`. Late acceptance/runtime
+facts are retained as reconciliation evidence and do not rewrite `UNKNOWN`.
+TASK-091 v1 has no automatic retry or compensation event because it has zero
+automatic retries and no compensator.
 
 ---
 

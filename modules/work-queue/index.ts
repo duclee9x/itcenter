@@ -26,5 +26,6 @@ export {
   createAutomationConflictWorkItem,
   createAutomationReviewWorkItem,
   createAutomationExecutionWorkItem,
+  updateAutomationExecutionWorkItemContext,
   recordAutomationTimelineEvent,
 } from "./application/work-queue.js";

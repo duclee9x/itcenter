@@ -6,7 +6,10 @@ import type { Server } from "node:http";
 import { apiServer } from "../../apps/api/src/server.js";
 import { agentServer } from "../../apps/agent-gateway/src/server.js";
 import { applyAutomationExecutionEvent } from "../../apps/worker/src/automation-executions.js";
-import { markExpiredExecutionsUnknown } from "../../modules/automation/index.js";
+import {
+  markExpiredExecutionsUnknown,
+  recordExecutionAcceptance,
+} from "../../modules/automation/index.js";
 import {
   permissions as identityPermissions,
   seedPermissions,
@@ -228,6 +231,18 @@ test("TASK-091 dispatch is authenticated, redelivery preserves command ID, and o
     assert.equal(command.action_type, "RESTART_AGENT");
     assert.equal(command.target_agent_id, ids.agent);
     assert.equal(Object.hasOwn(command, "command"), false);
+    const dispatch = await db.pool.query<{
+      dispatched_at: Date;
+      acceptance_deadline_at: Date;
+    }>(
+      "SELECT dispatched_at,acceptance_deadline_at FROM automation.action_executions WHERE id=$1",
+      [ready.executionId],
+    );
+    assert.equal(
+      dispatch.rows[0]!.acceptance_deadline_at.getTime() -
+        dispatch.rows[0]!.dispatched_at.getTime(),
+      30_000,
+    );
     assert.equal(
       (
         await db.pool.query(
@@ -251,14 +266,24 @@ test("TASK-091 dispatch is authenticated, redelivery preserves command ID, and o
       [tenant],
     );
     await applyAutomationExecutionEvent(db.uow, acceptance.rows[0]!.payload);
+    const acceptedState = await db.pool.query<{
+      state: string;
+      accepted_at: Date;
+      verification_deadline: Date;
+      dispatched_at: Date;
+    }>(
+      "SELECT state,accepted_at,verification_deadline,dispatched_at FROM automation.action_executions WHERE id=$1",
+      [ready.executionId],
+    );
+    assert.equal(acceptedState.rows[0]!.state, "VERIFYING");
     assert.equal(
-      (
-        await db.pool.query(
-          "SELECT state FROM automation.action_executions WHERE id=$1",
-          [ready.executionId],
-        )
-      ).rows[0]!.state,
-      "VERIFYING",
+      acceptedState.rows[0]!.verification_deadline.getTime() -
+        acceptedState.rows[0]!.accepted_at.getTime(),
+      5 * 60 * 1000,
+    );
+    assert.ok(
+      acceptedState.rows[0]!.verification_deadline.getTime() >
+        acceptedState.rows[0]!.dispatched_at.getTime() + 5 * 60 * 1000,
     );
     const heartbeat = async (runtime: string) => {
       const response = await fetch(`${url}/api/v1/agent/heartbeat`, {
@@ -671,6 +696,291 @@ test("TASK-091 verification timeout is UNKNOWN, creates one fallback, and forbid
       ).rows[0]!.n,
       1,
     );
+  } finally {
+    await close(server);
+    await db.close();
+  }
+});
+
+test("TASK-091 acceptance timeout becomes UNKNOWN once, preserves late evidence, and never redispatches", async () => {
+  const db = await testDatabase();
+  const ids = await fixture(db);
+  const ready = await readyIntent(db, ids);
+  const server = agentServer(
+    config,
+    async () => true,
+    agentAuth(ids.agent),
+    db.uow,
+  );
+  const url = await listen(server);
+  const headers = {
+    authorization: "Bearer task091-agent",
+    "content-type": "application/json",
+  };
+  try {
+    const claim = await fetch(`${url}/api/v1/agent/automation-actions/claim`, {
+      method: "POST",
+      headers,
+      body: "{}",
+    });
+    assert.equal(claim.status, 200);
+    const command = (
+      (await claim.json()) as {
+        data: { command_id: string };
+      }
+    ).data;
+    const deadlines = await db.pool.query<{
+      dispatched_at: Date;
+      acceptance_deadline_at: Date;
+    }>(
+      "SELECT dispatched_at,acceptance_deadline_at FROM automation.action_executions WHERE id=$1",
+      [ready.executionId],
+    );
+    const deadline = deadlines.rows[0]!.acceptance_deadline_at;
+    assert.equal(
+      await db.uow.run(tenant, (tx) =>
+        markExpiredExecutionsUnknown(tx, new Date(deadline.getTime() + 1)),
+      ),
+      1,
+    );
+    const unknownEvent = await db.pool.query<{ payload: EventEnvelope }>(
+      "SELECT payload FROM platform.outbox_events WHERE event_type='AUTOMATION.ACTION_UNKNOWN' AND tenant_id=$1 ORDER BY created_at DESC LIMIT 5",
+      [tenant],
+    );
+    const diagnostic = await db.pool.query(
+      "SELECT state,reason_code,acceptance_deadline_at FROM automation.action_executions WHERE tenant_id=$1 AND id=$2",
+      [tenant, ready.executionId],
+    );
+    assert.equal(
+      unknownEvent.rowCount,
+      1,
+      JSON.stringify({ events: unknownEvent.rows, execution: diagnostic.rows }),
+    );
+    const payload = unknownEvent.rows[0]!.payload.payload;
+    assert.equal(payload.reason_code, "AGENT_ACCEPTANCE_TIMEOUT");
+    assert.equal(
+      payload.dispatched_at,
+      deadlines.rows[0]!.dispatched_at.toISOString(),
+    );
+    assert.equal(payload.acceptance_deadline_at, deadline.toISOString());
+    await applyAutomationExecutionEvent(db.uow, unknownEvent.rows[0]!.payload);
+
+    const workItem = await db.pool.query<{
+      context_json: Record<string, unknown>;
+    }>(
+      "SELECT context_json FROM operations.work_items WHERE tenant_id=$1 AND source_type='AUTOMATION_EXECUTION' AND source_id=$2",
+      [tenant, ready.executionId],
+    );
+    assert.equal(workItem.rowCount, 1);
+    assert.equal(workItem.rows[0]!.context_json.command_id, command.command_id);
+    assert.equal(
+      workItem.rows[0]!.context_json.acceptance_deadline_at,
+      deadline.toISOString(),
+    );
+
+    const redelivery = await fetch(
+      `${url}/api/v1/agent/automation-actions/claim`,
+      { method: "POST", headers, body: "{}" },
+    );
+    assert.equal(((await redelivery.json()) as { data: unknown }).data, null);
+    const lateAccept = await fetch(
+      `${url}/api/v1/agent/automation-actions/${command.command_id}/commands/accept`,
+      { method: "POST", headers, body: "{}" },
+    );
+    assert.equal(lateAccept.status, 200);
+    const accepted = await db.pool.query<{ payload: EventEnvelope }>(
+      "SELECT payload FROM platform.outbox_events WHERE event_type='AGENT.AUTOMATION_ACTION_ACCEPTED' AND tenant_id=$1 AND aggregate_id=$2 ORDER BY created_at DESC LIMIT 1",
+      [tenant, ids.agent],
+    );
+    await applyAutomationExecutionEvent(db.uow, accepted.rows[0]!.payload);
+    const afterLateAccept = await db.pool.query<{
+      state: string;
+      reason_code: string;
+    }>(
+      "SELECT state,reason_code FROM automation.action_executions WHERE id=$1",
+      [ready.executionId],
+    );
+    assert.equal(afterLateAccept.rows[0]!.state, "UNKNOWN");
+    assert.equal(
+      afterLateAccept.rows[0]!.reason_code,
+      "AGENT_ACCEPTANCE_TIMEOUT",
+    );
+    assert.equal(
+      (
+        await db.pool.query(
+          "SELECT count(*)::int AS n FROM automation.action_execution_reconciliation_evidence WHERE tenant_id=$1 AND execution_id=$2 AND evidence_type='LATE_AGENT_ACCEPTED'",
+          [tenant, ready.executionId],
+        )
+      ).rows[0]!.n,
+      1,
+    );
+    const lateEvidenceEvent = await db.pool.query<{
+      payload: EventEnvelope;
+    }>(
+      "SELECT payload FROM platform.outbox_events WHERE event_type='AUTOMATION.ACTION_RECONCILIATION_EVIDENCE_RECORDED' AND tenant_id=$1 AND aggregate_id=$2 ORDER BY created_at DESC LIMIT 1",
+      [tenant, ready.executionId],
+    );
+    await applyAutomationExecutionEvent(
+      db.uow,
+      lateEvidenceEvent.rows[0]!.payload,
+    );
+
+    const heartbeat = await fetch(`${url}/api/v1/agent/heartbeat`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        agent_version: "test",
+        agent_runtime_id: randomUUID(),
+        session_id: `late-${randomUUID()}`,
+      }),
+    });
+    assert.equal(heartbeat.status, 200);
+    const online = await db.pool.query<{ payload: EventEnvelope }>(
+      "SELECT payload FROM platform.outbox_events WHERE event_type='AGENT.ONLINE' AND tenant_id=$1 ORDER BY created_at DESC LIMIT 1",
+      [tenant],
+    );
+    await applyAutomationExecutionEvent(db.uow, online.rows[0]!.payload);
+    const lateRuntime = await db.pool.query<{
+      evidence_json: Record<string, unknown>;
+    }>(
+      "SELECT evidence_json FROM automation.action_execution_reconciliation_evidence WHERE tenant_id=$1 AND execution_id=$2 AND evidence_type='LATE_RESTART_RUNTIME'",
+      [tenant, ready.executionId],
+    );
+    assert.equal(lateRuntime.rowCount, 1);
+    assert.equal(
+      lateRuntime.rows[0]!.evidence_json.agent_runtime_id,
+      (online.rows[0]!.payload.payload as { agent_runtime_id: string })
+        .agent_runtime_id,
+    );
+    await assert.rejects(
+      db.uow.run(tenant, (tx) =>
+        tx.query(
+          "UPDATE automation.action_execution_reconciliation_evidence SET evidence_json='{}' WHERE tenant_id=$1 AND execution_id=$2",
+          [tenant, ready.executionId],
+        ),
+      ),
+      /append-only/,
+    );
+    await assert.rejects(
+      db.uow.run(tenant, (tx) =>
+        tx.query(
+          "TRUNCATE automation.action_execution_reconciliation_evidence",
+        ),
+      ),
+      /append-only/,
+    );
+    const repeated = await db.uow.run(tenant, (tx) =>
+      markExpiredExecutionsUnknown(tx, new Date(deadline.getTime() + 60_000)),
+    );
+    assert.equal(repeated, 0);
+    assert.equal(
+      (
+        await db.pool.query(
+          "SELECT count(*)::int AS n FROM operations.work_items WHERE tenant_id=$1 AND source_type='AUTOMATION_EXECUTION' AND source_id=$2",
+          [tenant, ready.executionId],
+        )
+      ).rows[0]!.n,
+      1,
+    );
+    assert.equal(
+      (
+        await db.pool.query(
+          "SELECT count(*)::int AS n FROM automation.action_executions WHERE tenant_id=$1 AND intent_id=$2",
+          [tenant, ready.intentId],
+        )
+      ).rows[0]!.n,
+      1,
+    );
+  } finally {
+    await close(server);
+    await db.close();
+  }
+});
+
+test("TASK-091 Agent acceptance and deadline timeout serialize with one winner", async () => {
+  const db = await testDatabase();
+  const ids = await fixture(db);
+  const ready = await readyIntent(db, ids);
+  const server = agentServer(
+    config,
+    async () => true,
+    agentAuth(ids.agent),
+    db.uow,
+  );
+  const url = await listen(server);
+  try {
+    const claim = await fetch(`${url}/api/v1/agent/automation-actions/claim`, {
+      method: "POST",
+      headers: {
+        authorization: "Bearer task091-agent",
+        "content-type": "application/json",
+      },
+      body: "{}",
+    });
+    assert.equal(claim.status, 200);
+    const command = (
+      (await claim.json()) as {
+        data: { command_id: string };
+      }
+    ).data;
+    const dispatched = await db.pool.query<{ acceptance_deadline_at: Date }>(
+      "SELECT acceptance_deadline_at FROM automation.action_executions WHERE id=$1",
+      [ready.executionId],
+    );
+    const acceptedAt = new Date().toISOString();
+    await Promise.all([
+      db.uow.run(tenant, (tx) =>
+        recordExecutionAcceptance(tx, {
+          commandId: command.command_id,
+          agentId: ids.agent,
+          acceptedAt,
+          sourceEventId: randomUUID(),
+          correlationId: ready.correlationId,
+        }),
+      ),
+      db.uow.run(tenant, (tx) =>
+        markExpiredExecutionsUnknown(
+          tx,
+          new Date(dispatched.rows[0]!.acceptance_deadline_at.getTime() + 1),
+        ),
+      ),
+    ]);
+    const final = await db.pool.query<{
+      state: string;
+      accepted_at: Date | null;
+    }>(
+      "SELECT state,accepted_at FROM automation.action_executions WHERE id=$1",
+      [ready.executionId],
+    );
+    assert.ok(["VERIFYING", "UNKNOWN"].includes(final.rows[0]!.state));
+    const terminalTransitions = await db.pool.query<{ n: number }>(
+      "SELECT count(*)::int AS n FROM automation.action_execution_audit WHERE tenant_id=$1 AND execution_id=$2 AND event_type IN ('AUTOMATION.ACTION_ACCEPTED','AUTOMATION.ACTION_UNKNOWN')",
+      [tenant, ready.executionId],
+    );
+    assert.equal(terminalTransitions.rows[0]!.n, 1);
+    if (final.rows[0]!.state === "UNKNOWN") {
+      assert.equal(final.rows[0]!.accepted_at, null);
+      assert.equal(
+        (
+          await db.pool.query(
+            "SELECT count(*)::int AS n FROM automation.action_execution_reconciliation_evidence WHERE tenant_id=$1 AND execution_id=$2 AND evidence_type='LATE_AGENT_ACCEPTED'",
+            [tenant, ready.executionId],
+          )
+        ).rows[0]!.n,
+        1,
+      );
+    } else {
+      assert.ok(final.rows[0]!.accepted_at);
+      assert.equal(
+        (
+          await db.pool.query(
+            "SELECT count(*)::int AS n FROM automation.action_execution_reconciliation_evidence WHERE tenant_id=$1 AND execution_id=$2",
+            [tenant, ready.executionId],
+          )
+        ).rows[0]!.n,
+        0,
+      );
+    }
   } finally {
     await close(server);
     await db.close();

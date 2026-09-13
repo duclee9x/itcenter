@@ -3174,6 +3174,7 @@ action_executions:
   pre_execution_baseline_json:
   command_snapshot_json:
   dispatched_at:
+  acceptance_deadline_at:
   accepted_at:
   verification_deadline_at:
   verification_evidence_json:
@@ -3188,6 +3189,15 @@ action_executions:
   updated_at:
   completed_at:
 ```
+
+`acceptance_deadline_at` is immutable and, for `RESTART_AGENT` v1, equals
+`dispatched_at + 30 seconds`. It is separate from `verification_deadline_at`,
+which begins at authoritative `accepted_at` and is five minutes for this
+capability. A timeout transition from `DISPATCHED` is `UNKNOWN`, never an
+automatic redispatch. Late authenticated acceptance or post-restart runtime
+markers are append-only `action_execution_reconciliation_evidence` records;
+they do not rewrite a terminal `UNKNOWN` execution. The reconciliation table
+is tenant-scoped, source-event/idempotency constrained and immutable.
 
 TASK-091 v1 keeps Action Intent (`READY`) as the immutable request/decision
 record and stores execution progress and every attempt in the Automation

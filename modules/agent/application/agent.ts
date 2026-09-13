@@ -133,6 +133,23 @@ export async function isRegisteredAgent(input: {
   return (result.rowCount ?? 0) > 0;
 }
 
+export async function readAgentRuntimeEvidence(input: {
+  tx: Transaction;
+  agentId: string;
+}) {
+  const result = await input.tx.query<{
+    id: string;
+    status: string;
+    agent_runtime_id: string | null;
+    agent_session_id: string | null;
+    last_seen_at: Date | null;
+  }>(
+    "SELECT id,status,agent_runtime_id,agent_session_id,last_seen_at FROM agent.agents WHERE tenant_id=$1 AND id=$2",
+    [input.tx.tenantId, input.agentId],
+  );
+  return result.rows[0] ?? null;
+}
+
 export async function acceptAutomationAction(input: {
   tx: Transaction;
   agentId: string;

@@ -1866,10 +1866,11 @@ PENDING → atomic worker claim → CLAIMED
 PENDING or CLAIMED → proven not dispatched/accepted + authorized cancellation → CANCELLED
 CLAIMED → recheck denied / deterministic pre-dispatch failure → FAILED
 CLAIMED → durable command outbox/send → DISPATCHED
-DISPATCHED → authenticated exact-command acknowledgement → ACCEPTED
-DISPATCHED → delivery/acceptance ambiguous → UNKNOWN
+DISPATCHED → authenticated exact-command acknowledgement before acceptance_deadline_at → ACCEPTED
+DISPATCHED → acceptance_deadline_at reached without ACCEPTED → UNKNOWN (AGENT_ACCEPTANCE_TIMEOUT)
+UNKNOWN → late authenticated Agent acceptance/runtime evidence → append reconciliation evidence; remain UNKNOWN
 DISPATCHED → authenticated Agent rejection → FAILED
-ACCEPTED → begin five-minute verification window → VERIFYING
+ACCEPTED → begin five-minute verification window from accepted_at → VERIFYING
 ACCEPTED or VERIFYING → new authenticated runtime marker observed → SUCCEEDED
 ACCEPTED or VERIFYING → verification deadline without positive proof → UNKNOWN
 ACCEPTED or VERIFYING → authoritative deterministic failure → FAILED
@@ -1883,11 +1884,14 @@ Action Execution with new execution/command IDs; history is preserved.
 
 TASK-091 v1 has at most one automatic attempt and zero automatic business
 retries. Transport redelivery uses the original command ID and Agent-side
-deduplication. `RESTART_AGENT` has no compensation. Only positive evidence of
-a post-acceptance Agent runtime marker different from the pre-execution
-baseline reaches `SUCCEEDED`; ordinary heartbeat freshness alone is
-insufficient. The five-minute verification deadline begins at authenticated
-Agent acceptance and timeout defaults to `UNKNOWN`.
+deduplication. `RESTART_AGENT` has no compensation. Its capability-specific
+acceptance deadline is 30 seconds from `dispatched_at`; the independent
+five-minute verification deadline starts only at authenticated `accepted_at`.
+Missing acceptance or missing verification evidence becomes `UNKNOWN`, never
+an automatic retry. Late acceptance/runtime evidence is append-only and does
+not rewrite `UNKNOWN`. Only positive evidence of a post-acceptance Agent
+runtime marker different from the pre-execution baseline reaches
+`SUCCEEDED`; ordinary heartbeat freshness alone is insufficient.
 
 Pre-dispatch recheck failures produce `FAILED` with an explicit reason and an
 actionable Work Item where required; they never dispatch. A worker lease

@@ -2959,15 +2959,17 @@ attempt history are persisted separately.
 | Execution authorization | Fresh capability/policy/principal/scope/approval/conflict/kill-switch/target checks | Any denial, stale or unavailable evidence prevents dispatch and is explained |
 | Agent command safety | Fixed typed RESTART_AGENT envelope, authenticated enrolled Agent, stable command ID and durable inbox dedupe | No arbitrary command body; same-command redelivery cannot restart twice |
 | Execution lifecycle | Separate Action Execution, state transitions, unique automatic attempt and atomic lease | Competing workers/crash recovery do not double-dispatch |
-| Verification | Immutable pre-execution `agent_runtime_id` baseline and authenticated post-acceptance runtime marker | Old-session heartbeat/ACK do not pass; new runtime within five minutes succeeds |
-| Outcomes/recovery | SUCCEEDED / FAILED / UNKNOWN; at most one Work Item for terminal exception | Verification timeout and ambiguous delivery are UNKNOWN; no automatic retry or compensation |
+| Acceptance and verification deadlines | Immutable `acceptance_deadline_at = dispatched_at + 30 seconds`; separate five-minute verification deadline starts at authenticated `accepted_at` | No ACCEPTED by deadline or ambiguous post-dispatch delivery becomes UNKNOWN; acceptance timeout does not start verification |
+| Verification | Immutable pre-execution `agent_runtime_id` baseline and authenticated post-acceptance runtime marker | Old-session heartbeat/ACK do not pass; new runtime within five minutes of ACCEPTED succeeds; late runtime evidence after UNKNOWN is retained without rewriting outcome |
+| Outcomes/recovery | SUCCEEDED / FAILED / UNKNOWN; at most one Work Item for terminal exception | Acceptance/verification timeout and ambiguous delivery are UNKNOWN; late ACCEPTED does not resurrect; no automatic retry or compensation |
 | Cancellation/manual retry | `execution.cancel` before proven acceptance; `execution.retry` only after reconciliation | Post-acceptance/ambiguous cancellation is rejected; manual retry has new linked IDs and fresh checks |
 | Events/audit/timeline | Transactional execution outbox and append-only security evidence | Replay idempotent; no Agent secrets; Work Queue is not source of truth |
 | Business boundary | Execution result proves only Agent restart | No automatic Incident closure or invented inverse/compensation |
 
 Required tests cover policy/security rechecks, unsupported actions, claim
-races, authenticated Agent delivery/acceptance, runtime-marker verification,
-five-minute timeout to UNKNOWN, lost acknowledgement, explicit rejection,
-pre/post-acceptance cancellation, manual retry lineage, duplicate delivery,
-worker crash after dispatch, unique Work Queue fallback and preservation of
-Incident state.
+races, authenticated Agent delivery/acceptance, the 30-second acceptance
+deadline and ACCEPTED-vs-timeout race, runtime-marker verification with a
+separate five-minute deadline from `accepted_at`, late evidence after UNKNOWN,
+lost acknowledgement, explicit rejection, pre/post-acceptance cancellation,
+manual retry lineage, duplicate delivery, worker crash after dispatch, unique
+Work Queue fallback and preservation of Incident state.

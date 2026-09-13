@@ -11,27 +11,21 @@ tenant-scoped Action Policy, tenant-bound `SYSTEM_AUTOMATION` principal and
 canonical scoped authorization. Missing policy/grant remains deny-by-default.
 TASK-090 never executes actions.
 
-TASK-091 is `READY / IN_PROGRESS`: TASK-031, TASK-053, TASK-090 and
-TASK-091-R1 are satisfied and its detailed contract is at
-`tasks/TASK-091_CONTROLLED_SELF_HEALING_COMPENSATION.md`. TASK-091-R1 is a
-normative/specification-only remediation at
-`tasks/TASK-091-R1_AUTOMATION_ACTION_EXECUTION_CONTRACT_GAP.md`.
+TASK-091 — Controlled Self-Healing + Compensation — is `CODE_COMPLETE`;
+TASK-031, TASK-053, TASK-090 and TASK-091-R1 are satisfied. The completed
+runtime contract and report are at
+`tasks/TASK-091_CONTROLLED_SELF_HEALING_COMPENSATION.md` and
+`tasks/TASK-091_IMPLEMENTATION_REPORT.md`. For `RESTART_AGENT`, the platform
+persists a 30-second acceptance deadline from dispatch and starts the
+independent five-minute verification window only from authenticated
+`accepted_at`. An acceptance timeout or ambiguous delivery becomes UNKNOWN;
+late acceptance/runtime evidence is append-only reconciliation evidence and
+cannot resurrect the execution. There is no automatic retry or compensation.
 
-TASK-091 v1 is limited to `RESTART_AGENT`. It requires fresh policy,
-capability, SYSTEM_AUTOMATION authorization/scope, approval, conflict,
-kill-switch and Agent-target rechecks; authenticated Agent acceptance;
-positive new-runtime-marker verification within five minutes; one automatic
-attempt, zero automatic business retries, no compensation, and UNKNOWN plus
-human fallback for ambiguous outcomes. Cancel is safe only before proven
-acceptance; manual retry requires explicit reconciliation and new linked IDs.
-The execution vertical slice, migrations, API/Agent Gateway protocol,
-worker projection and E2E tests are implemented. Full checks currently pass.
-One `SPEC_GAP` remains: no deadline/trigger is defined to classify an
-ambiguous `DISPATCHED` execution with no authenticated Agent `ACCEPTED` as
-`UNKNOWN`. The fixed five-minute verification deadline begins only after
-acceptance, so no timeout was inferred. See
-`tasks/TASK-091_IMPLEMENTATION_REPORT.md`. Keep TASK-091 IN_PROGRESS and do
-not start TASK-092 until this is clarified and implemented.
+TASK-092 — Advanced Incident Correlation — is reconciled to `READY /
+NOT_STARTED`: declared dependencies TASK-033, TASK-051 and TASK-090 are
+`CODE_COMPLETE`. Do not start TASK-092 contract or runtime work in this
+handoff; stop after recording readiness.
 
 Deployment note: `apps/agent-gateway/src/main.ts` continues to use the
 fail-closed `unavailableAuthentication` adapter. Configure the existing
@@ -47,7 +41,7 @@ commercial-document storage as `UNAVAILABLE_NOT_READY`; production storage is
 not asserted ready.
 
 The pre-existing `AGENTS.md` modification remains outside the TASK-091
-runtime commit.
+completion commit.
 
 ## Last Completed Remediation — TASK-091-R1
 
@@ -56,9 +50,8 @@ specification only). TASK-091 now has an implementation-ready contract with
 an authenticated fixed Agent command protocol, a separate execution state
 machine and durable attempt history, five-minute positive runtime-marker
 verification, safe cancellation/manual-retry rules, at-most-once recovery,
-idempotent events, permissions and actionable UNKNOWN fallback. No runtime
-TASK-091 code was implemented. TASK-091 readiness is READY / NOT_STARTED;
-stop pending an explicit implementation instruction.
+idempotent events, permissions and actionable UNKNOWN fallback. The runtime
+completion is recorded in `tasks/TASK-091_IMPLEMENTATION_REPORT.md`.
 
 ## Last Completed Task — TASK-090
 

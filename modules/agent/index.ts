@@ -5,6 +5,7 @@ export {
   readPendingAutomationAction,
   readRestartBaseline,
   isRegisteredAgent,
+  readAgentRuntimeEvidence,
   acceptAutomationAction,
   rejectAutomationAction,
   recordInventory,

@@ -6,6 +6,7 @@ import type { ActionDescriptor } from "../domain/rules.js";
 import type { ExecutionSecurityPorts } from "./ports.js";
 
 const VERIFY_MS = 5 * 60 * 1000;
+const ACCEPTANCE_TIMEOUT_MS = 30 * 1000;
 const EXECUTOR = "task091-agent-executor";
 
 async function transition(input: {
@@ -33,6 +34,7 @@ async function transition(input: {
   if (!current.rowCount) return false;
   const allowed = new Set([
     "dispatched_at",
+    "acceptance_deadline_at",
     "accepted_at",
     "verification_deadline",
     "completed_at",
@@ -244,11 +246,13 @@ export async function readDispatchedAgentCommand(
 ) {
   const result = await tx.query<{
     command_snapshot_json: Record<string, unknown>;
+    state: string;
   }>(
-    "SELECT command_snapshot_json FROM automation.action_executions WHERE tenant_id=$1 AND target_agent_id=$2 AND command_id=$3 AND id=$4 AND state='DISPATCHED'",
+    "SELECT command_snapshot_json,state FROM automation.action_executions WHERE tenant_id=$1 AND target_agent_id=$2 AND command_id=$3 AND id=$4",
     [tx.tenantId, input.agentId, input.commandId, input.executionId],
   );
-  return result.rows[0]?.command_snapshot_json ?? null;
+  const row = result.rows[0];
+  return row ? { state: row.state, command: row.command_snapshot_json } : null;
 }
 
 export async function claimAgentRestart(
@@ -495,6 +499,9 @@ export async function claimAgentRestart(
     },
     update: {
       dispatched_at: now,
+      acceptance_deadline_at: new Date(
+        new Date(now).getTime() + ACCEPTANCE_TIMEOUT_MS,
+      ).toISOString(),
       baseline_json: JSON.stringify(baseline),
       preflight_evidence_json: JSON.stringify({
         capability_id: capability.id,
@@ -513,9 +520,110 @@ export async function claimAgentRestart(
   return command;
 }
 
+async function recordExecutionReconciliationEvidence(
+  tx: Transaction,
+  input: {
+    executionId: string;
+    evidenceType: "LATE_AGENT_ACCEPTED" | "LATE_RESTART_RUNTIME";
+    evidenceKey: string;
+    sourceEventId: string;
+    actorId: string;
+    correlationId: string;
+    evidence: Record<string, unknown>;
+  },
+) {
+  const execution = await tx.query<{
+    intent_id: string;
+    target_agent_id: string;
+    command_id: string;
+    state: string;
+    reason_code: string | null;
+    entity_version: number;
+  }>(
+    "SELECT intent_id,target_agent_id,command_id,state,reason_code,entity_version FROM automation.action_executions WHERE tenant_id=$1 AND id=$2 FOR UPDATE",
+    [tx.tenantId, input.executionId],
+  );
+  const row = execution.rows[0];
+  if (!row || row.state !== "UNKNOWN") return false;
+  const evidence = {
+    ...input.evidence,
+    execution_id: input.executionId,
+    intent_id: row.intent_id,
+    agent_id: row.target_agent_id,
+    command_id: row.command_id,
+    execution_state: "UNKNOWN",
+  };
+  const inserted = await tx.query<{ id: string }>(
+    `INSERT INTO automation.action_execution_reconciliation_evidence(
+       id,tenant_id,execution_id,evidence_type,evidence_key,source_event_id,evidence_json,correlation_id
+     ) VALUES($1,$2,$3,$4,$5,$6,$7,$8)
+     ON CONFLICT DO NOTHING RETURNING id`,
+    [
+      randomUUID(),
+      tx.tenantId,
+      input.executionId,
+      input.evidenceType,
+      input.evidenceKey,
+      input.sourceEventId,
+      JSON.stringify(evidence),
+      input.correlationId,
+    ],
+  );
+  if (!inserted.rowCount) return false;
+  const eventId = randomUUID();
+  await new PostgresOutboxWriter(tx).append({
+    event_id: eventId,
+    event_type: "AUTOMATION.ACTION_RECONCILIATION_EVIDENCE_RECORDED",
+    schema_version: 1,
+    occurred_at: new Date().toISOString(),
+    producer: { service: "itcenter-automation", instance: EXECUTOR },
+    aggregate: {
+      type: "ACTION_EXECUTION",
+      id: input.executionId,
+      version: row.entity_version,
+    },
+    actor: { type: "AGENT", id: input.actorId },
+    correlation_id: input.correlationId,
+    causation_id: input.sourceEventId,
+    tenant_id: tx.tenantId,
+    organization_id: tx.tenantId,
+    idempotency_key: `execution-reconciliation:${input.executionId}:${input.evidenceType}:${input.evidenceKey}`,
+    payload: {
+      execution_id: input.executionId,
+      intent_id: row.intent_id,
+      target_agent_id: row.target_agent_id,
+      command_id: row.command_id,
+      evidence_type: input.evidenceType,
+      evidence,
+      reason_code: "LATE_EVIDENCE_AFTER_UNKNOWN",
+      state: "UNKNOWN",
+    },
+  });
+  await tx.query(
+    `INSERT INTO automation.action_execution_audit(
+       id,tenant_id,execution_id,event_type,actor_type,actor_id,reason_code,evidence_json,correlation_id
+     ) VALUES($1,$2,$3,'AUTOMATION.ACTION_RECONCILIATION_EVIDENCE_RECORDED','AGENT',$4,'LATE_EVIDENCE_AFTER_UNKNOWN',$5,$6)`,
+    [
+      randomUUID(),
+      tx.tenantId,
+      input.executionId,
+      input.actorId,
+      JSON.stringify(evidence),
+      input.correlationId,
+    ],
+  );
+  return true;
+}
+
 export async function recordExecutionAcceptance(
   tx: Transaction,
-  input: { commandId: string; agentId: string; acceptedAt: string },
+  input: {
+    commandId: string;
+    agentId: string;
+    acceptedAt: string;
+    sourceEventId: string;
+    correlationId: string;
+  },
 ) {
   const result = await tx.query<{
     id: string;
@@ -524,19 +632,94 @@ export async function recordExecutionAcceptance(
     state: string;
     baseline_json: Record<string, unknown>;
     verification_deadline: Date | null;
+    dispatched_at: Date | null;
+    acceptance_deadline_at: Date | null;
     correlation_id: string;
+    reason_code: string | null;
     entity_version: number;
   }>(
-    "SELECT id,intent_id,target_agent_id,state,baseline_json,verification_deadline,correlation_id,entity_version FROM automation.action_executions WHERE tenant_id=$1 AND command_id=$2 FOR UPDATE",
+    "SELECT id,intent_id,target_agent_id,state,baseline_json,verification_deadline,dispatched_at,acceptance_deadline_at,correlation_id,reason_code,entity_version FROM automation.action_executions WHERE tenant_id=$1 AND command_id=$2 FOR UPDATE",
     [tx.tenantId, input.commandId],
   );
   const e = result.rows[0];
-  if (
-    !e ||
-    e.target_agent_id !== input.agentId ||
-    !["DISPATCHED", "ACCEPTED", "VERIFYING", "SUCCEEDED"].includes(e.state)
-  )
+  if (!e || e.target_agent_id !== input.agentId) return false;
+  if (e.state === "UNKNOWN") {
+    await recordExecutionReconciliationEvidence(tx, {
+      executionId: e.id,
+      evidenceType: "LATE_AGENT_ACCEPTED",
+      evidenceKey: input.sourceEventId,
+      sourceEventId: input.sourceEventId,
+      actorId: input.agentId,
+      correlationId: input.correlationId,
+      evidence: {
+        command_id: input.commandId,
+        agent_id: input.agentId,
+        accepted_at: input.acceptedAt,
+        accepted_after_unknown: true,
+        previous_reason_code: e.reason_code,
+      },
+    });
     return false;
+  }
+  if (e.state !== "DISPATCHED")
+    return ["ACCEPTED", "VERIFYING", "SUCCEEDED"].includes(e.state);
+  const acceptedAt = new Date(input.acceptedAt).getTime();
+  const dispatchedAt = e.dispatched_at
+    ? new Date(e.dispatched_at).getTime()
+    : Number.POSITIVE_INFINITY;
+  const acceptanceDeadline = e.acceptance_deadline_at
+    ? new Date(e.acceptance_deadline_at).getTime()
+    : Number.NEGATIVE_INFINITY;
+  if (acceptedAt < dispatchedAt || acceptedAt >= acceptanceDeadline) {
+    const reason =
+      acceptedAt < dispatchedAt
+        ? "AGENT_DELIVERY_AMBIGUOUS"
+        : "AGENT_ACCEPTANCE_TIMEOUT";
+    await transition({
+      tx,
+      id: e.id,
+      from: ["DISPATCHED"],
+      to: "UNKNOWN",
+      event: "AUTOMATION.ACTION_UNKNOWN",
+      actorType: "SERVICE_ACCOUNT",
+      actorId: EXECUTOR,
+      correlationId: e.correlation_id,
+      reason,
+      evidence: {
+        command_id: input.commandId,
+        agent_id: input.agentId,
+        dispatched_at: e.dispatched_at,
+        acceptance_deadline_at: e.acceptance_deadline_at,
+        accepted_at: input.acceptedAt,
+        late_acceptance: acceptedAt >= acceptanceDeadline,
+        acceptance_timestamp_invalid: acceptedAt < dispatchedAt,
+      },
+      update: {
+        completed_at: new Date().toISOString(),
+        reason_code: reason,
+        result_evidence_json: JSON.stringify({
+          outcome: "UNKNOWN",
+          reason_code: reason,
+          accepted_at: input.acceptedAt,
+        }),
+      },
+    });
+    await recordExecutionReconciliationEvidence(tx, {
+      executionId: e.id,
+      evidenceType: "LATE_AGENT_ACCEPTED",
+      evidenceKey: input.sourceEventId,
+      sourceEventId: input.sourceEventId,
+      actorId: input.agentId,
+      correlationId: input.correlationId,
+      evidence: {
+        command_id: input.commandId,
+        agent_id: input.agentId,
+        accepted_at: input.acceptedAt,
+        acceptance_deadline_at: e.acceptance_deadline_at,
+      },
+    });
+    return false;
+  }
   if (e.state === "DISPATCHED") {
     const deadline = new Date(
       new Date(input.acceptedAt).getTime() + VERIFY_MS,
@@ -611,7 +794,13 @@ export async function recordExecutionRejection(
 
 export async function observeAgentRuntime(
   tx: Transaction,
-  input: { agentId: string; runtimeId: string; observedAt: string },
+  input: {
+    agentId: string;
+    runtimeId: string;
+    sessionId: string | null;
+    observedAt: string;
+    sourceEventId: string;
+  },
 ) {
   const rows = await tx.query<{
     id: string;
@@ -619,12 +808,40 @@ export async function observeAgentRuntime(
     baseline_json: Record<string, unknown>;
     accepted_at: Date;
     verification_deadline: Date | null;
+    dispatched_at: Date | null;
     correlation_id: string;
   }>(
-    "SELECT id,state,baseline_json,accepted_at,verification_deadline,correlation_id FROM automation.action_executions WHERE tenant_id=$1 AND target_agent_id=$2 AND state IN ('ACCEPTED','VERIFYING') FOR UPDATE",
+    "SELECT id,state,baseline_json,accepted_at,verification_deadline,dispatched_at,correlation_id FROM automation.action_executions WHERE tenant_id=$1 AND target_agent_id=$2 AND state IN ('ACCEPTED','VERIFYING','UNKNOWN') FOR UPDATE",
     [tx.tenantId, input.agentId],
   );
   for (const e of rows.rows) {
+    if (e.state === "UNKNOWN") {
+      if (
+        input.runtimeId !== e.baseline_json.agent_runtime_id &&
+        e.dispatched_at &&
+        new Date(input.observedAt).getTime() >=
+          new Date(e.dispatched_at).getTime()
+      ) {
+        await recordExecutionReconciliationEvidence(tx, {
+          executionId: e.id,
+          evidenceType: "LATE_RESTART_RUNTIME",
+          evidenceKey: input.runtimeId,
+          sourceEventId: input.sourceEventId,
+          actorId: input.agentId,
+          correlationId: e.correlation_id,
+          evidence: {
+            agent_id: input.agentId,
+            command_id: null,
+            agent_runtime_id: input.runtimeId,
+            agent_session_id: input.sessionId,
+            observed_at: input.observedAt,
+            baseline_runtime_id: e.baseline_json.agent_runtime_id,
+            post_unknown: true,
+          },
+        });
+      }
+      continue;
+    }
     if (
       new Date(input.observedAt).getTime() <
         new Date(e.accepted_at).getTime() ||
@@ -667,31 +884,50 @@ export async function markExpiredExecutionsUnknown(
     state: string;
     correlation_id: string;
     command_id: string;
+    intent_id: string;
+    target_agent_id: string;
+    dispatched_at: Date;
+    acceptance_deadline_at: Date;
+    verification_deadline: Date | null;
   }>(
-    "SELECT id,state,correlation_id,command_id FROM automation.action_executions WHERE tenant_id=$1 AND state IN ('ACCEPTED','VERIFYING') AND verification_deadline<=$2 FOR UPDATE SKIP LOCKED LIMIT 50",
+    "SELECT id,state,correlation_id,command_id,intent_id,target_agent_id,dispatched_at,acceptance_deadline_at,verification_deadline FROM automation.action_executions WHERE tenant_id=$1 AND ((state='DISPATCHED' AND acceptance_deadline_at<=$2) OR (state IN ('ACCEPTED','VERIFYING') AND verification_deadline<=$2)) FOR UPDATE SKIP LOCKED LIMIT 50",
     [tx.tenantId, now.toISOString()],
   );
-  for (const e of rows.rows)
+  for (const e of rows.rows) {
+    const acceptanceTimeout = e.state === "DISPATCHED";
+    const reason = acceptanceTimeout
+      ? "AGENT_ACCEPTANCE_TIMEOUT"
+      : "RESTART_VERIFICATION_TIMEOUT";
     await transition({
       tx,
       id: e.id,
-      from: ["ACCEPTED", "VERIFYING"],
+      from: acceptanceTimeout ? ["DISPATCHED"] : ["ACCEPTED", "VERIFYING"],
       to: "UNKNOWN",
       event: "AUTOMATION.ACTION_UNKNOWN",
       actorType: "SERVICE_ACCOUNT",
       actorId: EXECUTOR,
       correlationId: e.correlation_id,
-      reason: "RESTART_VERIFICATION_TIMEOUT",
-      evidence: { command_id: e.command_id },
+      reason,
+      evidence: {
+        command_id: e.command_id,
+        intent_id: e.intent_id,
+        agent_id: e.target_agent_id,
+        dispatched_at: e.dispatched_at,
+        acceptance_deadline_at: e.acceptance_deadline_at,
+        verification_deadline_at: e.verification_deadline,
+        reconciliation_guidance:
+          "Confirm the Agent runtime and command outcome before any manual retry.",
+      },
       update: {
         completed_at: now.toISOString(),
-        reason_code: "RESTART_VERIFICATION_TIMEOUT",
+        reason_code: reason,
         result_evidence_json: JSON.stringify({
           outcome: "UNKNOWN",
-          reason: "RESTART_VERIFICATION_TIMEOUT",
+          reason_code: reason,
         }),
       },
     });
+  }
   return rows.rowCount ?? 0;
 }
 

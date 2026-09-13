@@ -115,16 +115,18 @@ export async function handleAgentAutomationActionRoute(input: {
           agentId: input.principal.id,
         });
         if (prior) {
-          const command = await readDispatchedAgentCommand(tx, {
+          const delivery = await readDispatchedAgentCommand(tx, {
             agentId: input.principal.id,
             commandId: prior.command_id,
             executionId: prior.execution_id,
           });
-          if (!command)
+          if (!delivery)
             throw new ApplicationError(
               "AGENT_COMMAND_ID_CONFLICT",
-              "Agent delivery receipt has no matching dispatched command.",
+              "Agent delivery receipt has no matching execution.",
             );
+          if (delivery.state !== "DISPATCHED") return null;
+          const command = delivery.command;
           const hash = createHash("sha256")
             .update(canonical(command))
             .digest("hex");

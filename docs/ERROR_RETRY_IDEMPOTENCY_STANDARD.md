@@ -2771,11 +2771,17 @@ permission to dispatch again. Recovery reconciles the same command and
 authenticated Agent evidence; uncertainty becomes terminal `UNKNOWN` with
 one idempotent human fallback.
 
-The verification deadline is five minutes from authenticated Agent
-`accepted_at`. Timeout without positive restart evidence is `UNKNOWN`, not
-retryable `FAILED`. No automatic retry, backoff or compensation applies to
-this capability. Manual retry is a new explicit command after the operator
-records reconciliation evidence that the prior restart did not succeed; it
+For `RESTART_AGENT` v1, a separate 30-second acceptance deadline begins at
+durable `dispatched_at`. If the execution remains `DISPATCHED` at that
+deadline, it becomes `UNKNOWN` with `AGENT_ACCEPTANCE_TIMEOUT`; this is not a
+deterministic failure and never authorizes automatic redispatch. Authenticated
+acceptance before that deadline starts the independent five-minute
+verification deadline from `accepted_at`. Timeout without positive restart
+evidence is also `UNKNOWN`, not retryable `FAILED`. Late acceptance/runtime
+evidence is append-only reconciliation data and cannot restore an `UNKNOWN`
+execution. No automatic retry, backoff or compensation applies to this
+capability. Manual retry is a new explicit command after the operator records
+reconciliation evidence that the prior restart did not succeed; it
 creates new execution/command IDs, references the prior attempt, uses
 `execution.retry`, expected version, reason and idempotency, and reruns every
 security/policy/target check. Same key/same request returns the original
