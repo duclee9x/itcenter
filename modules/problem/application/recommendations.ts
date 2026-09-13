@@ -235,10 +235,11 @@ export async function createRecommendationSession(input: {
     input.outcome === "PRESENTED" ? new Date().toISOString() : null;
   await input.tx.query(
     `INSERT INTO problem.knowledge_recommendation_sessions(
-       id,tenant_id,actor_id,ticket_id,incident_id,active_root_incident_id,
+      id,tenant_id,actor_id,ticket_id,incident_id,active_root_incident_id,
        support_context,normalized_context_hash,profile_id,profile_version,outcome,
+       started_pre_ticket,
        request_key,correlation_id,presented_at)
-     VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
+     VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`,
     [
       input.id,
       input.tx.tenantId,
@@ -255,6 +256,7 @@ export async function createRecommendationSession(input: {
       RECOMMENDATION_PROFILE_ID,
       RECOMMENDATION_PROFILE_VERSION,
       input.outcome,
+      input.context.ticket_id == null,
       input.requestKey,
       input.correlationId,
       presentedAt,

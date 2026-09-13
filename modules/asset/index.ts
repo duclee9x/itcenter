@@ -37,3 +37,7 @@ export {
   projectWarrantyState,
   type AssetWarrantyProjectionState,
 } from "./application/warranty-projection.js";
+export {
+  queryAssetScoringForReporting,
+  queryAssetScoringDrilldown,
+} from "./application/reporting.js";

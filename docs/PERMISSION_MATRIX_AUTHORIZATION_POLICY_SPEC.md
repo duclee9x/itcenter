@@ -2672,3 +2672,11 @@ Legacy SLA target-purpose classification requires the narrow
 Reading governed KPI aggregates does not grant this configuration permission.
 The Reporting system principal, if used for KPI-004, receives only tenant-
 scoped SLA outcome read access and never target-purpose mutation.
+
+The implemented Reporting routes use `metric.read` for catalog/current
+results, additionally `report.read` for history and `report.export` for CSV.
+KPI-009 requires `procurement.cost.read`. Each contribution row is separately
+authorized using its owning-domain read permission; denied rows are omitted
+without returning their identifiers or metadata. The internal worker uses
+only the active tenant's `SYSTEM_REPORTING` principal and its explicit
+capability allow-list.

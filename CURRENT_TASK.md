@@ -1,10 +1,8 @@
 # Current Task
 
-TASK-095 — Advanced Reporting + Governed KPI + Analytics — is
-`READY / IN_PROGRESS`. TASK-095-R1, R2 and R3 are `CODE_COMPLETE`; R3 added
-typed SLA target purpose and the canonical Resolution SLA outcome query needed
-by KPI-004. The prerequisite blocker is cleared. Continue only the already
-authorized TASK-095 acceptance work; do not begin TASK-096.
+TASK-096 — Explainable Recommendation Layer — is `READY / NOT_STARTED` after
+recalculating its dependencies. It was not started in this task; wait for an
+explicit assignment.
 
 TASK-094 — Asset Risk + Replacement Scoring — is `CODE_COMPLETE`; see
 `tasks/TASK-094_IMPLEMENTATION_REPORT.md`.
@@ -17,7 +15,10 @@ point-in-time query ports. See
 TASK-095-R3 — Typed SLA Target Purpose Foundation — is `CODE_COMPLETE`; see
 `tasks/TASK-095-R3_IMPLEMENTATION_REPORT.md`. Legacy target purpose is UNKNOWN
 until explicitly classified; text inference is forbidden.
+TASK-095 — Advanced Reporting + Governed KPI + Analytics — is
+`CODE_COMPLETE`; all nine governed KPI families, domain boundaries, historical
+snapshot/backfill, authorized drill-down and aggregate CSV are implemented and
+verified. See `tasks/TASK-095_IMPLEMENTATION_REPORT.md`.
 
-TASK-096 and TASK-097 remain `WAITING_DEPENDENCY / NOT_STARTED` because
-TASK-095 is not complete. The unrelated `AGENTS.md` change remains outside the
-TASK-095-R3 commit, and TASK-095 runtime WIP remains uncommitted.
+TASK-097 remains `WAITING_DEPENDENCY / NOT_STARTED` until TASK-096 completes.
+Unrelated `AGENTS.md` changes remain outside the TASK-095 commit.

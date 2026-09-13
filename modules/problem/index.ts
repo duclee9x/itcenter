@@ -34,6 +34,10 @@ export type {
   RecommendationApplicability,
   RecommendationEvidence,
 } from "./application/recommendations.js";
+export {
+  queryKnowledgeReporting,
+  queryKnowledgeDrilldown,
+} from "./application/reporting.js";
 export type {
   KnowledgeAudience,
   KnowledgeApplicabilityType,

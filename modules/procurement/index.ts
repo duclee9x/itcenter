@@ -73,3 +73,7 @@ export {
   type CostBasis,
 } from "./application/cost-provenance.js";
 export { queryAssetScoringEvidence } from "./application/asset-scoring-evidence.js";
+export {
+  queryNetActualSpendForReporting,
+  queryActualSpendDrilldown,
+} from "./application/reporting.js";

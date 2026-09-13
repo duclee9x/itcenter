@@ -2181,3 +2181,20 @@ source proves there are no Resolution obligations. Potentially relevant
 `UNKNOWN` target purpose is `AMBIGUOUS_TARGET_PURPOSE`; missing finalization
 time or query failure is unavailable, never an empty denominator. Reporting
 does not implement SLA clocks or mutate target configuration.
+
+The TASK-095 runtime exposes the catalog, current result, historical revisions,
+contribution drill-down and aggregate CSV through tenant-scoped Reporting
+routes. Catalog dimensions are allow-listed and validated; KPI-004 exposes
+Ticket priority because it is canonical Ticket data. No canonical Ticket
+service reference exists in this schema, so service_id is not advertised.
+Drill-down independently checks each owning domain's read permission. CSV
+requires `report.export`, follows the governed calculation/snapshot path,
+sanitizes spreadsheet formulas, and appends a metadata-only audit event.
+The legacy Operations Overview still has no open-Ticket counter; its
+`open_incidents` record count is explicitly distinct from KPI-002's
+Root-deduplicated active Incident episode count.
+
+The internal snapshot worker runs under an active tenant-scoped
+`SYSTEM_REPORTING` principal with exact reporting/domain capabilities. The
+15-minute daily-close target is recorded as an SLO; late closed periods remain
+backfillable, and a changed source generation creates one immutable revision.

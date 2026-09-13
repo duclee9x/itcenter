@@ -25,6 +25,9 @@ const transitions: Record<string, readonly string[]> = {
   CLOSED: [],
   CANCELLED: [],
 };
+export const ticketTerminalStates = ["CLOSED", "CANCELLED"] as const;
+export const isTicketTerminalState = (state: string) =>
+  !(state in transitions) || transitions[state]!.length === 0;
 export async function createTicket(input: {
   tx: Transaction;
   ticketCode: string;

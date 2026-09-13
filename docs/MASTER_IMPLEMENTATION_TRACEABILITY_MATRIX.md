@@ -3102,14 +3102,12 @@ from its declared dependencies separately; completion does not start it.
 | Access and export | AuthorizationPort + aggregate CSV | metric/export/financial grants, tenant isolation, independent drill-down authorization and formula-injection protection |
 | Safety | Reporting read/projection module | no schedule/email/XLSX/PDF/FX/cross-tenant analytics; no workflow, Work Queue or Automation mutation |
 
-TASK-095-R1 is `CODE_COMPLETE` specification-only. TASK-095-R2 adds the
-Incident and Work Queue historical-state foundations required for accurate
-late daily snapshots. The Reporting runtime remains `IN_PROGRESS` pending its
-separate drill-down and acceptance closure.
-
-TASK-095-R3 adds typed Control Plane SLA target purpose and a canonical
-Resolution outcome query for KPI-004. Legacy targets default to UNKNOWN with
-no textual inference; ambiguous outcomes and missing canonical finalization
-time fail closed. R3 is `CODE_COMPLETE` and clears the TASK-095
-`SCOPE_DEPENDENCY`; the main Reporting task remains `READY / IN_PROGRESS` for
-its remaining acceptance work.
+TASK-095-R1 is `CODE_COMPLETE` specification-only. TASK-095-R2 supplies
+Incident and Work Queue historical-state queries with forward-only coverage;
+TASK-095-R3 supplies typed SLA target purpose and canonical Resolution
+outcomes. Main TASK-095 is `CODE_COMPLETE`; its implementation and test mapping
+are in `tasks/TASK-095_IMPLEMENTATION_REPORT.md`, including the dedicated
+unit, PostgreSQL acceptance and Operations Overview compatibility tests.
+KPI-004 uses only typed RESOLUTION evidence; ambiguous legacy purposes fail
+closed. TASK-096 is `READY / NOT_STARTED`; TASK-097 remains waiting for
+TASK-096.

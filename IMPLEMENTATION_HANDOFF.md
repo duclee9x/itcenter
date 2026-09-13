@@ -2,13 +2,12 @@
 
 ## Current Task
 
-TASK-095 — Advanced Reporting + Governed KPI + Analytics — is
-`READY / IN_PROGRESS`. TASK-095-R1, R2 and R3 are `CODE_COMPLETE`. R2 added
-append-only Incident and Work Queue history with forward-only legacy coverage;
-R3 added typed SLA target purpose and the canonical Resolution SLA outcome
-query. KPI-004 now fails closed on ambiguous UNKNOWN-purpose evidence and uses
-canonical `completed_at`. See `tasks/TASK-095-R3_IMPLEMENTATION_REPORT.md`.
-Continue TASK-095 acceptance closure only; do not begin TASK-096.
+TASK-096 — Explainable Recommendation Layer — is `READY / NOT_STARTED` after
+dependency recalculation. It was not started as part of TASK-095; await an
+explicit assignment. TASK-095 is `CODE_COMPLETE`; see
+`tasks/TASK-095_IMPLEMENTATION_REPORT.md` for the nine-KPI runtime, R2/R3
+source integration, snapshot/backfill, drill-down authorization, CSV and full
+verification results.
 
 TASK-094 — Asset Risk + Replacement Scoring — is `CODE_COMPLETE`; see
 `tasks/TASK-094_IMPLEMENTATION_REPORT.md`. Scoring uses immutable Risk and
@@ -24,10 +23,10 @@ It explicitly excludes scheduling, custom formulas, cross-tenant analytics, FX,
 XLSX/PDF and underlying-record bulk export.
 
 TASK-095-R1 — Governed KPI + Analytics Contract — is `CODE_COMPLETE`
-(specification only). TASK-095-R2 and R3 implementation prerequisites are
-complete. TASK-095 remains `IN_PROGRESS` while its main acceptance suite,
-drill-down and remaining closure work continue. TASK-096 and TASK-097 remain
-`WAITING_DEPENDENCY / NOT_STARTED` because TASK-095 is not complete.
+(specification only). TASK-095-R2 historical-state and R3 typed-SLA
+prerequisites are `CODE_COMPLETE`. Main TASK-095 runtime and acceptance are
+also `CODE_COMPLETE`; TASK-096 recalculates to `READY / NOT_STARTED`, and
+TASK-097 remains `WAITING_DEPENDENCY / NOT_STARTED` on TASK-096.
 
 TASK-093 is `CODE_COMPLETE`; see
 `tasks/TASK-093_IMPLEMENTATION_REPORT.md`.
@@ -36,12 +35,27 @@ Deployment note: `apps/agent-gateway/src/main.ts` continues to use the
 fail-closed `unavailableAuthentication` adapter. Configure the existing
 enrolled-Agent AuthenticationPort before accepting real Agent requests.
 
-TASK-095's detailed contract is
-`tasks/TASK-095_ADVANCED_REPORTING_GOVERNED_KPI_ANALYTICS.md`. R2/R3 closure is
-complete. Existing TASK-095 runtime WIP remains uncommitted and preserved;
-`AGENTS.md` has unrelated changes and remains outside the TASK-095-R3 commit.
-R3 resolves the typed SLA-purpose dependency but does not complete main
-TASK-095 or authorize TASK-096.
+TASK-095's authoritative contract is
+`tasks/TASK-095_ADVANCED_REPORTING_GOVERNED_KPI_ANALYTICS.md`; its implementation
+report records exact verification. Unrelated changes to `AGENTS.md` remain
+outside the TASK-095 commit.
+
+## Last Completed Task — TASK-095
+
+Advanced Reporting + Governed KPI + Analytics (`CODE_COMPLETE`). See
+`tasks/TASK-095_IMPLEMENTATION_REPORT.md`.
+
+- Implemented exactly the nine governed KPI definitions with domain-owned
+  read ports, TASK-095-R2 historical Incident/Work Queue queries and
+  TASK-095-R3 typed Resolution SLA evidence.
+- Added immutable snapshot revisions, late closed-period materialization,
+  source watermarks, scoped `SYSTEM_REPORTING`, validated dimensions, per-row
+  RBAC drill-down, aggregate CSV formula protection and export audit.
+- Verification passed: `npm test` (185 tests: 68 unit/architecture, 2
+  contract, 6 migration, 50 integration, 59 E2E), typecheck, lint/boundary,
+  format check, migration tests and `git diff --check`.
+- TASK-096 is `READY / NOT_STARTED`; TASK-097 remains
+  `WAITING_DEPENDENCY / NOT_STARTED`. Neither was implemented.
 
 ## Last Completed Task — TASK-094
 

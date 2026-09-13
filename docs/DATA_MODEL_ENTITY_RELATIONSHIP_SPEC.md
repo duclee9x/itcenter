@@ -4911,3 +4911,9 @@ entity-version transition sequence. Initial creation is one `CREATE` anchor.
 Legacy rows receive one `LEGACY_BASELINE` anchor at migration time; this
 anchor does not assert any prior lifecycle. Mutable current state remains a
 projection and is not itself historical evidence.
+
+TASK-095 snapshots are append-only KPI results. A changed canonical source
+generation appends the next revision; an identical generation reuses the
+existing revision. Export audit records contain KPI/version, tenant, period,
+dimensions, revision/as-of and format only; they do not copy source records or
+financial evidence rows.

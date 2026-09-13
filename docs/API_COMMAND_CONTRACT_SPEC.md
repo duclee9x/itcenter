@@ -2977,3 +2977,13 @@ typed `target_purpose`. The internal `ResolutionSlaOutcomeQuery` accepts a UTC
 `[start_at,end_at)` interval and reports `AVAILABLE`, `AVAILABLE_EMPTY`,
 `AMBIGUOUS_TARGET_PURPOSE`, or finalization/query unavailability. Only
 `RESOLUTION` outcomes are KPI-004 obligations.
+
+Runtime routes are `GET /api/v1/kpis/catalog`, `GET
+/api/v1/kpis/{id}/current`, `GET /api/v1/kpis/{id}/history`, `GET
+/api/v1/kpis/{id}/drilldown` and `GET
+/api/v1/kpis/{id}/export.csv`. Catalog results publish each version's
+dimension allow-list. Unknown query parameters, arbitrary grouping and
+unsupported dimensions are rejected. Drill-down candidates are returned only
+after owning-domain authorization; aggregate access alone does not reveal
+contributing IDs or metadata. CSV uses the same governed result/snapshot path
+and writes a metadata-only export audit record before responding.

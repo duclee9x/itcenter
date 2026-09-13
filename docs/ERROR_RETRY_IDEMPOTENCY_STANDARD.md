@@ -2871,6 +2871,14 @@ UNAVAILABLE according to the KPI contract. Rebuild never mutates source data.
 Aggregate CSV binds the selected latest or explicit revision/as-of so an export
 cannot silently race to a different result.
 
+Reporting source reads run behind a transaction savepoint. A failed source
+query rolls back to that savepoint before returning `UNAVAILABLE`, so the
+request transaction does not remain in PostgreSQL's aborted state. Snapshot
+replay uses a durable tenant/KPI/version/period/dimension lock and immutable
+revision uniqueness. Identical source generations do not append; material
+correction/backfill appends one next revision. Late generation is recorded as
+an SLO miss without preventing materialization.
+
 Incident and Work Queue history is persisted by transaction-local triggers
 only when lifecycle state changes. A replay with unchanged state creates no
 extra transition. Entity version provides deterministic sequence ordering

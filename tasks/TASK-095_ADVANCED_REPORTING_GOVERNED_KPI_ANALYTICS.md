@@ -6,10 +6,10 @@ feature_id: F-048
 workflow_id: WF-RPT01
 phase: P5
 priority: P1
-status: IN_PROGRESS
-readiness: READY
+status: CODE_COMPLETE
+readiness: SATISFIED
 owner_domain: reporting
-dependencies: [TASK-039, TASK-061, TASK-076, TASK-092, TASK-093, TASK-094, TASK-095-R1, TASK-095-R2]
+dependencies: [TASK-039, TASK-061, TASK-076, TASK-092, TASK-093, TASK-094, TASK-095-R1, TASK-095-R2, TASK-095-R3]
 ```
 
 ## Scope and exclusions
@@ -237,5 +237,5 @@ not infer purpose from names, condition text or duration. Legacy UNKNOWN
 purposes that could affect the requested population make the source ambiguous
 and unavailable, rather than disappearing from a supposedly complete ratio.
 TASK-095-R3 is `CODE_COMPLETE`; it is a required direct prerequisite alongside
-R1 and R2. The main task remains `IN_PROGRESS` until its own acceptance and
-verification gates pass.
+R1 and R2. Main runtime and acceptance closure are recorded in
+`tasks/TASK-095_IMPLEMENTATION_REPORT.md`; TASK-095 is `CODE_COMPLETE`.

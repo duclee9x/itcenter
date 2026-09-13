@@ -2667,3 +2667,8 @@ is not a canonical source for KPI-001 through KPI-009, including SLA,
 deflection, scoring or CostProvenance results. Search freshness must not be
 represented as reporting source freshness, and no Search document may bypass
 KPI, drill-down, financial or export authorization.
+
+TASK-095 catalog, live calculations, historical snapshots and drill-downs use
+the owning-domain Reporting query ports and approved snapshots. Search index
+documents are not used to calculate governed KPIs or establish source
+generation/freshness.

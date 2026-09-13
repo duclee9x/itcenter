@@ -34,6 +34,10 @@ export {
   recordIncidentCorrelationTimelineEvent,
 } from "./application/work-queue.js";
 export {
+  queryActionableWorkItemsForReporting,
+  queryWorkItemDrilldown,
+} from "./application/reporting.js";
+export {
   queryActionableWorkItemsAt,
   queryWorkItemStateAt,
   isWorkItemActionableState,

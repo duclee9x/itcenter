@@ -3198,3 +3198,11 @@ evidence records authorized one-time classification of a legacy target.
 Reporting consumes the Control Plane Resolution SLA query and does not read
 SLA tables directly to infer purpose. Target/policy and instance/target
 relationships are tenant-composite constrained.
+
+TASK-095 also uses `identity.reporting_principals` as an explicit
+tenant-scoped `SYSTEM_REPORTING` materialization grant. A worker must find the
+active service identity and every exact read/materialize capability required
+before calculating; wildcard grants and tenantless system access are invalid.
+Source watermarks record last materialization, generation, lag, duration and
+safe error. The 15-minute closed-period goal is observability metadata, never a
+retention or eligibility cutoff.

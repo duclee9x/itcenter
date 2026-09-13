@@ -15,6 +15,15 @@ export {
   type IncidentAssetSource,
 } from "./application/asset-links.js";
 export {
+  queryActiveIncidentEpisodesForReporting,
+  queryIncidentEpisodeDrilldown,
+} from "./application/reporting.js";
+export {
+  queryActiveIncidentEpisodesAt,
+  queryIncidentStateAt,
+  isIncidentActiveState,
+} from "./application/state-history.js";
+export {
   attachIncidentToRoot,
   rejectIncidentCorrelation,
   detachIncidentFromRoot,
@@ -37,8 +46,3 @@ export {
   declareMajor,
   publishCommunication,
 } from "./application/communication.js";
-export {
-  queryActiveIncidentEpisodesAt,
-  queryIncidentStateAt,
-  isIncidentActiveState,
-} from "./application/state-history.js";

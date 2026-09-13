@@ -72,6 +72,9 @@ export async function migrate(
     { owner: "contract" },
     { owner: "document" },
     { owner: "operations", after: "20260912_006_asset_lifecycle_source.sql" },
+    // Reporting stores only governed definitions, immutable KPI snapshots and
+    // source watermarks. It has no foreign keys into domain-owned facts.
+    { owner: "reporting" },
     // The deterministic Incident Asset-link backfill consumes the validated
     // Monitoring Asset-reference column added after the initial Incident pass.
     {

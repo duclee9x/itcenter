@@ -44,6 +44,7 @@ test("empty DB applies all migrations; rerun is idempotent and changed migration
       immutableEvidence.rows.map((row) => row.tgname),
       [
         "knowledge_recommendation_session_guard",
+        "knowledge_recommendation_started_pre_ticket_immutable",
         "recommendation_interactions_immutable",
         "recommendation_items_immutable",
       ],
@@ -51,8 +52,8 @@ test("empty DB applies all migrations; rerun is idempotent and changed migration
     const tables = await db.pool.query(
       "SELECT schemaname,tablename FROM pg_tables WHERE schemaname IN ('identity','platform','audit')",
     );
-    // TASK-090-R1, TASK-092 and TASK-094-R2 add canonical principal/recovery storage.
-    assert.equal(tables.rowCount, 25);
+    // TASK-090-R1, TASK-092, TASK-094-R2 and TASK-095 add scoped system principal storage.
+    assert.equal(tables.rowCount, 26);
     const domainSchemas = await db.pool.query(
       "SELECT schema_name FROM information_schema.schemata WHERE schema_name = ANY($1::text[])",
       [
@@ -271,6 +272,12 @@ test("canonical Service migration preserves unresolved historical Incident Servi
     );
     await unlink(
       path.join(temp, "problem/20260918_002_task093_recommendations.sql"),
+    );
+    await unlink(
+      path.join(
+        temp,
+        "reporting/20260922_002_task095_reporting_acceptance.sql",
+      ),
     );
     await migrate(db.pool, temp);
     await db.pool.query(

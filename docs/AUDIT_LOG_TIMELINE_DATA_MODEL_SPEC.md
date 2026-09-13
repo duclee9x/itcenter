@@ -3676,6 +3676,13 @@ record count and generated artifact reference where one exists. Ordinary KPI
 reads are operational telemetry, not compliance audit; drill-down is
 independently authorized and must not reveal inaccessible evidence.
 
+Successful aggregate CSV export emits `REPORTING.KPI_CSV_EXPORTED` through the
+canonical AuditPort. Its payload binds actor/tenant, KPI version, period,
+dimensions, selected revision/as-of, generated time, aggregate row count,
+format and result status; it excludes source rows, protected financial
+details and unauthorized drill-down evidence. Ordinary KPI reads remain
+operational telemetry, not audit events.
+
 Incident and Work Queue state histories are domain evidence, not replacements
 for audit, outbox or operator timeline. Any future correction is an explicit
 audited superseding record; transition history is never silently updated or
