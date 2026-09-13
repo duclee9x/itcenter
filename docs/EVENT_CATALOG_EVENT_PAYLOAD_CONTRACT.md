@@ -5575,3 +5575,12 @@ payload, inaccessible candidates or secrets. Article views need not create
 compliance audit events. Outbox publication follows committed session/item/
 interaction evidence, and idempotent retries do not emit duplicate effective
 facts.
+
+## TASK-093-R2A Service Reference Events
+
+The Service Reference owner may emit `SERVICE.CREATED`, `SERVICE.UPDATED`,
+`SERVICE.DEACTIVATED`, `PLATFORM.CREATED`, `PLATFORM.UPDATED`,
+`PLATFORM.DEACTIVATED`, `SERVICE_ENVIRONMENT.CREATED`,
+`SERVICE_ENVIRONMENT.UPDATED` and `SERVICE_ENVIRONMENT.DEACTIVATED`.
+Payloads contain canonical entity ID, tenant-safe reference metadata, state
+and version only. They must not contain arbitrary observed OS payloads.

@@ -2858,3 +2858,15 @@ eligible/authorized end-user-safe items (maximum three, TASK-093 profile).
 Escalation calls canonical Helpdesk Ticket intake and links its result; it
 does not mutate Ticket state directly. There is no automatic close/resolve
 intent. Same key/different payload returns canonical idempotency conflict.
+
+## TASK-093-R2A Reference Catalog Commands
+
+The Service Reference owner exposes tenant-scoped commands for
+`SERVICE.CREATE/UPDATE/DEACTIVATE`, `PLATFORM.CREATE/UPDATE/DEACTIVATE` and
+`SERVICE_ENVIRONMENT.CREATE/UPDATE/DEACTIVATE`, plus ID detail queries.
+Updates and deactivation require `expected_version`; all mutations require
+`Idempotency-Key`, authorization and audit/outbox correlation. Deactivation
+is explicit and records `INACTIVE`; there is no generic `SET_STATE` or hard
+delete. Environment creation validates an active same-tenant canonical
+Service. Incident writes may reference only a canonical same-tenant Service
+ID; legacy references remain observational and unresolved.

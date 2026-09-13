@@ -23,6 +23,7 @@ export async function migrate(
       "helpdesk",
       "problem",
       "audit",
+      "service",
       "audit_ops",
       "incident",
       "maintenance",

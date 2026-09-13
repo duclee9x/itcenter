@@ -2593,3 +2593,15 @@ recommendation session/item. End-user recommendation returns only explicitly
 governed end-user-safe audience content; operator-only Knowledge is denied.
 These permissions do not grant authoring or publishing and cannot disclose
 inaccessible title, snippet, count, score, tags, rank or existence.
+
+## TASK-093-R2A Reference and Knowledge Read Permissions
+
+Register `service.read/manage`, `platform.read/manage` and
+`service_environment.read/manage` as separate permissions. Register
+`knowledge.read` as the narrow runtime Knowledge read permission and
+`knowledge.read.operator` for operator-audience reads where the authorization
+model requires a distinct capability. Preserve `knowledge.manage` for
+authoring/governance. Permission registration does not grant these permissions
+to roles automatically; existing role bindings are not broadened by this
+foundation. Recommendation use never bypasses read authorization or explicit
+audience classification.

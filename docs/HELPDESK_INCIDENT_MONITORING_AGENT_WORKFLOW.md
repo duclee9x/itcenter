@@ -1798,3 +1798,13 @@ actor/audience may be presented. Open/click/helpful feedback does not confirm
 resolution. TASK-093 does not generate authoritative troubleshooting text,
 call TASK-091, or execute remediation. Search failure must not block Ticket
 creation.
+
+## TASK-093-R2A Canonical Service Context
+
+New Incident `service_id` references the tenant-owned canonical Service ID and
+is validated by the Incident persistence boundary. Existing unowned values
+remain in `legacy_service_id` and are unresolved observational context; do not
+infer a Service from display text or create catalog rows during migration.
+Incident and correlation consumers use canonical Service IDs only for
+Service-based evidence. The Service Reference owner provides typed read/query
+contracts; Incident does not own or mutate Service catalog records.

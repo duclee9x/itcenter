@@ -3107,3 +3107,14 @@ explicit capability/health result of unavailable/not-ready satisfies the
 environment check. A fake adapter is valid only for automated tests and is
 not evidence that production storage is configured. Never fall back to an
 unintended domain-specific binary store.
+
+## TASK-093-R2A Canonical Reference Storage
+
+Tenant-owned Service, Platform and ServiceEnvironment reference records are
+canonical relational state owned by the Service Reference module. They are
+not Search projections or free-text observation stores. Enforce tenant/key
+uniqueness and composite tenant foreign keys in PostgreSQL. Existing
+`incident.service_id` values without canonical ownership are retained as
+`legacy_service_id`; migration does not infer or backfill canonical Service
+rows. Observed OS remains observational data; exact configured resolution is
+an application query. No large Platform catalog is seeded.

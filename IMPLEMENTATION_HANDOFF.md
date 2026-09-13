@@ -2,16 +2,13 @@
 
 ## Current Task
 
-TASK-093 — Knowledge Deflection + Self-Service Recommendations — is
-`READY / NOT_STARTED`. TASK-037, TASK-061 and TASK-092 dependencies are
-satisfied. TASK-093-R1 persisted the normative recommendation, visibility,
-scoring, explicit deflection, Ticket handoff, data, API, event, permission and
-acceptance-test contract. Knowledge lifecycle documentation now uses TASK-037
-canonical states `DRAFT / IN_REVIEW / PUBLISHED / ARCHIVED`; no TASK-037
-runtime/persistence changes were made. See
-`tasks/TASK-093_KNOWLEDGE_DEFLECTION_SELF_SERVICE_RECOMMENDATIONS.md` and
-`tasks/TASK-093-R1_KNOWLEDGE_DEFLECTION_SELF_SERVICE_CONTRACT.md`. Do not
-start runtime TASK-093 until explicitly instructed.
+TASK-093-R2A — Canonical Service + Platform/Environment Reference Foundation
+— is `CODE_COMPLETE`; its report records canonical catalog entities,
+tenant-safe management commands, exact OS resolution, Incident Service
+reference migration, and full PostgreSQL verification. TASK-093-R2 is now
+`READY / NOT_STARTED`. Do not start R2 runtime until explicitly instructed.
+TASK-093 remains `BLOCKED / NOT_STARTED`; no recommendation runtime exists.
+See `tasks/TASK-093-R2A_IMPLEMENTATION_REPORT.md`.
 
 Deployment note: `apps/agent-gateway/src/main.ts` continues to use the
 fail-closed `unavailableAuthentication` adapter. Configure the existing

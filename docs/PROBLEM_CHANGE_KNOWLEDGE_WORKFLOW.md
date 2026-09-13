@@ -1594,3 +1594,14 @@ confirmed resolutions, known-incident deflections, escalations, Tickets
 avoided and Tickets created after recommendation separately. Click rate is
 not deflection rate. Acceptance tests are specified in the detailed TASK-093
 contract.
+
+## TASK-093-R2A Knowledge Applicability References
+
+Knowledge applicability to Service, Platform or ServiceEnvironment uses
+tenant-validated canonical IDs from the Service Reference owner. Product/
+Software applicability reuses TASK-054 Software Catalog identity; Problem
+and Known Error applicability reuses TASK-037-owned records. Do not accept
+unchecked strings, free-text OS values or legacy Incident Service values as
+canonical matching evidence. Missing/unknown audience is fail-closed; a
+published article is not assumed end-user-safe. This foundation does not add
+recommendation sessions, ranking, feedback or deflection runtime.

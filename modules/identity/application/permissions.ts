@@ -189,6 +189,26 @@ export const permissions: readonly Permission[] = [
   { code: "problem.manage", resource_type: "problem", action: "manage" },
   { code: "change.manage", resource_type: "change", action: "manage" },
   { code: "knowledge.manage", resource_type: "knowledge", action: "manage" },
+  { code: "knowledge.read", resource_type: "knowledge", action: "read" },
+  {
+    code: "knowledge.read.operator",
+    resource_type: "knowledge",
+    action: "read.operator",
+  },
+  { code: "service.read", resource_type: "service", action: "read" },
+  { code: "service.manage", resource_type: "service", action: "manage" },
+  { code: "platform.read", resource_type: "platform", action: "read" },
+  { code: "platform.manage", resource_type: "platform", action: "manage" },
+  {
+    code: "service_environment.read",
+    resource_type: "service_environment",
+    action: "read",
+  },
+  {
+    code: "service_environment.manage",
+    resource_type: "service_environment",
+    action: "manage",
+  },
   {
     code: "maintenance.manage",
     resource_type: "maintenance",

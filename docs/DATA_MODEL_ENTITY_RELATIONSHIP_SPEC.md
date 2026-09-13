@@ -4777,3 +4777,22 @@ do not rewrite them when Knowledge is later archived or a profile changes.
 Ticket linkage is through the canonical Helpdesk command/application/event,
 never a cross-domain direct write. Do not add parallel KnowledgeVersion or
 Search index ownership.
+
+## TASK-093-R2A — Canonical Applicability References
+
+The Service Reference owner stores tenant-scoped `Service`, `Platform` and
+`ServiceEnvironment` records. Service and Platform keys are unique per tenant;
+Environment keys are unique per tenant and parent Service. Each has an
+`ACTIVE`/`INACTIVE` state and optimistic version. Platform family is a typed
+allow-list (`WINDOWS`, `MACOS`, `LINUX`, `IOS`, `ANDROID`, `OTHER`).
+Environment has a composite same-tenant foreign key to Service. Inactive
+references remain queryable and are not deleted.
+
+`incident.incidents.service_id` is a composite-tenant-FK canonical Service
+reference. Pre-existing unowned values are preserved in
+`legacy_service_id`; migration must not guess or synthesize catalog records.
+Observed OS text remains observational. It resolves to Platform only through
+an exact, unique configured normalized key/name match. Knowledge applicability
+must use typed canonical IDs; TASK-054 owns Software Product and TASK-037 owns
+Problem/Known Error identities. Reference data does not expand TASK-093 into
+a CMDB project.

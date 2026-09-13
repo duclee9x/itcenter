@@ -25,6 +25,16 @@ export async function createIncident(input: {
   serviceId?: string | undefined;
 }) {
   if (
+    input.serviceId &&
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      input.serviceId,
+    )
+  )
+    throw new ApplicationError(
+      "VALIDATION_ERROR",
+      "service_id must be a canonical Service UUID.",
+    );
+  if (
     !input.incidentCode.trim() ||
     !input.title.trim() ||
     !["P1", "P2", "P3", "P4"].includes(input.priority)
@@ -53,6 +63,11 @@ export async function createIncident(input: {
       throw new ApplicationError(
         "BUSINESS_RULE_VIOLATION",
         "Incident code or monitoring event already exists.",
+      );
+    if ((error as { code?: string }).code === "23503")
+      throw new ApplicationError(
+        "VALIDATION_ERROR",
+        "service_id must reference a canonical Service in this tenant.",
       );
     throw error;
   }

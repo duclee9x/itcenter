@@ -3015,3 +3015,15 @@ Work Queue fallback and preservation of Incident state.
 | Operational measures | Reporting/KPI workflow | Clicks distinct from confirmed deflection; actionable Work Queue only for exceptions |
 
 Detailed implementation gate and required tests: `tasks/TASK-093_KNOWLEDGE_DEFLECTION_SELF_SERVICE_RECOMMENDATIONS.md`.
+
+## TASK-093-R2A Canonical Reference Foundation
+
+| Capability | Owner / persistence | Acceptance evidence |
+|---|---|---|
+| Service catalog | Service Reference / tenant-scoped relational records | unique tenant key, explicit lifecycle, scoped API and query contract |
+| Platform catalog and observation resolution | Service Reference / typed Platform family | exact unique configured match only; unresolved text contributes no canonical applicability |
+| ServiceEnvironment | Service Reference / composite Service FK | same-tenant active parent validation, unique key per Service, no hard-coded environment enum |
+| Incident Service link | Incident / canonical composite FK plus preserved legacy column | no guessed historical mappings; new links tenant-validated |
+| Knowledge applicability prerequisites | Service Reference + TASK-054 + TASK-037 | no duplicate catalog; typed canonical target identities |
+
+Detailed contract: `tasks/TASK-093-R2A_CANONICAL_SERVICE_PLATFORM_REFERENCE_FOUNDATION.md`.
