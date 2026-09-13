@@ -11,10 +11,16 @@ tenant-scoped Action Policy, tenant-bound `SYSTEM_AUTOMATION` principal and
 canonical scoped authorization. Missing policy/grant remains deny-by-default.
 TASK-090 never executes actions.
 
-TASK-091 is dependency-ready (`READY`) because TASK-031, TASK-053 and TASK-090
-are complete. It remains `NOT_STARTED`; its detailed contract has not been
-generated and no runtime implementation has begun. Stop after recording this
-derived readiness; do not begin TASK-091 without explicit continuation.
+TASK-091 runtime dependencies TASK-031, TASK-053 and TASK-090 are satisfied,
+but TASK-091 is `BLOCKED / NOT_STARTED` by `SPEC_GAP / PLANNING_REQUIRED`.
+Its detailed execution contract is incomplete. TASK-091-R1 records the
+missing authenticated action dispatch/report protocol, state/claim lifecycle,
+verification timeout, immutable retry limits, unknown-outcome recovery and
+compensation scope. The proposed safe initial baseline is pending normative
+approval. See `tasks/TASK-091-R1_AUTOMATION_ACTION_EXECUTION_CONTRACT_GAP.md`.
+
+No TASK-091 runtime implementation has begun. Once the contract is resolved,
+generate its detailed task contract and reconcile readiness before coding.
 TASK-091 owns eligible-intent consumption, execution-time security rechecks,
 action execution, self-healing, retry, verification, timeout, compensation
 and execution-result state.
@@ -30,6 +36,16 @@ not asserted ready.
 
 The pre-existing `AGENTS.md` modification remains outside the TASK-090 runtime
 commit.
+
+## Current Planning Blocker — TASK-091-R1
+
+The TASK-090 capability catalog currently registers only `RESTART_AGENT`,
+but no TASK-091 executor/Agent Gateway command protocol or post-restart
+verification exists. General retry standards require concrete bounded
+attempt/time/backoff/error settings, while no immutable TASK-091 execution
+policy defines them. Implementing now would require guessing observable
+execution and recovery behavior. TASK-091 remains blocked pending normative
+resolution; TASK-090 behavior and code remain unchanged.
 
 ## Last Completed Task — TASK-090
 
