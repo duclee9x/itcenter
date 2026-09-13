@@ -3556,3 +3556,31 @@ conflicted or ready-intent milestones using protected references. It is a
 derived view and does not replace the audit/evaluation ledger. Normal
 successful evaluation need not create a Work Item; an unresolved conflict or
 other actionable human fallback is linked to one idempotent Work Item.
+
+---
+
+# 215. TASK-091 Action Execution Audit and Timeline
+
+Append execution audit evidence for attempt creation, claim, pre-dispatch
+security recheck, dispatch, authenticated Agent acceptance, verification,
+terminal outcome, cancellation and manual retry. Preserve tenant, intent,
+execution and command IDs, exact rule/version and capability references,
+target Agent, `SYSTEM_AUTOMATION` principal, policy version/decision,
+permission/resource-scope result, approval reference, conflict and
+kill-switch results, pre-execution runtime baseline reference, dispatch and
+acceptance times, verification evidence, actor/reason, correlation, outcome
+and Work Item reference. Never record Agent credentials/secrets or arbitrary
+command bodies.
+
+Audit is append-only; retries create linked new execution rows and never
+rewrite an earlier `FAILED` or `UNKNOWN` result. Agent command dedupe/receipt
+and runtime evidence are referenced from Automation audit, while Agent
+identity/authentication remains owned by the Agent domain.
+
+Timeline may show command dispatched/accepted, verified Agent restart,
+deterministic failure, unknown result requiring reconciliation, cancellation
+before acceptance, and authorized manual retry. It is derived/operator-facing
+and cannot assert success from dispatch/acceptance alone. `UNKNOWN`, timeout,
+security failure requiring operator review and manual retry review create at
+most one actionable Work Item per terminal execution. Resolving a Work Item
+does not mutate execution state; explicit reconciliation/retry commands do.

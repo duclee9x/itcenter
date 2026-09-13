@@ -2259,3 +2259,26 @@ Control plane đạt yêu cầu khi:
 - Conflict/cycle/cooldown/debounce/flapping protection hoạt động.
 - Approval/SLA/Automation tích hợp được với nhau.
 - Tất cả action có explainability, idempotency và audit trail.
+
+---
+
+# 107. TASK-091 v1 Execution Boundary
+
+TASK-091 v1 executes only the allow-listed `RESTART_AGENT` capability. A
+canonical `READY` Action Intent is a request, not a permanent authorization
+token. Immediately before dispatch, TASK-091 rechecks current capability,
+tenant Action Policy, tenant-bound `SYSTEM_AUTOMATION` permission and
+resource scope, approval, conflict/cancellation, kill switch and canonical
+Agent identity/tenant. Failure or uncertainty prevents dispatch and is
+recorded with a reason.
+
+Execution uses a separate Action Execution record and authenticated Agent
+Gateway protocol. TASK-091 captures a pre-execution runtime baseline; Agent
+acceptance is not success. Only authenticated post-acceptance evidence of a
+new Agent runtime within five minutes proves `SUCCEEDED`. Timeout or ambiguous
+delivery is `UNKNOWN`, creates one actionable human fallback, and is not
+retried automatically. TASK-091 v1 has one automatic attempt, zero automatic
+business retries and no compensation. Manual retry requires explicit
+reconciliation and a new linked execution; cancellation is allowed only
+before proven Agent acceptance. See the detailed contract in the Agent
+workflow and TASK-091 task contract.

@@ -1137,6 +1137,11 @@ restart_agent:
 
 Không retry vô hạn.
 
+This historical generic example does not govern TASK-091 v1. For the
+`RESTART_AGENT` capability, TASK-091-R1 is authoritative: one automatic
+attempt, zero automatic business retries, no compensation and a five-minute
+verification window starting from authenticated Agent acceptance.
+
 ---
 
 # 30. Idempotency
@@ -1596,3 +1601,154 @@ Một implementation của cụm workflow này chỉ đạt yêu cầu khi:
 - User có thể reopen resolution.
 - Repeated incidents có thể tạo Problem Candidate.
 - Workflow chịu được retry mà không tạo duplicate side effects.
+
+---
+
+# 44. TASK-091 v1 — Authenticated RESTART_AGENT Execution
+
+This section is normative for TASK-091 v1 and narrows the broader automation
+examples above. TASK-091 v1 supports only the reviewed capability
+`RESTART_AGENT` targeting a canonically registered `AGENT`. It does not
+support arbitrary shell commands, scripts, binaries, process commands, URLs
+or caller-supplied action payloads. The executor maps the typed capability to
+one fixed, allow-listed Agent protocol operation.
+
+## 44.1 Execution boundary and security recheck
+
+The Automation domain owns Action Intent decisions; TASK-091 owns a separate
+Action Execution attempt. TASK-091 consumes only a canonically `READY`
+Action Intent. Immediately before dispatch it rechecks, against canonical
+current state:
+
+- the intent remains `READY`;
+- the capability still permits automatic `RESTART_AGENT` execution;
+- the tenant Action Policy still permits this action and target;
+- the tenant-bound `SYSTEM_AUTOMATION` principal still has
+  `agent.restart` over the target resource scope;
+- any required approval remains approved and bound to the current intent and
+  action context;
+- no unresolved conflict, cancellation or superseding execution exists;
+- the kill switch permits execution; and
+- the target resolves to the same registered Agent in the same tenant and
+  resource scope.
+
+Missing, stale, unavailable or ambiguous evidence fails closed. Do not
+dispatch; persist a reasoned non-success execution outcome and create one
+actionable Work Item where operator action is required. These checks do not
+use the Rule author's or current human session's privileges. `READY` is not a
+permanent authorization token.
+
+## 44.2 Agent authentication and command identity
+
+Dispatch and reporting use the existing authenticated Agent Gateway
+contract. The platform derives `tenant_id` and Agent identity from the
+authenticated enrolled-Agent principal; it never trusts an Agent ID supplied
+only by Rule/action parameters. The Agent accepts commands only through the
+trusted authenticated platform channel.
+
+Each attempt has immutable `execution_id` and `command_id`. The fixed command
+envelope contains `intent_id`, `tenant_id`, `target_agent_id`,
+`action_type=RESTART_AGENT`, `correlation_id` and `issued_at`. `command_id` is
+stable across transport redelivery. Durable Agent-side inbox/deduplication
+must ensure redelivery of the same command does not restart the Agent twice.
+The platform must never create a new command ID for automatic retry in v1.
+
+The Agent protocol distinguishes delivery from acceptance. `DISPATCHED`
+means the platform durably recorded/sent the command. `ACCEPTED` requires a
+positive authenticated acknowledgement for that exact `command_id` after the
+Agent durably records it for execution. Acceptance does not prove successful
+restart.
+
+## 44.3 Pre-execution baseline and restart proof
+
+Before dispatch, capture an immutable baseline including available canonical
+Agent ID and tenant, connection/session identity, `agent_runtime_id` or an
+equivalent restart generation, last heartbeat, target/resource context,
+policy and authorization evidence, and correlation references. Wall-clock
+heartbeat time alone is insufficient when a stronger runtime marker is
+available.
+
+The Agent publishes an authenticated `agent_runtime_id` in heartbeat and
+command acknowledgement/result context. It is generated for one Agent
+process/service runtime and changes when that process/service restarts; an
+ordinary network reconnect does not change it. A positive verification
+requires a post-acceptance authenticated heartbeat/reconnect from the same
+Agent and tenant with a runtime marker newer/different from the captured
+baseline. An ordinary heartbeat from the pre-restart runtime never proves
+success.
+
+The verification window is exactly five minutes from the authoritative
+Agent `ACCEPTED` timestamp. If acceptance cannot be established, do not start
+the ordinary verification window; classify uncertain delivery as `UNKNOWN`.
+This five-minute limit applies only to `RESTART_AGENT` v1, not as a global
+automation timeout policy.
+
+## 44.4 Execution result and recovery
+
+Execution outcome is one of:
+
+- `SUCCEEDED`: positive post-restart evidence is observed within the window.
+- `FAILED`: authoritative evidence proves non-success, including a signed
+  Agent rejection, pre-dispatch security recheck denial, or deterministic
+  execution failure.
+- `UNKNOWN`: the platform cannot establish safely whether the restart
+  occurred, including lost acknowledgement, accepted command without
+  verifiable reconnect by deadline, lost platform connectivity, or ambiguous
+  evidence.
+
+Verification timeout defaults to `UNKNOWN`, never `FAILED`, unless
+authoritative failure evidence exists. `UNKNOWN` is terminal for the
+automatic attempt, creates one idempotent actionable Work Item and is never
+automatically retried. TASK-091 v1 has exactly one automatic execution
+attempt and zero automatic business retries. A redelivery of the same
+`command_id` is transport recovery, not a new execution attempt.
+
+`RESTART_AGENT` has no automatic compensation. No inverse restart, stop/start
+or rollback command may be invented. Execution success means only that the
+Agent runtime restarted; it does not prove global Agent health, Incident
+resolution or root-cause correction. TASK-091 must not close an Incident on
+this result alone.
+
+## 44.5 Cancellation and manual retry
+
+Cancellation is allowed only when durable evidence proves the Agent has not
+accepted the command. If the platform cannot prove non-acceptance, cancellation
+is unsafe and the execution becomes `UNKNOWN` for reconciliation. Cancellation
+after `ACCEPTED` is forbidden. Do not report `CANCELLED` if delivery outcome
+is ambiguous.
+
+Manual retry requires explicit operator reconciliation that the prior attempt
+did not successfully restart the Agent. It creates a new `execution_id` and
+`command_id`, links the prior execution, records actor/reason/evidence, and
+rechecks all current authorization, policy, approval, target, conflict and
+kill-switch guards. It cannot reuse or erase the prior execution. If
+reconciliation finds that the restart succeeded, close the fallback as
+reconciled without issuing another command.
+
+## 44.6 Concurrency and crash safety
+
+An atomic durable claim/lease permits only one worker to own an execution
+attempt. Enforce uniqueness for one automatic attempt per Action Intent,
+attempt number within an intent, and `command_id`. Concurrent workers may not
+dispatch twice. Persist command intent/outbox before external dispatch.
+
+If a worker crashes before dispatch is durably recorded, the attempt may
+resume from durable state. If it crashes after dispatch, do not blindly
+redispatch or create another attempt. Reconcile the same command ID, Agent
+acceptance and runtime marker. If outcome remains uncertain, set `UNKNOWN`
+and create the single human fallback. At-most-once safety takes precedence
+over blind retry.
+
+## 44.7 Operator evidence and Work Queue
+
+Preserve intent/rule/version, execution/command IDs, capability, target Agent,
+service principal, policy version/decision, permission/scope result, approval,
+kill-switch and conflict results, claim/lease, dispatch and acceptance times,
+pre-execution baseline, verification evidence, terminal outcome, reason codes
+and correlation IDs. Never expose Agent credentials/secrets in audit, events,
+timeline or Work Queue.
+
+Create one actionable Work Item for `UNKNOWN`, deterministic failure needing
+intervention, security/policy changes requiring operator review, verification
+timeout, ambiguous Agent identity/session, or manual retry review. Work Queue
+references the canonical execution and never replaces its state.

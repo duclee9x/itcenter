@@ -886,6 +886,17 @@ TASK-090 rule-management permission. TASK-091 separately applies target-domain
 permissions and rechecks approval, scope and kill-switch eligibility before
 executing an intent.
 
+TASK-091 v1 also defines the separate operator permission
+`execution.cancel`, scoped to the tenant/resource and execution. It permits
+cancellation only before authenticated Agent acceptance is proven; it does
+not grant Agent action execution or bypass pre-dispatch rechecks. Ambiguous
+delivery/acceptance is not cancellable and becomes `UNKNOWN`.
+`execution.retry` is allowed only with explicit reconciliation evidence,
+reason, expected version and idempotency; it creates a new attempt and
+rechecks current policy, capability, principal authorization/resource scope,
+approval, conflict, target and kill switch. Both permissions are separate
+from Rule authoring, policy administration and `automation.intent.resolve`.
+
 `automation.intent.resolve` is a human permission requiring tenant/resource
 scope, reason, expected version and idempotency. It allows explicit selection
 of compatible intents after conflict review; it cannot override policy DENY,

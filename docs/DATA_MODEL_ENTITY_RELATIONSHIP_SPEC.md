@@ -2920,11 +2920,13 @@ automation_rule_versions:
 ```yaml
 rule_executions:
   id:
+  tenant_id:
   rule_version_id:
   trigger_event_id:
   correlation_id:
   target_type:
   target_id:
+  action_intent_id:
   state:
   started_at:
   completed_at:
@@ -3154,17 +3156,68 @@ sensitive source-event payloads.
 ```yaml
 action_executions:
   id:
+  tenant_id:
+  action_intent_id:
   rule_execution_id:
-  sequence:
+  attempt_number:
+  attempt_kind: AUTOMATIC | MANUAL
+  previous_execution_id:
+  command_id:
   action_type:
   target_type:
   target_id:
-  state:
-  input_json:
-  before_json:
-  after_json:
-  verification_json:
+  state: PENDING | CLAIMED | DISPATCHED | ACCEPTED | VERIFYING | SUCCEEDED | FAILED | UNKNOWN | CANCELLED
+  claimed_by:
+  lease_expires_at:
+  idempotency_key:
+  preflight_evidence_json:
+  pre_execution_baseline_json:
+  command_snapshot_json:
+  dispatched_at:
+  accepted_at:
+  verification_deadline_at:
+  verification_evidence_json:
+  outcome_reason_code:
+  outcome_evidence_json:
+  work_item_id:
+  requested_by:
+  request_reason:
+  correlation_id:
+  entity_version:
+  created_at:
+  updated_at:
+  completed_at:
 ```
+
+TASK-091 v1 keeps Action Intent (`READY`) as the immutable request/decision
+record and stores execution progress and every attempt in the Automation
+domain's `action_executions`. Do not add transport/execution statuses to
+Action Intent. One automatic execution attempt is allowed per intent; manual
+retries are separate rows linked by `previous_execution_id` and use new
+execution and command IDs. Preserve all prior outcomes.
+
+Durable invariants include:
+
+- unique `(tenant_id, action_intent_id, attempt_kind, attempt_number)`;
+- at most one `AUTOMATIC` attempt per `(tenant_id, action_intent_id)`;
+- unique `(tenant_id, command_id)`;
+- one active claim/lease per execution; expired leases do not permit a new
+  dispatch if dispatch may already have occurred;
+- one actionable Work Item per terminal execution/fallback reason identity.
+
+Persist preflight authorization/policy/approval/kill-switch/conflict evidence,
+the pre-execution Agent runtime baseline, exact command snapshot, dispatch
+and acceptance timestamps, verification proof and terminal reason. Do not
+copy credentials or raw secrets into snapshots.
+
+The Agent domain owns a durable command inbox/receipt keyed by
+`(tenant_id, agent_id, command_id)`, with a command content hash, receipt
+state, authenticated acceptance time, runtime marker, and redacted result.
+Duplicate delivery of the same command ID and hash returns the prior receipt
+without restarting again; the same command ID with different content is a
+canonical idempotency conflict. Agent runtime identity is a per-process
+`agent_runtime_id` included in authenticated heartbeat and command evidence;
+it changes on process/service restart, not ordinary reconnect.
 
 ---
 

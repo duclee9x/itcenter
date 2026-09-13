@@ -2746,3 +2746,41 @@ Simulation may retain diagnostic evidence but uses a distinct mode and
 idempotency namespace. It cannot create an executable intent or be consumed by
 TASK-091. Historical replay is not implicit; future replay requires an
 explicit command, bounded policy and idempotent identity.
+
+---
+
+# 168. TASK-091 v1 Execution Idempotency and Retry
+
+For `RESTART_AGENT` v1, automatic business execution attempts are exactly one
+per Action Intent and automatic retry count is zero. This action-specific
+rule overrides generic background-job retry classes and historical examples
+that show two retries. It does not establish a global automation policy or a
+retry policy for future capabilities.
+
+Transport redelivery may resend only the same immutable `command_id` and
+content. The Agent inbox durably deduplicates `(tenant_id, agent_id,
+command_id)`; redelivery returns the prior receipt/result and never invokes
+a second restart. A new command ID is a new logical execution and is
+forbidden as automatic retry in v1.
+
+The platform enforces one automatic Action Execution per
+`(tenant_id, action_intent_id)`, unique execution and command IDs, and
+idempotent event consumption/outbox transition records. Worker claim uses a
+durable lease/compare-and-set. Lease expiry after durable dispatch is not
+permission to dispatch again. Recovery reconciles the same command and
+authenticated Agent evidence; uncertainty becomes terminal `UNKNOWN` with
+one idempotent human fallback.
+
+The verification deadline is five minutes from authenticated Agent
+`accepted_at`. Timeout without positive restart evidence is `UNKNOWN`, not
+retryable `FAILED`. No automatic retry, backoff or compensation applies to
+this capability. Manual retry is a new explicit command after the operator
+records reconciliation evidence that the prior restart did not succeed; it
+creates new execution/command IDs, references the prior attempt, uses
+`execution.retry`, expected version, reason and idempotency, and reruns every
+security/policy/target check. Same key/same request returns the original
+attempt; same key/different request yields `IDEMPOTENCY_KEY_CONFLICT`.
+
+Cancellation is idempotent and allowed only when the platform proves the
+Agent has not accepted the command. Ambiguous dispatch/acceptance must be
+`UNKNOWN`, not `CANCELLED`. Cancellation after acceptance is forbidden.

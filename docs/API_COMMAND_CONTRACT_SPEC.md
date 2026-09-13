@@ -1726,6 +1726,62 @@ POST /work-items/{id}/commands/reopen
 
 ---
 
+# 71. TASK-091 Action Execution API
+
+Execution reads are tenant/resource scoped under `automation.intent.read`.
+The Action Intent remains a decision/request; callers query the separate
+Action Execution history for actual execution state.
+
+Human operator routes:
+
+```text
+GET  /api/v1/automation/action-executions/{execution_id}
+POST /api/v1/automation/action-executions/{execution_id}/commands/cancel
+POST /api/v1/automation/action-executions/{execution_id}/commands/retry
+```
+
+`AUTOMATION.CANCEL_ACTION` requires `execution.cancel`, `expected_version`,
+`Idempotency-Key`, reason and correlation metadata. It is allowed only when
+durable state proves the Agent has not accepted the command. Ambiguous
+delivery/acceptance cannot be cancelled and must become `UNKNOWN`.
+
+`AUTOMATION.RETRY_ACTION` requires `execution.retry`, `expected_version`,
+`Idempotency-Key`, reason and explicit reconciliation evidence that the
+previous attempt did not successfully restart the Agent. It creates new
+execution/command IDs linked to the prior attempt and repeats all security
+checks. It cannot bypass current capability/policy, principal authorization,
+resource scope, approval, conflict, target or kill switch. Same key/request
+returns the original result; a changed payload returns
+`IDEMPOTENCY_KEY_CONFLICT`.
+
+Authenticated Agent routes use the existing Agent Gateway authentication
+contract. Tenant and Agent IDs are derived from that principal, never trusted
+from request parameters:
+
+```text
+POST /api/v1/agent/automation-actions/claim
+POST /api/v1/agent/automation-actions/{command_id}/commands/accept
+POST /api/v1/agent/automation-actions/{command_id}/commands/report
+```
+
+Claim returns only fixed typed `RESTART_AGENT`, with immutable
+`execution_id`, `command_id`, `intent_id`, `tenant_id`, `target_agent_id`,
+`action_type`, `correlation_id` and `issued_at`. No shell, script, binary,
+process, URL or arbitrary payload field exists. The Agent durably deduplicates
+`(tenant_id, agent_id, command_id)` and rejects same-ID/different-content
+replay. Claim/dispatch is not acceptance; an authenticated exact-command
+acknowledgement is required. Acceptance is not success.
+
+Authenticated heartbeat/Agent evidence carries `agent_runtime_id`, generated
+per process/service runtime and changed on actual restart, not ordinary
+network reconnect. TASK-091 succeeds only on a same-Agent/same-tenant runtime
+marker newer than the pre-dispatch baseline, observed after acceptance within
+five minutes of `accepted_at`. An ordinary heartbeat or command ACK alone
+cannot prove success. Ambiguous delivery or verification timeout is
+`UNKNOWN`; v1 has one automatic attempt and no automatic retry.
+
+---
+
 # 71. Document API
 
 ```text

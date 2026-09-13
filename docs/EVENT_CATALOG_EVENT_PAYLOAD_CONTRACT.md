@@ -1330,6 +1330,7 @@ agent_id:
 asset_id:
 restored_at:
 agent_version:
+agent_runtime_id: # authenticated per-process restart marker; no secrets
 ```
 
 ---
@@ -3821,18 +3822,23 @@ target_id:
 ## `AUTOMATION.ACTION_SUCCEEDED`
 
 ```yaml
-action_execution_id:
-verification_result:
-duration_ms:
+execution_id:
+command_id:
+target_agent_id:
+verification_evidence_reference:
+new_runtime_reference:
+completed_at:
 ```
 
 ## `AUTOMATION.ACTION_FAILED`
 
 ```yaml
-action_execution_id:
-error_code:
-retryable:
-attempt:
+execution_id:
+command_id:
+reason_code:
+failure_evidence_reference:
+work_item_id:
+completed_at:
 ```
 
 ## `AUTOMATION.RETRY`
@@ -4092,6 +4098,94 @@ TASK-091 owns events that assert action start, success, failure, retry,
 verification, rollback/compensation or execution completion. A
 `READY` intent is an eligible request to attempt execution, not a completed
 business fact.
+
+---
+
+### TASK-091 v1 execution event contract
+
+TASK-091 v1 emits the following completed facts from the Automation outbox.
+All events are tenant-scoped, schema-versioned, correlated and carry only
+references/minimal evidence. They never contain Agent credentials, secrets,
+arbitrary command content or raw protected payloads.
+
+## `AUTOMATION.EXECUTION_CREATED`
+
+```yaml
+execution_id:
+intent_id:
+attempt_number:
+attempt_kind: AUTOMATIC | MANUAL
+action_type: RESTART_AGENT
+target_agent_id:
+correlation_id:
+```
+
+## `AUTOMATION.EXECUTION_CLAIMED`
+
+```yaml
+execution_id:
+claim_reference:
+lease_expires_at:
+```
+
+## `AUTOMATION.ACTION_DISPATCHED`
+
+```yaml
+execution_id:
+command_id:
+intent_id:
+target_agent_id:
+action_type: RESTART_AGENT
+dispatched_at:
+correlation_id:
+```
+
+## `AUTOMATION.ACTION_ACCEPTED`
+
+```yaml
+execution_id:
+command_id:
+target_agent_id:
+accepted_at:
+pre_execution_runtime_reference:
+```
+
+## `AUTOMATION.ACTION_VERIFYING`
+
+```yaml
+execution_id:
+command_id:
+verification_deadline_at:
+baseline_reference:
+```
+
+## `AUTOMATION.ACTION_UNKNOWN`
+
+```yaml
+execution_id:
+command_id:
+reason_code:
+work_item_id:
+reconciliation_required: true
+completed_at:
+```
+
+## `AUTOMATION.ACTION_CANCELLED`
+
+```yaml
+execution_id:
+command_id:
+cancelled_by:
+reason_code:
+completed_at:
+```
+
+Emit transition events only after the owning transaction commits. Repeated
+processing cannot duplicate the effective outbox event. `ACTION_ACCEPTED` is
+not success; only `ACTION_SUCCEEDED` carries positive post-restart evidence.
+`ACTION_UNKNOWN` does not imply failure or authorize retry. TASK-091 v1 has
+no automatic retry or compensation event because it has zero automatic
+retries and no compensator.
 
 ---
 

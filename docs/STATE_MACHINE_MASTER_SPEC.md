@@ -1829,23 +1829,73 @@ CONFLICTED → explicit authorized resolution + all guards rechecked → READY /
 ```
 
 TASK-091 may claim only an eligible `READY` intent after rechecking current
-policy, approval, conflict and kill-switch status. The following execution
-states are owned by TASK-091:
+capability, tenant policy, `SYSTEM_AUTOMATION` permission/resource scope,
+approval, conflict/cancellation, kill switch and canonical Agent target.
+Action Intent remains the decision/request record; transport and execution
+progress are stored in a separate Action Execution aggregate and never
+rewrite TASK-090 evidence. TASK-091 v1 supports only `RESTART_AGENT`.
+
+Action Execution states:
 
 ```text
-QUEUED
-RUNNING
-WAITING_APPROVAL
-WAITING_DEPENDENCY
-RETRYING
-ROLLING_BACK
+PENDING
+CLAIMED
+DISPATCHED
+ACCEPTED
+VERIFYING
 SUCCEEDED
 FAILED
-COMPENSATED
 CANCELLED
+UNKNOWN
 ```
 
-Execution outcomes do not rewrite TASK-090 policy/evaluation evidence.
+Terminal states:
+
+```text
+SUCCEEDED
+CANCELLED
+FAILED
+UNKNOWN
+```
+
+Transitions:
+
+```text
+none → create automatic execution → PENDING
+PENDING → atomic worker claim → CLAIMED
+PENDING or CLAIMED → proven not dispatched/accepted + authorized cancellation → CANCELLED
+CLAIMED → recheck denied / deterministic pre-dispatch failure → FAILED
+CLAIMED → durable command outbox/send → DISPATCHED
+DISPATCHED → authenticated exact-command acknowledgement → ACCEPTED
+DISPATCHED → delivery/acceptance ambiguous → UNKNOWN
+DISPATCHED → authenticated Agent rejection → FAILED
+ACCEPTED → begin five-minute verification window → VERIFYING
+ACCEPTED or VERIFYING → new authenticated runtime marker observed → SUCCEEDED
+ACCEPTED or VERIFYING → verification deadline without positive proof → UNKNOWN
+ACCEPTED or VERIFYING → authoritative deterministic failure → FAILED
+```
+
+Cancellation after Agent `ACCEPTED` is forbidden. If delivery is ambiguous,
+cancellation is not considered safe and outcome is `UNKNOWN`. `UNKNOWN` must
+never transition automatically to a new attempt. A manual retry after an
+operator reconciles that the restart did not succeed creates a new linked
+Action Execution with new execution/command IDs; history is preserved.
+
+TASK-091 v1 has at most one automatic attempt and zero automatic business
+retries. Transport redelivery uses the original command ID and Agent-side
+deduplication. `RESTART_AGENT` has no compensation. Only positive evidence of
+a post-acceptance Agent runtime marker different from the pre-execution
+baseline reaches `SUCCEEDED`; ordinary heartbeat freshness alone is
+insufficient. The five-minute verification deadline begins at authenticated
+Agent acceptance and timeout defaults to `UNKNOWN`.
+
+Pre-dispatch recheck failures produce `FAILED` with an explicit reason and an
+actionable Work Item where required; they never dispatch. A worker lease
+allows a single claimant. After durable dispatch, crash recovery reconciles
+the same command and must not blindly dispatch again. The Action Intent stays
+the immutable decision/request record and is not overloaded with transport
+states. Execution outcomes do not rewrite TASK-090 policy/evaluation
+evidence.
 
 ---
 

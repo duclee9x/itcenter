@@ -11,19 +11,21 @@ tenant-scoped Action Policy, tenant-bound `SYSTEM_AUTOMATION` principal and
 canonical scoped authorization. Missing policy/grant remains deny-by-default.
 TASK-090 never executes actions.
 
-TASK-091 runtime dependencies TASK-031, TASK-053 and TASK-090 are satisfied,
-but TASK-091 is `BLOCKED / NOT_STARTED` by `SPEC_GAP / PLANNING_REQUIRED`.
-Its detailed execution contract is incomplete. TASK-091-R1 records the
-missing authenticated action dispatch/report protocol, state/claim lifecycle,
-verification timeout, immutable retry limits, unknown-outcome recovery and
-compensation scope. The proposed safe initial baseline is pending normative
-approval. See `tasks/TASK-091-R1_AUTOMATION_ACTION_EXECUTION_CONTRACT_GAP.md`.
+TASK-091 is `READY / NOT_STARTED`: TASK-031, TASK-053, TASK-090 and
+TASK-091-R1 are satisfied and its detailed contract is generated at
+`tasks/TASK-091_CONTROLLED_SELF_HEALING_COMPENSATION.md`. TASK-091-R1 is a
+normative/specification-only remediation at
+`tasks/TASK-091-R1_AUTOMATION_ACTION_EXECUTION_CONTRACT_GAP.md`.
 
-No TASK-091 runtime implementation has begun. Once the contract is resolved,
-generate its detailed task contract and reconcile readiness before coding.
-TASK-091 owns eligible-intent consumption, execution-time security rechecks,
-action execution, self-healing, retry, verification, timeout, compensation
-and execution-result state.
+TASK-091 v1 is limited to `RESTART_AGENT`. It requires fresh policy,
+capability, SYSTEM_AUTOMATION authorization/scope, approval, conflict,
+kill-switch and Agent-target rechecks; authenticated Agent acceptance;
+positive new-runtime-marker verification within five minutes; one automatic
+attempt, zero automatic business retries, no compensation, and UNKNOWN plus
+human fallback for ambiguous outcomes. Cancel is safe only before proven
+acceptance; manual retry requires explicit reconciliation and new linked IDs.
+No TASK-091 runtime implementation has started. Stop; do not implement until
+an explicit continuation instruction.
 
 TASK-095 remains `BLOCKED / NOT_STARTED` pending its detailed implementation
 contract.
@@ -37,15 +39,16 @@ not asserted ready.
 The pre-existing `AGENTS.md` modification remains outside the TASK-090 runtime
 commit.
 
-## Current Planning Blocker — TASK-091-R1
+## Last Completed Remediation — TASK-091-R1
 
-The TASK-090 capability catalog currently registers only `RESTART_AGENT`,
-but no TASK-091 executor/Agent Gateway command protocol or post-restart
-verification exists. General retry standards require concrete bounded
-attempt/time/backoff/error settings, while no immutable TASK-091 execution
-policy defines them. Implementing now would require guessing observable
-execution and recovery behavior. TASK-091 remains blocked pending normative
-resolution; TASK-090 behavior and code remain unchanged.
+Automation Action Execution + Verification Contract (`CODE_COMPLETE`,
+specification only). TASK-091 now has an implementation-ready contract with
+an authenticated fixed Agent command protocol, a separate execution state
+machine and durable attempt history, five-minute positive runtime-marker
+verification, safe cancellation/manual-retry rules, at-most-once recovery,
+idempotent events, permissions and actionable UNKNOWN fallback. No runtime
+TASK-091 code was implemented. TASK-091 readiness is READY / NOT_STARTED;
+stop pending an explicit implementation instruction.
 
 ## Last Completed Task — TASK-090
 

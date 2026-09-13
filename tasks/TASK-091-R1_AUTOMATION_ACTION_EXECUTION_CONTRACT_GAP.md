@@ -1,98 +1,102 @@
-# TASK-091-R1 — Automation Action Execution Contract Gap
+# TASK-091-R1 — Automation Action Execution + Verification Contract
 
-**Status:** `IN_PROGRESS` — awaiting normative resolution before TASK-091
-implementation.
+**Status:** `CODE_COMPLETE` — normative/specification remediation only.
 
-## Purpose
+## Objective and scope
 
-Reconcile the TASK-091 planning state and identify the minimum missing
-execution contract. This record does not authorize runtime implementation and
-does not change TASK-090 behavior.
+Resolve the TASK-091 execution `SPEC_GAP` before runtime implementation.
+This remediation defines the first-version execution contract for the
+existing Automation capability catalog. It does not implement runtime
+TASK-091 and does not change TASK-090 code or behavior.
 
-## Confirmed normative boundary
+## Normative decision
 
-TASK-090 creates durable, policy-gated Action Intents and never executes
-actions. TASK-091 may consume only eligible intents and must recheck current
-kill switch, Action Policy, `SYSTEM_AUTOMATION` permission/resource scope,
-approval, conflict/cancellation and target eligibility immediately before
-execution. TASK-091 owns execution, retries, verification, timeout,
-compensation and execution outcomes. A `READY` intent alone is not sufficient
-execution authorization.
+TASK-091 v1 supports only `RESTART_AGENT` for a canonically registered Agent.
+The executor maps the typed capability to one fixed allow-listed Agent
+protocol operation; arbitrary shell, script, binary, process, URL or action
+payload execution is forbidden.
 
-The existing TASK-090 capability catalog registers only `RESTART_AGENT` for
-`AGENT`, with executor identifier `TASK091_AGENT_COMMAND`. No TASK-091
-executor, agent command/claim/report protocol or restart verification flow is
-implemented.
+TASK-091 consumes only canonically `READY` Action Intents. Immediately before
+dispatch it rechecks intent readiness, capability, current tenant Action
+Policy, tenant-bound `SYSTEM_AUTOMATION` permission and resource scope,
+required approval, unresolved conflict/cancellation, kill switch, and
+canonical Agent identity/tenant/resource scope. Any failed, unavailable,
+stale or ambiguous check prevents dispatch and stores explicit reason
+evidence. `READY` is not a permanent authorization token.
 
-## SPEC_GAP / PLANNING_REQUIRED
+Execution is recorded in a distinct Action Execution aggregate; Action Intent
+remains the decision/request record. Each execution has immutable
+`execution_id` and `command_id` and references intent, tenant, target Agent,
+action, correlation and issue time. Dispatch uses an authenticated enrolled
+Agent channel; tenant and Agent identity are derived from the authenticated
+principal. The Agent durably deduplicates the same command ID/content.
+Dispatch, authenticated acceptance and successful verification are separate
+facts. An ACK is not success.
 
-TASK-091 is not implementation-ready until a detailed contract resolves:
+Before dispatch, persist an immutable baseline including Agent/session,
+`agent_runtime_id` or equivalent restart generation, last heartbeat,
+canonical target context and policy/authorization evidence. The Agent
+publishes authenticated `agent_runtime_id`, unique to its process/service
+runtime and changed by restart but not ordinary reconnect. Success requires
+a same-tenant/same-Agent authenticated heartbeat/reconnect after acceptance
+with a new runtime marker relative to the baseline, observed within five
+minutes from authoritative Agent acceptance. A generic heartbeat or wall
+clock timestamp alone does not prove restart.
 
-1. The canonical execution state ownership and transitions across
-   `action_intents`, `rule_executions` and `action_executions`, including
-   atomic claim/lease and stale-worker recovery.
-2. The authenticated dispatch and result-report protocol for
-   `RESTART_AGENT`, including idempotency identity and duplicate delivery
-   behavior.
-3. The observable success condition and verification timeout for
-   `RESTART_AGENT` (the workflow gives “heartbeat restored” as an example but
-   defines neither freshness nor deadline).
-4. The immutable source of per-action timeout/retry settings. The general
-   retry standard requires `max_attempts`, `max_elapsed_time`, `backoff`,
-   retryable and non-retryable errors; current TASK-090 rule versions do not
-   persist these values. General workflow examples mention two retries while
-   the generic background-job class permits up to five attempts; neither is
-   assigned to this action.
-5. The recovery behavior for unknown execution outcome and the point at which
-   exhausted retries create a human Work Item.
-6. Whether the initial supported action has a compensator. A restart is not
-   itself reversible; the existing workflow says rollback is action-specific.
-7. Execution operator/retry/cancel permissions, expected-version and
-   idempotency requirements for manual retry or cancellation commands.
+The execution lifecycle is `PENDING → CLAIMED → DISPATCHED → ACCEPTED →
+VERIFYING`, with terminal outcomes `SUCCEEDED`, `FAILED`, `UNKNOWN` or
+`CANCELLED`. Verification timeout, lost acknowledgement, ambiguous delivery
+or incomplete evidence becomes `UNKNOWN`, not `FAILED`. The automatic
+attempt count is one and automatic business retries are zero. Transport
+redelivery reuses the same command ID and is not a second business attempt.
+`RESTART_AGENT` has no automatic compensation. Restart success does not
+assert global Agent health or resolve/close an Incident.
 
-These gaps affect observable side effects and duplicate-execution safety;
-implementation must not fill them by guessing.
+Cancellation is allowed only when durable evidence proves the Agent has not
+accepted the command. After acceptance, cancellation is forbidden. Ambiguous
+delivery is not safely cancellable and becomes `UNKNOWN`. Manual retry
+requires explicit operator reconciliation that the prior attempt did not
+successfully restart the Agent. It creates new execution/command IDs linked
+to the prior execution and repeats all current security checks. Preserve all
+prior execution evidence.
 
-## Proposed safe initial TASK-091 baseline — pending approval
+An atomic execution claim/lease prevents multiple workers from dispatching
+the same automatic attempt. Worker crash before durable dispatch may resume
+from durable state; after dispatch, recovery reconciles the same command and
+must never blindly dispatch again. Unknown results create one actionable
+Work Queue fallback. Audit is append-only; events publish after commit and
+carry references/minimal data without Agent secrets.
 
-To keep the first implementation bounded to the existing reviewed
-capability, adopt this single baseline unless the owner revises it:
+## Normative documents updated
 
-- TASK-091 executes only `RESTART_AGENT` v1; all other action types remain
-  unsupported and fail closed.
-- Dispatch is a tenant-bound, authenticated enrolled-Agent pull/claim command;
-  each attempt has one durable `action_execution_id`, and agent acceptance
-  and reports are idempotent by that identity.
-- Verification succeeds only after an authenticated heartbeat from the same
-  Agent is observed within five minutes after the Agent accepts the command.
-  Timeout is measured from accepted dispatch. A timeout with uncertain action
-  outcome is not retried automatically; it enters human reconciliation. No
-  compensating action is defined for a restart.
-- Persist the initial action execution policy immutably with the capability
-  version: `max_attempts=1`, `max_elapsed_time=5 minutes`,
-  `verification_timeout=5 minutes`, no automatic retry/backoff and no
-  retryable execution errors. These values are proposed for TASK-091 v1 only;
-  later changes require a new reviewed policy/capability version.
-- Manual retry, if included, is an explicit authorized command using
-  `execution.retry`, reason, expected version and idempotency, and it repeats
-  the full security recheck. It does not override current policy, grant,
-  approval, conflict, target or kill-switch denial. A retry is allowed only
-  after the prior attempt's actual Agent state has been reconciled; the retry
-  creates a new attempt record linked to the same intent.
-- Execution cancellation is limited to a durable execution that has not yet
-  been accepted by the Agent. Once accepted, cancellation cannot assert that
-  the Agent action was stopped; reconciliation and human fallback are
-  required. Cancellation permission is proposed as `execution.cancel`.
-- Persist each attempt, dispatch/report evidence and verification separately
-  from TASK-090 evaluation evidence. Never retry an outcome whose side effect
-  is uncertain until canonical Agent state has been reconciled.
+- `docs/APPROVAL_SLA_AUTOMATION_RULES_ENGINE_WORKFLOW.md`
+- `docs/HELPDESK_INCIDENT_MONITORING_AGENT_WORKFLOW.md`
+- `docs/STATE_MACHINE_MASTER_SPEC.md`
+- `docs/DATA_MODEL_ENTITY_RELATIONSHIP_SPEC.md`
+- `docs/API_COMMAND_CONTRACT_SPEC.md`
+- `docs/EVENT_CATALOG_EVENT_PAYLOAD_CONTRACT.md`
+- `docs/PERMISSION_MATRIX_AUTHORIZATION_POLICY_SPEC.md`
+- `docs/ERROR_RETRY_IDEMPOTENCY_STANDARD.md`
+- `docs/AUDIT_LOG_TIMELINE_DATA_MODEL_SPEC.md`
+- `docs/MASTER_IMPLEMENTATION_TRACEABILITY_MATRIX.md`
+- `tasks/TASK-091_CONTROLLED_SELF_HEALING_COMPENSATION.md`
+- `tasks/CODEX_TASK_REGISTRY.md`
+- `CURRENT_TASK.md`
+- `IMPLEMENTATION_HANDOFF.md`
 
-This proposal is not normative until approved and incorporated into the
-workflow, state, data, API, permission, event, retry and TASK-091 contracts.
+The older generic Agent example of 60-second timeout/two retries is explicitly
+non-authoritative for TASK-091 v1. The action-specific five-minute,
+zero-automatic-retry contract does not establish a global automation retry or
+timeout policy.
 
-## Completion
+## Verification and governance
 
-After the execution contract is normative, generate the detailed TASK-091
-contract from `CODEX_TASK_TEMPLATE.md`, mark TASK-091 `READY / NOT_STARTED`,
-update `CURRENT_TASK.md` and `IMPLEMENTATION_HANDOFF.md`, and stop before
-runtime implementation unless explicitly directed to implement TASK-091.
+Cross-document reconciliation confirms the command/state/evidence/permission
+semantics are aligned. Markdown Prettier and `git diff --check` pass. Runtime
+tests and migrations are not applicable because this remediation changes no
+runtime code or database schema.
+
+TASK-091 detailed implementation contract is generated from
+`CODEX_TASK_TEMPLATE.md`, readiness is reconciled to `READY / NOT_STARTED`,
+and runtime implementation remains unstarted. Stop at this planning/spec
+boundary; TASK-091 requires a later explicit implementation instruction.

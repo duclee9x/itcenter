@@ -2942,3 +2942,32 @@ failure/retry outcome, then set the phase gate to passed only if every
 criterion is verified and environment capability is reported. It must not
 weaken TASK-070 through TASK-075 rules, introduce silent commercial
 corrections, or count fake ObjectStore configuration as production readiness.
+
+---
+
+# 80. TASK-091 Controlled Self-Healing + Compensation — v1
+
+TASK-091 v1 implements only `RESTART_AGENT` for a canonically registered
+Agent. It consumes `READY` intents and rechecks capability, current tenant
+policy, `SYSTEM_AUTOMATION` permission/resource scope, approval,
+conflict/cancellation, kill switch and target identity immediately before
+dispatch. Action Intent remains an immutable decision/request; execution and
+attempt history are persisted separately.
+
+| Gate | Canonical evidence | Required verification |
+|---|---|---|
+| Execution authorization | Fresh capability/policy/principal/scope/approval/conflict/kill-switch/target checks | Any denial, stale or unavailable evidence prevents dispatch and is explained |
+| Agent command safety | Fixed typed RESTART_AGENT envelope, authenticated enrolled Agent, stable command ID and durable inbox dedupe | No arbitrary command body; same-command redelivery cannot restart twice |
+| Execution lifecycle | Separate Action Execution, state transitions, unique automatic attempt and atomic lease | Competing workers/crash recovery do not double-dispatch |
+| Verification | Immutable pre-execution `agent_runtime_id` baseline and authenticated post-acceptance runtime marker | Old-session heartbeat/ACK do not pass; new runtime within five minutes succeeds |
+| Outcomes/recovery | SUCCEEDED / FAILED / UNKNOWN; at most one Work Item for terminal exception | Verification timeout and ambiguous delivery are UNKNOWN; no automatic retry or compensation |
+| Cancellation/manual retry | `execution.cancel` before proven acceptance; `execution.retry` only after reconciliation | Post-acceptance/ambiguous cancellation is rejected; manual retry has new linked IDs and fresh checks |
+| Events/audit/timeline | Transactional execution outbox and append-only security evidence | Replay idempotent; no Agent secrets; Work Queue is not source of truth |
+| Business boundary | Execution result proves only Agent restart | No automatic Incident closure or invented inverse/compensation |
+
+Required tests cover policy/security rechecks, unsupported actions, claim
+races, authenticated Agent delivery/acceptance, runtime-marker verification,
+five-minute timeout to UNKNOWN, lost acknowledgement, explicit rejection,
+pre/post-acceptance cancellation, manual retry lineage, duplicate delivery,
+worker crash after dispatch, unique Work Queue fallback and preservation of
+Incident state.
