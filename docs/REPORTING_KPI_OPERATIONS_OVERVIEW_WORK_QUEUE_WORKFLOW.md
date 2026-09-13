@@ -2103,3 +2103,20 @@ projection, not the source of truth for rule/evaluation/intent state. Resolving
 the item does not itself promote or execute an intent; an authorized explicit
 resolution must update the canonical Automation-owned intent state, and
 TASK-091 still rechecks execution eligibility.
+
+## TASK-093 Knowledge Deflection Measures and Work Queue
+
+Report recommendation sessions, presented items, selections, helpful and
+not-helpful feedback, confirmed self-service resolutions, known-incident
+deflections, escalations, Tickets avoided and Tickets created after
+recommendation separately. Click rate is not deflection rate; canonical
+deflection requires explicit resolution confirmation (or objective
+verification defined by another normative workflow). Keep
+`KNOWLEDGE_RESOLUTION` distinct from `KNOWN_INCIDENT_DEFLECTION`.
+
+Ordinary no-recommendation, not-helpful and escalation flows do not create a
+separate Work Item when Ticket intake handles the work. Use Work Queue for
+actionable data-integrity, authorization/audience inconsistency, infrastructure
+failure requiring an operator, or unsafe/incorrect Knowledge review supported
+by existing governance. Deduplicate exceptions; Work Queue is not
+recommendation state.

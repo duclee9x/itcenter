@@ -208,8 +208,8 @@ Only generate a detailed `TASK-xxx_*.md` when the task becomes `READY` or is the
 | `TASK-092-R1` | `F-050` | `WF-INT01` | P5 | P0 | Advanced Incident Correlation Contract | TASK-033, TASK-051, TASK-090 | **SATISFIED** | CODE_COMPLETE | `TASK-092-R1_ADVANCED_INCIDENT_CORRELATION_CONTRACT.md` |
 | `TASK-092-R2` | `F-050` | `WF-INT01` | P5 | P0 | Scoped Switch Identity for Correlation Evidence | TASK-051, TASK-092-R1 | **SATISFIED** | CODE_COMPLETE | `TASK-092-R2_TOPOLOGY_FAILURE_DOMAIN_IDENTITY.md` |
 | `TASK-092` | `F-050` | `WF-INT01` | P5 | P2 | Advanced Incident Correlation | TASK-033, TASK-051, TASK-090, TASK-092-R1, TASK-092-R2 | **SATISFIED** | CODE_COMPLETE | `TASK-092_ADVANCED_INCIDENT_CORRELATION.md` |
-| `TASK-093-R1` | `KNOWLEDGE-DEFLECTION` | `WF-PC-K` | P5 | P0 | Knowledge Deflection + Self-Service Recommendation Contract | TASK-037, TASK-061, TASK-092 | **BLOCKED** | IN_PROGRESS | `TASK-093-R1_KNOWLEDGE_DEFLECTION_SELF_SERVICE_CONTRACT.md` |
-| `TASK-093` | `KNOWLEDGE-DEFLECTION` | `WF-PC-K` | P5 | P2 | Knowledge Deflection + Self-Service Recommendations | TASK-037, TASK-061, TASK-092 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |
+| `TASK-093-R1` | `KNOWLEDGE-DEFLECTION` | `WF-PC-K` | P5 | P0 | Knowledge Deflection + Self-Service Recommendation Contract | TASK-037, TASK-061, TASK-092 | **SATISFIED** | CODE_COMPLETE | `TASK-093-R1_KNOWLEDGE_DEFLECTION_SELF_SERVICE_CONTRACT.md` |
+| `TASK-093` | `KNOWLEDGE-DEFLECTION` | `WF-PC-K` | P5 | P2 | Knowledge Deflection + Self-Service Recommendations | TASK-037, TASK-061, TASK-092, TASK-093-R1 | **READY** | NOT_STARTED | `TASK-093_KNOWLEDGE_DEFLECTION_SELF_SERVICE_RECOMMENDATIONS.md` |
 | `TASK-094` | `F-050` | `WF-017/WF-INT01` | P5 | P2 | Risk + Replacement Scoring | TASK-038, TASK-050, TASK-058, TASK-059 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |
 | `TASK-095` | `F-048` | `WF-RPT01` | P5 | P1 | Advanced Reporting + Governed KPI + Analytics | TASK-039, TASK-061, TASK-076 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |
 | `TASK-096` | `F-050` | `WF-INT01` | P5 | P2 | Explainable Recommendation Layer | TASK-090, TASK-092, TASK-093, TASK-094, TASK-095 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |
@@ -346,8 +346,8 @@ reports and commits confirm TASK-015 (`32c3267`), TASK-036 (`e043c31`) and
 TASK-038 (`296336a`) are `CODE_COMPLETE`.
 
 ```text
-CURRENT = TASK-093-R1 (BLOCKED / IN_PROGRESS; the previously agreed normative contract is not present in the available repository/history/context; planning gaps are recorded)
-NEXT = Obtain/locate the agreed TASK-093-R1 normative rules, complete the spec remediation, then reconcile TASK-093 readiness. Do not start runtime implementation.
+CURRENT = TASK-093 (READY / NOT_STARTED; normative contract complete. Do not begin runtime implementation until explicitly instructed.)
+NEXT = Await explicit authorization to implement TASK-093; do not start runtime implementation automatically.
 TASK-059 = SATISFIED (CODE_COMPLETE)
 TASK-061 = SATISFIED (CODE_COMPLETE)
 TASK-070-R1 = SATISFIED (CODE_COMPLETE)
@@ -371,8 +371,8 @@ TASK-091 = SATISFIED / CODE_COMPLETE (30-second RESTART_AGENT acceptance deadlin
 TASK-092-R1 = SATISFIED / CODE_COMPLETE (normative correlation profile, decision evidence, root/link governance, authorization, event, audit, concurrency and test contracts; no runtime implementation)
 TASK-092-R2 = SATISFIED / CODE_COMPLETE (switch-name fallback requires same tenant and unambiguous canonical scope; both topology observations must be FRESH)
 TASK-092 = SATISFIED / CODE_COMPLETE (TASK-092-R1 contract and TASK-092-R2 scoped topology identity clarification verified and implemented)
-TASK-093-R1 = BLOCKED / IN_PROGRESS (baseline sources reconciled; required previously agreed normative contract is unavailable; no business rules inferred)
-TASK-093 = BLOCKED / NOT_STARTED (SPEC_GAP / PLANNING_REQUIRED; detailed contract incomplete)
+TASK-093-R1 = SATISFIED / CODE_COMPLETE (normative contract persisted; canonical TASK-037 Knowledge lifecycle reconciled; no runtime changes)
+TASK-093 = READY / NOT_STARTED (dependencies and detailed normative contract satisfied; runtime not started)
 ```
 
 TASK-061's acceptance criteria and verification gates passed; its implementation
@@ -429,12 +429,13 @@ both TASK-051 observations must be FRESH. The implementation and regression
 tests are recorded in `TASK-092-R2_TOPOLOGY_FAILURE_DOMAIN_IDENTITY.md`.
 
 TASK-093's declared dependencies TASK-037, TASK-061 and TASK-092 are satisfied.
-TASK-093-R1 has reconciled the available Knowledge, Search and correlation
-sources, but the referenced previously agreed normative contract is not
-available in repository/history/context. The contract therefore remains
-`SPEC_GAP / PLANNING_REQUIRED`; no thresholds, action rules or API semantics
-were invented. TASK-093 remains `BLOCKED / NOT_STARTED` until the missing
-normative rules are provided and reconciled.
+TASK-093-R1 recorded the supplied normative Knowledge recommendation,
+visibility, explainable scoring, deflection, Ticket handoff, interaction,
+permission, event and acceptance-test contract. The former Knowledge workflow
+state labels were normalized to TASK-037's accepted
+`DRAFT / IN_REVIEW / PUBLISHED / ARCHIVED` lifecycle without runtime or
+persistence changes. TASK-093 is `READY / NOT_STARTED`; do not implement it
+until explicitly instructed.
 
 ---
 

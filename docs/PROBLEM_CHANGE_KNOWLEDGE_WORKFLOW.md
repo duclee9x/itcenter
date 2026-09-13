@@ -1089,16 +1089,19 @@ knowledge_article:
 ```text
 DRAFT
 ↓
-REVIEW
-↓
-APPROVED
+IN_REVIEW
 ↓
 PUBLISHED
 ↓
-REVIEW_DUE
-├── UPDATED
-└── RETIRED
+ARCHIVED
 ```
+
+These are the canonical TASK-037 persistence states. `REVIEW_DUE` is derived
+review context, not an article state. `UPDATED` is an event/new aggregate
+version, not a state. The former labels `REVIEW`, `APPROVED` and `RETIRED`
+are documentation drift; use `IN_REVIEW`, the existing publish transition
+into `PUBLISHED`, and `ARCHIVED` respectively. TASK-093 does not change this
+lifecycle or introduce parallel Knowledge version persistence.
 
 ---
 
@@ -1514,3 +1517,80 @@ Cụm workflow này đạt yêu cầu khi:
 - Knowledge có audience, owner, review date.
 - Self-service có thể dùng Knowledge để deflect ticket.
 - Audit trail xuyên suốt Incident → Problem → Change → Knowledge.
+
+---
+
+# 54. TASK-093 Knowledge Recommendation and Deflection
+
+TASK-093 uses TASK-037 Knowledge governance, TASK-061 Search, and optional
+TASK-092 Root Incident context. It does not publish Knowledge, create another
+search engine, generate authoritative troubleshooting content, invoke
+TASK-091, mutate infrastructure, or automatically close Ticket/Incident.
+
+Recommend only same-tenant, canonical current `PUBLISHED`, visible,
+applicable Knowledge that passes `knowledge.read`, audience and resource
+scope. Exclude `DRAFT`, `IN_REVIEW`, `ARCHIVED`, withdrawn, superseded and
+otherwise unavailable versions. Revalidate canonical state, exact aggregate
+version, audience and authorization immediately before presentation. Search
+index presence is insufficient. On Search failure use only TASK-061-permitted
+fallback; otherwise return `NO_RECOMMENDATION` and allow Ticket intake.
+
+Preserve existing audience values (`PUBLIC_END_USER`, `AUTHENTICATED_USER`,
+`HELPDESK_INTERNAL`, `IT_OPS_INTERNAL`, `ADMIN_ONLY`). End users receive only
+governed end-user-safe content. Do not leak inaccessible content through
+title, snippet, count, score, tags, rank, errors, events or timeline. Do not
+propagate credentials or protected raw telemetry.
+
+TASK-093 v1 has versioned 0..100 scoring: exact Known Error/explicit
+Knowledge binding +60 STRONG; same Problem/Known Error +50 STRONG; if both
+represent the same semantic source, count only the stronger. Same canonical
+Service/product +20; same normalized category/symptom +15; same supported
+platform/environment +10; prior explicitly confirmed deflection for
+equivalent normalized context +10. Cap at 100. Raw free text is never strong.
+Score >=70 is eligible; below 70 is not presented. Score cannot bypass any
+eligibility/safety gate. TASK-061 fuzzy/full-text helps discovery/ranking
+only. Return at most three explainable, relevance-ordered items, no filler;
+profile/version changes create a new immutable profile version.
+
+An ACTIVE Root Incident may prioritize associated eligible end-user-safe
+status/guidance where appropriate; avoid repeating local remediation known
+ineffective for a shared outage. Do not mutate the Root. Track
+`KNOWN_INCIDENT_DEFLECTION` separately from `KNOWLEDGE_RESOLUTION`.
+
+Persist a `KnowledgeRecommendationSession`, items with exact Knowledge
+aggregate version/rank/score/evidence/profile/eligibility reference, and
+append-only interactions. Do not copy article bodies. Outcomes are
+`NO_RECOMMENDATION`, `PRESENTED`, `USER_RESOLVED`, `NOT_HELPFUL`, `ESCALATED`.
+Open/click, remaining on article, `HELPFUL`, or score 100 is not resolution.
+Only explicit `ISSUE_RESOLVED` confirms v1 deflection; objective verification
+is allowed only if already normatively defined. Feedback does not change
+ranking weights or Knowledge publication.
+
+On explicit resolution, Ticket creation may be avoided. Otherwise continue
+canonical Ticket intake, preserve normalized context and recommendation
+attempt/session, and avoid equivalent re-entry. Existing Tickets are never
+closed directly; all Ticket transitions use Helpdesk commands. Recommendation
+is not an Action Intent/Execution and never calls TASK-091; future remediation
+must use TASK-090/TASK-091.
+
+Permissions are `knowledge.recommendation.use`,
+`knowledge.recommendation.review`, `knowledge.feedback.submit` or existing
+equivalents. Underlying `knowledge.read`, audience, tenant and resource
+authorization always applies. Define events `KNOWLEDGE.RECOMMENDATION_CREATED`,
+`KNOWLEDGE.RECOMMENDATION_PRESENTED`, `KNOWLEDGE.RECOMMENDATION_SELECTED`,
+`KNOWLEDGE.RECOMMENDATION_FEEDBACK`, `KNOWLEDGE.DEFLECTION_CONFIRMED`,
+`KNOWLEDGE.RECOMMENDATION_ESCALATED`, and where applicable
+`KNOWLEDGE.KNOWN_INCIDENT_DEFLECTION_CONFIRMED`; use references/minimal data,
+never article bodies. Stable tenant/request-session identity and
+Idempotency-Key prevent duplicate sessions, items, interactions, events and
+handoffs. Handle version/access changes before presentation, concurrent
+Ticket creation, duplicate feedback and resolution without rewriting history.
+
+Ordinary views use interaction history, not excessive compliance audit.
+Audit privileged/manual overrides. Work Queue is only for actionable data
+integrity, authorization/audience inconsistency or infrastructure exceptions.
+Track sessions, presentations, selections, helpful/not-helpful feedback,
+confirmed resolutions, known-incident deflections, escalations, Tickets
+avoided and Tickets created after recommendation separately. Click rate is
+not deflection rate. Acceptance tests are specified in the detailed TASK-093
+contract.

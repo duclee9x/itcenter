@@ -2579,3 +2579,17 @@ correlation link/review authority and resource scope. Existing
 new permissions by implication. Do not use broad `incident.admin` or wildcard
 authority. AuthorizationPort validates tenant before resource scope;
 cross-tenant candidate identity/scores must not be disclosed.
+
+---
+
+## TASK-093 Knowledge Recommendation Permissions
+
+Define/adapt `knowledge.recommendation.use`,
+`knowledge.recommendation.review` and `knowledge.feedback.submit`. Recommendation
+use/review does not grant Knowledge read access: every candidate and exact
+version still requires canonical `knowledge.read` equivalent, tenant/resource
+scope and audience authorization. Feedback is scoped to actor and
+recommendation session/item. End-user recommendation returns only explicitly
+governed end-user-safe audience content; operator-only Knowledge is denied.
+These permissions do not grant authoring or publishing and cannot disclose
+inaccessible title, snippet, count, score, tags, rank or existence.

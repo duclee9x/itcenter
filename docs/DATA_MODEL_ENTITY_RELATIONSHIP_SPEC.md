@@ -4752,3 +4752,28 @@ adjustment/superseding records; they never edit history.
 
 Derived Asset/License summaries may expose committed, actual, net cost,
 currency and source summary, but never become the financial source of truth.
+
+---
+
+## TASK-093 Knowledge Recommendation Records
+
+Model `KnowledgeRecommendationSession`, `KnowledgeRecommendationItem` and
+append-only `KnowledgeRecommendationInteraction` or equivalent as
+recommendation evidence, not Knowledge or Ticket lifecycle state. Session
+fields include tenant, actor/user, optional Ticket, normalized context
+reference, immutable recommendation profile ID/version, created/presented
+timestamps, outcome, correlation ID and stable request identity. Items
+reference canonical Knowledge ID and exact TASK-037 aggregate version,
+session, rank, score, evidence contributions, profile/version,
+eligibility/access decision reference and presentation timestamp. Do not
+copy article body.
+
+Interactions append selection/open, `HELPFUL`, `NOT_HELPFUL`,
+`ISSUE_RESOLVED` and escalation evidence with actor, timestamp, session/item,
+tenant, correlation and idempotency identity. Enforce tenant-scoped
+references and durable uniqueness for equivalent request/session and
+interaction effects. Preserve historical item/version/profile and outcomes;
+do not rewrite them when Knowledge is later archived or a profile changes.
+Ticket linkage is through the canonical Helpdesk command/application/event,
+never a cross-domain direct write. Do not add parallel KnowledgeVersion or
+Search index ownership.

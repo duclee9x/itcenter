@@ -5,83 +5,57 @@ task_id: TASK-093-R1
 parent_task: TASK-093
 work_type: NORMATIVE_SPEC_REMEDIATION
 runtime_implementation: OUT_OF_SCOPE
-status: BLOCKED
-blocker: SPEC_GAP / PLANNING_REQUIRED
+status: CODE_COMPLETE
+owner_domain: Helpdesk / Problem Knowledge
 ```
 
 ## Planning reconciliation
 
-TASK-093 remains `NOT_STARTED / BLOCKED`. Its dependencies TASK-037,
-TASK-061 and TASK-092 are all `SATISFIED / CODE_COMPLETE` in the current
-registry. Dependency readiness does not remove TASK-093's explicit planning
-blocker: the detailed normative TASK-093-R1 contract is not available in the
-repository, reachable Git history or current conversation context.
+The authoritative TASK-093-R1 business rules were supplied and reconciled
+with the accepted TASK-037 implementation and TASK-061/TASK-092 contracts.
+TASK-037 canonical Knowledge states are `DRAFT`, `IN_REVIEW`, `PUBLISHED` and
+`ARCHIVED`; the workflow's former `REVIEW`, `APPROVED`, `REVIEW_DUE`,
+`UPDATED` and `RETIRED` state diagram was documentation drift. The workflow
+has been normalized without changing TASK-037 persistence or runtime.
 
-The existing source material establishes only the following baseline:
+Declared dependencies TASK-037, TASK-061 and TASK-092 are
+`SATISFIED / CODE_COMPLETE`. No material `SPEC_CONFLICT`,
+`SCOPE_DEPENDENCY` or `SECURITY_CONCERN` remains for planning. Search remains
+TASK-061-owned; recommendation history is separate from Knowledge lifecycle,
+Ticket lifecycle, Incident lifecycle and Search indexing. No runtime TASK-093
+code was implemented.
 
-- TASK-037 owns Knowledge article draft/review/publish foundation and
-  explicitly leaves Knowledge recommendations out of scope.
-- `PROBLEM_CHANGE_KNOWLEDGE_WORKFLOW.md` lists article types, audiences,
-  quality requirements, qualitative usage feedback, and the optional
-  self-service flow. It says users must not be forced to consume an article.
-- `SEARCH_INDEXING_SPEC.md` lists Knowledge search fields and qualitative
-  ranking factors (symptom relevance, service context, article quality and
-  freshness).
-- The permission catalog includes `knowledge.read`, `knowledge.draft` and
-  `knowledge.publish_candidate`. The workflow lists Knowledge lifecycle event
-  names, but the central Event Catalog does not define their payload
-  contracts.
-- The data model and API command specifications do not define a canonical
-  Knowledge recommendation, article-use, feedback or attempted-article
-  reference contract. TASK-037's implementation currently exposes a basic
-  draft/review/publish/archive record and generic transition helper.
-- TASK-061 provides the governed search foundation and TASK-092 provides
-  explainable Incident correlation context.
+## Normative contract
 
-These sources do not constitute the referenced agreed TASK-093-R1 contract.
-No runtime code has been changed.
+The detailed implementation contract is
+[`TASK-093_KNOWLEDGE_DEFLECTION_SELF_SERVICE_RECOMMENDATIONS.md`](TASK-093_KNOWLEDGE_DEFLECTION_SELF_SERVICE_RECOMMENDATIONS.md).
+It defines governed Knowledge eligibility and visibility, versioned scoring,
+recommendation sessions/items/interactions, explicit deflection evidence,
+Ticket handoff, events, permissions, idempotency, concurrency and required
+tests. TASK-093 is now `READY / NOT_STARTED`; runtime implementation remains
+unstarted and requires an explicit instruction.
 
-## Unresolved normative gaps
+## Reconciled normative documents
 
-The contract cannot be marked implementation-ready without resolving or
-providing the intended rules for:
+- `PROBLEM_CHANGE_KNOWLEDGE_WORKFLOW.md`
+- `HELPDESK_INCIDENT_MONITORING_AGENT_WORKFLOW.md`
+- `SEARCH_INDEXING_SPEC.md`
+- `STATE_MACHINE_MASTER_SPEC.md`
+- `DATA_MODEL_ENTITY_RELATIONSHIP_SPEC.md`
+- `EVENT_CATALOG_EVENT_PAYLOAD_CONTRACT.md`
+- `API_COMMAND_CONTRACT_SPEC.md`
+- `PERMISSION_MATRIX_AUTHORIZATION_POLICY_SPEC.md`
+- `AUDIT_LOG_TIMELINE_DATA_MODEL_SPEC.md`
+- `REPORTING_KPI_OPERATIONS_OVERVIEW_WORK_QUEUE_WORKFLOW.md`
+- `MASTER_IMPLEMENTATION_TRACEABILITY_MATRIX.md`
+- `tasks/TASK-093_KNOWLEDGE_DEFLECTION_SELF_SERVICE_RECOMMENDATIONS.md`
+- `tasks/CODEX_TASK_REGISTRY.md`, `CURRENT_TASK.md`,
+  `IMPLEMENTATION_HANDOFF.md`
 
-1. **Scope boundary:** whether TASK-093 consumes existing Knowledge article
-   lifecycle only, or also changes article lifecycle/publishing. TASK-037
-   claims the lifecycle foundation, while its persistence states are
-   `DRAFT / IN_REVIEW / PUBLISHED / ARCHIVED`; the workflow separately lists
-   `DRAFT / REVIEW / APPROVED / PUBLISHED / REVIEW_DUE` and subsequent update
-   or retirement paths.
-2. **Recommendation behavior:** candidate eligibility, exact ranking/tie
-   behavior, result limits, explanations, and behavior when no relevant
-   article is found. Current Search rules are qualitative and do not settle
-   these API-level outcomes.
-3. **Self-service action boundary:** whether TASK-093 only recommends
-   Knowledge and other safe actions, or may initiate any action. The existing
-   sources do not define the action catalog, authorization, approval,
-   confirmation or execution owner for such actions.
-4. **Audience and tenant/resource visibility:** how `PUBLIC_END_USER`,
-   `AUTHENTICATED_USER`, and internal audiences map to principal/resource
-   scopes in the recommendation query, including whether unauthenticated
-   public access is supported.
-5. **Deflection and feedback facts:** what constitutes a suggestion, use,
-   helpful/unhelpful result and a deflected request; required durable records,
-   idempotency and metric definitions are not specified.
-6. **Ticket handoff:** the workflow says an attempted article is attached
-   when a Ticket is created, but the canonical reference model, event/API
-   contract and authorization behavior are not defined.
+## Completion
 
-No thresholds, weights, result counts, metrics formulas, action execution
-rules, or new state transitions have been inferred here.
-
-## Required next input
-
-Provide or identify the previously agreed TASK-093-R1 normative contract. Once
-available, reconcile it against the Knowledge workflow, Search specification,
-TASK-037 article lifecycle, TASK-061 search contract, TASK-092 correlation
-evidence, permissions, data model, API, events, idempotency, audit and
-traceability documents. Then update the normative documents and task registry
-before marking TASK-093 `READY / NOT_STARTED`.
-
-Until those normative gaps are resolved, TASK-093 remains blocked and no
-runtime implementation may begin.
+- TASK-093-R1: `SATISFIED / CODE_COMPLETE` (specification/planning only).
+- TASK-093: `READY / NOT_STARTED`.
+- Verification: documentation formatting and `git diff --check` pass.
+- Runtime code/tests: unchanged; TASK-093 runtime was not started.
+- Next action: stop here. Begin TASK-093 runtime only when explicitly asked.

@@ -1774,3 +1774,27 @@ Create one actionable Work Item for `UNKNOWN`, deterministic failure needing
 intervention, security/policy changes requiring operator review, verification
 timeout, ambiguous Agent identity/session, or manual retry review. Work Queue
 references the canonical execution and never replaces its state.
+
+---
+
+# TASK-093 Self-Service Recommendation and Ticket Handoff
+
+Knowledge recommendations are advisory. On explicit user `ISSUE_RESOLVED`,
+the recommendation session may end as `USER_RESOLVED` and Ticket creation may
+be avoided. Otherwise (including no recommendation, unresolved guidance,
+`NOT_HELPFUL` or escalation), continue through canonical Ticket intake and
+preserve normalized support context plus the recommendation session/reference
+without requiring equivalent re-entry. TASK-093 never transitions an existing
+Ticket or Incident; Ticket lifecycle changes remain canonical Helpdesk
+commands.
+
+An ACTIVE Root Incident may supply status/context and prioritize associated
+eligible end-user-safe Knowledge. Do not repeat local remediation known
+ineffective for a shared outage. Track known-incident deflection separately
+from Knowledge resolution. Do not close or otherwise mutate the Root Incident.
+
+Only currently published TASK-037 Knowledge versions authorized for the
+actor/audience may be presented. Open/click/helpful feedback does not confirm
+resolution. TASK-093 does not generate authoritative troubleshooting text,
+call TASK-091, or execute remediation. Search failure must not block Ticket
+creation.

@@ -2999,3 +2999,19 @@ separate five-minute deadline from `accepted_at`, late evidence after UNKNOWN,
 lost acknowledgement, explicit rejection, pre/post-acceptance cancellation,
 manual retry lineage, duplicate delivery, worker crash after dispatch, unique
 Work Queue fallback and preservation of Incident state.
+
+---
+
+## TASK-093 Knowledge Deflection Traceability
+
+| Capability | Normative source | Acceptance evidence |
+|---|---|---|
+| Governed Knowledge candidate retrieval | TASK-037 lifecycle + TASK-061 Search + TASK-093 contract | Current `PUBLISHED` version, tenant/read/audience/scope validation, stale-version recheck and no metadata leakage |
+| Explainable recommendation | TASK-093 v1 profile | Versioned evidence contributions, 0..100 score, >=70 candidate threshold, max three end-user results, no filler |
+| Session, item and interaction history | TASK-093 data model/events | Exact article/profile versions, durable idempotency, append-only feedback and resolution evidence |
+| Deflection and Ticket handoff | Helpdesk canonical Ticket workflow | Explicit resolution only; no-result/unresolved path preserves context/session and uses Ticket intake; no automatic closure |
+| Incident-aware guidance | TASK-092 + TASK-093 | Eligible Root context can prioritize safe guidance; known-incident deflection separately measured; no Incident mutation |
+| Security and domain boundaries | Permissions, Search, Audit, TASK-090/091 boundary | No unauthorized leakage, no generated authoritative fallback, no remediation execution |
+| Operational measures | Reporting/KPI workflow | Clicks distinct from confirmed deflection; actionable Work Queue only for exceptions |
+
+Detailed implementation gate and required tests: `tasks/TASK-093_KNOWLEDGE_DEFLECTION_SELF_SERVICE_RECOMMENDATIONS.md`.

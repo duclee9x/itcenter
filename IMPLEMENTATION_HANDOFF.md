@@ -2,16 +2,16 @@
 
 ## Current Task
 
-TASK-093-R1 — Knowledge Deflection + Self-Service Recommendation Contract —
-is `BLOCKED / IN_PROGRESS`. TASK-093 dependencies TASK-037, TASK-061 and
-TASK-092 are satisfied, but the referenced previously agreed normative
-contract is not present in the repository, Git history or available
-conversation context. Existing sources establish partial Knowledge article,
-audience, qualitative search ranking and deflection behavior only. The missing
-decisions and the TASK-037 workflow/persistence state discrepancy are recorded
-in `tasks/TASK-093-R1_KNOWLEDGE_DEFLECTION_SELF_SERVICE_CONTRACT.md`. TASK-093
-remains `BLOCKED / NOT_STARTED`; do not implement runtime until R1 is
-normatively complete.
+TASK-093 — Knowledge Deflection + Self-Service Recommendations — is
+`READY / NOT_STARTED`. TASK-037, TASK-061 and TASK-092 dependencies are
+satisfied. TASK-093-R1 persisted the normative recommendation, visibility,
+scoring, explicit deflection, Ticket handoff, data, API, event, permission and
+acceptance-test contract. Knowledge lifecycle documentation now uses TASK-037
+canonical states `DRAFT / IN_REVIEW / PUBLISHED / ARCHIVED`; no TASK-037
+runtime/persistence changes were made. See
+`tasks/TASK-093_KNOWLEDGE_DEFLECTION_SELF_SERVICE_RECOMMENDATIONS.md` and
+`tasks/TASK-093-R1_KNOWLEDGE_DEFLECTION_SELF_SERVICE_CONTRACT.md`. Do not
+start runtime TASK-093 until explicitly instructed.
 
 Deployment note: `apps/agent-gateway/src/main.ts` continues to use the
 fail-closed `unavailableAuthentication` adapter. Configure the existing
@@ -50,8 +50,9 @@ fallback treated matching `switch_name` values as strong without requiring a
 scope. It now requires the same tenant, a unique canonical Site scope and
 normalized switch names. Missing/ambiguous Site scope cannot produce strong
 evidence. Strong topology evidence still requires both observations to be
-TASK-051 `FRESH`. TASK-092 remains CODE_COMPLETE; TASK-093 was not started and
-remains blocked by its missing detailed contract. See
+TASK-051 `FRESH`. TASK-092 remains CODE_COMPLETE. TASK-093 is now
+`READY / NOT_STARTED` under the completed TASK-093-R1 contract; its runtime
+has not started. See
 `tasks/TASK-092-R2_TOPOLOGY_FAILURE_DOMAIN_IDENTITY.md`.
 The initial missing test URL was resolved using the existing local PostgreSQL
 container without persisting its credential. Full `npm test` passed (130

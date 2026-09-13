@@ -5554,3 +5554,24 @@ evaluation cannot duplicate effective link/root/work-item side effects.
 Manual attach/reject/detach preserves the original machine decision.
 `INCIDENT.CORRELATED` remains the legacy TASK-033 event and does not replace
 these TASK-092 decision/history events.
+
+---
+
+## TASK-093 Knowledge Recommendation Events
+
+| Event | Required references / minimal payload |
+|---|---|
+| `KNOWLEDGE.RECOMMENDATION_CREATED` | tenant, session ID, profile ID/version, outcome, correlation ID |
+| `KNOWLEDGE.RECOMMENDATION_PRESENTED` | session ID, item IDs, Knowledge IDs and exact article versions, ranks/scores, presented timestamp |
+| `KNOWLEDGE.RECOMMENDATION_SELECTED` | session/item IDs, Knowledge ID/version, actor reference, timestamp |
+| `KNOWLEDGE.RECOMMENDATION_FEEDBACK` | session/item IDs, feedback value, actor reference, timestamp |
+| `KNOWLEDGE.DEFLECTION_CONFIRMED` | session/item references, explicit `ISSUE_RESOLVED` evidence, deflection type, timestamp |
+| `KNOWLEDGE.RECOMMENDATION_ESCALATED` | session ID, canonical Ticket reference, handoff outcome, correlation ID |
+| `KNOWLEDGE.KNOWN_INCIDENT_DEFLECTION_CONFIRMED` | session ID, Root Incident reference, Knowledge/version references, confirmation evidence |
+
+Events describe recommendation/session facts only. Use references and
+minimum authorized metadata; never embed Knowledge body, protected support
+payload, inaccessible candidates or secrets. Article views need not create
+compliance audit events. Outbox publication follows committed session/item/
+interaction evidence, and idempotent retries do not emit duplicate effective
+facts.

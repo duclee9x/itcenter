@@ -2613,3 +2613,29 @@ type). It applies the same state/site filters, cursor ordering and owning
 resource authorization. Fuzzy and broad text fallback is prohibited. Freshness
 metadata reports current, delayed, stale, rebuilding, failed or degraded
 operation, including lag when available.
+
+---
+
+# TASK-093 Knowledge Recommendation Retrieval Contract
+
+Knowledge recommendation reuses TASK-061 retrieval/index infrastructure; it
+does not create another search engine. Search candidates are discovery only:
+before presentation, validate the canonical TASK-037 article is the current
+`PUBLISHED` version and re-check tenant, audience, `knowledge.read`, resource
+scope, applicability and availability. Exclude draft, in-review, archived,
+withdrawn, superseded and otherwise unavailable versions. A stale index result
+must not be shown after it becomes ineligible.
+
+Apply authorization/audience filters before returning any display data.
+Unauthorized articles must not leak through title, snippet, count, score,
+tags, rank, existence, facets or errors. End-user recommendations require
+governed end-user-safe audience; operator-only content is excluded. TASK-061
+fuzzy/full-text relevance may aid candidate discovery/ranking but is not
+strong correlation evidence and cannot bypass canonical eligibility.
+
+On projection failure, use only TASK-061's bounded exact canonical fallback
+where explicitly allowed, with identical tenant/resource authorization. If
+safe retrieval is unavailable, return `NO_RECOMMENDATION`; do not query
+unrelated canonical tables or block Ticket intake. Recommendation profile
+scoring and the maximum-three end-user result limit are defined by TASK-093,
+not by the general operator Search contract.

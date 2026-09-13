@@ -2952,3 +2952,14 @@ If supplier-facing principals are introduced, `quotation.create`,
 require scope to the principal's own Supplier. State-changing commands use
 expected-version fencing, idempotency, authorization, audit, outbox and
 correlation context where applicable.
+
+---
+
+# TASK-093 Recommendation Session Outcomes
+
+Knowledge article lifecycle remains TASK-037-owned and uses canonical
+`DRAFT → IN_REVIEW → PUBLISHED → ARCHIVED` states. Recommendation session
+outcome is independent: `NO_RECOMMENDATION`, `PRESENTED`, `USER_RESOLVED`,
+`NOT_HELPFUL`, `ESCALATED`. Open/click or helpful feedback is not resolution;
+explicit `ISSUE_RESOLVED` confirmation is required. These outcomes never
+transition Knowledge, Ticket or Incident lifecycle.

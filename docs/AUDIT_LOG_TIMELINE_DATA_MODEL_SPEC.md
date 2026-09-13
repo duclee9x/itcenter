@@ -3601,3 +3601,18 @@ ambiguity, operator detach, and manual override/attach as readable derived
 entries. Timeline is not relationship authority. Successful automatic links
 and ordinary NO_LINK do not create Work Items; one unresolved
 REVIEW_REQUIRED decision may own at most one actionable Work Item.
+
+---
+
+## TASK-093 Recommendation Interaction, Audit and Timeline
+
+Ordinary recommendation presentation, article opening and feedback use
+interaction history; they do not require excessive compliance audit. Audit
+privileged/manual overrides where applicable, preserving actor, tenant,
+session/item, exact Knowledge version, reason, correlation and outcome.
+Ticket timeline may show a recommendation attempt, authorized Knowledge
+reference/version, not-helpful feedback and Ticket creation after unsuccessful
+self-service. Timeline is derived, not interaction authority. Recheck viewer
+authorization before exposing a Knowledge reference. Never reveal inaccessible
+title, snippet or existence, and do not store full article bodies, credentials
+or protected telemetry in broad audit, events or timeline.

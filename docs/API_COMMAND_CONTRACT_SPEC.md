@@ -2833,3 +2833,28 @@ machine evidence immutable. Commands cannot close/reopen/delete Incidents or
 rewrite Ticket/monitoring/topology history. Competing relationship commands
 return canonical version/concurrency conflicts; clients reload canonical
 state rather than silently reparenting.
+
+---
+
+## TASK-093 Knowledge Recommendation API Intents
+
+Expose existing-convention routes equivalent to:
+
+```text
+POST /api/v1/knowledge/recommendation-sessions
+GET  /api/v1/knowledge/recommendation-sessions/{session_id}
+POST /api/v1/knowledge/recommendation-sessions/{session_id}/commands/select
+POST /api/v1/knowledge/recommendation-sessions/{session_id}/commands/feedback
+POST /api/v1/knowledge/recommendation-sessions/{session_id}/commands/confirm-resolution
+POST /api/v1/knowledge/recommendation-sessions/{session_id}/commands/escalate
+```
+
+Command intents are `KNOWLEDGE.RECOMMEND`,
+`KNOWLEDGE.RECOMMENDATION_SELECT`, `KNOWLEDGE.RECOMMENDATION_FEEDBACK`,
+`KNOWLEDGE.DEFLECTION_CONFIRM` and `KNOWLEDGE.RECOMMENDATION_ESCALATE`.
+Writes use `Idempotency-Key`, tenant/session and actor scope, correlation,
+and expected version where the aggregate is versioned. Return only currently
+eligible/authorized end-user-safe items (maximum three, TASK-093 profile).
+Escalation calls canonical Helpdesk Ticket intake and links its result; it
+does not mutate Ticket state directly. There is no automatic close/resolve
+intent. Same key/different payload returns canonical idempotency conflict.
