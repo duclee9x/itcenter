@@ -23,4 +23,7 @@ export {
   upsertContractAlertWorkItem,
   upsertContractAlertExceptionWorkItem,
   upsertCostProvenanceWorkItem,
+  createAutomationConflictWorkItem,
+  createAutomationReviewWorkItem,
+  recordAutomationTimelineEvent,
 } from "./application/work-queue.js";

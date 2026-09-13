@@ -6,9 +6,9 @@ feature_id: F-049
 workflow_id: WF-AUT02
 phase: P5
 priority: P1
-status: NOT_STARTED
-readiness: READY
-implementation_status: NOT_STARTED
+status: BLOCKED
+readiness: BLOCKED
+implementation_status: BLOCKED
 owner_domain: Automation / Control Plane
 depends_on: TASK-039, TASK-061, TASK-076
 ```
@@ -19,6 +19,15 @@ Implement versioned, event-triggered automation rule management, validation,
 simulation, deterministic condition evaluation, policy/safety gates and
 durable Action Intent creation. TASK-090 records a request for a possible
 future action; it never performs the requested business or remediation action.
+
+## Current implementation status
+
+The current implementation is `BLOCKED`; see
+`TASK-090_IMPLEMENTATION_REPORT.md`. The repository has no configured
+Automation Policy evaluator or System Automation Principal authorization
+adapter. Runtime therefore denies action intents by default, and no production
+intent can become `READY`. Keep TASK-091 blocked until TASK-090 passes its
+completion gate.
 
 ## 2. Required Specifications
 

@@ -8,6 +8,7 @@ import { permissions as artifact } from "../../modules/artifact/index.js";
 import { permissions as license } from "../../modules/license/index.js";
 import { permissions as contract } from "../../modules/contract/index.js";
 import { permissions as commercialDocuments } from "../../modules/document/index.js";
+import { permissions as automation } from "../../modules/automation/index.js";
 import {
   loadConfig,
   databaseUrl,
@@ -33,6 +34,7 @@ try {
       ...license,
       ...contract,
       ...commercialDocuments,
+      ...automation,
     ]),
   );
 } finally {

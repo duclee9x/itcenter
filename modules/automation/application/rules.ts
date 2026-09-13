@@ -55,6 +55,9 @@ export async function setKillSwitch(input: {
   ruleId: string;
   enabled: boolean;
 }) {
+  await input.tx.query("SELECT pg_advisory_xact_lock(hashtextextended($1,0))", [
+    `${input.tx.tenantId}:AUTOMATION_KILL:RULE:${input.ruleId}`,
+  ]);
   const result = await input.tx.query(
     "UPDATE automation.rules SET kill_switched=$1,enabled=CASE WHEN $1 THEN false ELSE enabled END WHERE tenant_id=$2 AND id=$3 RETURNING id,kill_switched,enabled",
     [input.enabled, input.tx.tenantId, input.ruleId],

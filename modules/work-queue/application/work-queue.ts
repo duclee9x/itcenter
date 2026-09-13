@@ -311,6 +311,68 @@ export async function resolveInvoiceWorkItem(input: {
   );
 }
 
+export async function createAutomationConflictWorkItem(input: {
+  tx: Transaction;
+  conflictId: string;
+}): Promise<string> {
+  const id = randomUUID();
+  await input.tx.query(
+    `INSERT INTO operations.work_items(id,tenant_id,source_type,source_id,title,priority,owner_team_id)
+     VALUES($1,$2,'AUTOMATION_CONFLICT',$3,'Conflicting automation intents require human resolution','HIGH','AUTOMATION')
+     ON CONFLICT(tenant_id,source_type,source_id) DO NOTHING`,
+    [id, input.tx.tenantId, input.conflictId],
+  );
+  const item = await input.tx.query<{ id: string }>(
+    "SELECT id FROM operations.work_items WHERE tenant_id=$1 AND source_type='AUTOMATION_CONFLICT' AND source_id=$2",
+    [input.tx.tenantId, input.conflictId],
+  );
+  return item.rows[0]!.id;
+}
+
+export async function createAutomationReviewWorkItem(input: {
+  tx: Transaction;
+  sourceId: string;
+  title: string;
+}): Promise<string> {
+  const id = randomUUID();
+  await input.tx.query(
+    `INSERT INTO operations.work_items(id,tenant_id,source_type,source_id,title,priority,owner_team_id)
+     VALUES($1,$2,'AUTOMATION_REVIEW',$3,$4,'HIGH','AUTOMATION')
+     ON CONFLICT(tenant_id,source_type,source_id) DO NOTHING`,
+    [id, input.tx.tenantId, input.sourceId, input.title],
+  );
+  const item = await input.tx.query<{ id: string }>(
+    "SELECT id FROM operations.work_items WHERE tenant_id=$1 AND source_type='AUTOMATION_REVIEW' AND source_id=$2",
+    [input.tx.tenantId, input.sourceId],
+  );
+  return item.rows[0]!.id;
+}
+
+export async function recordAutomationTimelineEvent(input: {
+  tx: Transaction;
+  entityType: "AUTOMATION_RULE" | "ACTION_INTENT" | "AUTOMATION_CONFLICT";
+  entityId: string;
+  eventType: string;
+  summary: string;
+  payload: unknown;
+  sourceEventId: string;
+}): Promise<void> {
+  await input.tx.query(
+    `INSERT INTO operations.timeline_events(id,tenant_id,entity_type,entity_id,event_type,summary,payload,source_event_id)
+     VALUES($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT(tenant_id,source_event_id) DO NOTHING`,
+    [
+      randomUUID(),
+      input.tx.tenantId,
+      input.entityType,
+      input.entityId,
+      input.eventType,
+      input.summary,
+      JSON.stringify(input.payload ?? {}),
+      input.sourceEventId,
+    ],
+  );
+}
+
 export async function recordAssetLifecycleTimelineEvent(input: {
   tx: Transaction;
   assetId: string;

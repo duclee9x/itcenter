@@ -119,6 +119,7 @@ import { handleInvoiceRoute } from "./invoice-routes.js";
 import { handleContractRoute } from "./contract-routes.js";
 import { handleCostProvenanceRoute } from "./cost-provenance-routes.js";
 import type { ObjectStore } from "../../../packages/object-storage/src/index.js";
+import { handleAutomationRoute } from "./automation-routes.js";
 
 const networkExceptionQueue = {
   createReference: createNetworkExceptionWorkItem,
@@ -252,6 +253,18 @@ export function apiServer(
   objectStore?: ObjectStore,
 ) {
   return createHttpServer(config, ready, async (req, res, context) => {
+    if (
+      await handleAutomationRoute({
+        req,
+        res,
+        context,
+        config,
+        authentication,
+        authorization,
+        uow,
+      })
+    )
+      return true;
     if (
       req.method === "GET" &&
       req.url?.split("?")[0] === "/api/v1/health/capabilities"

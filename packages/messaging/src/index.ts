@@ -20,7 +20,11 @@ export interface OutboxWriter {
 export class PostgresOutboxWriter implements OutboxWriter {
   constructor(private readonly tx: Transaction) {}
   async append(event: PendingEvent): Promise<void> {
-    assertEvent({ ...event, published_at: new Date().toISOString() });
+    const envelope: EventEnvelope = {
+      ...event,
+      published_at: new Date().toISOString(),
+    };
+    assertEvent(envelope);
     if (event.tenant_id !== this.tx.tenantId)
       throw new Error("Outbox tenant mismatch");
     await this.tx.query(
@@ -34,7 +38,7 @@ export class PostgresOutboxWriter implements OutboxWriter {
         event.aggregate.type,
         event.aggregate.id,
         event.aggregate.version,
-        JSON.stringify(event),
+        JSON.stringify(envelope),
         event.correlation_id,
         event.causation_id,
         event.occurred_at,

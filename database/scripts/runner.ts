@@ -51,6 +51,7 @@ export async function migrate(
     { owner: "contract" },
     { owner: "document" },
     { owner: "operations", after: "20260912_006_asset_lifecycle_source.sql" },
+    { owner: "automation", after: "20260912_001_safe_automation.sql" },
   ];
   for (const step of plan)
     for (const file of (await readdir(path.join(root, step.owner))).sort())

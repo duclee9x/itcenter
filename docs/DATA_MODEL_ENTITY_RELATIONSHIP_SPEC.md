@@ -2962,6 +2962,7 @@ automation.rule_versions:
   trigger_json:       # EVENT only for TASK-090
   condition_json:
   action_json:
+  priority:           # immutable version metadata; evaluation order only
   safety_level:
   requires_approval:
   activation_approval_id: # required when high-risk activation policy applies

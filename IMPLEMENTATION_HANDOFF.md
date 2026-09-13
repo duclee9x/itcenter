@@ -2,17 +2,19 @@
 
 ## Current Task
 
-`TASK-090` — Advanced Rules Engine + Policy-Gated Automation — is the current
-planned task, `READY / NOT_STARTED`. Its normative contract is
+`TASK-090` — Advanced Rules Engine + Policy-Gated Automation — remains the
+current task and is `BLOCKED`. Its normative contract is
 `tasks/TASK-090_ADVANCED_RULES_ENGINE_POLICY_GATED_AUTOMATION.md`.
 
-Planning reconciliation is complete; runtime implementation has not started.
-TASK-090 owns rule definition/versioning, event-only evaluation, simulation,
-policy gates, Action Intent deduplication/conflict handling, and durable intent
-creation. It does not execute actions. TASK-091 owns eligible-intent
-consumption, action execution, self-healing, retry, verification, timeout,
-compensation and execution-result state. Continue implementation only after
-an explicit instruction.
+Rule/version management, event-only evaluation, simulation, conflict handling
+and durable Action Intent persistence are implemented. Runtime policy and
+System Automation Principal authorization adapters are missing; the worker
+uses deny-all defaults, so production intents cannot become `READY`. This is
+recorded as `SCOPE_DEPENDENCY` and `SECURITY_CONCERN` in
+`tasks/TASK-090_IMPLEMENTATION_REPORT.md`. TASK-090 does not execute actions.
+TASK-091 owns eligible-intent consumption, action execution, self-healing,
+retry, verification, timeout, compensation and execution-result state. TASK-091
+remains blocked on TASK-090 and was not started.
 
 TASK-095 remains `BLOCKED / NOT_STARTED` pending its detailed implementation
 contract.
@@ -23,7 +25,7 @@ Integration Gate (`SATISFIED / CODE_COMPLETE`); see
 commercial-document storage as `UNAVAILABLE_NOT_READY`; production storage is
 not asserted ready.
 
-The pre-existing `AGENTS.md` modification is excluded from TASK-090 planning.
+The pre-existing `AGENTS.md` modification remains outside the TASK-090 commit.
 
 ## Last Completed Task — TASK-076
 
