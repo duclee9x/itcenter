@@ -12,6 +12,8 @@ import {
   createIncident,
   correlationProfile,
   decideCorrelation,
+  hasUnambiguousSharedSwitchIdentity,
+  sharedTopologyFreshness,
   scoreCorrelationCandidate,
   type CorrelationEvidenceFacts,
 } from "../../../modules/incident/index.js";
@@ -61,6 +63,7 @@ const wait = (signal: AbortSignal, ms: number) =>
   });
 
 type IncidentContext = {
+  tenant_id: string;
   id: string;
   code: string;
   title: string;
@@ -82,10 +85,10 @@ async function readIncidentContext(
   incidentId: string,
 ): Promise<IncidentContext | null> {
   const result = await tx.query<IncidentContext>(
-    `SELECT i.id,i.incident_code AS code,i.title,i.source,i.state,i.version,i.service_id,i.root_incident_id,
+    `SELECT i.id,i.tenant_id,i.incident_code AS code,i.title,i.source,i.state,i.version,i.service_id,i.root_incident_id,
             i.monitoring_event_id,m.source_correlation_key,m.metric,m.observed_at,m.asset_id,
-            (SELECT l.id FROM asset.locations l
-              WHERE l.tenant_id=i.tenant_id AND l.type='SITE' AND l.id IN (
+            (SELECT CASE WHEN count(*) = 1 THEN (array_agg(site.id::text))[1] ELSE NULL END
+             FROM asset.locations site WHERE site.tenant_id=i.tenant_id AND site.type='SITE' AND site.id IN (
                 WITH RECURSIVE ancestry(id,parent_id,depth) AS (
                   SELECT a.current_location_id,loc.parent_id,0
                   FROM asset.assets a JOIN asset.locations loc ON loc.tenant_id=a.tenant_id AND loc.id=a.current_location_id
@@ -94,7 +97,7 @@ async function readIncidentContext(
                   SELECT parent.id,parent.parent_id,ancestry.depth+1
                   FROM ancestry JOIN asset.locations parent ON parent.tenant_id=i.tenant_id AND parent.id=ancestry.parent_id
                 ) SELECT id FROM ancestry
-              ) ORDER BY l.id LIMIT 1) AS site_id
+              )) AS site_id
        FROM incident.incidents i
        LEFT JOIN monitoring.events m ON m.tenant_id=i.tenant_id AND m.id=i.monitoring_event_id
        WHERE i.tenant_id=$1 AND i.id=$2`,
@@ -152,14 +155,10 @@ function factsFor(
   subjectTopology: TopologyContext,
   candidateTopology: TopologyContext,
 ): CorrelationEvidenceFacts {
-  const topologyFreshness =
-    subjectTopology.freshness === "FRESH" &&
-    candidateTopology.freshness === "FRESH"
-      ? "FRESH"
-      : subjectTopology.freshness === "STALE" ||
-          candidateTopology.freshness === "STALE"
-        ? "STALE"
-        : "UNKNOWN";
+  const topologyFreshness = sharedTopologyFreshness(
+    subjectTopology.freshness,
+    candidateTopology.freshness,
+  );
   const onsetA = Date.parse(subject.observed_at ?? "");
   const onsetB = Date.parse(candidate.observed_at ?? "");
   const onsetDifferenceMinutes =
@@ -172,9 +171,14 @@ function factsFor(
       subject.source === candidate.source &&
       subject.source_correlation_key === candidate.source_correlation_key,
     topologyFreshness,
-    sameFailureDomainAncestor:
-      !!subjectTopology.switch_name &&
-      subjectTopology.switch_name === candidateTopology.switch_name,
+    sameFailureDomainAncestor: hasUnambiguousSharedSwitchIdentity({
+      subjectTenantId: subject.tenant_id,
+      candidateTenantId: candidate.tenant_id,
+      subjectScopeId: subject.site_id,
+      candidateScopeId: candidate.site_id,
+      subjectSwitchName: subjectTopology.switch_name,
+      candidateSwitchName: candidateTopology.switch_name,
+    }),
     sameVlanOrSubnet:
       subjectTopology.vlan !== null &&
       subjectTopology.vlan === candidateTopology.vlan,
@@ -405,9 +409,10 @@ async function automaticLinkAuthorization(
       service_id: string | null;
       site_id: string | null;
     }>(
-      `SELECT i.service_id,(SELECT l.id FROM asset.locations l WHERE l.tenant_id=i.tenant_id AND l.type='SITE' AND l.id IN (
+      `SELECT i.service_id,(SELECT CASE WHEN count(*) = 1 THEN (array_agg(site.id::text))[1] ELSE NULL END
+        FROM asset.locations site WHERE site.tenant_id=i.tenant_id AND site.type='SITE' AND site.id IN (
         WITH RECURSIVE a(id,parent_id) AS (SELECT x.current_location_id,l.parent_id FROM asset.assets x JOIN asset.locations l ON l.tenant_id=x.tenant_id AND l.id=x.current_location_id WHERE x.tenant_id=i.tenant_id AND x.id=m.asset_id
-          UNION ALL SELECT p.id,p.parent_id FROM a JOIN asset.locations p ON p.tenant_id=i.tenant_id AND p.id=a.parent_id) SELECT id FROM a) LIMIT 1) site_id
+          UNION ALL SELECT p.id,p.parent_id FROM a JOIN asset.locations p ON p.tenant_id=i.tenant_id AND p.id=a.parent_id) SELECT id FROM a)) site_id
        FROM incident.incidents i LEFT JOIN monitoring.events m ON m.tenant_id=i.tenant_id AND m.id=i.monitoring_event_id WHERE i.tenant_id=$1 AND i.id=$2`,
       [tx.tenantId, targetId],
     );

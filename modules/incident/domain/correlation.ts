@@ -26,6 +26,45 @@ export interface CorrelationEvidenceFacts {
   onsetDifferenceMinutes: number | null;
 }
 
+export function sharedTopologyFreshness(
+  subject: "FRESH" | "STALE" | "UNKNOWN",
+  candidate: "FRESH" | "STALE" | "UNKNOWN",
+): "FRESH" | "STALE" | "UNKNOWN" {
+  if (subject === "FRESH" && candidate === "FRESH") return "FRESH";
+  if (subject === "STALE" || candidate === "STALE") return "STALE";
+  return "UNKNOWN";
+}
+
+export function hasUnambiguousSharedSwitchIdentity(input: {
+  subjectTenantId: string;
+  candidateTenantId: string;
+  subjectScopeId: string | null;
+  candidateScopeId: string | null;
+  subjectSwitchName: string | null;
+  candidateSwitchName: string | null;
+}): boolean {
+  const normalizeScope = (value: string | null) => value?.trim();
+  const normalizeSwitchName = (value: string | null) =>
+    value?.normalize("NFKC").trim().replace(/\s+/gu, " ").toLowerCase();
+  const subjectTenant = normalizeScope(input.subjectTenantId);
+  const candidateTenant = normalizeScope(input.candidateTenantId);
+  const subjectScope = normalizeScope(input.subjectScopeId);
+  const candidateScope = normalizeScope(input.candidateScopeId);
+  const subjectSwitch = normalizeSwitchName(input.subjectSwitchName);
+  const candidateSwitch = normalizeSwitchName(input.candidateSwitchName);
+  return Boolean(
+    subjectTenant &&
+    candidateTenant &&
+    subjectTenant === candidateTenant &&
+    subjectScope &&
+    candidateScope &&
+    subjectScope === candidateScope &&
+    subjectSwitch &&
+    candidateSwitch &&
+    subjectSwitch === candidateSwitch,
+  );
+}
+
 export interface CorrelationContribution {
   code: CorrelationEvidenceCode;
   points: number;

@@ -69,15 +69,16 @@ can succeed.
 
 ## Implementation assumptions and limits
 
-The current TASK-051 persistence has fresh observations with `switch_name`,
-VLAN and Asset linkage but no persisted topology-edge/failure-domain graph.
-For the shared failure-domain signal, TASK-092 uses an exact matching
-`switch_name` only when both current observations are TASK-051-classified
-`FRESH`; freshness is never recomputed. Same-site context is derived from the
-Asset's canonical location ancestry. This is the repository's available
-provider-neutral representation of the workflow's shared-upstream-switch
-example; a future canonical topology graph may supply a more explicit
-failure-domain ancestor.
+The current TASK-051 persistence has observations with `switch_name`, VLAN and
+Asset linkage but no canonical switch identity or topology-edge graph. The
+last-resort shared-switch identity therefore requires the same tenant, the
+same unique canonical Site ancestor derived from both Assets, and equal
+`switch_name` values after NFKC normalization, whitespace normalization and
+case folding. Missing or ambiguous Site scope cannot produce strong evidence.
+Both observations must independently be TASK-051-classified `FRESH`; freshness
+is never recomputed. TASK-092-R2 records this clarification and verifies the
+scope/freshness gates. A future canonical topology identity may supersede the
+fallback without reinterpreting historical decisions.
 
 `source_correlation_key` is stored canonically for deterministic matching,
 but outbox/audit evidence exposes only the monitoring-event reference or a
@@ -89,12 +90,13 @@ readiness; no TASK-093 business rules were generated.
 
 Full repository verification is recorded below after the final run:
 
-- `npm test` — 128 tests passed: unit 46, contract 2, migration 1,
-  integration 26 and E2E 53.
-- `npm run typecheck` — passed.
-- `npm run lint` — passed, including repository boundary checks.
-- `npm run format:check` — passed.
-- `git diff --check` — passed.
-
-The TASK-092 PostgreSQL integration subset was rerun after the final fixture
-type correction; all five cases passed. API attach/detach E2E also passed.
+- Original TASK-092 completion verification: 128 tests passed (unit 46,
+  contract 2, migration 1, integration 26, E2E 53); typecheck, lint/boundary,
+  format and diff checks passed.
+- TASK-092-R2: targeted incident-correlation unit tests — 11 passed;
+  `npm run typecheck`, `npm run lint`, `npm run format:check` and
+  `git diff --check` passed.
+- TASK-092-R2 full `npm test` attempt: the 48 unit tests and 2 contract tests
+  passed, then the migration suite stopped before connecting because
+  `TEST_DATABASE_URL` is not configured. Integration and E2E suites therefore
+  did not run in this environment. No database migration was changed.

@@ -9,6 +9,8 @@ export {
 export {
   correlationProfile,
   decideCorrelation,
+  hasUnambiguousSharedSwitchIdentity,
+  sharedTopologyFreshness,
   scoreCorrelationCandidate,
 } from "./domain/correlation.js";
 export type {

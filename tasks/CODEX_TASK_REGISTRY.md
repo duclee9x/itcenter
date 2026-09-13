@@ -206,7 +206,8 @@ Only generate a detailed `TASK-xxx_*.md` when the task becomes `READY` or is the
 | `TASK-091-R1` | `F-049` | `WF-AUT02` | P5 | P0 | Automation Action Execution + Verification Contract | TASK-090 | **SATISFIED** | CODE_COMPLETE | `TASK-091-R1_AUTOMATION_ACTION_EXECUTION_CONTRACT_GAP.md` |
 | `TASK-091` | `F-049` | `WF-AUT02` | P5 | P1 | Controlled Self-Healing + Compensation | TASK-031, TASK-053, TASK-090, TASK-091-R1 | **SATISFIED** | CODE_COMPLETE | `TASK-091_CONTROLLED_SELF_HEALING_COMPENSATION.md` |
 | `TASK-092-R1` | `F-050` | `WF-INT01` | P5 | P0 | Advanced Incident Correlation Contract | TASK-033, TASK-051, TASK-090 | **SATISFIED** | CODE_COMPLETE | `TASK-092-R1_ADVANCED_INCIDENT_CORRELATION_CONTRACT.md` |
-| `TASK-092` | `F-050` | `WF-INT01` | P5 | P2 | Advanced Incident Correlation | TASK-033, TASK-051, TASK-090, TASK-092-R1 | **SATISFIED** | CODE_COMPLETE | `TASK-092_ADVANCED_INCIDENT_CORRELATION.md` |
+| `TASK-092-R2` | `F-050` | `WF-INT01` | P5 | P0 | Scoped Switch Identity for Correlation Evidence | TASK-051, TASK-092-R1 | **SATISFIED** | CODE_COMPLETE | `TASK-092-R2_TOPOLOGY_FAILURE_DOMAIN_IDENTITY.md` |
+| `TASK-092` | `F-050` | `WF-INT01` | P5 | P2 | Advanced Incident Correlation | TASK-033, TASK-051, TASK-090, TASK-092-R1, TASK-092-R2 | **SATISFIED** | CODE_COMPLETE | `TASK-092_ADVANCED_INCIDENT_CORRELATION.md` |
 | `TASK-093` | `KNOWLEDGE-DEFLECTION` | `WF-PC-K` | P5 | P2 | Knowledge Deflection + Self-Service Recommendations | TASK-037, TASK-061, TASK-092 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |
 | `TASK-094` | `F-050` | `WF-017/WF-INT01` | P5 | P2 | Risk + Replacement Scoring | TASK-038, TASK-050, TASK-058, TASK-059 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |
 | `TASK-095` | `F-048` | `WF-RPT01` | P5 | P1 | Advanced Reporting + Governed KPI + Analytics | TASK-039, TASK-061, TASK-076 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |
@@ -344,8 +345,8 @@ reports and commits confirm TASK-015 (`32c3267`), TASK-036 (`e043c31`) and
 TASK-038 (`296336a`) are `CODE_COMPLETE`.
 
 ```text
-CURRENT = TASK-092 (READY / NOT_STARTED; TASK-092-R1 normative remediation is complete and all declared dependencies are satisfied)
-NEXT = Await explicit instruction to begin TASK-092 runtime implementation.
+CURRENT = TASK-093 (BLOCKED / NOT_STARTED; TASK-092 and TASK-092-R2 are complete; TASK-093 detailed contract remains SPEC_GAP / PLANNING_REQUIRED)
+NEXT = Do not start TASK-093 implementation until its detailed normative contract is completed and authorized.
 TASK-059 = SATISFIED (CODE_COMPLETE)
 TASK-061 = SATISFIED (CODE_COMPLETE)
 TASK-070-R1 = SATISFIED (CODE_COMPLETE)
@@ -367,7 +368,8 @@ TASK-090 = SATISFIED (CODE_COMPLETE; deny-by-default Action Policy and scoped Sy
 TASK-091-R1 = SATISFIED / CODE_COMPLETE (normative/specification remediation only; see TASK-091-R1_AUTOMATION_ACTION_EXECUTION_CONTRACT_GAP.md)
 TASK-091 = SATISFIED / CODE_COMPLETE (30-second RESTART_AGENT acceptance deadline, separate five-minute verification deadline, timeout-to-UNKNOWN and append-only late-evidence reconciliation implemented; see TASK-091_IMPLEMENTATION_REPORT.md)
 TASK-092-R1 = SATISFIED / CODE_COMPLETE (normative correlation profile, decision evidence, root/link governance, authorization, event, audit, concurrency and test contracts; no runtime implementation)
-TASK-092 = READY / NOT_STARTED (TASK-033, TASK-051, TASK-090 and TASK-092-R1 are satisfied; runtime implementation not started)
+TASK-092-R2 = SATISFIED / CODE_COMPLETE (switch-name fallback requires same tenant and unambiguous canonical scope; both topology observations must be FRESH)
+TASK-092 = SATISFIED / CODE_COMPLETE (TASK-092-R1 contract and TASK-092-R2 scoped topology identity clarification verified and implemented)
 ```
 
 TASK-061's acceptance criteria and verification gates passed; its implementation
@@ -418,6 +420,10 @@ history, manual attach/detach/suppression, scoped authorization, events/audit,
 durable uniqueness and acceptance tests. TASK-092 runtime implementation is
 `CODE_COMPLETE`; see `TASK-092_IMPLEMENTATION_REPORT.md`. Its dependencies
 TASK-033, TASK-051, TASK-090 and TASK-092-R1 are satisfied.
+TASK-092-R2 tightened only the fallback identity for strong switch evidence:
+it requires matching tenant, unique Site scope and normalized switch name;
+both TASK-051 observations must be FRESH. The implementation and regression
+tests are recorded in `TASK-092-R2_TOPOLOGY_FAILURE_DOMAIN_IDENTITY.md`.
 
 TASK-093's declared dependencies TASK-037, TASK-061 and TASK-092 are now
 satisfied. Its detailed normative implementation contract is still absent

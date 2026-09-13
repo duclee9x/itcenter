@@ -23,7 +23,7 @@ commercial-document storage as `UNAVAILABLE_NOT_READY`; production storage is
 not asserted ready.
 
 The pre-existing `AGENTS.md` modification remains outside the TASK-092
-implementation commit.
+implementation and TASK-092-R2 commits.
 
 ## Last Completed Task — TASK-092
 
@@ -38,6 +38,17 @@ Advanced Incident Correlation (`CODE_COMPLETE`). See
   timeline and bounded worker retry fallback.
 - Verification passed: `npm test` (128 tests), typecheck, lint/boundaries,
   format check and `git diff --check`.
+
+## Last Completed Remediation — TASK-092-R2
+
+Scoped topology switch identity clarification (`CODE_COMPLETE`). The previous
+fallback treated matching `switch_name` values as strong without requiring a
+scope. It now requires the same tenant, a unique canonical Site scope and
+normalized switch names. Missing/ambiguous Site scope cannot produce strong
+evidence. Strong topology evidence still requires both observations to be
+TASK-051 `FRESH`. TASK-092 remains CODE_COMPLETE; TASK-093 was not started and
+remains blocked by its missing detailed contract. See
+`tasks/TASK-092-R2_TOPOLOGY_FAILURE_DOMAIN_IDENTITY.md`.
 
 ## Last Completed Remediation — TASK-092-R1
 

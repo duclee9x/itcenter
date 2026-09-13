@@ -2179,6 +2179,14 @@ Topology + Monitoring recover
 Root Incident resolved
 ```
 
+For TASK-092 shared-switch evidence, use canonical switch/device identity when
+available. The last-resort name fallback requires the same tenant, an
+unambiguous canonical site/location/network scope, and equal normalized
+`switch_name`; a switch name alone is not strong evidence. Missing or
+ambiguous scope leaves the name as context only. Both topology observations
+must be independently FRESH under TASK-051; TASK-092 does not calculate a
+second freshness timeout.
+
 ---
 
 # 81. Guardrails

@@ -72,6 +72,18 @@ Only TASK-051-classified FRESH topology contributes points or strong evidence.
 STALE/UNKNOWN topology is retained as explanatory context but contributes
 zero topology points. Do not independently recompute freshness.
 
+For shared-switch failure-domain evidence, prefer canonical switch/device
+identity, then another already-canonical stable device/management identity.
+Where TASK-051 has no such identity, the last-resort fallback identity is
+tenant + one unambiguous canonical site/location/network scope + normalized
+`switch_name`. `switch_name` alone is never strong evidence, including within
+one tenant. If scope is missing or ambiguous, retain the switch name only as
+explanatory/review context and do not set the strong failure-domain fact.
+Both observations must independently be classified FRESH by TASK-051 for
+this evidence to score or be strong. The current implementation uses the
+unique canonical Site ancestor of each linked Asset as its available scope;
+ambiguous or absent Site ancestry is treated as unavailable.
+
 ## Decision policy
 
 - `AUTO_LINK` requires score ≥85, at least one strong signal, one plausible

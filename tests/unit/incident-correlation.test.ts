@@ -2,6 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   decideCorrelation,
+  hasUnambiguousSharedSwitchIdentity,
+  sharedTopologyFreshness,
   scoreCorrelationCandidate,
   type CorrelationEvidenceFacts,
   type ScoredCorrelationCandidate,
@@ -51,6 +53,65 @@ test("stale or unknown topology contributes no topology points", () => {
   });
   assert.equal(result.score, 0);
   assert.equal(result.strongSignals.length, 0);
+});
+
+test("switch-name fallback needs the same tenant and one canonical shared scope", () => {
+  const identity = {
+    subjectTenantId: "tenant-a",
+    candidateTenantId: "tenant-a",
+    subjectScopeId: "site-1",
+    candidateScopeId: "site-1",
+    subjectSwitchName: "  Core   SW-01 ",
+    candidateSwitchName: "core sw-01",
+  };
+  assert.equal(hasUnambiguousSharedSwitchIdentity(identity), true);
+  const scopedFallbackStrong = hasUnambiguousSharedSwitchIdentity({
+    ...identity,
+    subjectScopeId: null,
+  });
+  const noScopeCandidate = score({
+    topologyFreshness: "FRESH",
+    sameFailureDomainAncestor: scopedFallbackStrong,
+    sameServiceOrDependency: true,
+    onsetDifferenceMinutes: 5,
+  });
+  assert.equal(noScopeCandidate.strongSignals.length, 0);
+  assert.notEqual(
+    decideCorrelation({ candidates: [noScopeCandidate] }).outcome,
+    "AUTO_LINK",
+  );
+  assert.equal(
+    hasUnambiguousSharedSwitchIdentity({ ...identity, subjectScopeId: null }),
+    false,
+  );
+  assert.equal(
+    hasUnambiguousSharedSwitchIdentity({
+      ...identity,
+      candidateScopeId: "site-2",
+    }),
+    false,
+  );
+  assert.equal(
+    hasUnambiguousSharedSwitchIdentity({
+      ...identity,
+      candidateTenantId: "tenant-b",
+    }),
+    false,
+  );
+  assert.equal(
+    hasUnambiguousSharedSwitchIdentity({
+      ...identity,
+      subjectSwitchName: "   ",
+    }),
+    false,
+  );
+});
+
+test("shared topology evidence is fresh only when both observations are fresh", () => {
+  assert.equal(sharedTopologyFreshness("FRESH", "FRESH"), "FRESH");
+  assert.equal(sharedTopologyFreshness("FRESH", "STALE"), "STALE");
+  assert.equal(sharedTopologyFreshness("STALE", "FRESH"), "STALE");
+  assert.equal(sharedTopologyFreshness("FRESH", "UNKNOWN"), "UNKNOWN");
 });
 
 test("fresh shared failure domain with independent service/time evidence can auto-link", () => {
