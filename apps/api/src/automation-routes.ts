@@ -17,16 +17,19 @@ import {
 import { PostgresAudit } from "../../../modules/audit/index.js";
 import {
   activateRule,
+  activateActionPolicy,
+  createActionPolicyDraft,
   createRule,
+  deactivateActionPolicy,
   deactivateRule,
-  denyUnconfiguredAutomationPolicy,
-  denyUnconfiguredAutomationPrincipal,
   getIntent,
   publishVersion,
   resolveConflict,
   simulateRule,
+  PostgresAutomationSecurity,
   setScopedKillSwitch,
   updateDraft,
+  updateActionPolicyDraft,
   type RuleDefinition,
 } from "../../../modules/automation/index.js";
 import { recordAutomationTimelineEvent } from "../../../modules/work-queue/index.js";
@@ -103,6 +106,7 @@ function auditAndEvent(input: {
   version: number;
   payload: Record<string, unknown>;
   reason?: string;
+  entityType?: "AUTOMATION_RULE" | "AUTOMATION_ACTION_POLICY";
 }) {
   const now = new Date().toISOString();
   const eventId = randomUUID();
@@ -114,7 +118,7 @@ function auditAndEvent(input: {
       occurred_at: now,
       producer: { service: input.config.serviceName, instance: "api" },
       aggregate: {
-        type: "AUTOMATION_RULE",
+        type: input.entityType ?? "AUTOMATION_RULE",
         id: input.aggregateId,
         version: input.version,
       },
@@ -133,7 +137,10 @@ function auditAndEvent(input: {
       occurred_at: now,
       actor: { type: input.actor.actor_type, id: input.actor.id },
       action: { command_type: input.type },
-      subject: { entity_type: "AUTOMATION_RULE", entity_id: input.aggregateId },
+      subject: {
+        entity_type: input.entityType ?? "AUTOMATION_RULE",
+        entity_id: input.aggregateId,
+      },
       correlation_id: input.context.correlation_id,
       causation_id: input.context.causation_id,
       reason: { code: input.type, text: input.reason ?? input.type },
@@ -150,7 +157,7 @@ function auditAndEvent(input: {
     )
       await recordAutomationTimelineEvent({
         tx: input.tx,
-        entityType: "AUTOMATION_RULE",
+        entityType: input.entityType ?? "AUTOMATION_RULE",
         entityId: input.aggregateId,
         eventType: input.type,
         summary:
@@ -223,6 +230,11 @@ function auditIntent(input: {
   })();
 }
 function permission(method: string, operation: string) {
+  if (operation === "policy-read") return "automation.policy.read";
+  if (operation === "policy-create") return "automation.policy.create";
+  if (operation === "policy-update") return "automation.policy.update";
+  if (operation === "policy-activate" || operation === "policy-deactivate")
+    return "automation.policy.activate";
   if (operation === "conflict-read") return "automation.intent.read";
   if (method === "GET")
     return operation === "intent"
@@ -250,6 +262,22 @@ export async function handleAutomationRoute(input: {
   const method = req.method ?? "GET";
   const pathname = req.url?.split("?")[0] ?? "";
   const create = method === "POST" && pathname === "/api/v1/automation-rules";
+  const policyCreate =
+    method === "POST" && pathname === "/api/v1/automation-action-policies";
+  const policyList =
+    method === "GET" && pathname === "/api/v1/automation-action-policies";
+  const policyCommand =
+    method === "POST"
+      ? pathname.match(
+          /^\/api\/v1\/automation-action-policies\/([0-9a-f-]{36})\/commands\/(update-draft|activate|deactivate)$/i,
+        )
+      : null;
+  const policyRead =
+    method === "GET"
+      ? pathname.match(
+          /^\/api\/v1\/automation-action-policies\/([0-9a-f-]{36})$/i,
+        )
+      : null;
   const rulesList = method === "GET" && pathname === "/api/v1/automation-rules";
   const ruleMatch =
     method === "GET"
@@ -273,6 +301,10 @@ export async function handleAutomationRoute(input: {
     method === "POST" && pathname === "/api/v1/automation/kill-switch";
   if (!(
     create ||
+    policyCreate ||
+    policyList ||
+    policyCommand ||
+    policyRead ||
     rulesList ||
     ruleMatch ||
     command ||
@@ -286,24 +318,39 @@ export async function handleAutomationRoute(input: {
     input.authentication,
     req.headers.authorization,
   );
-  const operation = create
-    ? "create"
-    : (command?.[2] ??
-      (intent
-        ? "intent"
-        : conflict
-          ? "resolve"
-          : conflictRead
-            ? "conflict-read"
-            : killSwitch
-              ? "kill-switch"
-              : "read"));
-  const resourceType = intent
-    ? "action_intent"
-    : conflict || conflictRead
-      ? "automation_conflict"
-      : "automation_rule";
+  const operation = policyCreate
+    ? "policy-create"
+    : policyList || policyRead
+      ? "policy-read"
+      : policyCommand?.[2] === "update-draft"
+        ? "policy-update"
+        : policyCommand?.[2] === "activate"
+          ? "policy-activate"
+          : policyCommand?.[2] === "deactivate"
+            ? "policy-deactivate"
+            : create
+              ? "create"
+              : (command?.[2] ??
+                (intent
+                  ? "intent"
+                  : conflict
+                    ? "resolve"
+                    : conflictRead
+                      ? "conflict-read"
+                      : killSwitch
+                        ? "kill-switch"
+                        : "read"));
+  const resourceType =
+    policyCreate || policyList || policyCommand || policyRead
+      ? "automation_action_policy"
+      : intent
+        ? "action_intent"
+        : conflict || conflictRead
+          ? "automation_conflict"
+          : "automation_rule";
   const resourceId =
+    policyCommand?.[1] ??
+    policyRead?.[1] ??
     command?.[1] ??
     ruleMatch?.[1] ??
     intent?.[1] ??
@@ -329,6 +376,26 @@ export async function handleAutomationRoute(input: {
         [principal.tenant_id],
       );
       return rows.rows;
+    });
+    json(input.res, 200, { data: value, meta: input.context });
+    return true;
+  }
+  if (policyList || policyRead) {
+    const value = await input.uow.run(principal.tenant_id, async (tx) => {
+      const rows = await tx.query(
+        `SELECT id,action_type,target_type,version,state,mode,resource_scope_json,
+                parameter_constraints_json,approval_required,effective_from,effective_to,
+                content_hash,created_by,changed_by,reason,activated_at,deactivated_at,entity_version
+         FROM automation.action_policies WHERE tenant_id=$1 AND ($2::uuid IS NULL OR id=$2)
+         ORDER BY action_type,target_type,version`,
+        [principal.tenant_id, policyRead?.[1] ?? null],
+      );
+      if (policyRead && !rows.rowCount)
+        throw new ApplicationError(
+          "NOT_FOUND",
+          "Automation action policy was not found.",
+        );
+      return policyRead ? rows.rows[0] : rows.rows;
     });
     json(input.res, 200, { data: value, meta: input.context });
     return true;
@@ -389,7 +456,145 @@ export async function handleAutomationRoute(input: {
         let value: Record<string, unknown>;
         let eventType: string;
         let aggregateId: string;
-        if (create) {
+        let eventPayload: Record<string, unknown> | undefined;
+        let additionalEvents: {
+          type: string;
+          payload: Record<string, unknown>;
+        }[] = [];
+        if (policyCreate) {
+          value = await createActionPolicyDraft(tx, {
+            actionType: String(body.action_type ?? ""),
+            targetType: String(body.target_type ?? ""),
+            actorId: principal.id,
+            draft: {
+              mode: String(body.mode ?? "DENY") as
+                "DENY" | "ALLOW" | "REQUIRE_APPROVAL",
+              resourceScope: (body.resource_scope ?? {}) as Record<
+                string,
+                string
+              >,
+              parameterConstraints: (body.parameter_constraints ??
+                {}) as Record<string, unknown>,
+              approvalRequired: body.approval_required === true,
+              effectiveFrom: String(body.effective_from ?? ""),
+              ...(typeof body.effective_to === "string"
+                ? { effectiveTo: body.effective_to }
+                : {}),
+              reason: String(body.reason ?? ""),
+            },
+          });
+          eventType = "AUTOMATION.ACTION_POLICY_CREATED";
+          aggregateId = String(value.id);
+          eventPayload = {
+            action_policy_id: value.id,
+            tenant_id: principal.tenant_id,
+            action_type: value.action_type,
+            target_type: value.target_type,
+            policy_version: value.version,
+            mode: value.mode,
+            actor_reference: principal.id,
+            correlation_id: input.context.correlation_id,
+          };
+        } else if (policyCommand?.[2] === "update-draft") {
+          value = await updateActionPolicyDraft(tx, {
+            policyId: policyCommand[1]!,
+            expectedVersion: expected(body),
+            actorId: principal.id,
+            draft: {
+              mode: String(body.mode ?? "DENY") as
+                "DENY" | "ALLOW" | "REQUIRE_APPROVAL",
+              resourceScope: (body.resource_scope ?? {}) as Record<
+                string,
+                string
+              >,
+              parameterConstraints: (body.parameter_constraints ??
+                {}) as Record<string, unknown>,
+              approvalRequired: body.approval_required === true,
+              effectiveFrom: String(body.effective_from ?? ""),
+              ...(typeof body.effective_to === "string"
+                ? { effectiveTo: body.effective_to }
+                : {}),
+              reason: String(body.reason ?? ""),
+            },
+          });
+          eventType = "AUTOMATION.ACTION_POLICY_UPDATED";
+          aggregateId = policyCommand[1]!;
+          eventPayload = {
+            action_policy_id: policyCommand[1]!,
+            tenant_id: principal.tenant_id,
+            policy_version: value.version,
+            entity_version: value.entity_version,
+            actor_reference: principal.id,
+            correlation_id: input.context.correlation_id,
+          };
+        } else if (policyCommand?.[2] === "activate") {
+          value = await activateActionPolicy(tx, {
+            policyId: policyCommand[1]!,
+            expectedVersion: expected(body),
+            actorId: principal.id,
+            reason: String(body.reason ?? ""),
+          });
+          eventType = "AUTOMATION.ACTION_POLICY_ACTIVATED";
+          aggregateId = policyCommand[1]!;
+          const published = await tx.query<{
+            action_type: string;
+            target_type: string;
+            version: number;
+            content_hash: string;
+            activated_at: Date;
+            effective_from: Date;
+          }>(
+            `SELECT action_type,target_type,version,content_hash,activated_at,effective_from
+             FROM automation.action_policies
+             WHERE tenant_id=$1 AND id=$2`,
+            [principal.tenant_id, policyCommand[1]!],
+          );
+          if (!published.rowCount)
+            throw new ApplicationError(
+              "INTERNAL_ERROR",
+              "Activated policy publication evidence is unavailable.",
+            );
+          const policy = published.rows[0]!;
+          additionalEvents = [
+            {
+              type: "AUTOMATION.ACTION_POLICY_VERSION_PUBLISHED",
+              payload: {
+                action_policy_id: policyCommand[1]!,
+                tenant_id: principal.tenant_id,
+                policy_version: policy.version,
+                policy_content_hash: policy.content_hash,
+                published_at: new Date(policy.activated_at).toISOString(),
+                actor_reference: principal.id,
+                correlation_id: input.context.correlation_id,
+              },
+            },
+          ];
+          eventPayload = {
+            action_policy_id: policyCommand[1]!,
+            tenant_id: principal.tenant_id,
+            policy_version: policy.version,
+            effective_from: new Date(policy.effective_from).toISOString(),
+            actor_reference: principal.id,
+            correlation_id: input.context.correlation_id,
+          };
+        } else if (policyCommand?.[2] === "deactivate") {
+          value = await deactivateActionPolicy(tx, {
+            policyId: policyCommand[1]!,
+            expectedVersion: expected(body),
+            actorId: principal.id,
+            reason: String(body.reason ?? ""),
+          });
+          eventType = "AUTOMATION.ACTION_POLICY_DEACTIVATED";
+          aggregateId = policyCommand[1]!;
+          eventPayload = {
+            action_policy_id: policyCommand[1]!,
+            tenant_id: principal.tenant_id,
+            policy_version: value.version,
+            reason_code: "POLICY_DEACTIVATED",
+            actor_reference: principal.id,
+            correlation_id: input.context.correlation_id,
+          };
+        } else if (create) {
           value = await createRule(tx, {
             code: String(body.code ?? ""),
             actorId: principal.id,
@@ -489,6 +694,7 @@ export async function handleAutomationRoute(input: {
           eventType = "AUTOMATION.KILL_SWITCH_CHANGED";
           aggregateId = scopeType === "RULE" ? scopeKey : randomUUID();
         } else if (command?.[2] === "simulate") {
+          const automationSecurity = new PostgresAutomationSecurity(tx);
           const event = body.event as Record<string, unknown> | undefined;
           if (
             !event ||
@@ -514,12 +720,15 @@ export async function handleAutomationRoute(input: {
             context: (body.context && typeof body.context === "object"
               ? body.context
               : {}) as Record<string, unknown>,
-            authorization: denyUnconfiguredAutomationPrincipal,
-            policy: denyUnconfiguredAutomationPolicy,
+            authorization: automationSecurity,
+            policy: automationSecurity,
+            capabilities: automationSecurity,
+            targets: automationSecurity,
           });
           eventType = "AUTOMATION.RULE_SIMULATED";
           aggregateId = command[1]!;
         } else if (conflict) {
+          const automationSecurity = new PostgresAutomationSecurity(tx);
           const selected = Array.isArray(body.selected_intent_ids)
             ? body.selected_intent_ids.filter(
                 (v): v is string => typeof v === "string",
@@ -531,7 +740,10 @@ export async function handleAutomationRoute(input: {
             actorId: principal.id,
             reason: String(body.reason ?? ""),
             selectedIntentIds: selected,
-            authorization: denyUnconfiguredAutomationPrincipal,
+            authorization: automationSecurity,
+            policy: automationSecurity,
+            capabilities: automationSecurity,
+            targets: automationSecurity,
           });
           eventType = "AUTOMATION.INTENT_CONFLICT_RESOLVED";
           aggregateId = conflict[1]!;
@@ -553,20 +765,32 @@ export async function handleAutomationRoute(input: {
             reason: String(body.reason),
           });
         else
-          await auditAndEvent({
-            tx,
-            config: input.config,
-            tenantId: principal.tenant_id,
-            actor: principal,
-            context: input.context,
-            key: idempotencyKey,
-            type: eventType,
-            aggregateId,
-            version: Number(value.entity_version ?? value.version ?? 1),
-            payload: value,
-            ...(typeof body.reason === "string" ? { reason: body.reason } : {}),
-          });
-        return { status: create ? 201 : 200, body: value as never };
+          for (const item of [
+            ...additionalEvents,
+            { type: eventType, payload: eventPayload ?? value },
+          ])
+            await auditAndEvent({
+              tx,
+              config: input.config,
+              tenantId: principal.tenant_id,
+              actor: principal,
+              context: input.context,
+              key: idempotencyKey,
+              type: item.type,
+              aggregateId,
+              version: Number(value.entity_version ?? value.version ?? 1),
+              payload: item.payload,
+              ...(typeof body.reason === "string"
+                ? { reason: body.reason }
+                : {}),
+              ...(policyCreate || policyCommand
+                ? { entityType: "AUTOMATION_ACTION_POLICY" as const }
+                : {}),
+            });
+        return {
+          status: create || policyCreate ? 201 : 200,
+          body: value as never,
+        };
       },
     ),
   );

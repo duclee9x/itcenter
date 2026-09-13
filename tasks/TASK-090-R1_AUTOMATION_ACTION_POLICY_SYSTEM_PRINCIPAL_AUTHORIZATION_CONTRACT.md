@@ -197,6 +197,7 @@ secrets, full policy selectors or protected parameters in broad events,
 audit and timeline.
 
 Policy lifecycle events are `AUTOMATION.ACTION_POLICY_CREATED`,
+`AUTOMATION.ACTION_POLICY_UPDATED` for a draft edit,
 `AUTOMATION.ACTION_POLICY_VERSION_PUBLISHED`,
 `AUTOMATION.ACTION_POLICY_ACTIVATED` and
 `AUTOMATION.ACTION_POLICY_DEACTIVATED` (or semantically equivalent repository

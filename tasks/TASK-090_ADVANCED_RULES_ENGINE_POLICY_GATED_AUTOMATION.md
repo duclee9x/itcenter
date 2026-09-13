@@ -6,9 +6,9 @@ feature_id: F-049
 workflow_id: WF-AUT02
 phase: P5
 priority: P1
-status: IN_PROGRESS
-readiness: IN_PROGRESS
-implementation_status: IN_PROGRESS
+status: CODE_COMPLETE
+readiness: SATISFIED
+implementation_status: CODE_COMPLETE
 owner_domain: Automation / Control Plane
 depends_on: TASK-039, TASK-061, TASK-076, TASK-090-R1
 ```
@@ -25,10 +25,12 @@ future action; it never performs the requested business or remediation action.
 The event-driven Rule and Action Intent vertical slice is implemented. The
 normative Action Policy and System Automation Principal contract is defined by
 [`TASK-090-R1`](TASK-090-R1_AUTOMATION_ACTION_POLICY_SYSTEM_PRINCIPAL_AUTHORIZATION_CONTRACT.md).
-Runtime policy/grant persistence and authorization wiring remain to be
-implemented; the worker continues to deny by default until then. TASK-090 is
-`IN_PROGRESS`, not complete. Keep TASK-091 blocked until TASK-090 passes its
-completion gate.
+Runtime policy persistence, allow-listed capability validation, tenant-bound
+`SYSTEM_AUTOMATION` principal resolution and scoped AuthorizationPort checks
+are implemented. Production remains deny-by-default until each tenant has an
+explicit applicable policy and canonical scoped principal grant. TASK-090
+records eligible Action Intents only; TASK-091 remains responsible for
+execution and must recheck current security controls before acting.
 
 ## 2. Required Specifications
 

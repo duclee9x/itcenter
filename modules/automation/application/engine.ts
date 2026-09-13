@@ -10,6 +10,15 @@ import {
   type EventTrigger,
   type PolicyDecision,
 } from "../domain/rules.js";
+import {
+  denyUnconfiguredActionCapabilities,
+  denyUnconfiguredAutomationTarget,
+  type ActionAuthorization,
+  type ActionCapabilityPort,
+  type AutomationPolicyPort,
+  type AutomationTargetPort,
+} from "./ports.js";
+import type { ActionCapability } from "../domain/capabilities.js";
 
 export interface AutomationEvent {
   event_id: string;
@@ -21,35 +30,26 @@ export interface AutomationEvent {
   payload: Record<string, unknown>;
 }
 
-export interface ActionAuthorization {
-  authorize(input: {
-    tenantId: string;
-    targetType: string;
-    targetId: string;
-    actionDomain: string;
-    actionType: string;
-  }): Promise<{ allowed: boolean; reasonCode: string }>;
-}
-export interface AutomationPolicyPort {
-  decide(input: {
-    tenantId: string;
-    safetyLevel: string;
-    requiresApproval: boolean;
-    action: ActionDescriptor;
-  }): Promise<{ decision: PolicyDecision; reasonCode: string }>;
-}
-
 export const denyUnconfiguredAutomationPrincipal: ActionAuthorization = {
   async authorize() {
     return {
       allowed: false,
       reasonCode: "AUTOMATION_PRINCIPAL_NOT_CONFIGURED",
+      principalId: null,
+      permission: "",
+      scopeReference: null,
     };
   },
 };
 export const denyUnconfiguredAutomationPolicy: AutomationPolicyPort = {
   async decide() {
-    return { decision: "DENY", reasonCode: "AUTOMATION_POLICY_NOT_CONFIGURED" };
+    return {
+      decision: "DENY",
+      reasonCode: "AUTOMATION_POLICY_NOT_CONFIGURED",
+      policyId: null,
+      policyVersion: null,
+      approvalRequired: false,
+    };
   },
 };
 
@@ -491,6 +491,97 @@ function policyFor(
   if (requiresApproval && result === "ALLOW") return "REQUIRE_APPROVAL";
   return result;
 }
+async function assessAction(input: {
+  tenantId: string;
+  correlationId: string;
+  safetyLevel: string;
+  requiresApproval: boolean;
+  action: ActionDescriptor;
+  capabilities: ActionCapabilityPort;
+  targets: AutomationTargetPort;
+  authorization: ActionAuthorization;
+  policy: AutomationPolicyPort;
+}) {
+  let capability: ActionCapability | null = null;
+  let target: Awaited<ReturnType<AutomationTargetPort["resolveTarget"]>> = null;
+  try {
+    capability = await input.capabilities.resolve({ action: input.action });
+  } catch {
+    // Unavailable capability data fails closed.
+  }
+  if (capability)
+    try {
+      target = await input.targets.resolveTarget({
+        tenantId: input.tenantId,
+        targetType: input.action.target_type,
+        targetId: input.action.target_id,
+      });
+    } catch {
+      // Unresolvable targets cannot receive an executable intent.
+    }
+  let policy = {
+    decision: "DENY" as PolicyDecision,
+    reasonCode: capability
+      ? "AUTOMATION_TARGET_UNRESOLVED"
+      : "AUTOMATION_ACTION_UNSUPPORTED",
+    policyId: null as string | null,
+    policyVersion: null as number | null,
+    approvalRequired: false,
+  };
+  let authorization = {
+    allowed: false,
+    reasonCode: "AUTOMATION_TARGET_UNRESOLVED",
+    principalId: null as string | null,
+    permission: capability?.required_permission ?? "",
+    scopeReference: null as string | null,
+  };
+  if (capability && target) {
+    try {
+      policy = await input.policy.decide({
+        tenantId: input.tenantId,
+        safetyLevel: input.safetyLevel,
+        requiresApproval: input.requiresApproval,
+        action: input.action,
+        capability,
+        target,
+        correlationId: input.correlationId,
+      });
+    } catch {
+      policy = {
+        decision: "DENY",
+        reasonCode: "AUTOMATION_POLICY_BACKEND_UNAVAILABLE",
+        policyId: null,
+        policyVersion: null,
+        approvalRequired: false,
+      };
+    }
+    try {
+      authorization = await input.authorization.authorize({
+        tenantId: input.tenantId,
+        capability,
+        target,
+        correlationId: input.correlationId,
+      });
+    } catch {
+      authorization = {
+        allowed: false,
+        reasonCode: "AUTOMATION_AUTHORIZATION_BACKEND_UNAVAILABLE",
+        principalId: null,
+        permission: capability.required_permission,
+        scopeReference: target.scopeReference,
+      };
+    }
+  }
+  if (input.safetyLevel === "PROHIBITED_AUTO")
+    policy = { ...policy, decision: "DENY", reasonCode: "PROHIBITED_AUTO" };
+  const decision = capability
+    ? policyFor(
+        policy.decision,
+        input.requiresApproval || policy.approvalRequired,
+      )
+    : "DENY";
+  return { capability, target, policy, authorization, decision };
+}
 function contextHash(event: AutomationEvent, action: ActionDescriptor) {
   return hash({
     event_id: event.event_id,
@@ -500,6 +591,37 @@ function contextHash(event: AutomationEvent, action: ActionDescriptor) {
     action_type: action.action_type,
     parameters: action.parameters,
     desired_state: action.desired_state,
+  });
+}
+function approvalContextHash(input: {
+  tenantId: string;
+  eventId: string;
+  action: ActionDescriptor;
+  capabilityId: string;
+  capabilityVersion: number;
+  policyId: string;
+  policyVersion: number;
+  targetScope: string;
+  contributors: { rule_id: string; rule_version: number }[];
+}) {
+  return hash({
+    tenant_id: input.tenantId,
+    event_id: input.eventId,
+    action: input.action,
+    capability_id: input.capabilityId,
+    capability_version: input.capabilityVersion,
+    policy_id: input.policyId,
+    policy_version: input.policyVersion,
+    target_scope: input.targetScope,
+    contributors: input.contributors
+      .map((item) => ({
+        rule_id: item.rule_id,
+        rule_version: item.rule_version,
+      }))
+      .sort(
+        (a, b) =>
+          a.rule_id.localeCompare(b.rule_id) || a.rule_version - b.rule_version,
+      ),
   });
 }
 function dedupeHash(event: AutomationEvent, action: ActionDescriptor) {
@@ -564,6 +686,8 @@ export async function evaluateEvent(
   options: {
     mode?: "PRODUCTION" | "SIMULATION";
     fixture?: Record<string, unknown>;
+    capabilities?: ActionCapabilityPort;
+    targets?: AutomationTargetPort;
   } = {},
 ) {
   if (event.tenant_id !== tx.tenantId)
@@ -599,8 +723,22 @@ export async function evaluateEvent(
     contextHash: string;
     reason: string;
     authorized: boolean;
+    capability: ActionCapability | null;
+    policyId: string | null;
+    policyVersion: number | null;
+    principalId: string | null;
+    permission: string | null;
+    scopeReference: string | null;
+    authorizationDecision: "ALLOW" | "DENY";
+    approvalRequired: boolean;
+    approvalResult: "NOT_REQUIRED" | "PENDING";
+    killSwitchResult: "ALLOW" | "DENY";
+    evidence: Record<string, unknown>;
   }[] = [];
   const results: Record<string, unknown>[] = [];
+  const capabilities =
+    options.capabilities ?? denyUnconfiguredActionCapabilities;
+  const targets = options.targets ?? denyUnconfiguredAutomationTarget;
   for (const rule of rules.rows) {
     if (!triggerMatches(rule.trigger_json, event.payload)) continue;
     const condition = evaluateCondition(
@@ -613,41 +751,139 @@ export async function evaluateEvent(
       options.fixture ?? {},
     );
     const action = rule.action_json;
-    const policyResult =
-      rule.safety_level === "PROHIBITED_AUTO"
-        ? { decision: "DENY" as const, reasonCode: "PROHIBITED_AUTO" }
-        : await policy.decide({
+    let capability: ActionCapability | null = null;
+    let target: Awaited<ReturnType<AutomationTargetPort["resolveTarget"]>> =
+      null;
+    let policyResult = {
+      decision: "DENY" as PolicyDecision,
+      reasonCode: "AUTOMATION_ACTION_UNSUPPORTED",
+      policyId: null as string | null,
+      policyVersion: null as number | null,
+      approvalRequired: false,
+    };
+    let auth = {
+      allowed: false,
+      reasonCode: "AUTOMATION_TARGET_UNRESOLVED",
+      principalId: null as string | null,
+      permission: "",
+      scopeReference: null as string | null,
+    };
+    if (condition.matched) {
+      try {
+        capability = await capabilities.resolve({ action });
+      } catch {
+        capability = null;
+      }
+      if (capability) {
+        try {
+          target = await targets.resolveTarget({
+            tenantId: tx.tenantId,
+            targetType: action.target_type,
+            targetId: action.target_id,
+          });
+        } catch {
+          target = null;
+        }
+      }
+      if (capability && target) {
+        try {
+          policyResult = await policy.decide({
             tenantId: tx.tenantId,
             safetyLevel: rule.safety_level,
             requiresApproval: rule.requires_approval,
             action,
+            capability,
+            target,
+            correlationId: event.correlation_id,
           });
-    const decision = policyFor(policyResult.decision, rule.requires_approval);
-    const killed = await isKilled(tx, rule.id, action.action_domain);
-    const auth =
-      condition.matched &&
-      decision === "ALLOW" &&
-      !killed &&
-      options.mode !== "SIMULATION"
-        ? await authorization.authorize({
-            tenantId: tx.tenantId,
-            targetType: action.target_type,
-            targetId: action.target_id,
-            actionDomain: action.action_domain,
-            actionType: action.action_type,
-          })
-        : {
-            allowed: decision !== "DENY" && !killed,
-            reasonCode: killed ? "KILL_SWITCH_ACTIVE" : "POLICY_GATE",
+        } catch {
+          policyResult = {
+            decision: "DENY",
+            reasonCode: "AUTOMATION_POLICY_BACKEND_UNAVAILABLE",
+            policyId: null,
+            policyVersion: null,
+            approvalRequired: false,
           };
+        }
+        try {
+          auth = await authorization.authorize({
+            tenantId: tx.tenantId,
+            capability,
+            target,
+            correlationId: event.correlation_id,
+          });
+        } catch {
+          auth = {
+            allowed: false,
+            reasonCode: "AUTOMATION_AUTHORIZATION_BACKEND_UNAVAILABLE",
+            principalId: null,
+            permission: capability.required_permission,
+            scopeReference: target.scopeReference,
+          };
+        }
+      }
+    }
+    if (rule.safety_level === "PROHIBITED_AUTO")
+      policyResult = {
+        ...policyResult,
+        decision: "DENY",
+        reasonCode: "PROHIBITED_AUTO",
+      };
+    const decision = capability
+      ? policyFor(
+          policyResult.decision,
+          rule.requires_approval || policyResult.approvalRequired,
+        )
+      : "DENY";
+    const killed = await isKilled(tx, rule.id, action.action_domain);
     const policyDecision = decision;
     const reason = killed
       ? "KILL_SWITCH_ACTIVE"
-      : decision === "DENY"
-        ? policyResult.reasonCode
-        : condition.matched && !auth.allowed
-          ? auth.reasonCode
-          : decision;
+      : !capability
+        ? "AUTOMATION_ACTION_UNSUPPORTED"
+        : !target
+          ? "AUTOMATION_TARGET_UNRESOLVED"
+          : decision === "DENY"
+            ? policyResult.reasonCode
+            : condition.matched && !auth.allowed
+              ? auth.reasonCode
+              : decision;
+    const authorized = Boolean(
+      condition.matched && capability && target && auth.allowed,
+    );
+    const approvalRequired = decision === "REQUIRE_APPROVAL";
+    const evidence: Record<string, unknown> = {
+      capability: capability
+        ? {
+            id: capability.id,
+            action_type: capability.action_type,
+            version: capability.version,
+          }
+        : null,
+      policy: {
+        id: policyResult.policyId,
+        version: policyResult.policyVersion,
+        decision,
+        reason_code: policyResult.reasonCode,
+      },
+      principal: { type: "SYSTEM_AUTOMATION", id: auth.principalId },
+      authorization: {
+        permission: capability?.required_permission ?? null,
+        scope: auth.scopeReference,
+        result: auth.allowed ? "ALLOW" : "DENY",
+        reason_code: auth.reasonCode,
+      },
+      approval: {
+        required: approvalRequired,
+        result: approvalRequired ? "PENDING" : "NOT_REQUIRED",
+      },
+      kill_switch: { result: killed ? "DENY" : "ALLOW" },
+      conflict: { result: "CLEAR" },
+      safety_level: rule.safety_level,
+      requires_approval: rule.requires_approval,
+      reason_code: reason,
+      correlation_id: event.correlation_id,
+    };
     const evaluationId = randomUUID();
     const context = hash({
       event_id: event.event_id,
@@ -656,8 +892,8 @@ export async function evaluateEvent(
     });
     if (options.mode !== "SIMULATION") {
       await tx.query(
-        `INSERT INTO automation.rule_evaluations(id,tenant_id,source_event_id,source_event_type,rule_id,rule_version,mode,match_result,condition_evidence_json,policy_decision,policy_reason_code,context_hash,correlation_id)
-        VALUES($1,$2,$3,$4,$5,$6,'PRODUCTION',$7,$8,$9,$10,$11,$12) ON CONFLICT(tenant_id,source_event_id,rule_id,rule_version,mode) DO NOTHING`,
+        `INSERT INTO automation.rule_evaluations(id,tenant_id,source_event_id,source_event_type,rule_id,rule_version,mode,match_result,condition_evidence_json,policy_decision,policy_reason_code,context_hash,correlation_id,decision_evidence_json)
+        VALUES($1,$2,$3,$4,$5,$6,'PRODUCTION',$7,$8,$9,$10,$11,$12,$13) ON CONFLICT(tenant_id,source_event_id,rule_id,rule_version,mode) DO NOTHING`,
         [
           evaluationId,
           tx.tenantId,
@@ -671,6 +907,7 @@ export async function evaluateEvent(
           reason,
           context,
           event.correlation_id,
+          JSON.stringify(evidence),
         ],
       );
       const stored = await tx.query<{ id: string }>(
@@ -688,7 +925,18 @@ export async function evaluateEvent(
           decision,
           contextHash: contextHash(event, action),
           reason,
-          authorized: auth.allowed && !killed,
+          authorized: authorized && !killed && decision !== "DENY",
+          capability,
+          policyId: policyResult.policyId,
+          policyVersion: policyResult.policyVersion,
+          principalId: auth.principalId,
+          permission: capability?.required_permission ?? null,
+          scopeReference: auth.scopeReference,
+          authorizationDecision: authorized ? "ALLOW" : "DENY",
+          approvalRequired,
+          approvalResult: approvalRequired ? "PENDING" : "NOT_REQUIRED",
+          killSwitchResult: killed ? "DENY" : "ALLOW",
+          evidence,
         });
       results.push({
         evaluation_id: evalId,
@@ -698,6 +946,7 @@ export async function evaluateEvent(
         conditions: condition.evidence,
         policy_decision: policyDecision,
         reason_code: reason,
+        decision_evidence: evidence,
         mode: "PRODUCTION",
       });
     } else {
@@ -709,6 +958,7 @@ export async function evaluateEvent(
         conditions: condition.evidence,
         policy_decision: policyDecision,
         reason_code: reason,
+        decision_evidence: evidence,
         proposed_action: condition.matched ? action : null,
         mode: "SIMULATION",
       });
@@ -727,6 +977,16 @@ export async function evaluateEvent(
       reason: string;
       members: { ruleId: string; version: number; evalId: string }[];
       authOk: boolean;
+      capability: ActionCapability | null;
+      policyId: string | null;
+      policyVersion: number | null;
+      principalId: string | null;
+      permission: string | null;
+      scopeReference: string | null;
+      authorizationDecision: "ALLOW" | "DENY";
+      approvalResult: "NOT_REQUIRED" | "PENDING";
+      killSwitchResult: "ALLOW" | "DENY";
+      evidence: Record<string, unknown>;
     }
   >();
   for (const item of staged) {
@@ -740,7 +1000,7 @@ export async function evaluateEvent(
       });
       existing.decision = restrictive(existing.decision, item.decision);
       existing.authOk &&= item.authorized;
-      if (existing.decision === "DENY") existing.reason = "PROHIBITED_AUTO";
+      if (existing.decision === "DENY") existing.reason = item.reason;
       continue;
     }
     const id = randomUUID();
@@ -762,6 +1022,16 @@ export async function evaluateEvent(
         { ruleId: item.ruleId, version: item.version, evalId: item.evalId },
       ],
       authOk: item.authorized,
+      capability: item.capability,
+      policyId: item.policyId,
+      policyVersion: item.policyVersion,
+      principalId: item.principalId,
+      permission: item.permission,
+      scopeReference: item.scopeReference,
+      authorizationDecision: item.authorizationDecision,
+      approvalResult: item.approvalResult,
+      killSwitchResult: item.killSwitchResult,
+      evidence: item.evidence,
     });
   }
   const scopes = new Map<
@@ -776,7 +1046,29 @@ export async function evaluateEvent(
           ? "PENDING_APPROVAL"
           : "READY";
     if (!intent.authOk && intent.decision !== "DENY")
-      intent.reason = "AUTOMATION_PRINCIPAL_NOT_CONFIGURED";
+      intent.reason = "AUTOMATION_PRINCIPAL_SCOPE_OR_PERMISSION_DENIED";
+    if (intent.evidence && intent.state !== "READY")
+      intent.evidence.reason_code = intent.reason;
+    if (
+      intent.capability &&
+      intent.policyId &&
+      intent.policyVersion !== null &&
+      intent.scopeReference
+    )
+      intent.contextHash = approvalContextHash({
+        tenantId: tx.tenantId,
+        eventId: event.event_id,
+        action: intent.action,
+        capabilityId: intent.capability.id,
+        capabilityVersion: intent.capability.version,
+        policyId: intent.policyId,
+        policyVersion: intent.policyVersion,
+        targetScope: intent.scopeReference,
+        contributors: intent.members.map((member) => ({
+          rule_id: member.ruleId,
+          rule_version: member.version,
+        })),
+      });
     const key = intent.conflictKey;
     const list = scopes.get(key) ?? [];
     list.push(intent);
@@ -793,8 +1085,8 @@ export async function evaluateEvent(
     const finalId = existing.rows[0]?.id ?? intent.id;
     if (!existing.rowCount) {
       const inserted = await tx.query<{ id: string }>(
-        `INSERT INTO automation.action_intents(id,tenant_id,source_event_id,target_type,target_id,action_domain,action_type,normalized_parameters_json,policy_decision,approval_context_hash,deduplication_key,conflict_scope_key,exclusivity_group,desired_state,state,reason_code,correlation_id)
-      VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17) ON CONFLICT(tenant_id,deduplication_key) DO NOTHING RETURNING id`,
+        `INSERT INTO automation.action_intents(id,tenant_id,source_event_id,target_type,target_id,action_domain,action_type,normalized_parameters_json,policy_decision,approval_context_hash,deduplication_key,conflict_scope_key,exclusivity_group,desired_state,state,reason_code,correlation_id,capability_id,capability_version,policy_id,policy_version,principal_id,required_permission,authorization_scope_reference,authorization_decision,approval_requirement,approval_result,kill_switch_result,conflict_result,decision_evidence_json)
+      VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,'CLEAR',$29) ON CONFLICT(tenant_id,deduplication_key) DO NOTHING RETURNING id`,
         [
           intent.id,
           tx.tenantId,
@@ -813,6 +1105,18 @@ export async function evaluateEvent(
           intent.state,
           intent.reason,
           event.correlation_id,
+          intent.capability?.id ?? null,
+          intent.capability?.version ?? null,
+          intent.policyId,
+          intent.policyVersion,
+          intent.principalId,
+          intent.permission,
+          intent.scopeReference,
+          intent.authorizationDecision,
+          intent.decision === "REQUIRE_APPROVAL" ? "REQUIRED" : "NOT_REQUIRED",
+          intent.approvalResult,
+          intent.killSwitchResult,
+          JSON.stringify(intent.evidence),
         ],
       );
       if (!inserted.rowCount) {
@@ -857,7 +1161,7 @@ export async function evaluateEvent(
       );
       for (const intent of scoped.rows) {
         await tx.query(
-          "UPDATE automation.action_intents SET state='CONFLICTED',reason_code='ACTION_INTENT_CONFLICT',entity_version=entity_version+1,updated_at=now() WHERE tenant_id=$1 AND id=$2 AND state<>'CONFLICTED'",
+          "UPDATE automation.action_intents SET state='CONFLICTED',reason_code='ACTION_INTENT_CONFLICT',conflict_result='CONFLICTED',decision_evidence_json=decision_evidence_json || '{\"conflict\":{\"result\":\"CONFLICTED\"},\"reason_code\":\"ACTION_INTENT_CONFLICT\"}'::jsonb,entity_version=entity_version+1,updated_at=now() WHERE tenant_id=$1 AND id=$2 AND state<>'CONFLICTED'",
           [tx.tenantId, intent.id],
         );
         await tx.query(
@@ -873,8 +1177,9 @@ export async function evaluateEvent(
     policy_decision: PolicyDecision;
     reason_code: string | null;
     deduplication_key: string;
+    target_id: string;
   }>(
-    "SELECT DISTINCT i.id,i.state,i.policy_decision,i.reason_code,i.deduplication_key FROM automation.action_intents i JOIN automation.action_intent_contributors c ON c.tenant_id=i.tenant_id AND c.action_intent_id=i.id JOIN automation.rule_evaluations e ON e.tenant_id=c.tenant_id AND e.id=c.evaluation_id WHERE i.tenant_id=$1 AND i.source_event_id=$2",
+    "SELECT DISTINCT i.id,i.state,i.policy_decision,i.reason_code,i.deduplication_key,i.target_id FROM automation.action_intents i JOIN automation.action_intent_contributors c ON c.tenant_id=i.tenant_id AND c.action_intent_id=i.id JOIN automation.rule_evaluations e ON e.tenant_id=c.tenant_id AND e.id=c.evaluation_id WHERE i.tenant_id=$1 AND i.source_event_id=$2",
     [tx.tenantId, event.event_id],
   );
   for (const evaluation of results)
@@ -922,6 +1227,8 @@ export async function simulateRule(
     context?: Record<string, unknown>;
     authorization: ActionAuthorization;
     policy?: AutomationPolicyPort;
+    capabilities?: ActionCapabilityPort;
+    targets?: AutomationTargetPort;
   },
 ) {
   const row = await tx.query<{
@@ -959,34 +1266,29 @@ export async function simulateRule(
         input.context ?? {},
       )
     : { matched: false, evidence: [] };
-  const policyResult =
-    rule.safety_level === "PROHIBITED_AUTO"
-      ? { decision: "DENY" as const, reasonCode: "PROHIBITED_AUTO" }
-      : await (input.policy ?? denyUnconfiguredAutomationPolicy).decide({
-          tenantId: tx.tenantId,
-          safetyLevel: rule.safety_level,
-          requiresApproval: rule.requires_approval,
-          action: rule.action_json,
-        });
-  const decision = policyFor(policyResult.decision, rule.requires_approval);
+  const assessed = await assessAction({
+    tenantId: tx.tenantId,
+    correlationId: randomUUID(),
+    safetyLevel: rule.safety_level,
+    requiresApproval: rule.requires_approval,
+    action: rule.action_json,
+    capabilities: input.capabilities ?? denyUnconfiguredActionCapabilities,
+    targets: input.targets ?? denyUnconfiguredAutomationTarget,
+    authorization: input.authorization,
+    policy: input.policy ?? denyUnconfiguredAutomationPolicy,
+  });
+  const {
+    capability,
+    target,
+    policy: policyResult,
+    authorization: auth,
+    decision,
+  } = assessed;
   const killed = await isKilled(
     tx,
     input.ruleId,
     rule.action_json.action_domain,
   );
-  const auth =
-    condition.matched && decision === "ALLOW" && !killed
-      ? await input.authorization.authorize({
-          tenantId: tx.tenantId,
-          targetType: rule.action_json.target_type,
-          targetId: rule.action_json.target_id,
-          actionDomain: rule.action_json.action_domain,
-          actionType: rule.action_json.action_type,
-        })
-      : {
-          allowed: decision !== "DENY" && !killed,
-          reasonCode: killed ? "KILL_SWITCH_ACTIVE" : "POLICY_GATE",
-        };
   const dedupeKey = condition.matched
     ? dedupeHash(
         {
@@ -1030,11 +1332,34 @@ export async function simulateRule(
     policy_decision: decision,
     policy_reason_code: killed
       ? "KILL_SWITCH_ACTIVE"
-      : condition.matched && !auth.allowed
-        ? auth.reasonCode
-        : decision === "DENY"
-          ? policyResult.reasonCode
-          : decision,
+      : !capability
+        ? "AUTOMATION_ACTION_UNSUPPORTED"
+        : !target
+          ? "AUTOMATION_TARGET_UNRESOLVED"
+          : condition.matched && !auth.allowed
+            ? auth.reasonCode
+            : decision === "DENY"
+              ? policyResult.reasonCode
+              : decision,
+    decision_evidence: {
+      capability: capability
+        ? { id: capability.id, version: capability.version }
+        : null,
+      policy: {
+        id: policyResult.policyId,
+        version: policyResult.policyVersion,
+        decision,
+      },
+      principal: { type: "SYSTEM_AUTOMATION", id: auth.principalId },
+      authorization: {
+        permission: capability?.required_permission ?? null,
+        scope: target?.scopeReference ?? null,
+        result: auth.allowed ? "ALLOW" : "DENY",
+        reason_code: auth.reasonCode,
+      },
+      approval_required: decision === "REQUIRE_APPROVAL",
+      kill_switch: killed ? "DENY" : "ALLOW",
+    },
     proposed_action: condition.matched ? rule.action_json : null,
     deduplication_key: dedupeKey,
     canonical_duplicate_intent_id: dedupe.rows[0]?.id ?? null,
@@ -1053,6 +1378,9 @@ export async function resolveConflict(
     reason: string;
     selectedIntentIds: string[];
     authorization: ActionAuthorization;
+    policy?: AutomationPolicyPort;
+    capabilities?: ActionCapabilityPort;
+    targets?: AutomationTargetPort;
   },
 ) {
   if (!input.reason.trim() || !input.selectedIntentIds.length)
@@ -1090,8 +1418,15 @@ export async function resolveConflict(
     approval_context_hash: string;
     state: string;
     desired_state: string | null;
+    exclusivity_group: string;
+    normalized_parameters_json: Record<string, never>;
+    correlation_id: string;
+    policy_id: string | null;
+    policy_version: number | null;
+    approval_requirement: string;
+    decision_evidence_json: Record<string, unknown>;
   }>(
-    `SELECT i.id,i.target_type,i.target_id,i.action_domain,i.action_type,i.policy_decision,i.approval_id,i.approval_context_hash,i.state,i.desired_state
+    `SELECT i.id,i.target_type,i.target_id,i.action_domain,i.action_type,i.policy_decision,i.approval_id,i.approval_context_hash,i.state,i.desired_state,i.exclusivity_group,i.normalized_parameters_json,i.correlation_id,i.policy_id,i.policy_version,i.approval_requirement,i.decision_evidence_json
     FROM automation.intent_conflict_members m JOIN automation.action_intents i ON i.tenant_id=m.tenant_id AND i.id=m.action_intent_id WHERE m.tenant_id=$1 AND m.conflict_id=$2 FOR UPDATE OF i`,
     [tx.tenantId, input.conflictId],
   );
@@ -1109,41 +1444,68 @@ export async function resolveConflict(
       "BUSINESS_RULE_VIOLATION",
       "Selected intents are mutually incompatible.",
     );
+  const selectable = new Set<string>();
   for (const intent of selected) {
     if (intent.policy_decision === "DENY")
       throw new ApplicationError(
         "AUTOMATION_POLICY_DENIED",
         "Policy DENY cannot be overridden.",
       );
-    if (intent.policy_decision === "REQUIRE_APPROVAL" && !intent.approval_id)
-      continue;
     const kill = await isIntentKilled(tx, intent.id, intent.action_domain);
-    const auth = await input.authorization.authorize({
+    const action: ActionDescriptor = {
+      target_type: intent.target_type,
+      target_id: intent.target_id,
+      action_domain: intent.action_domain,
+      action_type: intent.action_type,
+      parameters: intent.normalized_parameters_json,
+      exclusivity_group: intent.exclusivity_group,
+      ...(intent.desired_state ? { desired_state: intent.desired_state } : {}),
+    };
+    const assessed = await assessAction({
       tenantId: tx.tenantId,
-      targetType: intent.target_type,
-      targetId: intent.target_id,
-      actionDomain: intent.action_domain,
-      actionType: intent.action_type,
+      correlationId: intent.correlation_id,
+      safetyLevel: String(
+        intent.decision_evidence_json.safety_level ?? "HIGH_RISK",
+      ),
+      requiresApproval: intent.approval_requirement === "REQUIRED",
+      action,
+      capabilities: input.capabilities ?? denyUnconfiguredActionCapabilities,
+      targets: input.targets ?? denyUnconfiguredAutomationTarget,
+      authorization: input.authorization,
+      policy: input.policy ?? denyUnconfiguredAutomationPolicy,
     });
-    if (kill || !auth.allowed)
+    if (
+      kill ||
+      !assessed.capability ||
+      !assessed.target ||
+      !assessed.authorization.allowed ||
+      assessed.decision === "DENY" ||
+      assessed.policy.policyId !== intent.policy_id ||
+      assessed.policy.policyVersion !== intent.policy_version
+    )
       throw new ApplicationError(
         "PERMISSION_DENIED",
-        "Intent remains blocked by current safety or target authorization.",
+        "Current policy, principal grant, target scope or kill switch no longer authorizes this intent.",
       );
+    if (assessed.decision === "ALLOW") selectable.add(intent.id);
   }
   for (const intent of members.rows) {
     const isSelected = input.selectedIntentIds.includes(intent.id);
     const state =
-      isSelected && intent.policy_decision === "ALLOW"
+      isSelected && selectable.has(intent.id)
         ? "READY"
         : isSelected
           ? "PENDING_APPROVAL"
           : "BLOCKED";
     await tx.query(
-      "UPDATE automation.action_intents SET state=$1,reason_code=$2,entity_version=entity_version+1,updated_at=now() WHERE tenant_id=$3 AND id=$4",
+      "UPDATE automation.action_intents SET state=$1,reason_code=$2,conflict_result='CLEAR',decision_evidence_json=jsonb_set(decision_evidence_json,'{conflict,result}','\"CLEAR\"'::jsonb),entity_version=entity_version+1,updated_at=now() WHERE tenant_id=$3 AND id=$4",
       [
         state,
-        isSelected ? "CONFLICT_RESOLVED" : "CONFLICT_NOT_SELECTED",
+        !isSelected
+          ? "CONFLICT_NOT_SELECTED"
+          : selectable.has(intent.id)
+            ? "CONFLICT_RESOLVED"
+            : "APPROVAL_REQUIRED",
         tx.tenantId,
         intent.id,
       ],
@@ -1185,6 +1547,9 @@ export async function recheckIntentApproval(
     approvalId: string;
     eventId: string;
     authorization: ActionAuthorization;
+    policy?: AutomationPolicyPort;
+    capabilities?: ActionCapabilityPort;
+    targets?: AutomationTargetPort;
   },
 ) {
   const approval = await tx.query<{
@@ -1210,8 +1575,16 @@ export async function recheckIntentApproval(
     target_id: string;
     action_domain: string;
     action_type: string;
-    conflict_scope_key: string;
-    policy_decision: string;
+    normalized_parameters_json: Record<string, never>;
+    exclusivity_group: string;
+    desired_state: string | null;
+    source_event_id: string;
+    correlation_id: string;
+    policy_decision: PolicyDecision;
+    policy_id: string | null;
+    policy_version: number | null;
+    approval_requirement: string;
+    decision_evidence_json: Record<string, unknown>;
   }>(
     "SELECT * FROM automation.action_intents WHERE tenant_id=$1 AND id=$2 FOR UPDATE",
     [tx.tenantId, intentId],
@@ -1226,21 +1599,65 @@ export async function recheckIntentApproval(
     intent.policy_decision !== "REQUIRE_APPROVAL"
   )
     return false;
+  const action: ActionDescriptor = {
+    target_type: intent.target_type,
+    target_id: intent.target_id,
+    action_domain: intent.action_domain,
+    action_type: intent.action_type,
+    parameters: intent.normalized_parameters_json,
+    exclusivity_group: intent.exclusivity_group,
+    ...(intent.desired_state ? { desired_state: intent.desired_state } : {}),
+  };
+  const safetyLevel = String(
+    intent.decision_evidence_json.safety_level ?? "HIGH_RISK",
+  );
+  const assessed = await assessAction({
+    tenantId: tx.tenantId,
+    correlationId: intent.correlation_id,
+    safetyLevel,
+    requiresApproval: intent.approval_requirement === "REQUIRED",
+    action,
+    capabilities: input.capabilities ?? denyUnconfiguredActionCapabilities,
+    targets: input.targets ?? denyUnconfiguredAutomationTarget,
+    authorization: input.authorization,
+    policy: input.policy ?? denyUnconfiguredAutomationPolicy,
+  });
+  if (
+    !assessed.capability ||
+    !assessed.target ||
+    !assessed.authorization.allowed ||
+    assessed.decision !== "REQUIRE_APPROVAL" ||
+    assessed.policy.policyId !== intent.policy_id ||
+    assessed.policy.policyVersion !== intent.policy_version
+  )
+    return false;
+  const contributors = await tx.query<{
+    rule_id: string;
+    rule_version: number;
+  }>(
+    "SELECT rule_id,rule_version FROM automation.action_intent_contributors WHERE tenant_id=$1 AND action_intent_id=$2 ORDER BY rule_id,rule_version",
+    [tx.tenantId, intent.id],
+  );
+  const recomputedContextHash = approvalContextHash({
+    tenantId: tx.tenantId,
+    eventId: intent.source_event_id,
+    action,
+    capabilityId: assessed.capability.id,
+    capabilityVersion: assessed.capability.version,
+    policyId: assessed.policy.policyId!,
+    policyVersion: assessed.policy.policyVersion!,
+    targetScope: assessed.target.scopeReference,
+    contributors: contributors.rows,
+  });
+  if (recomputedContextHash !== intent.approval_context_hash) return false;
   const conflict = await tx.query(
     "SELECT 1 FROM automation.intent_conflict_members m JOIN automation.intent_conflicts c ON c.tenant_id=m.tenant_id AND c.id=m.conflict_id WHERE m.tenant_id=$1 AND m.action_intent_id=$2 AND c.state='OPEN'",
     [tx.tenantId, intent.id],
   );
   const killed = await isIntentKilled(tx, intentId, intent.action_domain);
-  const auth = await input.authorization.authorize({
-    tenantId: tx.tenantId,
-    targetType: intent.target_type,
-    targetId: intent.target_id,
-    actionDomain: intent.action_domain,
-    actionType: intent.action_type,
-  });
-  if (conflict.rowCount || killed || !auth.allowed) return false;
+  if (conflict.rowCount || killed) return false;
   await tx.query(
-    "UPDATE automation.action_intents SET state='READY',approval_id=$1,entity_version=entity_version+1,updated_at=now() WHERE tenant_id=$2 AND id=$3 AND state='PENDING_APPROVAL'",
+    "UPDATE automation.action_intents SET state='READY',approval_id=$1,approval_result='APPROVED',decision_evidence_json=jsonb_set(decision_evidence_json,'{approval,result}','\"APPROVED\"'::jsonb),reason_code='APPROVAL_SATISFIED',entity_version=entity_version+1,updated_at=now() WHERE tenant_id=$2 AND id=$3 AND state='PENDING_APPROVAL'",
     [input.approvalId, tx.tenantId, intent.id],
   );
   return true;

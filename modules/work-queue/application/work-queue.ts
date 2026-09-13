@@ -350,7 +350,11 @@ export async function createAutomationReviewWorkItem(input: {
 
 export async function recordAutomationTimelineEvent(input: {
   tx: Transaction;
-  entityType: "AUTOMATION_RULE" | "ACTION_INTENT" | "AUTOMATION_CONFLICT";
+  entityType:
+    | "AUTOMATION_RULE"
+    | "AUTOMATION_ACTION_POLICY"
+    | "ACTION_INTENT"
+    | "AUTOMATION_CONFLICT";
   entityId: string;
   eventType: string;
   summary: string;

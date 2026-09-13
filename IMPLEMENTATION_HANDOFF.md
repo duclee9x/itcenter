@@ -2,22 +2,22 @@
 
 ## Current Task
 
-`TASK-090` — Advanced Rules Engine + Policy-Gated Automation — remains the
-current task and is `IN_PROGRESS`. Its normative contract is
-`tasks/TASK-090_ADVANCED_RULES_ENGINE_POLICY_GATED_AUTOMATION.md`.
+TASK-090 — Advanced Rules Engine + Policy-Gated Automation — is
+`CODE_COMPLETE`. See `tasks/TASK-090_IMPLEMENTATION_REPORT.md` and its
+normative contract at
+`tasks/TASK-090_ADVANCED_RULES_ENGINE_POLICY_GATED_AUTOMATION.md`. Rule
+evaluation now uses the allow-listed capability catalog, explicit
+tenant-scoped Action Policy, tenant-bound `SYSTEM_AUTOMATION` principal and
+canonical scoped authorization. Missing policy/grant remains deny-by-default.
+TASK-090 never executes actions.
 
-Rule/version management, event-only evaluation, simulation, conflict handling
-and durable Action Intent persistence are implemented. TASK-090-R1 has
-completed the normative Action Capability, tenant Action Policy and scoped
-`SYSTEM_AUTOMATION` authorization contract. Runtime policy/grant persistence
-and AuthorizationPort wiring are still absent; the worker keeps its deny-all
-defaults, so production intents cannot become `READY`. The former normative
-`SCOPE_DEPENDENCY` and `SECURITY_CONCERN` are resolved; runtime work remains
-inside TASK-090 and no bypass is authorized. TASK-090 does not execute actions.
-TASK-091 owns eligible-intent consumption, current policy/authorization
-rechecks, action execution, self-healing, retry, verification, timeout,
-compensation and execution-result state. TASK-091 remains blocked / not started
-on TASK-090.
+TASK-091 is dependency-ready (`READY`) because TASK-031, TASK-053 and TASK-090
+are complete. It remains `NOT_STARTED`; its detailed contract has not been
+generated and no runtime implementation has begun. Stop after recording this
+derived readiness; do not begin TASK-091 without explicit continuation.
+TASK-091 owns eligible-intent consumption, execution-time security rechecks,
+action execution, self-healing, retry, verification, timeout, compensation
+and execution-result state.
 
 TASK-095 remains `BLOCKED / NOT_STARTED` pending its detailed implementation
 contract.
@@ -28,8 +28,23 @@ Integration Gate (`SATISFIED / CODE_COMPLETE`); see
 commercial-document storage as `UNAVAILABLE_NOT_READY`; production storage is
 not asserted ready.
 
-The pre-existing `AGENTS.md` modification remains outside both the TASK-090
-and TASK-090-R1 commits.
+The pre-existing `AGENTS.md` modification remains outside the TASK-090 runtime
+commit.
+
+## Last Completed Task — TASK-090
+
+Advanced Rules Engine + Policy-Gated Automation (`CODE_COMPLETE`). See
+`tasks/TASK-090_IMPLEMENTATION_REPORT.md`.
+
+- Preserved the rule/evaluation/intent vertical slice and added the reviewed
+  `RESTART_AGENT` capability, immutable tenant Action Policy versions and
+  Identity-owned scoped System Automation principal authorization.
+- Added explicit policy administration commands, READY evidence constraints,
+  fail-closed security checks, approval revalidation, actionable review work
+  and policy publication/audit/outbox events. TASK-090 does not call an action
+  executor.
+- Verification passed: `npm test` (104 tests), typecheck, lint/boundaries,
+  format check and `git diff --check`.
 
 ## Last Completed Remediation — TASK-090-R1
 
@@ -44,9 +59,8 @@ Automation Action Policy + System Principal Authorization Contract
   gates, policy/grant evidence, explicit blocked-intent re-evaluation and
   TASK-091 execution-time rechecks.
 - Updated the normative workflow, permission, data, API, event, audit and
-  traceability contracts. No runtime code, migration, wildcard grant or
-  default ALLOW was added. TASK-090 remains `IN_PROGRESS`; TASK-091 remains
-  blocked and unstarted.
+  traceability contracts. No runtime code, wildcard grant or default ALLOW
+  was added by the remediation. TASK-090 runtime completion is recorded above.
 
 ## Last Completed Task — TASK-076
 

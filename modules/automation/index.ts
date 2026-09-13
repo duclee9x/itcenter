@@ -13,11 +13,28 @@ export {
   simulateRule,
   setScopedKillSwitch,
   updateDraft,
-  type ActionAuthorization,
-  type AutomationPolicyPort,
   type AutomationEvent,
   type RuleDefinition,
 } from "./application/engine.js";
+export type {
+  ActionAuthorization,
+  ActionCapabilityPort,
+  AutomationPolicyPort,
+  AutomationTargetPort,
+} from "./application/ports.js";
+export {
+  denyUnconfiguredActionCapabilities,
+  denyUnconfiguredAutomationTarget,
+} from "./application/ports.js";
+export { PostgresAutomationSecurity } from "./infrastructure/postgres-security.js";
+export {
+  createActionPolicyDraft,
+  updateActionPolicyDraft,
+  activateActionPolicy,
+  deactivateActionPolicy,
+} from "./application/policies.js";
+export type { ActionPolicyDraft } from "./application/policies.js";
+export { ACTION_CAPABILITY_CATALOG } from "./domain/capabilities.js";
 export { evaluateCondition, validateRuleDefinition } from "./domain/rules.js";
 export const permissions = [
   {
@@ -64,5 +81,25 @@ export const permissions = [
     code: "automation.intent.resolve",
     resource_type: "automation_conflict",
     action: "resolve",
+  },
+  {
+    code: "automation.policy.read",
+    resource_type: "automation_action_policy",
+    action: "read",
+  },
+  {
+    code: "automation.policy.create",
+    resource_type: "automation_action_policy",
+    action: "create",
+  },
+  {
+    code: "automation.policy.update",
+    resource_type: "automation_action_policy",
+    action: "update",
+  },
+  {
+    code: "automation.policy.activate",
+    resource_type: "automation_action_policy",
+    action: "activate",
   },
 ] as const;

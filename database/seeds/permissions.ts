@@ -9,6 +9,7 @@ import { permissions as license } from "../../modules/license/index.js";
 import { permissions as contract } from "../../modules/contract/index.js";
 import { permissions as commercialDocuments } from "../../modules/document/index.js";
 import { permissions as automation } from "../../modules/automation/index.js";
+import { permissions as agent } from "../../modules/agent/index.js";
 import {
   loadConfig,
   databaseUrl,
@@ -35,6 +36,7 @@ try {
       ...contract,
       ...commercialDocuments,
       ...automation,
+      ...agent,
     ]),
   );
 } finally {

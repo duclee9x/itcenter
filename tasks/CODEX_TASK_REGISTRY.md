@@ -201,9 +201,9 @@ Only generate a detailed `TASK-xxx_*.md` when the task becomes `READY` or is the
 | `TASK-075` | `F-045/F-046` | `WF-P06/WF-016` | P4 | P1 | Contract + Renewal + Commercial Document Governance | TASK-070, TASK-074, TASK-075-R1 | **SATISFIED** | CODE_COMPLETE | `TASK-075_CONTRACT_RENEWAL_COMMERCIAL_DOCUMENT_GOVERNANCE.md` |
 | `TASK-076-R1` | `PHASE-GATE` | `P4-E2E` | P4 | P0 | Contract Alert + Asset/License Cost Provenance Integration Contract | TASK-071, TASK-072, TASK-073, TASK-074, TASK-075 | **SATISFIED** | CODE_COMPLETE | `TASK-076-R1_PHASE4_INTEGRATION_GATE_CONTRACT.md` |
 | `TASK-076` | `PHASE-GATE` | `P4-E2E` | P4 | P0 | Phase 4 Procurement-to-Asset Integration Gate | TASK-071, TASK-072, TASK-073, TASK-074, TASK-075, TASK-076-R1 | **SATISFIED** | CODE_COMPLETE | `TASK-076_PHASE4_PROCUREMENT_TO_ASSET_INTEGRATION_GATE.md` |
-| `TASK-090` | `F-049` | `WF-AUT02` | P5 | P1 | Advanced Rules Engine + Policy-Gated Automation | TASK-039, TASK-061, TASK-076, TASK-090-R1 | **IN_PROGRESS** | IN_PROGRESS | `TASK-090_ADVANCED_RULES_ENGINE_POLICY_GATED_AUTOMATION.md` |
+| `TASK-090` | `F-049` | `WF-AUT02` | P5 | P1 | Advanced Rules Engine + Policy-Gated Automation | TASK-039, TASK-061, TASK-076, TASK-090-R1 | **SATISFIED** | CODE_COMPLETE | `TASK-090_ADVANCED_RULES_ENGINE_POLICY_GATED_AUTOMATION.md` |
 | `TASK-090-R1` | `F-049` | `WF-AUT02` | P5 | P0 | Automation Action Policy + System Principal Authorization Contract | — | **SATISFIED** | CODE_COMPLETE | `TASK-090-R1_AUTOMATION_ACTION_POLICY_SYSTEM_PRINCIPAL_AUTHORIZATION_CONTRACT.md` |
-| `TASK-091` | `F-049` | `WF-AUT02` | P5 | P1 | Controlled Self-Healing + Compensation | TASK-031, TASK-053, TASK-090 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |
+| `TASK-091` | `F-049` | `WF-AUT02` | P5 | P1 | Controlled Self-Healing + Compensation | TASK-031, TASK-053, TASK-090 | **READY** | NOT_STARTED | `GENERATE_ON_READY` |
 | `TASK-092` | `F-050` | `WF-INT01` | P5 | P2 | Advanced Incident Correlation | TASK-033, TASK-051, TASK-090 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |
 | `TASK-093` | `KNOWLEDGE-DEFLECTION` | `WF-PC-K` | P5 | P2 | Knowledge Deflection + Self-Service Recommendations | TASK-037, TASK-061, TASK-092 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |
 | `TASK-094` | `F-050` | `WF-017/WF-INT01` | P5 | P2 | Risk + Replacement Scoring | TASK-038, TASK-050, TASK-058, TASK-059 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |
@@ -342,8 +342,8 @@ reports and commits confirm TASK-015 (`32c3267`), TASK-036 (`e043c31`) and
 TASK-038 (`296336a`) are `CODE_COMPLETE`.
 
 ```text
-CURRENT = TASK-090 (IN_PROGRESS; R1 normative security contract complete; runtime policy/principal authorization remains)
-NEXT = Continue TASK-090 implementation against TASK-090-R1; TASK-091 remains blocked
+CURRENT = TASK-091 (READY / NOT_STARTED; dependency gate satisfied after TASK-090; detailed contract not generated)
+NEXT = TASK-091 contract generation or implementation requires an explicit continuation instruction
 TASK-059 = SATISFIED (CODE_COMPLETE)
 TASK-061 = SATISFIED (CODE_COMPLETE)
 TASK-070-R1 = SATISFIED (CODE_COMPLETE)
@@ -361,7 +361,8 @@ TASK-075 = SATISFIED (CODE_COMPLETE; see TASK-075_IMPLEMENTATION_REPORT.md)
 TASK-076-R1 = SATISFIED (CODE_COMPLETE; specification only)
 TASK-076 = SATISFIED (CODE_COMPLETE; see TASK-076_IMPLEMENTATION_REPORT.md)
 TASK-090-R1 = SATISFIED (CODE_COMPLETE; normative/specification remediation only)
-TASK-090 = IN_PROGRESS (runtime remains deny-by-default until policy and scoped principal authorization are implemented; see TASK-090_IMPLEMENTATION_REPORT.md)
+TASK-090 = SATISFIED (CODE_COMPLETE; deny-by-default Action Policy and scoped System Automation authorization implemented; see TASK-090_IMPLEMENTATION_REPORT.md)
+TASK-091 = READY / NOT_STARTED (TASK-031, TASK-053 and TASK-090 dependencies satisfied; no contract generation or runtime implementation started)
 ```
 
 TASK-061's acceptance criteria and verification gates passed; its implementation
@@ -394,13 +395,15 @@ explicitly `UNAVAILABLE_NOT_READY` and is recorded in its implementation
 report. TASK-090's declared dependencies TASK-039, TASK-061 and TASK-076 are
 SATISFIED. TASK-090-R1 has completed the normative Action Capability, tenant
 Action Policy, System Automation Principal, scoped-grant, evidence and
-TASK-091 recheck contract. TASK-090 is IN_PROGRESS; runtime policy/grant
-persistence and AuthorizationPort wiring remain unimplemented, and current
-runtime continues to deny all proposed actions. The former normative
-`SCOPE_DEPENDENCY` and `SECURITY_CONCERN` are resolved by R1; there is no
-`SPEC_CONFLICT`. TASK-091 remains BLOCKED / NOT_STARTED on TASK-090 and was not
-started. TASK-092 remains blocked on TASK-090; TASK-095 remains blocked
-pending its detailed contract.
+TASK-091 recheck contract. TASK-090 runtime implementation passed its
+acceptance and verification gates and is CODE_COMPLETE; explicit policy and
+scoped grants remain required for any tenant to produce READY intents. No
+`SPEC_CONFLICT`, `SCOPE_DEPENDENCY` or `SECURITY_CONCERN` remains for TASK-090.
+TASK-091's declared dependencies TASK-031, TASK-053 and TASK-090 are now all
+SATISFIED, so its derived readiness is READY while implementation status
+remains NOT_STARTED. Its detailed contract was not generated and no TASK-091
+implementation was started. Other later-task readiness states were not
+reconciled by this TASK-090 completion.
 
 ---
 

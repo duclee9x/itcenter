@@ -3930,6 +3930,17 @@ actor_reference:
 correlation_id:
 ```
 
+## `AUTOMATION.ACTION_POLICY_UPDATED`
+
+```yaml
+action_policy_id:
+tenant_id:
+policy_version:
+entity_version:
+actor_reference:
+correlation_id:
+```
+
 ## `AUTOMATION.ACTION_POLICY_VERSION_PUBLISHED`
 
 ```yaml

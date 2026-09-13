@@ -58,6 +58,7 @@ const ALLOWED_ACTIONS = new Set([
   "ASSIGN_TEAM",
   "START_WORKFLOW",
   "PAUSE_WORKFLOW",
+  "RESTART_AGENT",
 ]);
 const FORBIDDEN_KEYS = new Set(["__proto__", "prototype", "constructor"]);
 
@@ -280,6 +281,18 @@ export function validateAction(
       "AUTOMATION_ACTION_UNSUPPORTED: parameters must be bounded JSON",
     );
   validateSafeParameters(value.parameters, 0);
+  if (value.action_type === "RESTART_AGENT") {
+    if (
+      value.target_type !== "AGENT" ||
+      value.action_domain !== "agent" ||
+      value.exclusivity_group !== "AGENT_SERVICE_CONTROL" ||
+      Object.keys(value.parameters).length !== 0 ||
+      value.desired_state !== undefined
+    )
+      throw new Error(
+        "AUTOMATION_ACTION_UNSUPPORTED: RESTART_AGENT must use the registered AGENT capability schema",
+      );
+  }
   if (
     value.desired_state !== undefined &&
     (typeof value.desired_state !== "string" ||

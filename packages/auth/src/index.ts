@@ -18,6 +18,7 @@ export interface AuthorizationRequest {
 export interface AuthorizationDecision {
   result: "ALLOW" | "DENY";
   reason: string;
+  scope_reference?: string;
 }
 export interface AuthorizationPort {
   evaluate(request: AuthorizationRequest): Promise<AuthorizationDecision>;

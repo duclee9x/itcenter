@@ -10,14 +10,20 @@ import type {
   UnitOfWork,
 } from "../../../packages/persistence/src/index.js";
 import { PostgresAudit } from "../../../modules/audit/index.js";
-import { recordAutomationTimelineEvent } from "../../../modules/work-queue/index.js";
 import {
-  denyUnconfiguredAutomationPolicy,
-  denyUnconfiguredAutomationPrincipal,
+  createAutomationReviewWorkItem,
+  recordAutomationTimelineEvent,
+} from "../../../modules/work-queue/index.js";
+import {
   evaluateEvent,
   recheckIntentApproval,
   type ActionAuthorization,
   type AutomationPolicyPort,
+  PostgresAutomationSecurity,
+} from "../../../modules/automation/index.js";
+import type {
+  ActionCapabilityPort,
+  AutomationTargetPort,
 } from "../../../modules/automation/index.js";
 import type { WorkerTask } from "./host.js";
 
@@ -114,9 +120,12 @@ export async function applyAutomationEvent(
   ports: {
     authorization?: ActionAuthorization;
     policy?: AutomationPolicyPort;
+    capabilities?: ActionCapabilityPort;
+    targets?: AutomationTargetPort;
   } = {},
 ) {
   return consume(uow, CONSUMER, event, async (tx, delivered) => {
+    const security = new PostgresAutomationSecurity(tx);
     if (delivered.event_type.startsWith("APPROVAL.")) {
       const approvalId =
         typeof delivered.payload.approval_request_id === "string"
@@ -144,8 +153,10 @@ export async function applyAutomationEvent(
           ? await recheckIntentApproval(tx, {
               approvalId,
               eventId: delivered.event_id,
-              authorization:
-                ports.authorization ?? denyUnconfiguredAutomationPrincipal,
+              authorization: ports.authorization ?? security,
+              policy: ports.policy ?? security,
+              capabilities: ports.capabilities ?? security,
+              targets: ports.targets ?? security,
             })
           : false;
       if (!promoted)
@@ -154,7 +165,7 @@ export async function applyAutomationEvent(
           [
             approvalId,
             approval.rows[0]!.state === "APPROVED"
-              ? "AUTOMATION_PRINCIPAL_NOT_CONFIGURED"
+              ? "AUTOMATION_APPROVAL_RECHECK_BLOCKED"
               : "APPROVAL_NOT_APPROVED",
             tx.tenantId,
             intentId,
@@ -185,6 +196,17 @@ export async function applyAutomationEvent(
           },
           intent.rows[0]!.state,
         );
+      if (promoted)
+        await tx.query(
+          "UPDATE operations.work_items SET state='RESOLVED',resolved_at=now(),last_action_at=now(),version=version+1 WHERE tenant_id=$1 AND source_type='AUTOMATION_REVIEW' AND source_id=$2 AND state NOT IN ('RESOLVED','CLOSED')",
+          [tx.tenantId, intentId],
+        );
+      else
+        await createAutomationReviewWorkItem({
+          tx,
+          sourceId: intentId,
+          title: "Automation approval is stale or the intent remains blocked",
+        });
       return;
     }
     const results = await evaluateEvent(
@@ -198,8 +220,12 @@ export async function applyAutomationEvent(
         occurred_at: delivered.occurred_at,
         payload: delivered.payload,
       },
-      ports.authorization ?? denyUnconfiguredAutomationPrincipal,
-      ports.policy ?? denyUnconfiguredAutomationPolicy,
+      ports.authorization ?? security,
+      ports.policy ?? security,
+      {
+        capabilities: ports.capabilities ?? security,
+        targets: ports.targets ?? security,
+      },
     );
     for (const evaluation of results) {
       const evaluationId = String(evaluation.evaluation_id ?? "");
@@ -233,7 +259,6 @@ export async function applyAutomationEvent(
       id: string;
       state: string;
       policy_decision: string;
-      reason_code: string | null;
       contributor_count: number;
       conflict_id: string | null;
       contributor_references: unknown[];
@@ -241,8 +266,10 @@ export async function applyAutomationEvent(
       target_id: string;
       action_domain: string;
       action_type: string;
+      approval_id: string | null;
+      reason_code: string | null;
     }>(
-      `SELECT i.id,i.state,i.policy_decision,i.reason_code,i.target_type,i.target_id,i.action_domain,i.action_type,count(DISTINCT c.rule_id)::int AS contributor_count,min(m.conflict_id::text)::uuid AS conflict_id
+      `SELECT i.id,i.state,i.policy_decision,i.reason_code,i.target_type,i.target_id,i.action_domain,i.action_type,i.approval_id,count(DISTINCT c.rule_id)::int AS contributor_count,min(m.conflict_id::text)::uuid AS conflict_id
        ,COALESCE(jsonb_agg(DISTINCT jsonb_build_object('rule_id',c.rule_id,'rule_version',c.rule_version,'evaluation_id',c.evaluation_id)),'[]'::jsonb) AS contributor_references
        FROM automation.action_intents i JOIN automation.action_intent_contributors c ON c.tenant_id=i.tenant_id AND c.action_intent_id=i.id LEFT JOIN automation.intent_conflict_members m ON m.tenant_id=i.tenant_id AND m.action_intent_id=i.id
       WHERE i.tenant_id=$1 AND i.source_event_id=$2 GROUP BY i.id`,
@@ -292,6 +319,32 @@ export async function applyAutomationEvent(
         );
         continue;
       }
+      if (intent.state === "PENDING_APPROVAL")
+        await createAutomationReviewWorkItem({
+          tx,
+          sourceId: intent.id,
+          title: "Automation action requires a bound approval before execution",
+        });
+      else if (
+        intent.state === "BLOCKED" &&
+        [
+          "AUTOMATION_POLICY_NOT_CONFIGURED",
+          "AUTOMATION_POLICY_NOT_EFFECTIVE",
+          "AUTOMATION_POLICY_AMBIGUOUS",
+          "AUTOMATION_POLICY_BACKEND_UNAVAILABLE",
+          "AUTOMATION_PRINCIPAL_NOT_CONFIGURED",
+          "AUTOMATION_PRINCIPAL_AMBIGUOUS",
+          "AUTOMATION_PRINCIPAL_SCOPE_OR_PERMISSION_DENIED",
+          "AUTOMATION_AUTHORIZATION_BACKEND_UNAVAILABLE",
+          "AUTOMATION_ACTION_UNSUPPORTED",
+          "AUTOMATION_TARGET_UNRESOLVED",
+        ].includes(intent.reason_code ?? "")
+      )
+        await createAutomationReviewWorkItem({
+          tx,
+          sourceId: intent.id,
+          title: "Automation intent needs policy, grant, or target review",
+        });
       if (intent.contributor_count > 1) {
         await appendDecision(
           tx,
