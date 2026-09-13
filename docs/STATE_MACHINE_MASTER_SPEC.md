@@ -2990,3 +2990,18 @@ Risk state; canonical Asset Risk values are `LOW`, `MEDIUM`, `HIGH`,
 `CRITICAL`, `UNKNOWN`. Asset Risk remains `UNKNOWN` until a valid scoring
 assessment exists. A verified Asset return is the only source of recovery
 `RETURNED`.
+
+### TASK-094-R3 Warranty derived state
+
+Warranty lifecycle/source records remain Maintenance-owned. The Asset's
+`warranty_state` is a derived projection limited to `VALID`, `EXPIRING`,
+`EXPIRED` or `UNKNOWN`, and is not independently writable as canonical
+Warranty evidence. `WARRANTY_STATE_V1` uses UTC calendar dates: `ends_at <=
+as_of` is EXPIRED, remaining duration through and including 90 days is
+EXPIRING, and more than 90 days is VALID. Missing, invalid or ambiguous
+effective evidence is UNKNOWN. The periodic refresh updates the projection at
+time boundaries; reminder milestones do not add lifecycle states.
+
+Incident–Asset correlation relationship state is separate from Incident and
+Root Incident lifecycle. An affected Asset relationship may be ACTIVE or
+DETACHED; detach preserves history and does not change either Incident state.

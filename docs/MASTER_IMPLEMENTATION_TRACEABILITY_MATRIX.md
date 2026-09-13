@@ -3063,6 +3063,17 @@ deflection, or recommendation APIs; those remain TASK-093.
 | Scope boundary | TASK-094-R2 only | no scoring assessments, scoring formulas, policy, worker, Risk Work Queue or recalculation implemented |
 
 Detailed implementation contract: `tasks/TASK-094_ASSET_RISK_REPLACEMENT_SCORING.md`.
-TASK-094's former repository-level `SCOPE_DEPENDENCY` items are resolved by
-TASK-094-R2. Runtime scoring remains `READY / NOT_STARTED` and must consume
+TASK-094's prerequisite `SCOPE_DEPENDENCY` items are resolved by TASK-094-R2
+and TASK-094-R3. Runtime scoring remains `READY / NOT_STARTED` and must consume
 these domain-owned boundaries without text inference or cross-domain SQL.
+
+### TASK-094-R3 reliability and Warranty foundations
+
+| Capability | Owner / persistence | Acceptance evidence |
+|---|---|---|
+| Incident–Asset linkage | Incident-owned active link + immutable link history | deterministic Monitoring/intake/manual sources only, same-tenant constraints, audited detach, no Root sibling propagation |
+| Incident reliability query | Incident application boundary | direct Asset links, Root episode dedup, time-window filter, AVAILABLE_EMPTY distinct from query error |
+| Monitoring reliability query | Monitoring application boundary | validated Asset identity, stable correlation episode grouping, source references, unresolved identity unavailable |
+| Warranty authority | Maintenance source + `WarrantyAssetQuery` | UTC `WARRANTY_STATE_V1`, 90-day EXPIRING threshold, ambiguous/missing evidence UNKNOWN |
+| Warranty projection | Asset derived dimension + worker | canonical enum only, minute reconciliation across temporal boundaries, idempotent state/outbox update |
+| Scope boundary | TASK-094-R3 only | no Risk/Replacement assessment, scoring formula/worker, candidate recommendation or Work Queue risk item |

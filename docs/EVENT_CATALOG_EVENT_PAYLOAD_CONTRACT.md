@@ -5668,3 +5668,15 @@ versioned references sufficient to enqueue idempotent recalculation. Events
 must not contain full histories, invoices, supplier/commercial documents or
 protected Asset payloads. Events describe assessments, not approval or Asset
 replacement execution.
+
+## TASK-094-R3 Incident Asset and Warranty projection events
+
+- `INCIDENT.ASSET_LINKED` and `INCIDENT.ASSET_UNLINKED` reference the Incident,
+  Asset, link ID, source type/reference, actor, reason and correlation ID.
+  They do not embed Incident or Monitoring payloads. Deterministic Monitoring
+  links retain the event reference; manual links retain the operator reason.
+- `ASSET.WARRANTY_STATE_PROJECTED` references Asset ID, canonical state,
+  `WARRANTY_STATE_V1` version, UTC evaluation date, evidence reference and
+  reason code. Emit only for a changed state/evidence/policy projection;
+  refresh replay has no duplicate event. Warranty source mutations continue
+  using Maintenance-owned Warranty events.

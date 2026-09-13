@@ -21,3 +21,8 @@ export {
   type ReplacementCandidateRecommendation,
   type ReplacementCandidateRecommendationResult,
 } from "./application/replacement-candidate.js";
+export {
+  listWarrantyProjectionAssetIds,
+  projectWarrantyState,
+  type AssetWarrantyProjectionState,
+} from "./application/warranty-projection.js";

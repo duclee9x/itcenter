@@ -7,6 +7,14 @@ export {
 export type { IncidentRecommendationContextQuery } from "./application/incident.js";
 export { correlateIncident } from "./application/correlation.js";
 export {
+  detachIncidentAsset,
+  linkIncidentAsset,
+  queryIncidentAssetHistory,
+  recordMonitoringIncidentAssetLink,
+  recordExplicitIncidentAssetLink,
+  type IncidentAssetSource,
+} from "./application/asset-links.js";
+export {
   attachIncidentToRoot,
   rejectIncidentCorrelation,
   detachIncidentFromRoot,

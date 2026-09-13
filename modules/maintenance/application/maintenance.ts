@@ -9,6 +9,11 @@ import {
   ApplicationError,
   assertVersion,
 } from "../../../packages/api-contracts/src/index.js";
+import {
+  evaluateWarrantyState,
+  warrantyStatePolicy,
+  type WarrantyEvidence,
+} from "../domain/warranty-state.js";
 const transitions: Record<string, string[]> = {
   DRAFT: ["OPEN", "CANCELLED"],
   OPEN: ["DIAGNOSING", "CANCELLED"],
@@ -44,7 +49,9 @@ export async function createWarranty(input: {
   startsAt: string;
   endsAt: string;
   coverage: string;
+  validateAsset: () => Promise<void>;
 }) {
+  await input.validateAsset();
   if (
     !input.provider.trim() ||
     !input.coverage.trim() ||
@@ -70,6 +77,66 @@ export async function createWarranty(input: {
   );
   return { id, asset_id: input.assetId, ends_at: input.endsAt };
 }
+
+async function evaluateWarrantyForAsset(input: {
+  tx: Transaction;
+  assetId: string;
+  asOf: string;
+}) {
+  const rows = await input.tx.query<WarrantyEvidence>(
+    `SELECT id,starts_at::text,ends_at::text FROM maintenance.warranties
+      WHERE tenant_id=$1 AND asset_id=$2 ORDER BY id`,
+    [input.tx.tenantId, input.assetId],
+  );
+  return {
+    ...evaluateWarrantyState({ records: rows.rows, asOf: input.asOf }),
+    evaluated_at: new Date(input.asOf).toISOString(),
+    state_policy_id: warrantyStatePolicy.id,
+    state_policy_version: warrantyStatePolicy.version,
+  };
+}
+
+/** Maintenance-owned, minimal canonical Warranty state query. */
+export async function queryWarrantyAsset(input: {
+  tx: Transaction;
+  assetId: string;
+  asOf: string;
+  principal: Principal;
+  authorization: AuthorizationPort;
+  correlationId: string;
+}) {
+  if (!Number.isFinite(Date.parse(input.asOf)))
+    throw new ApplicationError(
+      "VALIDATION_ERROR",
+      "A valid as_of timestamp is required.",
+    );
+  await authorize(input.authorization, {
+    principal: input.principal,
+    action: "warranty.read",
+    resource: {
+      type: "warranty",
+      id: input.assetId,
+      tenant_id: input.tx.tenantId,
+    },
+    scope: {},
+    context: { correlation_id: input.correlationId },
+  });
+  const result = await evaluateWarrantyForAsset(input);
+  return {
+    availability: "AVAILABLE" as const,
+    ...result,
+  };
+}
+
+/** Internal tenant-scoped evaluator used by the scheduled projection refresher. */
+export async function evaluateWarrantyAssetForProjection(input: {
+  tx: Transaction;
+  assetId: string;
+  asOf: string;
+}) {
+  return evaluateWarrantyForAsset(input);
+}
+
 export async function createMaintenance(input: {
   tx: Transaction;
   assetId: string;

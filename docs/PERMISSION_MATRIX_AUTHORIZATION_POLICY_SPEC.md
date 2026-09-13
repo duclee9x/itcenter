@@ -2637,3 +2637,13 @@ authorization; recovery state changes require `identity.offboard` (plus
 existing exception permission for waiver). Permission catalog registration
 does not grant roles. The scoring System principal is not introduced or
 granted by R2. No wildcard or implicit authorization is added.
+
+TASK-094-R3 registers (without granting any role) `incident.asset_link`,
+`incident.asset_history.read`, `monitoring.asset_reliability.read` and
+`warranty.read`. Incident link and history commands/queries, Monitoring Asset
+reliability reads and Warranty state reads use tenant-scoped
+`AuthorizationPort` checks. The aggregate Incident history query uses its
+narrow resource type rather than pretending the Asset ID is an Incident ID.
+Internal scheduled
+Warranty projection is restricted to the tenant-bound worker context and does
+not create a general-purpose system grant. No wildcard permission is used.

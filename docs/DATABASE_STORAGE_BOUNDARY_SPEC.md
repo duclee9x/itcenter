@@ -3158,3 +3158,11 @@ in Identity's existing return-clearance aggregate; Asset `risk_state` is
 constrained to `LOW`, `MEDIUM`, `HIGH`, `CRITICAL`, `UNKNOWN`. Legacy
 `MISSING` normalization preserves exact same-tenant clearance matches and
 retains unlinked migration evidence without inventing an Offboarding record.
+
+TASK-094-R3 stores direct Incident–Asset links/history in the Incident schema
+with tenant-composite references to both owning domains. Monitoring owns its
+validated Asset identity and reliability episode query. Maintenance owns
+Warranty source rows; Asset stores only the canonical derived state, UTC
+evaluation date, policy version and evidence reference. A scheduled worker
+coordinates tenant-scoped owning-domain application ports; scoring and its
+assessment storage are not part of R3.

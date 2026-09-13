@@ -35,16 +35,21 @@ export async function migrate(
     ].map((owner) =>
       owner === "asset"
         ? { owner, before: "20260912_010_received_unit_registration.sql" }
-        : owner === "identity"
-          ? { owner, before: "20260919_001_offboarding_asset_recovery.sql" }
-          : owner === "operations"
-            ? { owner, before: "20260914_001_contract_document_sources.sql" }
-            : owner === "problem"
-              ? {
-                  owner,
-                  before: "20260918_001_task093_knowledge_foundation.sql",
-                }
-              : { owner },
+        : owner === "incident"
+          ? {
+              owner,
+              before: "20260920_002_task094_monitoring_asset_link_backfill.sql",
+            }
+          : owner === "identity"
+            ? { owner, before: "20260919_001_offboarding_asset_recovery.sql" }
+            : owner === "operations"
+              ? { owner, before: "20260914_001_contract_document_sources.sql" }
+              : owner === "problem"
+                ? {
+                    owner,
+                    before: "20260918_001_task093_knowledge_foundation.sql",
+                  }
+                : { owner },
     ),
     // Offboarding recovery evidence references the Asset-owned assignment and
     // clearance identities, so its additive extension runs after Asset core.
@@ -67,6 +72,12 @@ export async function migrate(
     { owner: "contract" },
     { owner: "document" },
     { owner: "operations", after: "20260912_006_asset_lifecycle_source.sql" },
+    // The deterministic Incident Asset-link backfill consumes the validated
+    // Monitoring Asset-reference column added after the initial Incident pass.
+    {
+      owner: "incident",
+      after: "20260920_001_task094_asset_links.sql",
+    },
     { owner: "automation", after: "20260912_001_safe_automation.sql" },
   ];
   for (const step of plan)

@@ -4859,3 +4859,15 @@ TASK-094-R2 adds `maintenance.orders.classification` (`CORRECTIVE`,
 classification defaults to `UNKNOWN`. TASK-059 candidate rows store the latest
 recommendation assessment/profile references separately from candidate
 lifecycle state. These are prerequisite fields, not scoring assessments.
+
+TASK-094-R3 adds Incident-owned `IncidentAssetLink` (`AFFECTED_ASSET`) and
+append-only link history. The active relationship is unique per tenant,
+Incident and Asset; both Incident and Asset references are same-tenant
+constrained. Root Incident membership is used only to derive reliability
+episode identity and does not propagate links to child/sibling records.
+Monitoring events retain a validated Asset-reference bit and source
+correlation identity for deduplicated reliability queries. Maintenance owns
+canonical Warranty rows and the versioned `WARRANTY_STATE_V1` interpretation;
+the Asset Warranty dimension is a derived projection with policy/evidence
+reference and UTC evaluation date. Overlapping plausible Warranty records
+produce UNKNOWN, never an arbitrary winner.

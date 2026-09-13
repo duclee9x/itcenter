@@ -2,7 +2,7 @@
 
 ## Current Task
 
-TASK-094 — Risk + Replacement Scoring — is `READY / NOT_STARTED`. TASK-094-R1 is the normative scoring contract; TASK-094-R2 prerequisite foundations are `CODE_COMPLETE` and verified. R2 added typed Maintenance classification/history, the authorized/idempotent TASK-059 Replacement Candidate application boundary, and Offboarding-owned Asset recovery separate from Asset Risk. See `tasks/TASK-094-R2_IMPLEMENTATION_REPORT.md`. No scoring runtime has been started; do not infer evidence from free text, bypass TASK-059, or query cross-domain private tables. TASK-095 has not started.
+TASK-094 — Asset Risk + Replacement Scoring — is `READY / NOT_STARTED`. TASK-094-R1 is complete; TASK-094-R2 and TASK-094-R3 are `CODE_COMPLETE`. R3 adds only canonical Incident–Asset linkage/reliability queries and canonical Warranty state/query authority. Do not implement scoring until explicitly instructed, infer evidence from free text, bypass TASK-059, or query cross-domain private tables. TASK-095 has not started.
 
 TASK-093 is `CODE_COMPLETE`; see
 `tasks/TASK-093_IMPLEMENTATION_REPORT.md`.
@@ -13,6 +13,17 @@ enrolled-Agent AuthenticationPort before accepting real Agent requests.
 
 TASK-095 remains `BLOCKED / NOT_STARTED` pending its detailed implementation
 contract.
+
+## Last Completed Remediation — TASK-094-R3
+
+Incident–Asset Reliability + Warranty State Foundation (`CODE_COMPLETE`). See
+`tasks/TASK-094-R3_IMPLEMENTATION_REPORT.md`. Added deterministic tenant-safe
+Incident–Asset links/history and Incident/Monitoring reliability query
+boundaries, plus Maintenance-owned `WARRANTY_STATE_V1`, canonical Warranty
+query and idempotent scheduled Asset projection refresh. Full `npm test`
+passed (153 tests), migration tests, typecheck, lint/boundaries, format check
+and `git diff --check`. TASK-094 is now READY / NOT_STARTED; scoring and
+TASK-095 remain unimplemented.
 
 The preceding completed task is TASK-076 — Phase 4 Procurement-to-Asset
 Integration Gate (`SATISFIED / CODE_COMPLETE`); see
@@ -36,9 +47,11 @@ Knowledge Deflection + Self-Service Recommendations (`CODE_COMPLETE`). See
   mutation and no TASK-090/091 remediation path.
 - Full verification passed: `npm test` (143 tests), typecheck, lint/boundaries,
   format check, migration/PostgreSQL integration and `git diff --check`.
-- TASK-094-R1 completed normative scoring and spec reconciliation. TASK-094's
-  declared foundation dependencies are satisfied, but the three explicit
-  owning-domain `SCOPE_DEPENDENCY` items above block runtime implementation.
+- TASK-094-R1 completed normative scoring and spec reconciliation. TASK-094-R2
+  implemented Maintenance classification/history, the TASK-059 candidate port
+  and Offboarding recovery separation. R3 is resolving the remaining
+  Incident–Asset and Warranty evidence boundaries; scoring runtime remains
+  out of scope until R3 completes.
 
 ## Last Completed Remediation — TASK-093-R2
 

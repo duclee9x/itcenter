@@ -2927,3 +2927,24 @@ TASK-094-R2 prerequisite commands/ports:
   classify an unresolved request `UNRETURNED`/`MISSING`; restoration to
   `PENDING_RETURN` requires a canonical pending Asset return request.
   `RETURNED` is recorded only after Asset-domain completion is confirmed.
+
+### TASK-094-R3 query and link contracts
+
+- `INCIDENT.ASSET_LINK` requires `incident.asset_link`, same-tenant Asset
+  resolution, an explicit reason, idempotency and append-only relationship
+  history. The API accepts only a canonical `asset_id`; it does not infer an
+  Asset from user assignment or text. The paired audited unlink command marks
+  the active link DETACHED and preserves its history.
+- Incident creation may preserve `asset_id` only when explicitly selected in
+  intake. Monitoring-origin association is created only from an exact,
+  same-tenant Monitoring event whose Asset reference was canonical-validated.
+- `IncidentAssetHistoryQuery` and `MonitoringAssetReliabilityQuery` are
+  owning-domain, tenant-scoped read contracts authorized through
+  `AuthorizationPort`; successful empty results remain distinct from query
+  failure. Monitoring source identity that cannot be resolved returns
+  unavailable evidence.
+- `WarrantyAssetQuery(tenant, asset_id, as_of)` requires `warranty.read` and
+  returns minimum effective Warranty evidence plus `WARRANTY_STATE_V1`. A
+  failed query propagates unavailable/error; an empty successful query is
+  UNKNOWN / NO_WARRANTY. `ASSET.WARRANTY_STATE_PROJECTED` is an internal
+  worker-owned derived projection, not a Warranty lifecycle command.

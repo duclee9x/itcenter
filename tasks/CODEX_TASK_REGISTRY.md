@@ -214,7 +214,8 @@ Only generate a detailed `TASK-xxx_*.md` when the task becomes `READY` or is the
 | `TASK-093` | `KNOWLEDGE-DEFLECTION` | `WF-PC-K` | P5 | P2 | Knowledge Deflection + Self-Service Recommendations | TASK-037, TASK-061, TASK-092, TASK-093-R1, TASK-093-R2 | **SATISFIED** | CODE_COMPLETE | `TASK-093_KNOWLEDGE_DEFLECTION_SELF_SERVICE_RECOMMENDATIONS.md` |
 | `TASK-094-R1` | `F-050` | `WF-017/WF-INT01` | P5 | P0 | Risk + Replacement Scoring Contract | TASK-038, TASK-050, TASK-058, TASK-059 | **SATISFIED** | CODE_COMPLETE | `TASK-094-R1_RISK_REPLACEMENT_SCORING_CONTRACT.md` |
 | `TASK-094-R2` | `F-050` | `WF-017/WF-INT01` | P5 | P0 | Asset Scoring Prerequisite Foundations | TASK-038, TASK-059, TASK-060, TASK-094-R1 | **SATISFIED** | CODE_COMPLETE | `TASK-094-R2_ASSET_SCORING_PREREQUISITE_FOUNDATIONS.md` |
-| `TASK-094` | `F-050` | `WF-017/WF-INT01` | P5 | P2 | Risk + Replacement Scoring | TASK-038, TASK-050, TASK-058, TASK-059, TASK-094-R1, TASK-094-R2 | **READY** | NOT_STARTED | `TASK-094_ASSET_RISK_REPLACEMENT_SCORING.md` |
+| `TASK-094-R3` | `F-050` | `WF-017/WF-INT01` | P5 | P0 | Incident–Asset Reliability + Warranty State Foundation | TASK-033, TASK-038, TASK-051, TASK-094-R1, TASK-094-R2 | **SATISFIED** | CODE_COMPLETE | `TASK-094-R3_INCIDENT_ASSET_RELIABILITY_WARRANTY_FOUNDATION.md` |
+| `TASK-094` | `F-050` | `WF-017/WF-INT01` | P5 | P2 | Risk + Replacement Scoring | TASK-038, TASK-050, TASK-058, TASK-059, TASK-094-R1, TASK-094-R2, TASK-094-R3 | **READY** | NOT_STARTED | `TASK-094_ASSET_RISK_REPLACEMENT_SCORING.md` |
 | `TASK-095` | `F-048` | `WF-RPT01` | P5 | P1 | Advanced Reporting + Governed KPI + Analytics | TASK-039, TASK-061, TASK-076 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |
 | `TASK-096` | `F-050` | `WF-INT01` | P5 | P2 | Explainable Recommendation Layer | TASK-090, TASK-092, TASK-093, TASK-094, TASK-095 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |
 | `TASK-097` | `PHASE-GATE` | `P5-E2E` | P5 | P0 | Phase 5 System Integration + Intelligence Gate | TASK-091, TASK-092, TASK-093, TASK-094, TASK-095, TASK-096 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |
@@ -331,9 +332,10 @@ Only generate a detailed `TASK-xxx_*.md` when the task becomes `READY` or is the
 - **TASK-091 — Controlled Self-Healing + Compensation:** Agent execution, controlled change and rules engine available.
 - **TASK-092 — Advanced Incident Correlation:** Incident history, topology and rule engine available.
 - **TASK-093 — Knowledge Deflection + Self-Service Recommendations:** Knowledge foundation, search and correlation available.
-- **TASK-094-R1 — Risk + Replacement Scoring Contract:** `SATISFIED / CODE_COMPLETE` (normative contract persisted; no runtime scoring implemented).
-- **TASK-094-R2 — Asset Scoring Prerequisite Foundations:** `SATISFIED / CODE_COMPLETE`; Maintenance evidence, TASK-059 candidate boundary and Offboarding recovery/Risk separation implemented and verified.
-- **TASK-094 — Risk + Replacement Scoring:** `READY / NOT_STARTED`; consume the domain-owned prerequisite interfaces and do not substitute free text or cross-domain private SQL.
+- **TASK-094-R1 — Risk + Replacement Scoring Contract:** `COMPLETE` (normative contract persisted; no runtime scoring implemented).
+- **TASK-094-R2 — Asset Scoring Prerequisite Foundations:** `CODE_COMPLETE`; Maintenance evidence, TASK-059 candidate boundary and Offboarding recovery/Risk separation implemented and verified.
+- **TASK-094-R3 — Incident–Asset Reliability + Warranty State Foundation:** `CODE_COMPLETE`; see `tasks/TASK-094-R3_IMPLEMENTATION_REPORT.md`. No scoring runtime was implemented.
+- **TASK-094 — Risk + Replacement Scoring:** `READY / NOT_STARTED`; the R1 contract and R2/R3 runtime prerequisites are satisfied. Do not infer evidence from free text or query cross-domain private tables.
 - **TASK-095 — Advanced Reporting + Governed KPI + Analytics:** Stable canonical data and governed events across P1-P4.
 - **TASK-096 — Explainable Recommendation Layer:** Automation, correlation, knowledge, scoring and analytics available.
 - **TASK-097 — Phase 5 System Integration + Intelligence Gate:** Advanced automation/intelligence capabilities integrated.
@@ -352,8 +354,8 @@ reports and commits confirm TASK-015 (`32c3267`), TASK-036 (`e043c31`) and
 TASK-038 (`296336a`) are `CODE_COMPLETE`.
 
 ```text
-CURRENT = TASK-094 (READY / NOT_STARTED; no scoring implementation has begun.)
-NEXT = Stop after TASK-094-R2 completion; do not implement TASK-094 or begin TASK-095 without a new instruction.
+CURRENT = TASK-094 (READY / NOT_STARTED; runtime scoring has not started.)
+NEXT = Wait for explicit instruction to begin TASK-094. TASK-095 remains unchanged and is not started.
 TASK-059 = SATISFIED (CODE_COMPLETE)
 TASK-061 = SATISFIED (CODE_COMPLETE)
 TASK-070-R1 = SATISFIED (CODE_COMPLETE)
@@ -383,7 +385,8 @@ TASK-093-R2 = SATISFIED / CODE_COMPLETE (Knowledge recommendation foundations im
 TASK-093 = SATISFIED / CODE_COMPLETE (recommendation, ranking, presentation, feedback, explicit resolution and canonical Ticket escalation implemented; see TASK-093_IMPLEMENTATION_REPORT.md)
 TASK-094-R1 = SATISFIED / CODE_COMPLETE (normative contract and required spec updates complete; no runtime implementation)
 TASK-094-R2 = SATISFIED / CODE_COMPLETE (typed Maintenance evidence, TASK-059 candidate port, and Offboarding recovery/Risk separation; see TASK-094-R2_IMPLEMENTATION_REPORT.md)
-TASK-094 = READY / NOT_STARTED (R1 contract and R2 prerequisite foundations satisfied; scoring runtime not started)
+TASK-094-R3 = SATISFIED / CODE_COMPLETE (Incident–Asset reliability and canonical Warranty state/query foundations; no scoring runtime; see TASK-094-R3_IMPLEMENTATION_REPORT.md)
+TASK-094 = READY / NOT_STARTED (R1 contract and R2/R3 prerequisites satisfied; scoring runtime not started)
 ```
 
 TASK-061's acceptance criteria and verification gates passed; its implementation

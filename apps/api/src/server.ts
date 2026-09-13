@@ -45,7 +45,11 @@ import {
   resolveWorkItem,
   recordIncidentCorrelationTimelineEvent,
 } from "../../../modules/work-queue/index.js";
-import { normalizeMonitoringEvent } from "../../../modules/monitoring/index.js";
+import {
+  normalizeMonitoringEvent,
+  queryMonitoringAssetReliability,
+  resolveMonitoringEventForIncident,
+} from "../../../modules/monitoring/index.js";
 import { issueEnrollmentToken } from "../../../modules/agent/index.js";
 import { linkPurchaseOrderApproval } from "../../../modules/procurement/index.js";
 import {
@@ -64,6 +68,7 @@ import {
   maintenanceClassifications,
   transitionMaintenance,
   updateMaintenanceClassification,
+  queryWarrantyAsset,
 } from "../../../modules/maintenance/index.js";
 import {
   createIncident,
@@ -75,6 +80,10 @@ import {
   declareMajor,
   publishCommunication,
   transitionIncident,
+  detachIncidentAsset,
+  linkIncidentAsset,
+  recordMonitoringIncidentAssetLink,
+  recordExplicitIncidentAssetLink,
 } from "../../../modules/incident/index.js";
 import {
   recordObservation,
@@ -288,6 +297,60 @@ export function apiServer(
       })
     )
       return true;
+    const warrantyStateMatch =
+      /^\/api\/v1\/assets\/([^/]+)\/warranty-state(?:\?.*)?$/.exec(
+        req.url ?? "",
+      );
+    if (req.method === "GET" && warrantyStateMatch) {
+      const principal = await authenticate(
+        authentication,
+        req.headers.authorization,
+      );
+      const query = new URL(req.url ?? "", "http://localhost").searchParams;
+      const value = await uow.run(principal.tenant_id, (tx) =>
+        queryWarrantyAsset({
+          tx,
+          assetId: warrantyStateMatch[1]!,
+          asOf: query.get("as_of") ?? new Date().toISOString(),
+          principal,
+          authorization,
+          correlationId: context.correlation_id,
+        }),
+      );
+      json(res, 200, { data: value, meta: context });
+      return true;
+    }
+    const monitoringReliabilityMatch =
+      /^\/api\/v1\/assets\/([^/]+)\/monitoring-reliability(?:\?.*)?$/.exec(
+        req.url ?? "",
+      );
+    if (req.method === "GET" && monitoringReliabilityMatch) {
+      const principal = await authenticate(
+        authentication,
+        req.headers.authorization,
+      );
+      const query = new URL(req.url ?? "", "http://localhost").searchParams;
+      const from = query.get("from");
+      const to = query.get("to");
+      if (!from || !to)
+        throw new ApplicationError(
+          "VALIDATION_ERROR",
+          "from and to are required.",
+        );
+      const value = await uow.run(principal.tenant_id, (tx) =>
+        queryMonitoringAssetReliability({
+          tx,
+          assetId: monitoringReliabilityMatch[1]!,
+          from,
+          to,
+          principal,
+          authorization,
+          correlationId: context.correlation_id,
+        }),
+      );
+      json(res, 200, { data: value, meta: context });
+      return true;
+    }
     if (
       await handleServiceReferenceRoute({
         req,
@@ -682,6 +745,14 @@ export function apiServer(
       );
     const incidentCorrelationHistoryMatch =
       /^\/api\/v1\/incidents\/([^/]+)\/correlations$/.exec(req.url ?? "");
+    const incidentAssetLinkMatch =
+      /^\/api\/v1\/incidents\/([^/]+)\/commands\/asset-link$/.exec(
+        req.url ?? "",
+      );
+    const incidentAssetUnlinkMatch =
+      /^\/api\/v1\/incidents\/([^/]+)\/assets\/([^/]+)\/commands\/unlink$/.exec(
+        req.url ?? "",
+      );
     const majorMatch =
       /^\/api\/v1\/incidents\/([^/]+)\/commands\/declare-major$/.exec(
         req.url ?? "",
@@ -1467,6 +1538,12 @@ export function apiServer(
                       startsAt: input.starts_at as string,
                       endsAt: input.ends_at as string,
                       coverage: input.coverage as string,
+                      validateAsset: async () => {
+                        await assertAssetExists({
+                          tx,
+                          assetId: input.asset_id as string,
+                        });
+                      },
                     })
                   : await (async () => {
                       await assertAssetEligibleForMaintenance({
@@ -2352,7 +2429,9 @@ export function apiServer(
       req.method === "POST" &&
       (req.url === "/api/v1/incidents" ||
         incidentTransitionMatch ||
-        incidentCorrelateMatch)
+        incidentCorrelateMatch ||
+        incidentAssetLinkMatch ||
+        incidentAssetUnlinkMatch)
     ) {
       const principal = await authenticate(
         authentication,
@@ -2377,11 +2456,16 @@ export function apiServer(
       }
       const isTransition = Boolean(incidentTransitionMatch);
       const isCorrelation = Boolean(incidentCorrelateMatch);
-      const action = isCorrelation
-        ? "incident.correlate"
-        : isTransition
-          ? "incident.update"
-          : "incident.create";
+      const isAssetLink = Boolean(incidentAssetLinkMatch);
+      const isAssetUnlink = Boolean(incidentAssetUnlinkMatch);
+      const action =
+        isAssetLink || isAssetUnlink
+          ? "incident.asset_link"
+          : isCorrelation
+            ? "incident.correlate"
+            : isTransition
+              ? "incident.update"
+              : "incident.create";
       await authorize(authorization, {
         principal,
         action,
@@ -2390,6 +2474,8 @@ export function apiServer(
           id:
             incidentTransitionMatch?.[1] ??
             incidentCorrelateMatch?.[1] ??
+            incidentAssetLinkMatch?.[1] ??
+            incidentAssetUnlinkMatch?.[1] ??
             String(input.incident_code ?? "new"),
           tenant_id: principal.tenant_id,
         },
@@ -2402,103 +2488,344 @@ export function apiServer(
             principalId: principal.id,
             operation: isCorrelation
               ? "INCIDENT.CORRELATE"
-              : isTransition
-                ? "INCIDENT.TRANSITION"
-                : "INCIDENT.CREATE",
+              : isAssetLink
+                ? "INCIDENT.ASSET_LINK"
+                : isAssetUnlink
+                  ? "INCIDENT.ASSET_UNLINK"
+                  : isTransition
+                    ? "INCIDENT.TRANSITION"
+                    : "INCIDENT.CREATE",
             businessScope:
               incidentTransitionMatch?.[1] ??
               incidentCorrelateMatch?.[1] ??
+              incidentAssetLinkMatch?.[1] ??
+              incidentAssetUnlinkMatch?.[1] ??
               String(input.incident_code ?? "new"),
             key,
             semanticRequest: input as never,
             expiresAt: new Date(Date.now() + 86400000),
           },
           async () => {
-            const value = isCorrelation
-              ? await correlateIncident({
-                  tx,
-                  childIncidentId: incidentCorrelateMatch![1]!,
-                  rootIncidentId: input.root_incident_id as string,
-                  relatedEntityType: input.related_entity_type as
-                    "INCIDENT" | "TICKET",
-                  relatedEntityId: input.related_entity_id as string,
-                  reason: input.reason as string,
-                  score: input.correlation_score as number | undefined,
-                })
-              : isTransition
-                ? await transitionIncident({
+            const monitoringReference =
+              !isAssetLink &&
+              !isAssetUnlink &&
+              !isCorrelation &&
+              !isTransition &&
+              input.monitoring_event_id
+                ? await resolveMonitoringEventForIncident({
                     tx,
-                    incidentId: incidentTransitionMatch![1]!,
-                    expectedVersion: input.expected_version as number,
-                    targetState: input.target_state as string,
-                    reason: input.reason as string,
-                    verification: input.verification as string | undefined,
-                    resolutionSummary: input.resolution_summary as
-                      string | undefined,
-                    postChecks: input.post_checks as string | undefined,
+                    eventId: String(input.monitoring_event_id),
                   })
-                : await createIncident({
+                : null;
+            const value = isAssetLink
+              ? await linkIncidentAsset({
+                  tx,
+                  incidentId: incidentAssetLinkMatch![1]!,
+                  assetId: input.asset_id as string,
+                  reason: input.reason as string,
+                  idempotencyKey: key,
+                  actor: principal,
+                  authorization,
+                  assetExists: async (assetId) => {
+                    await assertAssetExists({ tx, assetId });
+                  },
+                  correlationId: context.correlation_id,
+                })
+              : isAssetUnlink
+                ? await detachIncidentAsset({
                     tx,
-                    incidentCode: input.incident_code as string,
-                    title: input.title as string,
-                    source: input.source as string,
-                    monitoringEventId: input.monitoring_event_id as
-                      string | undefined,
-                    priority: input.priority as string,
-                    serviceId: input.service_id as string | undefined,
-                  });
+                    incidentId: incidentAssetUnlinkMatch![1]!,
+                    linkId: incidentAssetUnlinkMatch![2]!,
+                    expectedVersion: input.expected_version as number,
+                    reason: input.reason as string,
+                    actor: principal,
+                    authorization,
+                    correlationId: context.correlation_id,
+                  })
+                : isCorrelation
+                  ? await correlateIncident({
+                      tx,
+                      childIncidentId: incidentCorrelateMatch![1]!,
+                      rootIncidentId: input.root_incident_id as string,
+                      relatedEntityType: input.related_entity_type as
+                        "INCIDENT" | "TICKET",
+                      relatedEntityId: input.related_entity_id as string,
+                      reason: input.reason as string,
+                      score: input.correlation_score as number | undefined,
+                    })
+                  : isTransition
+                    ? await transitionIncident({
+                        tx,
+                        incidentId: incidentTransitionMatch![1]!,
+                        expectedVersion: input.expected_version as number,
+                        targetState: input.target_state as string,
+                        reason: input.reason as string,
+                        verification: input.verification as string | undefined,
+                        resolutionSummary: input.resolution_summary as
+                          string | undefined,
+                        postChecks: input.post_checks as string | undefined,
+                      })
+                    : await createIncident({
+                        tx,
+                        incidentCode: input.incident_code as string,
+                        title: input.title as string,
+                        source: input.source as string,
+                        monitoringEventId: input.monitoring_event_id as
+                          string | undefined,
+                        priority: input.priority as string,
+                        serviceId: input.service_id as string | undefined,
+                      });
+            const automaticAssetLink = monitoringReference?.asset_id
+              ? await recordMonitoringIncidentAssetLink({
+                  tx,
+                  incidentId: String((value as { id: string }).id),
+                  assetId: monitoringReference.asset_id,
+                  monitoringEventId: monitoringReference.event_id,
+                  actorType: principal.actor_type,
+                  actorId: principal.id,
+                  correlationId: context.correlation_id,
+                })
+              : null;
+            if (
+              monitoringReference?.asset_id &&
+              input.asset_id &&
+              String(input.asset_id) !== monitoringReference.asset_id
+            )
+              throw new ApplicationError(
+                "BUSINESS_RULE_VIOLATION",
+                "Explicit Asset does not match the canonical Monitoring event Asset.",
+              );
+            const explicitAssetLink =
+              !monitoringReference?.asset_id &&
+              input.asset_id &&
+              !isAssetLink &&
+              !isAssetUnlink &&
+              !isCorrelation &&
+              !isTransition
+                ? await recordExplicitIncidentAssetLink({
+                    tx,
+                    incidentId: String((value as { id: string }).id),
+                    assetId: String(input.asset_id),
+                    sourceReference: String(
+                      input.asset_source_reference ?? key,
+                    ),
+                    actorType: principal.actor_type,
+                    actorId: principal.id,
+                    actor: principal,
+                    authorization,
+                    reason: String(
+                      input.asset_link_reason ??
+                        "Explicit Asset selected during Incident intake",
+                    ),
+                    correlationId: context.correlation_id,
+                    assetExists: async (assetId) => {
+                      await assertAssetExists({ tx, assetId });
+                    },
+                  })
+                : null;
             const now = new Date().toISOString();
             const output = value as unknown as Record<string, unknown>;
-            const eventType = isCorrelation
-              ? "INCIDENT.CORRELATED"
-              : isTransition
-                ? "INCIDENT.STATE_CHANGED"
-                : "INCIDENT.CREATED";
-            await new PostgresOutboxWriter(tx).append({
-              event_id: randomUUID(),
-              event_type: eventType,
-              schema_version: 1,
-              occurred_at: now,
-              producer: { service: config.serviceName, instance: "api" },
-              aggregate: {
-                type: "INCIDENT",
-                id: (output.id ?? output.root_incident_id) as string,
-                version: (output.version as number | undefined) ?? 1,
-              },
-              actor: { type: principal.actor_type, id: principal.id },
-              correlation_id: context.correlation_id,
-              causation_id: context.causation_id,
-              tenant_id: principal.tenant_id,
-              organization_id: principal.tenant_id,
-              idempotency_key: key,
-              payload: value,
-            });
-            await new PostgresAudit(tx).append({
-              id: randomUUID(),
-              tenant_id: principal.tenant_id,
-              event_type: eventType,
-              occurred_at: now,
-              actor: { type: principal.actor_type, id: principal.id },
-              action: { command_type: eventType },
-              subject: {
-                entity_type: "INCIDENT",
-                entity_id: (output.id ?? output.root_incident_id) as string,
-              },
-              correlation_id: context.correlation_id,
-              causation_id: context.causation_id,
-              reason: {
-                code: eventType,
-                text: (input.reason as string) ?? "Incident created",
-              },
-              before: null,
-              after: value,
-              outcome: { status: "SUCCESS" },
-              classification: "INTERNAL",
-              relations: [],
-              evidence: [],
-            });
+            const assetLinkNoOp =
+              (isAssetLink && output.created === false) ||
+              (isAssetUnlink && output.detached === false);
+            const eventType = isAssetLink
+              ? "INCIDENT.ASSET_LINKED"
+              : isAssetUnlink
+                ? "INCIDENT.ASSET_UNLINKED"
+                : isCorrelation
+                  ? "INCIDENT.CORRELATED"
+                  : isTransition
+                    ? "INCIDENT.STATE_CHANGED"
+                    : "INCIDENT.CREATED";
+            if (!assetLinkNoOp)
+              await new PostgresOutboxWriter(tx).append({
+                event_id: randomUUID(),
+                event_type: eventType,
+                schema_version: 1,
+                occurred_at: now,
+                producer: { service: config.serviceName, instance: "api" },
+                aggregate: {
+                  type: "INCIDENT",
+                  id: (output.id ?? output.root_incident_id) as string,
+                  version: (output.version as number | undefined) ?? 1,
+                },
+                actor: { type: principal.actor_type, id: principal.id },
+                correlation_id: context.correlation_id,
+                causation_id: context.causation_id,
+                tenant_id: principal.tenant_id,
+                organization_id: principal.tenant_id,
+                idempotency_key: key,
+                payload: value,
+              });
+            if (!assetLinkNoOp)
+              await new PostgresAudit(tx).append({
+                id: randomUUID(),
+                tenant_id: principal.tenant_id,
+                event_type: eventType,
+                occurred_at: now,
+                actor: { type: principal.actor_type, id: principal.id },
+                action: { command_type: eventType },
+                subject: {
+                  entity_type: "INCIDENT",
+                  entity_id: (output.id ?? output.root_incident_id) as string,
+                },
+                correlation_id: context.correlation_id,
+                causation_id: context.causation_id,
+                reason: {
+                  code: eventType,
+                  text: (input.reason as string) ?? "Incident created",
+                },
+                before: null,
+                after: value,
+                outcome: { status: "SUCCESS" },
+                classification: "INTERNAL",
+                relations: [],
+                evidence: [],
+              });
+            if (!assetLinkNoOp && (isAssetLink || isAssetUnlink))
+              await recordIncidentCorrelationTimelineEvent({
+                tx,
+                incidentId:
+                  incidentAssetLinkMatch?.[1] ?? incidentAssetUnlinkMatch![1]!,
+                eventType,
+                summary: isAssetLink
+                  ? `Asset ${String((value as { asset_id: string }).asset_id)} linked as affected`
+                  : `Asset ${String((value as { asset_id: string }).asset_id)} detached from affected assets`,
+                payload: value as never,
+                sourceEventId: randomUUID(),
+              });
+            if (automaticAssetLink?.created) {
+              await new PostgresOutboxWriter(tx).append({
+                event_id: randomUUID(),
+                event_type: "INCIDENT.ASSET_LINKED",
+                schema_version: 1,
+                occurred_at: now,
+                producer: { service: config.serviceName, instance: "api" },
+                aggregate: {
+                  type: "INCIDENT",
+                  id: String((value as { id: string }).id),
+                  version: 1,
+                },
+                actor: { type: principal.actor_type, id: principal.id },
+                correlation_id: context.correlation_id,
+                causation_id: context.causation_id,
+                tenant_id: principal.tenant_id,
+                organization_id: principal.tenant_id,
+                idempotency_key: `${key}:asset-link:${automaticAssetLink.id}`,
+                payload: {
+                  incident_id: String((value as { id: string }).id),
+                  asset_id: monitoringReference!.asset_id,
+                  link_id: automaticAssetLink.id,
+                  source_type: "MONITORING_EVENT",
+                  source_reference: monitoringReference!.event_id,
+                },
+              });
+              await new PostgresAudit(tx).append({
+                id: randomUUID(),
+                tenant_id: principal.tenant_id,
+                event_type: "INCIDENT.ASSET_LINKED",
+                occurred_at: now,
+                actor: { type: principal.actor_type, id: principal.id },
+                action: { command_type: "INCIDENT.ASSET_LINK_FROM_MONITORING" },
+                subject: {
+                  entity_type: "INCIDENT",
+                  entity_id: String((value as { id: string }).id),
+                },
+                correlation_id: context.correlation_id,
+                causation_id: context.causation_id,
+                reason: {
+                  code: "MONITORING_ASSET_REFERENCE",
+                  text: "Linked only from the validated same-tenant Monitoring event Asset reference.",
+                },
+                before: null,
+                after: {
+                  asset_id: monitoringReference!.asset_id,
+                  link_id: automaticAssetLink.id,
+                },
+                outcome: { status: "SUCCESS" },
+                classification: "INTERNAL",
+                relations: [
+                  {
+                    entity_type: "ASSET",
+                    entity_id: monitoringReference!.asset_id!,
+                    relation: "AFFECTED_ASSET",
+                  },
+                ],
+                evidence: [
+                  {
+                    type: "MONITORING_EVENT",
+                    id: monitoringReference!.event_id,
+                    checksum: "",
+                    relation: "SOURCE",
+                  },
+                ],
+              });
+            }
+            if (explicitAssetLink?.created) {
+              await new PostgresOutboxWriter(tx).append({
+                event_id: randomUUID(),
+                event_type: "INCIDENT.ASSET_LINKED",
+                schema_version: 1,
+                occurred_at: now,
+                producer: { service: config.serviceName, instance: "api" },
+                aggregate: {
+                  type: "INCIDENT",
+                  id: String((value as { id: string }).id),
+                  version: 1,
+                },
+                actor: { type: principal.actor_type, id: principal.id },
+                correlation_id: context.correlation_id,
+                causation_id: context.causation_id,
+                tenant_id: principal.tenant_id,
+                organization_id: principal.tenant_id,
+                idempotency_key: `${key}:asset-link:${explicitAssetLink.id}`,
+                payload: {
+                  incident_id: String((value as { id: string }).id),
+                  asset_id: String(input.asset_id),
+                  link_id: explicitAssetLink.id,
+                  source_type: "EXPLICIT_TICKET_OR_INTAKE_ASSET",
+                },
+              });
+              await new PostgresAudit(tx).append({
+                id: randomUUID(),
+                tenant_id: principal.tenant_id,
+                event_type: "INCIDENT.ASSET_LINKED",
+                occurred_at: now,
+                actor: { type: principal.actor_type, id: principal.id },
+                action: { command_type: "INCIDENT.ASSET_LINK_FROM_INTAKE" },
+                subject: {
+                  entity_type: "INCIDENT",
+                  entity_id: String((value as { id: string }).id),
+                },
+                correlation_id: context.correlation_id,
+                causation_id: context.causation_id,
+                reason: {
+                  code: "EXPLICIT_INTAKE_ASSET",
+                  text: String(
+                    input.asset_link_reason ??
+                      "Explicit Asset selected during Incident intake",
+                  ),
+                },
+                before: null,
+                after: {
+                  asset_id: String(input.asset_id),
+                  link_id: explicitAssetLink.id,
+                },
+                outcome: { status: "SUCCESS" },
+                classification: "INTERNAL",
+                relations: [],
+                evidence: [],
+              });
+            }
             return {
-              status: isTransition || isCorrelation ? 200 : 201,
+              status:
+                isTransition ||
+                isCorrelation ||
+                isAssetUnlink ||
+                (isAssetLink &&
+                  (value as { created?: boolean }).created === false)
+                  ? 200
+                  : 201,
               body: value,
             };
           },
@@ -2620,8 +2947,10 @@ export function apiServer(
             expiresAt: new Date(Date.now() + 86400000),
           },
           async () => {
+            if (event.asset_id)
+              await assertAssetExists({ tx, assetId: event.asset_id });
             const inserted = await tx.query(
-              "INSERT INTO monitoring.events(id,tenant_id,source,provider_event_id,source_correlation_key,asset_id,service_id,metric,observed_value,threshold,severity,observed_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) ON CONFLICT (tenant_id,source,provider_event_id) DO NOTHING RETURNING id,source,provider_event_id,source_correlation_key,asset_id,service_id,metric,observed_value,threshold,severity,observed_at",
+              "INSERT INTO monitoring.events(id,tenant_id,source,provider_event_id,source_correlation_key,asset_id,asset_reference_validated,service_id,metric,observed_value,threshold,severity,observed_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) ON CONFLICT (tenant_id,source,provider_event_id) DO NOTHING RETURNING id,source,provider_event_id,source_correlation_key,asset_id,asset_reference_validated,service_id,metric,observed_value,threshold,severity,observed_at",
               [
                 randomUUID(),
                 principal.tenant_id,
@@ -2629,6 +2958,7 @@ export function apiServer(
                 event.provider_event_id,
                 event.source_correlation_key,
                 event.asset_id,
+                Boolean(event.asset_id),
                 event.service_id,
                 event.metric,
                 event.observed_value,
@@ -2641,7 +2971,7 @@ export function apiServer(
               inserted.rows[0] ??
               (
                 await tx.query(
-                  "SELECT id,source,provider_event_id,source_correlation_key,asset_id,service_id,metric,observed_value,threshold,severity,observed_at FROM monitoring.events WHERE tenant_id=$1 AND source=$2 AND provider_event_id=$3",
+                  "SELECT id,source,provider_event_id,source_correlation_key,asset_id,asset_reference_validated,service_id,metric,observed_value,threshold,severity,observed_at FROM monitoring.events WHERE tenant_id=$1 AND source=$2 AND provider_event_id=$3",
                   [principal.tenant_id, event.source, event.provider_event_id],
                 )
               ).rows[0];

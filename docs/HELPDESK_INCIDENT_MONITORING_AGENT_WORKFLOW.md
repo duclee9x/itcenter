@@ -1839,3 +1839,21 @@ contributions, never their sum. Queries are read-only and return references,
 timestamps, episode identity and minimal scoring evidence, not full incident
 or telemetry payloads. Exact formulas and bands are in the TASK-094 detailed
 contract.
+
+### TASK-094-R3 Incident–Asset reliability boundary
+
+`incident.asset_links` is the canonical, tenant-scoped `AFFECTED_ASSET`
+relationship. It is created only from a validated same-tenant Monitoring
+event, an explicitly selected Asset in canonical intake, or an authorized
+manual `INCIDENT.ASSET_LINK` command with reason. User assignment, text,
+service/site similarity and other inference are not evidence. Detach records
+history and never deletes the Incident. `IncidentAssetHistoryQuery` reads only
+active direct links to the requested Asset, then derives a reliability episode
+from active Root grouping; Root membership never propagates an Asset link to
+sibling Incidents. Empty results are AVAILABLE; database/query failure remains
+an error. Monitoring reliability is exposed by the Monitoring-owned query,
+grouped by validated canonical source/correlation identity; unresolved
+episode identity is UNAVAILABLE. Query boundaries are tenant-scoped,
+read-only and authorization-checked through the narrow
+`incident.asset_history.read` capability; the Asset aggregate query is not
+misrepresented as access to one arbitrary Incident.

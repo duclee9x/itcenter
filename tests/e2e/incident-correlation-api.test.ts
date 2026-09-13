@@ -188,3 +188,111 @@ test("correlation attach/detach API enforces command idempotency and writes hist
     await db.close();
   }
 });
+
+test("Incident Asset link commands are authorized, idempotent and preserve unlink history", async () => {
+  const db = await testDatabase();
+  const tenant = `incident-asset-api-${randomUUID()}`;
+  const actorId = randomUUID();
+  const categoryId = randomUUID();
+  const modelId = randomUUID();
+  const assetId = randomUUID();
+  let incidentId = "";
+  const server = apiServer(
+    loadConfig({
+      DATABASE_SECRET_REF: "env:TEST",
+      APP_ENV: "test",
+      LOG_LEVEL: "error",
+    }),
+    async () => true,
+    {
+      async authenticate() {
+        return { id: actorId, tenant_id: tenant, actor_type: "USER" };
+      },
+    },
+    {
+      async evaluate() {
+        return { result: "ALLOW", reason: "scoped Incident Asset test grant" };
+      },
+    },
+    db.uow,
+  );
+  try {
+    await db.pool.query(
+      "INSERT INTO asset.categories(id,tenant_id,name) VALUES($1,$2,'Incident Asset')",
+      [categoryId, tenant],
+    );
+    await db.pool.query(
+      "INSERT INTO asset.models(id,tenant_id,manufacturer,model_name,category_id) VALUES($1,$2,'Maker','Test',$3)",
+      [modelId, tenant, categoryId],
+    );
+    await db.pool.query(
+      "INSERT INTO asset.assets(id,tenant_id,asset_code,asset_model_id) VALUES($1,$2,'INC-ASSET',$3)",
+      [assetId, tenant, modelId],
+    );
+    const incident = await db.uow.run(tenant, (tx) =>
+      createIncident({
+        tx,
+        incidentCode: `INC-${randomUUID()}`,
+        title: "Asset link command test",
+        source: "TEST",
+        priority: "P2",
+      }),
+    );
+    incidentId = incident.id;
+    const base = await listen(server);
+    const post = (path: string, body: object, key: string) =>
+      fetch(`${base}${path}`, {
+        method: "POST",
+        headers: {
+          authorization: "Bearer test",
+          "content-type": "application/json",
+          "idempotency-key": key,
+        },
+        body: JSON.stringify(body),
+      });
+    const linkPath = `/api/v1/incidents/${incidentId}/commands/asset-link`;
+    const linkKey = randomUUID();
+    const linkBody = { asset_id: assetId, reason: "Operator verified impact" };
+    const linked = await post(linkPath, linkBody, linkKey);
+    assert.equal(linked.status, 201);
+    const linkResult = (await linked.json()) as { data: { id: string } };
+    const replay = await post(linkPath, linkBody, linkKey);
+    assert.equal(replay.status, 201);
+    assert.deepEqual(
+      ((await replay.json()) as { data: unknown }).data,
+      linkResult.data,
+    );
+    const unlinkPath = `/api/v1/incidents/${incidentId}/assets/${linkResult.data.id}/commands/unlink`;
+    const unlinkKey = randomUUID();
+    const unlinkBody = {
+      expected_version: 1,
+      reason: "Operator corrected impact",
+    };
+    assert.equal((await post(unlinkPath, unlinkBody, unlinkKey)).status, 200);
+    assert.equal((await post(unlinkPath, unlinkBody, unlinkKey)).status, 200);
+    const history = await db.pool.query(
+      "SELECT event_type,actor_id,reason FROM incident.asset_link_history WHERE tenant_id=$1 AND link_id=$2 ORDER BY occurred_at,id",
+      [tenant, linkResult.data.id],
+    );
+    assert.deepEqual(history.rows.map((row) => row.event_type).sort(), [
+      "DETACHED",
+      "LINKED",
+    ]);
+    assert.ok(history.rows.every((row) => row.actor_id === actorId));
+    const sideEffects = await db.pool.query(
+      `SELECT
+         (SELECT count(*)::int FROM audit.audit_events WHERE tenant_id=$1 AND event_type IN ('INCIDENT.ASSET_LINKED','INCIDENT.ASSET_UNLINKED')) AS audit_count,
+         (SELECT count(*)::int FROM platform.outbox_events WHERE tenant_id=$1 AND event_type IN ('INCIDENT.ASSET_LINKED','INCIDENT.ASSET_UNLINKED')) AS outbox_count,
+         (SELECT count(*)::int FROM operations.timeline_events WHERE tenant_id=$1 AND entity_id=$2 AND event_type IN ('INCIDENT.ASSET_LINKED','INCIDENT.ASSET_UNLINKED')) AS timeline_count`,
+      [tenant, incidentId],
+    );
+    assert.deepEqual(sideEffects.rows[0], {
+      audit_count: 2,
+      outbox_count: 2,
+      timeline_count: 2,
+    });
+  } finally {
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+    await db.close();
+  }
+});

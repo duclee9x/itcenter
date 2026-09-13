@@ -2845,3 +2845,13 @@ Work Queue, outbox or audit. Offboarding recovery commands fence clearance
 state by expected version, and repeated command keys do not duplicate recovery
 history or events. Legacy Risk normalization is an evidence-preserving
 migration; ambiguous rows are not linked by guesswork.
+
+TASK-094-R3 Incident–Asset mutations run in a local transaction with the
+canonical idempotency ledger, row/unique protection and append-only history.
+Repeated link or unlink requests do not duplicate audit, outbox or timeline
+effects. Monitoring episode evaluation groups only stable validated
+source/correlation identities; unresolved identity is reported unavailable,
+not assigned a guessed key. Warranty projection refresh is serialized by the
+Asset row and idempotent for the same state, evidence and policy version.
+Periodic date refresh does not duplicate projection events; a time-boundary
+state change updates the derived Asset version and emits one outbox event.

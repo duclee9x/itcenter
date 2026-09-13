@@ -2264,3 +2264,17 @@ uniqueness, human review state and terminal disposition. `CREATED`,
 outcomes. The command records assessment references/history and creates the
 review work item/outbox/audit for material candidate changes. It never issues
 procurement or changes Asset lifecycle. TASK-094 has not implemented scoring.
+
+### TASK-094-R3 Warranty state authority
+
+Warranty records in Maintenance are canonical; `asset.assets.warranty_state`
+is only a derived projection. `WarrantyAssetQuery` evaluates the unique
+effective record under `WARRANTY_STATE_V1` in UTC calendar-date semantics:
+`ends_at <= as_of` is EXPIRED, through 90 days remaining is EXPIRING, and more
+than 90 days is VALID. Missing, invalid or ambiguous evidence is UNKNOWN with
+an explicit reason; overlapping plausible records are never resolved by
+choosing the newest or longest record. The 90/60/30/7-day reminders are
+notification milestones, not separate Warranty states. A tenant-scoped
+worker refreshes projections idempotently at least once per minute so time
+boundaries are observed even without a Warranty row mutation. Scoring is not
+part of R3.

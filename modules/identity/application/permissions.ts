@@ -56,6 +56,22 @@ export const permissions: readonly Permission[] = [
   },
   { code: "ticket.read", resource_type: "ticket", action: "read" },
   { code: "incident.read", resource_type: "incident", action: "read" },
+  {
+    code: "incident.asset_link",
+    resource_type: "incident",
+    action: "asset_link",
+  },
+  {
+    code: "incident.asset_history.read",
+    resource_type: "incident_asset_history",
+    action: "read",
+  },
+  {
+    code: "monitoring.asset_reliability.read",
+    resource_type: "monitoring_asset",
+    action: "reliability.read",
+  },
+  { code: "warranty.read", resource_type: "warranty", action: "read" },
   { code: "software.read", resource_type: "software", action: "read" },
   { code: "license.read", resource_type: "license", action: "read" },
   { code: "search.reindex", resource_type: "search", action: "reindex" },

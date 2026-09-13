@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
 import {
   mkdtemp,
   cp,
@@ -297,6 +298,148 @@ test("TASK-094-R2 migration moves legacy Asset MISSING evidence out of risk_stat
         "UPDATE asset.assets SET risk_state='MISSING' WHERE tenant_id=$1 AND id=$2",
         [tenant, unlinkedAsset],
       ),
+    );
+  } catch (error) {
+    primaryError = error;
+    throw error;
+  } finally {
+    try {
+      await db.close();
+    } catch (cleanupError) {
+      if (!primaryError) throw cleanupError;
+    } finally {
+      await rm(temp, { recursive: true, force: true });
+    }
+  }
+});
+
+test("TASK-094-R3 backfills only deterministic same-tenant Incident Asset evidence and normalizes Warranty projection", async () => {
+  const db = await testDatabase(false);
+  const temp = await mkdtemp(path.join(tmpdir(), "task094-r3-migration-"));
+  const tenant = `task094-r3-legacy-${Date.now()}`;
+  const foreignTenant = `${tenant}-foreign`;
+  const localAsset = "c0000000-0000-4000-8000-000000000031";
+  const foreignAsset = "c0000000-0000-4000-8000-000000000032";
+  const localEvent = "c0000000-0000-4000-8000-000000000033";
+  const foreignEvent = "c0000000-0000-4000-8000-000000000034";
+  const localIncident = "c0000000-0000-4000-8000-000000000035";
+  const foreignIncident = "c0000000-0000-4000-8000-000000000036";
+  let primaryError: unknown;
+  try {
+    await cp("database/migrations", temp, { recursive: true });
+    for (const file of [
+      "asset/20260920_001_task094_warranty_projection.sql",
+      "identity/20260920_001_task094_r3_permissions.sql",
+      "incident/20260920_001_task094_asset_links.sql",
+      "incident/20260920_002_task094_monitoring_asset_link_backfill.sql",
+      "monitoring/20260920_001_task094_asset_reliability.sql",
+    ])
+      await unlink(path.join(temp, file));
+    await migrate(db.pool, temp);
+    const category = randomUUID();
+    const model = randomUUID();
+    await db.pool.query(
+      "INSERT INTO asset.categories(id,tenant_id,name) VALUES($1,$2,'Legacy')",
+      [category, tenant],
+    );
+    await db.pool.query(
+      "INSERT INTO asset.models(id,tenant_id,manufacturer,model_name,category_id) VALUES($1,$2,'Maker','Legacy',$3)",
+      [model, tenant, category],
+    );
+    for (const [id, owner, code] of [
+      [localAsset, tenant, "R3-LOCAL"],
+      [foreignAsset, foreignTenant, "R3-FOREIGN"],
+    ]) {
+      const ownerCategory = owner === tenant ? category : randomUUID();
+      const ownerModel = owner === tenant ? model : randomUUID();
+      if (owner !== tenant) {
+        await db.pool.query(
+          "INSERT INTO asset.categories(id,tenant_id,name) VALUES($1,$2,'Foreign')",
+          [ownerCategory, owner],
+        );
+        await db.pool.query(
+          "INSERT INTO asset.models(id,tenant_id,manufacturer,model_name,category_id) VALUES($1,$2,'Maker','Foreign',$3)",
+          [ownerModel, owner, ownerCategory],
+        );
+      }
+      await db.pool.query(
+        "INSERT INTO asset.assets(id,tenant_id,asset_code,asset_model_id,warranty_state) VALUES($1,$2,$3,$4,'LEGACY_UNKNOWN')",
+        [id, owner, code, ownerModel],
+      );
+    }
+    for (const [eventId, incidentId, assetId, code, owner] of [
+      [localEvent, localIncident, localAsset, "R3-LOCAL-INC", tenant],
+      [foreignEvent, foreignIncident, foreignAsset, "R3-FOREIGN-INC", tenant],
+    ]) {
+      await db.pool.query(
+        `INSERT INTO monitoring.events
+          (id,tenant_id,source,provider_event_id,asset_id,metric,observed_value,severity,observed_at)
+         VALUES($1,$2,'legacy-monitoring',$3,$4,'cpu','95','CRITICAL','2026-09-01T00:00:00Z')`,
+        [eventId, owner, `provider-${code}`, assetId],
+      );
+      await db.pool.query(
+        `INSERT INTO incident.incidents
+          (id,tenant_id,incident_code,title,source,monitoring_event_id,priority)
+         VALUES($1,$2,$3,$3,'MONITORING',$4,'P2')`,
+        [incidentId, tenant, code, eventId],
+      );
+    }
+    for (const file of [
+      "asset/20260920_001_task094_warranty_projection.sql",
+      "identity/20260920_001_task094_r3_permissions.sql",
+      "incident/20260920_001_task094_asset_links.sql",
+      "incident/20260920_002_task094_monitoring_asset_link_backfill.sql",
+      "monitoring/20260920_001_task094_asset_reliability.sql",
+    ])
+      await cp(path.join("database/migrations", file), path.join(temp, file));
+    await migrate(db.pool, temp);
+    const appliedR3Incident = await db.pool.query(
+      "SELECT name FROM migration_meta.applied WHERE name LIKE '%20260920%' ORDER BY name",
+    );
+    assert.ok(
+      appliedR3Incident.rows.some(
+        (row) => row.name === "incident/20260920_001_task094_asset_links.sql",
+      ),
+      JSON.stringify(appliedR3Incident.rows),
+    );
+    const incidentReadPermission = await db.pool.query(
+      `SELECT p.code,count(rp.permission_id)::int AS role_grants
+         FROM identity.permissions p
+         LEFT JOIN identity.role_permissions rp ON rp.permission_id=p.id
+        WHERE p.code='incident.asset_history.read'
+        GROUP BY p.code`,
+    );
+    assert.deepEqual(incidentReadPermission.rows, [
+      { code: "incident.asset_history.read", role_grants: 0 },
+    ]);
+    const links = await db.pool.query(
+      "SELECT incident_id,asset_id FROM incident.asset_links WHERE tenant_id=$1 ORDER BY incident_id",
+      [tenant],
+    );
+    assert.deepEqual(links.rows, [
+      { incident_id: localIncident, asset_id: localAsset },
+    ]);
+    const legacyStatus = await db.pool.query(
+      `SELECT a.warranty_state,m.asset_reference_validated
+         FROM asset.assets a JOIN monitoring.events m ON m.tenant_id=a.tenant_id AND m.asset_id=a.id
+        WHERE a.tenant_id=$1 AND a.id=$2`,
+      [tenant, localAsset],
+    );
+    assert.deepEqual(legacyStatus.rows[0], {
+      warranty_state: "UNKNOWN",
+      asset_reference_validated: true,
+    });
+    const foreignReference = await db.pool.query(
+      "SELECT asset_reference_validated FROM monitoring.events WHERE tenant_id=$1 AND id=$2",
+      [tenant, foreignEvent],
+    );
+    assert.equal(foreignReference.rows[0]!.asset_reference_validated, false);
+    await assert.rejects(
+      db.pool.query(
+        "UPDATE asset.assets SET warranty_state='MISSING' WHERE tenant_id=$1 AND id=$2",
+        [tenant, localAsset],
+      ),
+      /asset_warranty_state_canonical/,
     );
   } catch (error) {
     primaryError = error;

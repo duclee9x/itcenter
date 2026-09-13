@@ -3650,3 +3650,11 @@ clearance/Asset/case references, actor, reason, version and correlation in
 append-only `offboarding_asset_recovery_history`. Migration retains
 `risk_state=MISSING` as either linked recovery history or explicit unlinked
 Asset migration evidence; current Risk becomes UNKNOWN.
+
+TASK-094-R3 manual Incident–Asset link/unlink audit records preserve tenant,
+Incident, Asset, link ID, source/reference, actor, reason and correlation ID;
+relationship history is append-only. Deterministic Monitoring-origin links
+retain the validated Monitoring event reference. Warranty source evidence
+remains Maintenance-owned; derived Asset projection events retain only state,
+policy version, evaluation date, evidence reference and reason code. Ordinary
+projection refreshes do not create duplicate source audit records.
