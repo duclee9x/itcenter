@@ -2,12 +2,16 @@
 
 ## Current Task
 
-TASK-093 — Knowledge Deflection + Self-Service Recommendations — remains
-`BLOCKED / NOT_STARTED`. Its dependencies TASK-037, TASK-061 and TASK-092 are
-satisfied, but the detailed normative implementation contract is missing
-(`GENERATE_ON_READY`); readiness is `SPEC_GAP / PLANNING_REQUIRED`. No
-TASK-093 business rules or runtime implementation were generated. Author and
-reconcile the detailed contract before implementation.
+TASK-093-R1 — Knowledge Deflection + Self-Service Recommendation Contract —
+is `BLOCKED / IN_PROGRESS`. TASK-093 dependencies TASK-037, TASK-061 and
+TASK-092 are satisfied, but the referenced previously agreed normative
+contract is not present in the repository, Git history or available
+conversation context. Existing sources establish partial Knowledge article,
+audience, qualitative search ranking and deflection behavior only. The missing
+decisions and the TASK-037 workflow/persistence state discrepancy are recorded
+in `tasks/TASK-093-R1_KNOWLEDGE_DEFLECTION_SELF_SERVICE_CONTRACT.md`. TASK-093
+remains `BLOCKED / NOT_STARTED`; do not implement runtime until R1 is
+normatively complete.
 
 Deployment note: `apps/agent-gateway/src/main.ts` continues to use the
 fail-closed `unavailableAuthentication` adapter. Configure the existing

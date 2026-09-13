@@ -1,14 +1,14 @@
 # Current Task
 
-`TASK-093` — Knowledge Deflection + Self-Service Recommendations — remains
-`BLOCKED / NOT_STARTED`. Its declared dependencies TASK-037, TASK-061 and
-TASK-092 are satisfied, but its detailed normative implementation contract is
-not present (`GENERATE_ON_READY`). Readiness therefore remains
-`SPEC_GAP / PLANNING_REQUIRED`. No TASK-093 business rules or runtime work
-were started. Complete and reconcile its contract before implementation.
+`TASK-093-R1` — Knowledge Deflection + Self-Service Recommendation Contract —
+is `BLOCKED / IN_PROGRESS`. TASK-093 dependencies TASK-037, TASK-061 and
+TASK-092 are satisfied, but the previously agreed normative contract is not
+available in the repository, Git history or current conversation context.
+The source gaps are recorded in
+[the R1 planning record](tasks/TASK-093-R1_KNOWLEDGE_DEFLECTION_SELF_SERVICE_CONTRACT.md).
+TASK-093 remains `BLOCKED / NOT_STARTED`; do not begin runtime implementation
+until the normative contract is completed.
 
 The preceding completed work is TASK-092 — Advanced Incident Correlation
-(`CODE_COMPLETE`), including the verification/remediation TASK-092-R2 for
-scoped switch identity
-([report](tasks/TASK-092-R2_TOPOLOGY_FAILURE_DOMAIN_IDENTITY.md)). TASK-093
-remains blocked and has not been started.
+(`CODE_COMPLETE`), including TASK-092-R2 verification reconciliation
+([report](tasks/TASK-092-R2_TOPOLOGY_FAILURE_DOMAIN_IDENTITY.md)).
