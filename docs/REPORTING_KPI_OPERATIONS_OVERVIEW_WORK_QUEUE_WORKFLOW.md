@@ -2159,3 +2159,16 @@ excludes scheduled or email delivery, XLSX/PDF, custom formulas/SQL/code/DSL,
 cross-tenant analytics, FX, external BI and bulk underlying-record export.
 Reporting is read-only: KPI value or threshold cannot change domain state,
 create Automation or change Work Queue state.
+
+### TASK-095-R2 historical state coverage
+
+Work Queue current state is the latest mutable projection;
+`operations.work_item_state_transitions` is append-only historical evidence.
+Domain lifecycle code owns authorization and transition legality. A narrow
+database trigger atomically persists state changes only and emits no other
+side effects. State-at reads use effective time and version/sequence ordering.
+Legacy baseline anchors establish coverage from the anchor forward only. The
+15-minute closed-period snapshot target is an operational freshness goal, not
+a cutoff; late snapshots require complete source-history coverage. Earlier
+periods with only a legacy current-state anchor are UNAVAILABLE/limited
+coverage, never a guess from today's state.

@@ -33,3 +33,8 @@ export {
   createIncidentCorrelationFailureWorkItem,
   recordIncidentCorrelationTimelineEvent,
 } from "./application/work-queue.js";
+export {
+  queryActionableWorkItemsAt,
+  queryWorkItemStateAt,
+  isWorkItemActionableState,
+} from "./application/state-history.js";

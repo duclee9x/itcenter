@@ -3102,5 +3102,7 @@ from its declared dependencies separately; completion does not start it.
 | Access and export | AuthorizationPort + aggregate CSV | metric/export/financial grants, tenant isolation, independent drill-down authorization and formula-injection protection |
 | Safety | Reporting read/projection module | no schedule/email/XLSX/PDF/FX/cross-tenant analytics; no workflow, Work Queue or Automation mutation |
 
-TASK-095-R1 is `CODE_COMPLETE` specification-only. TASK-095 is
-`READY / NOT_STARTED`; runtime is not started by this reconciliation.
+TASK-095-R1 is `CODE_COMPLETE` specification-only. TASK-095-R2 adds the
+Incident and Work Queue historical-state foundations required for accurate
+late daily snapshots. The Reporting runtime remains `IN_PROGRESS` pending its
+separate drill-down and acceptance closure.

@@ -13,6 +13,8 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { testDatabase } from "../helpers.js";
 import { migrate } from "../../database/scripts/runner.js";
+import { queryIncidentStateAt } from "../../modules/incident/index.js";
+import { queryWorkItemStateAt } from "../../modules/work-queue/index.js";
 test("empty DB applies all migrations; rerun is idempotent and changed migration is rejected", async () => {
   const db = await testDatabase(false);
   let primaryError: unknown;
@@ -121,6 +123,132 @@ test("empty DB applies all migrations; rerun is idempotent and changed migration
     } catch (cleanupError) {
       if (!primaryError) throw cleanupError;
     }
+  }
+});
+
+test("TASK-095-R2 legacy baselines establish only forward coverage and preserve current state/version", async () => {
+  const db = await testDatabase(false);
+  const temp = await mkdtemp(path.join(tmpdir(), "task095-r2-baseline-"));
+  const tenant = `task095-r2-legacy-${randomUUID()}`;
+  const incidentId = randomUUID();
+  const workId = randomUUID();
+  let primaryError: unknown;
+  try {
+    await cp("database/migrations", temp, { recursive: true });
+    const incidentMigration =
+      "incident/20260923_001_task095_incident_state_history.sql";
+    const workMigration =
+      "operations/20260923_001_task095_work_item_state_history.sql";
+    await unlink(path.join(temp, incidentMigration));
+    await unlink(path.join(temp, workMigration));
+    await migrate(db.pool, temp);
+    await db.pool.query(
+      `INSERT INTO incident.incidents(id,tenant_id,incident_code,title,source,priority,state,version,created_at)
+       VALUES($1,$2,'LEGACY','Legacy','TEST','P2','INVESTIGATING',7,'2020-01-01T00:00:00Z')`,
+      [incidentId, tenant],
+    );
+    await db.pool.query(
+      `INSERT INTO operations.work_items(id,tenant_id,source_type,source_id,title,priority,owner_team_id,state,version,created_at)
+       VALUES($1,$2,'TICKET',$3,'Legacy','HIGH','TEST','IN_PROGRESS',9,'2020-01-01T00:00:00Z')`,
+      [workId, tenant, randomUUID()],
+    );
+    await cp(
+      path.join("database/migrations", incidentMigration),
+      path.join(temp, incidentMigration),
+    );
+    await cp(
+      path.join("database/migrations", workMigration),
+      path.join(temp, workMigration),
+    );
+    await migrate(db.pool, temp);
+    const incidentAnchor = await db.pool.query<{
+      effective_at: Date | string;
+      transition_sequence: number;
+      coverage_kind: string;
+    }>(
+      "SELECT effective_at,transition_sequence,coverage_kind FROM incident.state_transitions WHERE tenant_id=$1 AND incident_id=$2",
+      [tenant, incidentId],
+    );
+    const workAnchor = await db.pool.query<{
+      effective_at: Date | string;
+      transition_sequence: number;
+      coverage_kind: string;
+    }>(
+      "SELECT effective_at,transition_sequence,coverage_kind FROM operations.work_item_state_transitions WHERE tenant_id=$1 AND work_item_id=$2",
+      [tenant, workId],
+    );
+    assert.equal(incidentAnchor.rowCount, 1);
+    assert.equal(workAnchor.rowCount, 1);
+    assert.equal(incidentAnchor.rows[0]!.coverage_kind, "LEGACY_BASELINE");
+    assert.equal(workAnchor.rows[0]!.coverage_kind, "LEGACY_BASELINE");
+    assert.equal(incidentAnchor.rows[0]!.transition_sequence, 7);
+    assert.equal(workAnchor.rows[0]!.transition_sequence, 9);
+    const before = new Date(
+      Date.parse(String(incidentAnchor.rows[0]!.effective_at)) - 1000,
+    ).toISOString();
+    const workBefore = new Date(
+      Date.parse(String(workAnchor.rows[0]!.effective_at)) - 1000,
+    ).toISOString();
+    assert.deepEqual(
+      await db.uow.run(tenant, (tx) =>
+        queryIncidentStateAt({ tx, incidentId, asOf: before }),
+      ),
+      { coverage: "INSUFFICIENT_HISTORY", state: null },
+    );
+    assert.deepEqual(
+      await db.uow.run(tenant, (tx) =>
+        queryWorkItemStateAt({ tx, workItemId: workId, asOf: workBefore }),
+      ),
+      { coverage: "INSUFFICIENT_HISTORY", state: null },
+    );
+    const anchorTime = new Date(
+      Math.max(
+        Date.parse(String(incidentAnchor.rows[0]!.effective_at)),
+        Date.parse(String(workAnchor.rows[0]!.effective_at)),
+      ),
+    ).toISOString();
+    const afterAnchor = new Date(Date.parse(anchorTime) + 1000).toISOString();
+    assert.deepEqual(
+      await db.uow.run(tenant, (tx) =>
+        queryIncidentStateAt({ tx, incidentId, asOf: afterAnchor }),
+      ),
+      { coverage: "KNOWN_STATE", state: "INVESTIGATING" },
+    );
+    assert.deepEqual(
+      await db.uow.run(tenant, (tx) =>
+        queryWorkItemStateAt({ tx, workItemId: workId, asOf: afterAnchor }),
+      ),
+      { coverage: "KNOWN_STATE", state: "IN_PROGRESS" },
+    );
+    await db.pool.query(
+      "UPDATE incident.incidents SET state='IDENTIFIED',version=8 WHERE tenant_id=$1 AND id=$2",
+      [tenant, incidentId],
+    );
+    await db.pool.query(
+      "UPDATE operations.work_items SET state='WAITING_USER',version=10 WHERE tenant_id=$1 AND id=$2",
+      [tenant, workId],
+    );
+    const sequences = await db.pool.query(
+      "SELECT transition_sequence,coverage_kind FROM incident.state_transitions WHERE tenant_id=$1 AND incident_id=$2 ORDER BY transition_sequence",
+      [tenant, incidentId],
+    );
+    assert.deepEqual(
+      sequences.rows.map((row) => [row.transition_sequence, row.coverage_kind]),
+      [
+        [7, "LEGACY_BASELINE"],
+        [8, "TRANSITION"],
+      ],
+    );
+  } catch (error) {
+    primaryError = error;
+    throw error;
+  } finally {
+    try {
+      await db.close();
+    } catch (cleanupError) {
+      if (!primaryError) throw cleanupError;
+    }
+    await rm(temp, { recursive: true, force: true });
   }
 });
 

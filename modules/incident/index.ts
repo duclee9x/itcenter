@@ -37,3 +37,8 @@ export {
   declareMajor,
   publishCommunication,
 } from "./application/communication.js";
+export {
+  queryActiveIncidentEpisodesAt,
+  queryIncidentStateAt,
+  isIncidentActiveState,
+} from "./application/state-history.js";

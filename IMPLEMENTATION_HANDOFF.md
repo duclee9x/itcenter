@@ -2,6 +2,14 @@
 
 ## Current Task
 
+TASK-095 — Advanced Reporting + Governed KPI + Analytics — remains
+`READY / IN_PROGRESS`. TASK-095-R2 — Historical State Timeline Foundation —
+is `CODE_COMPLETE`, and its historical point-in-time state dependency is
+resolved. R2 added append-only Incident and Work Queue state history,
+forward-only legacy coverage anchors and owning-domain state-at queries. It
+does not finish TASK-095 or add Reporting drill-down. See
+`tasks/TASK-095-R2_IMPLEMENTATION_REPORT.md`.
+
 TASK-094 — Asset Risk + Replacement Scoring — is `CODE_COMPLETE`; see
 `tasks/TASK-094_IMPLEMENTATION_REPORT.md`. Scoring uses immutable Risk and
 Replacement assessments, owning-domain evidence queries and explicit scoped
@@ -15,10 +23,11 @@ historical revisions, controlled dimensions, RBAC drill-down and aggregate CSV.
 It explicitly excludes scheduling, custom formulas, cross-tenant analytics, FX,
 XLSX/PDF and underlying-record bulk export.
 
-TASK-095 — Advanced Reporting + Governed KPI + Analytics — is now
-`READY / NOT_STARTED`; TASK-039, TASK-061, TASK-076, TASK-093, TASK-094 and
-TASK-095-R1 are satisfied. Runtime remains unstarted and requires explicit
-authorization. TASK-096 and TASK-097 remain `WAITING_DEPENDENCY / NOT_STARTED`.
+TASK-095-R1 — Governed KPI + Analytics Contract — is `CODE_COMPLETE`
+(specification only). TASK-095 has its governed contract and now has its R2
+historical-state dependency satisfied; the main task remains `IN_PROGRESS`.
+TASK-096 and TASK-097 remain `WAITING_DEPENDENCY / NOT_STARTED` because
+TASK-095 is not complete.
 
 TASK-093 is `CODE_COMPLETE`; see
 `tasks/TASK-093_IMPLEMENTATION_REPORT.md`.
@@ -27,9 +36,10 @@ Deployment note: `apps/agent-gateway/src/main.ts` continues to use the
 fail-closed `unavailableAuthentication` adapter. Configure the existing
 enrolled-Agent AuthenticationPort before accepting real Agent requests.
 
-TASK-095 runtime has not started. Its detailed contract is
-`tasks/TASK-095_ADVANCED_REPORTING_GOVERNED_KPI_ANALYTICS.md`; do not begin
-implementation until explicitly authorized.
+TASK-095's detailed contract is
+`tasks/TASK-095_ADVANCED_REPORTING_GOVERNED_KPI_ANALYTICS.md`. R2 closure is
+complete; this handoff does not authorize work beyond the current TASK-095
+scope.
 
 ## Last Completed Task — TASK-094
 

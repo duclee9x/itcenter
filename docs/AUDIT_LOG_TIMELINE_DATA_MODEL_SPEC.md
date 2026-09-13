@@ -3675,3 +3675,9 @@ KPI/version, period, filters/dimensions, snapshot revision/as-of, format,
 record count and generated artifact reference where one exists. Ordinary KPI
 reads are operational telemetry, not compliance audit; drill-down is
 independently authorized and must not reveal inaccessible evidence.
+
+Incident and Work Queue state histories are domain evidence, not replacements
+for audit, outbox or operator timeline. Any future correction is an explicit
+audited superseding record; transition history is never silently updated or
+deleted. Legacy anchors state only that the current value is trusted from the
+anchor timestamp forward.

@@ -2961,3 +2961,9 @@ dimensions; unsupported dimensions are validation errors. No request accepts
 SQL, executable expressions or arbitrary grouping. CSV uses the same result
 authorization path, binds KPI/version/period/dimensions/revision/as-of, and
 contains aggregates only. Reporting queries have no workflow side effects.
+
+TASK-095-R2 adds internal owning-domain state-at query contracts. They return
+`KNOWN_STATE`, `NOT_YET_CREATED`, `INSUFFICIENT_HISTORY` or an unavailable
+result, plus aggregate coverage (`COMPLETE`/`PARTIAL`). Queries are tenant
+scoped, use effective time with version/sequence tie-breaking, and never
+substitute current state for missing pre-anchor history.

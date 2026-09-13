@@ -2870,3 +2870,9 @@ source-domain transaction: it records safe failure/lag and returns STALE or
 UNAVAILABLE according to the KPI contract. Rebuild never mutates source data.
 Aggregate CSV binds the selected latest or explicit revision/as-of so an export
 cannot silently race to a different result.
+
+Incident and Work Queue history is persisted by transaction-local triggers
+only when lifecycle state changes. A replay with unchanged state creates no
+extra transition. Entity version provides deterministic sequence ordering
+when timestamps tie. Trigger failure aborts the owning mutation; retry and
+command idempotency remain owned by the application command path.

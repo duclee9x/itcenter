@@ -4891,3 +4891,13 @@ as-of/generated timestamps and positive revision. Enforce unique tenant +
 KPI/version + period + dimension fingerprint + revision. `reporting` also owns
 tenant/source watermarks and safe failure/lag metadata. Historical results do
 not overwrite earlier revisions.
+
+### TASK-095-R2 state timeline entities
+
+`IncidentStateTransition` and `WorkItemStateTransition` are tenant-scoped,
+append-only records containing entity identity, prior/next state, effective
+and recorded timestamps, actor/source reference, coverage kind and monotonic
+entity-version transition sequence. Initial creation is one `CREATE` anchor.
+Legacy rows receive one `LEGACY_BASELINE` anchor at migration time; this
+anchor does not assert any prior lifecycle. Mutable current state remains a
+projection and is not itself historical evidence.

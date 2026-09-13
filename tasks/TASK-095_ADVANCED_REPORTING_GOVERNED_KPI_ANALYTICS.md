@@ -6,10 +6,10 @@ feature_id: F-048
 workflow_id: WF-RPT01
 phase: P5
 priority: P1
-status: NOT_STARTED
+status: IN_PROGRESS
 readiness: READY
 owner_domain: reporting
-dependencies: [TASK-039, TASK-061, TASK-076, TASK-093, TASK-094, TASK-095-R1]
+dependencies: [TASK-039, TASK-061, TASK-076, TASK-092, TASK-093, TASK-094, TASK-095-R1, TASK-095-R2]
 ```
 
 ## Scope and exclusions
@@ -224,4 +224,9 @@ TASK-039 compatibility, and the no-action boundary.
 
 TASK-095 runtime requires a Reporting module, migrations/projections/worker,
 domain read ports, routes, permissions, audit/export history and all applicable
-verification gates. It may start only after explicit authorization.
+verification gates. Historical daily snapshots for active Incident episodes
+and actionable Work Queue items require TASK-095-R2 effective-time state
+history. A legacy baseline is forward-only and must not be used to invent
+pre-anchor state. TASK-095-R2 is complete; its report records the history
+coverage and query contract. Main TASK-095 remains in progress until its own
+acceptance and verification gates pass.

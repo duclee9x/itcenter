@@ -3181,3 +3181,13 @@ or approved projections; it does not join private domain tables or become a
 canonical business-state store. Snapshot identity is tenant + KPI/version +
 period + canonical dimensions, with revision appended on material late or
 corrected source evidence. Search is never a KPI source of truth.
+
+### TASK-095-R2 state history ownership
+
+Incident owns `incident.state_transitions`; Work Queue owns
+`operations.work_item_state_transitions`. PostgreSQL triggers run only after
+the owning row is inserted or its state changes and append the corresponding
+history in the same transaction. A trigger error aborts the state mutation.
+Triggers do not authorize, validate business transitions or publish events.
+Reporting reads state-at application ports and never selects these private
+tables. Legacy baselines establish forward-only coverage.

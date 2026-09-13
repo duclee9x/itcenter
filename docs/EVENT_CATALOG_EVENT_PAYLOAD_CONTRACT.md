@@ -5682,4 +5682,10 @@ replacement execution.
   `WARRANTY_STATE_V1` version, UTC evaluation date, evidence reference and
   reason code. Emit only for a changed state/evidence/policy projection;
   refresh replay has no duplicate event. Warranty source mutations continue
-  using Maintenance-owned Warranty events.
+using Maintenance-owned Warranty events.
+
+TASK-095-R2 state-transition history is not a second event publisher. The
+state-history trigger appends only domain evidence in the same transaction;
+owning commands retain their existing outbox/audit responsibilities and one
+command must not emit duplicate external events because history is enabled.
+Transition records reference the entity version/sequence and effective time.

@@ -1862,3 +1862,15 @@ TASK-094 consumes the same Incident and Monitoring application queries under
 `SYSTEM_ASSET_SCORING`; it derives Incident episodes from direct Asset links
 and uses Monitoring's canonical correlation IDs to remove duplicate failure
 episodes. The scoring domain does not read Incident or Monitoring tables.
+
+### TASK-095-R2 historical Incident state
+
+Incident current lifecycle state remains the latest mutable projection.
+`incident.state_transitions` is append-only historical evidence written in the
+same PostgreSQL transaction by a narrowly scoped persistence trigger. Domain
+commands still own authorization and transition legality; the trigger neither
+decides lifecycle rules nor emits audit, timeline or outbox events. State-at
+queries use effective time and transition sequence. Root membership is
+evaluated over `[linked_at, detached_at)`, so current Root membership cannot
+rewrite an earlier episode snapshot. A `LEGACY_BASELINE` anchor provides
+forward-only coverage and proves nothing before its timestamp.

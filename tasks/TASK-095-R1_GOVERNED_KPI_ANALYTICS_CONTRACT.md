@@ -62,3 +62,10 @@ verification is not applicable because R1 contains no runtime change.
 - TASK-095: `READY / NOT_STARTED`; direct dependencies are TASK-039,
   TASK-061, TASK-076, TASK-093, TASK-094 and TASK-095-R1, all satisfied.
 - TASK-096 and TASK-097: `WAITING_DEPENDENCY / NOT_STARTED`.
+
+## Subsequent dependency status
+
+TASK-095-R2 later completed the required Incident and Work Queue historical
+state foundation. TASK-095 remains `READY / IN_PROGRESS`; the main Reporting
+acceptance work is not complete. See
+`tasks/TASK-095-R2_IMPLEMENTATION_REPORT.md` for R2 scope and verification.
