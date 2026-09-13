@@ -5532,3 +5532,25 @@ Event Catalog đạt yêu cầu khi:
 - Event → Workflow/Notification/Work Queue/Reporting relationship rõ.
 - MVP event set được xác định.
 - Broker implementation không làm thay đổi business contract.
+
+## TASK-092 Advanced Incident Correlation Events
+
+These events describe correlation decisions and relationship facts, never
+remediation execution. Use the standard tenant, event ID, aggregate version,
+occurred-at, actor, correlation and causation envelope. Payloads reference
+canonical IDs and must not embed raw monitoring/topology payloads.
+
+| Event | Required payload references |
+|---|---|
+| `INCIDENT.CORRELATION_EVALUATED` | subject Incident/event, decision ID, profile ID/version, outcome, candidate decision references, confidence, correlation ID |
+| `INCIDENT.CORRELATION_REVIEW_REQUIRED` | subject Incident, decision ID, profile version, candidate Root IDs, reason codes, confidence, Work Item reference |
+| `INCIDENT.LINKED_TO_ROOT` | child Incident, Root Incident, relationship ID, decision ID, automatic/manual origin, confidence, reason/evidence references |
+| `INCIDENT.DETACHED_FROM_ROOT` | child Incident, Root Incident, relationship ID, actor, reason, suppression reference, correlation ID |
+| `INCIDENT.CORRELATION_REJECTED` | subject Incident, decision ID, reviewer, reason, prior machine outcome/evidence reference |
+| `ROOT_INCIDENT.CREATED_FROM_CORRELATION` | Root ID, deterministic cluster ID, source type/key reference, contributing Incident IDs, decision ID/profile version |
+
+Decision and relationship records commit with their outbox facts. A redelivered
+evaluation cannot duplicate effective link/root/work-item side effects.
+Manual attach/reject/detach preserves the original machine decision.
+`INCIDENT.CORRELATED` remains the legacy TASK-033 event and does not replace
+these TASK-092 decision/history events.

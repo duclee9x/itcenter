@@ -2806,3 +2806,30 @@ API + Command Contract đạt yêu cầu khi:
 - API audit, redaction, observability và tracing đầy đủ.
 - Successful business command phát domain event sau commit.
 - MVP API surface được xác định.
+
+## TASK-092 Incident Correlation Commands
+
+Correlation evaluation is an Incident-domain workflow invoked from canonical
+events/evidence; it is not an Action Intent and never dispatches TASK-091.
+Expose decision/evidence through tenant- and resource-scoped read queries.
+
+Explicit mutation intents are:
+
+```text
+INCIDENT.CORRELATION_ATTACH
+INCIDENT.CORRELATION_DETACH
+INCIDENT.CORRELATION_REJECT
+```
+
+Attach identifies child Incident and Root Incident. It requires the
+`incident.correlation.review` permission for the human reviewer, same-tenant/resource scope,
+`expected_version`, `Idempotency-Key`, a reason, correlation context, audit
+and transactional outbox. It records a separate human decision and never
+rewrites the machine evaluation. Detach targets the active relationship,
+requires `incident.correlation.detach`, expected version, idempotency and
+reason, and records a durable same-Root automatic-link suppression. Reject
+records the reviewer/reason against the unresolved decision and leaves the
+machine evidence immutable. Commands cannot close/reopen/delete Incidents or
+rewrite Ticket/monitoring/topology history. Competing relationship commands
+return canonical version/concurrency conflicts; clients reload canonical
+state rather than silently reparenting.

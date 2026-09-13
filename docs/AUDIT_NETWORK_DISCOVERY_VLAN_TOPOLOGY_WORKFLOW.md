@@ -2161,11 +2161,16 @@ Discovery/Monitoring sees same upstream switch
 ↓
 Core Switch SW-HN-01 offline
 ↓
-Topology dependency correlation
+Topology dependency is candidate evidence (TASK-051 freshness applies)
 ↓
-1 Root Incident created
+TASK-092 scores and explains candidate Root relationships
 ↓
-Child endpoint alerts suppressed/attached
+FRESH shared failure-domain evidence may contribute strong correlation
+↓
+AUTO_LINK only if the versioned threshold and unambiguous-candidate guards pass;
+otherwise REVIEW_REQUIRED (topology alone never auto-creates a Root)
+↓
+Preserve child endpoint Incidents and their evidence; no suppression/deletion
 ↓
 Network team repairs switch
 ↓
@@ -2177,6 +2182,12 @@ Root Incident resolved
 ---
 
 # 81. Guardrails
+
+The former topology example does not authorize Root creation by itself.
+TASK-092 v1 requires a deterministic shared canonical source key and at least
+two eligible non-root Incidents before automatic Root creation. Topology
+evidence and freshness are consumed from TASK-051; TASK-092 defines no second
+topology TTL.
 
 Hệ thống không được:
 

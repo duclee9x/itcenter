@@ -2557,3 +2557,25 @@ Permission Matrix + Authorization Policy đạt yêu cầu khi:
 - Authorization decisions explainable.
 - Permission changes có audit events.
 - MVP roles/permissions được xác định.
+
+## TASK-092 Incident Correlation Permissions
+
+Use distinct tenant/resource-scoped permissions for correlation reads and
+mutations:
+
+```text
+incident.correlation.read
+incident.correlation.link
+incident.correlation.review
+incident.correlation.detach
+```
+
+Automatic correlation uses an explicit `SYSTEM_CORRELATION` principal with
+`incident.correlation.link`; authorized human reviewers use
+`incident.correlation.review`; explicit detach requires
+`incident.correlation.detach`. Manual attach requires the applicable
+correlation link/review authority and resource scope. Existing
+`incident.correlate` remains the TASK-033 baseline and grants none of these
+new permissions by implication. Do not use broad `incident.admin` or wildcard
+authority. AuthorizationPort validates tenant before resource scope;
+cross-tenant candidate identity/scores must not be disclosed.

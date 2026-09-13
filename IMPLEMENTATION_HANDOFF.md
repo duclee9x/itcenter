@@ -2,30 +2,14 @@
 
 ## Current Task
 
-TASK-090 — Advanced Rules Engine + Policy-Gated Automation — is
-`CODE_COMPLETE`. See `tasks/TASK-090_IMPLEMENTATION_REPORT.md` and its
-normative contract at
-`tasks/TASK-090_ADVANCED_RULES_ENGINE_POLICY_GATED_AUTOMATION.md`. Rule
-evaluation now uses the allow-listed capability catalog, explicit
-tenant-scoped Action Policy, tenant-bound `SYSTEM_AUTOMATION` principal and
-canonical scoped authorization. Missing policy/grant remains deny-by-default.
-TASK-090 never executes actions.
-
-TASK-091 — Controlled Self-Healing + Compensation — is `CODE_COMPLETE`;
-TASK-031, TASK-053, TASK-090 and TASK-091-R1 are satisfied. The completed
-runtime contract and report are at
-`tasks/TASK-091_CONTROLLED_SELF_HEALING_COMPENSATION.md` and
-`tasks/TASK-091_IMPLEMENTATION_REPORT.md`. For `RESTART_AGENT`, the platform
-persists a 30-second acceptance deadline from dispatch and starts the
-independent five-minute verification window only from authenticated
-`accepted_at`. An acceptance timeout or ambiguous delivery becomes UNKNOWN;
-late acceptance/runtime evidence is append-only reconciliation evidence and
-cannot resurrect the execution. There is no automatic retry or compensation.
-
-TASK-092 — Advanced Incident Correlation — is reconciled to `READY /
-NOT_STARTED`: declared dependencies TASK-033, TASK-051 and TASK-090 are
-`CODE_COMPLETE`. Do not start TASK-092 contract or runtime work in this
-handoff; stop after recording readiness.
+TASK-092 — Advanced Incident Correlation — is `READY / NOT_STARTED`.
+TASK-092-R1 is `CODE_COMPLETE` (normative/specification remediation only),
+resolving the explicit `SPEC_GAP / PLANNING_REQUIRED`. The workflow/state/
+data/API/event/permission/audit/idempotency/traceability specs and detailed
+`tasks/TASK-092_ADVANCED_INCIDENT_CORRELATION.md` contract are complete.
+Dependencies TASK-033, TASK-051, TASK-090 and TASK-092-R1 are satisfied.
+Runtime work has not started. Stop here and wait for explicit instruction
+before implementing TASK-092.
 
 Deployment note: `apps/agent-gateway/src/main.ts` continues to use the
 fail-closed `unavailableAuthentication` adapter. Configure the existing
@@ -40,8 +24,19 @@ Integration Gate (`SATISFIED / CODE_COMPLETE`); see
 commercial-document storage as `UNAVAILABLE_NOT_READY`; production storage is
 not asserted ready.
 
-The pre-existing `AGENTS.md` modification remains outside the TASK-091
-completion commit.
+The pre-existing `AGENTS.md` modification remains outside the TASK-092-R1
+remediation commit.
+
+## Last Completed Remediation — TASK-092-R1
+
+Advanced Incident Correlation Contract (`CODE_COMPLETE`, specification only).
+See `tasks/TASK-092-R1_ADVANCED_INCIDENT_CORRELATION_CONTRACT.md`. The
+normative v1 score/evidence profile, high-confidence auto-link gates,
+deterministic Root creation, human review, immutable decisions and link
+history, attach/detach/suppression, scoped `SYSTEM_CORRELATION` authorization,
+events, audit, Work Queue, concurrency and acceptance tests are now explicit.
+No runtime code was implemented. TASK-092 readiness is READY / NOT_STARTED;
+do not begin it without an explicit instruction.
 
 ## Last Completed Remediation — TASK-091-R1
 

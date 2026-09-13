@@ -2384,6 +2384,25 @@ Handover
 
 ## Monitoring → Root Incident
 
+TASK-092 adds event-driven Incident-domain candidate discovery and immutable
+CorrelationDecision evidence while reusing TASK-033 Incident/Root ownership
+and TASK-051 topology freshness. TASK-090 primitives are optional where
+applicable; no Action Intent/TASK-091 execution path is involved.
+
+| Slice | Canonical data | Commands / events | Authorization | Required integrity |
+|---|---|---|---|---|
+| Candidate discovery/scoring | Incident; immutable decision/candidate evidence | event evaluation; `INCIDENT.CORRELATION_EVALUATED` | tenant-scoped read | Versioned 0..100 profile; TASK-051 freshness; explain each contribution; no cross-tenant disclosure |
+| Automatic link/root creation | relationship history; deterministic active cluster | `INCIDENT.LINKED_TO_ROOT`, `ROOT_INCIDENT.CREATED_FROM_CORRELATION` | `incident.correlation.link` via AuthorizationPort | ≥85 + strong + unambiguous; deterministic source-key Root creation only; durable uniqueness |
+| Human review/attach/detach | manual decision, active/detached relation, suppression history | attach/reject/detach commands and correlation events | `.review` / `.detach`, tenant/resource scope | expected version, reason, idempotency, immutable machine evidence, one active Root per child |
+| History/fallback | audit/timeline/Work Queue | append-only audit/outbox; one Work Item per unresolved decision | scoped read | no ordinary NO_LINK item; no lifecycle close/delete/merge; no TASK-091 executor |
+
+Required acceptance coverage includes scoring thresholds/strong signals,
+fresh/stale topology, candidate ambiguity, tenant isolation, Root preference
+and deterministic dedupe, attach/detach races and history, suppression,
+replay idempotency, explanation/audit/outbox/Work Queue, and proof that no
+remediation executor is called. Detailed normative contract:
+`tasks/TASK-092_ADVANCED_INCIDENT_CORRELATION.md`.
+
 ```text
 Workflow:
 WF-003 + WF-020

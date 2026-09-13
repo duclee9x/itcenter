@@ -2790,3 +2790,22 @@ attempt; same key/different request yields `IDEMPOTENCY_KEY_CONFLICT`.
 Cancellation is idempotent and allowed only when the platform proves the
 Agent has not accepted the command. Ambiguous dispatch/acceptance must be
 `UNKNOWN`, not `CANCELLED`. Cancellation after acceptance is forbidden.
+
+## TASK-092 Correlation Evaluation Identity and Concurrency
+
+Equivalent evaluation identity is tenant + subject Incident/event + stable
+profile ID/version + material evidence fingerprint/generation. Redelivery of
+that identity is idempotent and must not duplicate decisions, active Root
+relations, deterministic Roots, Work Items, audit or outbox effects. A new
+material evidence epoch or profile version may create a new immutable
+decision; unrelated later evidence must not be collapsed into an earlier
+dedupe identity.
+
+Enforce one ACTIVE Root relation per child and one canonical active Root per
+deterministic cluster using durable uniqueness/transaction semantics. Concurrent
+attach to different Roots, auto-link vs manual detach, manual attach vs
+auto-link, and concurrent cluster creation must serialize. A losing worker
+reloads canonical state and records review/conflict evidence where needed; it
+must never silently replace an active Root. Cluster uniqueness races reload
+the canonical Root. In-memory locking and SELECT-before-INSERT alone are not
+sufficient. Work Item creation for the same unresolved decision is idempotent.

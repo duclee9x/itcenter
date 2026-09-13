@@ -1,19 +1,11 @@
 # Current Task
 
-`TASK-091` — Controlled Self-Healing + Compensation — is
-`CODE_COMPLETE`. The 30-second `RESTART_AGENT` acceptance deadline,
-acceptance-timeout-to-UNKNOWN behavior, independent five-minute verification
-window, timeout/acceptance concurrency and append-only late-evidence
-reconciliation are implemented. See the
-[implementation report](tasks/TASK-091_IMPLEMENTATION_REPORT.md) and
-[normative contract](tasks/TASK-091_CONTROLLED_SELF_HEALING_COMPENSATION.md).
+`TASK-092` — Advanced Incident Correlation — is `READY / NOT_STARTED`.
+TASK-092-R1 is complete (`CODE_COMPLETE`, normative remediation only), and
+the `SPEC_GAP / PLANNING_REQUIRED` is cleared. Dependencies TASK-033,
+TASK-051, TASK-090 and TASK-092-R1 are satisfied. Runtime implementation has
+not started; stop here and do not implement TASK-092 until explicitly
+instructed.
 
-Next: `TASK-092` — Advanced Incident Correlation — is derived `READY /
-NOT_STARTED` because declared dependencies TASK-033, TASK-051 and TASK-090
-are `CODE_COMPLETE`. Its detailed task contract/runtime work has not started.
-Stop here; do not begin TASK-092 without an explicit instruction.
-
-Production Agent Gateway authentication remains fail-closed until the
-deployment configures the existing enrolled-Agent `AuthenticationPort`.
-The local `AGENTS.md` modification predates this completion and is excluded
-from the TASK-091 commit.
+See the [TASK-092-R1 remediation report](tasks/TASK-092-R1_ADVANCED_INCIDENT_CORRELATION_CONTRACT.md)
+and [implementation handoff](IMPLEMENTATION_HANDOFF.md).

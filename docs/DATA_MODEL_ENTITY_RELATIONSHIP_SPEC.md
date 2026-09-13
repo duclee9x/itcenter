@@ -1070,6 +1070,40 @@ incidents ↔ tickets
 
 Append-only operational timeline for incident.
 
+## 14.5 Incident correlation decisions and evidence — TASK-092
+
+Persist immutable tenant-scoped `incident_correlation_decisions` with a
+durable evaluation identity over tenant, subject Incident/event, profile ID
+and version, and material evidence fingerprint/generation. Each decision
+stores evaluated candidate Root IDs, per-candidate evidence references,
+freshness and weighted contributions, capped score, strong-signal codes,
+selected Root when applicable, outcome (`AUTO_LINK`, `REVIEW_REQUIRED`,
+`NO_LINK`), actor/system principal, timestamp and correlation ID. A new
+profile or material evidence epoch creates a new decision; history is never
+rewritten.
+
+Store Incident↔Root history in an append-preserving relation/equivalent
+`incident_root_relations` record with tenant, child Incident, Root Incident,
+`CANDIDATE`/`ACTIVE`/`DETACHED`/`RESOLVED_BY_ROOT` state, automatic or human
+origin, decision/profile references, confidence/evidence references,
+linked/detached actor and timestamps, detach reason and correlation ID. The
+current `incidents.root_incident_id` may be maintained as a read projection,
+but is not the sole relationship source of truth. Preserve detached rows.
+
+Persist manual-detach suppression/override history keyed by tenant, child and
+Root; suppression remains effective during that Root's active lifecycle.
+Authorized manual attach records an explicit override. Persist deterministic
+active correlation-cluster identity by tenant + source type + exact
+canonical source key; enforce durable uniqueness for an active cluster.
+
+Database invariants must enforce at most one ACTIVE Root relation per child
+Incident and one canonical active Root per deterministic cluster. Root may
+have many active children. Competing attaches and root creation must serialize
+through transaction/unique constraints/optimistic concurrency; SELECT-before-
+INSERT alone is insufficient. Candidate reads and writes are tenant-scoped;
+cross-tenant candidates must not leak existence or scores. See the TASK-092
+contract for exact predicates and all decision fields.
+
 ---
 
 # 15. Service Domain

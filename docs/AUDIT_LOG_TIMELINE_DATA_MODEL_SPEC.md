@@ -3584,3 +3584,20 @@ and cannot assert success from dispatch/acceptance alone. `UNKNOWN`, timeout,
 security failure requiring operator review and manual retry review create at
 most one actionable Work Item per terminal execution. Resolving a Work Item
 does not mutate execution state; explicit reconciliation/retry commands do.
+
+## TASK-092 Incident Correlation Audit and Timeline
+
+Audit automatic links, manual attach, reviewer rejection, detach,
+deterministic Root creation and detach-suppression creation/override as
+append-only evidence. Preserve tenant, actor or `SYSTEM_CORRELATION`, child
+Incident, Root, relationship and decision IDs, algorithm/profile version,
+confidence, reason, evidence references, correlation ID and outcome. Never
+overwrite the original machine decision after a human action or profile
+change. Do not include raw monitoring/topology payloads when references are
+sufficient.
+
+Timeline may render automatic link/confidence, review-required candidate
+ambiguity, operator detach, and manual override/attach as readable derived
+entries. Timeline is not relationship authority. Successful automatic links
+and ordinary NO_LINK do not create Work Items; one unresolved
+REVIEW_REQUIRED decision may own at most one actionable Work Item.

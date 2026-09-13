@@ -594,14 +594,40 @@ CLOSED
 
 # 26. Root Incident Correlation State
 
-Child incident relation states:
+Incident lifecycle and Root Incident lifecycle remain governed by their
+existing Incident state machines. Correlation relationship state and
+CorrelationDecision outcome are independent dimensions.
+
+Incident↔Root relationship states:
 
 ```text
 CANDIDATE
-LINKED
+ACTIVE (linked)
 DETACHED
 RESOLVED_BY_ROOT
 ```
+
+`DETACHED` is relationship state, never an Incident lifecycle state. A child
+has at most one ACTIVE Root relationship; detach preserves the historical
+relationship, decision and evidence. No automatic re-parenting is permitted
+in TASK-092 v1. A manual detach suppresses automatic re-attachment to that
+same Root during its active lifecycle; explicit authorized manual attach may
+override the suppression.
+
+Correlation decision outcomes are independently `AUTO_LINK`,
+`REVIEW_REQUIRED` or `NO_LINK`. `AUTO_LINK` requires score ≥85, a strong
+evidence signal and exactly one plausible Root (no other candidate ≥60).
+Scores 60..84, competing candidates or material ambiguity require review;
+scores <60 are NO_LINK unless an explicit ambiguity/root-integrity condition
+requires review. Thresholds and evidence weights belong to the versioned
+TASK-092 v1 profile, not a global Incident lifecycle.
+
+Correlation never closes, deletes, merges or changes Incident lifecycle. A
+deterministic automatic Root may be created only for at least two eligible
+same-tenant non-root Incidents with the same exact canonical source key,
+strong evidence, and no valid existing/conflicting Root. Topology-only or
+heuristic evidence requires human review. See the TASK-092 contract for the
+complete scoring, relationship, authorization and concurrency rules.
 
 ---
 

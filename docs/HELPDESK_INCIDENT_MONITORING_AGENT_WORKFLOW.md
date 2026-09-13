@@ -684,7 +684,7 @@ Shared dependency = Site WAN / Core Switch
 
 ## Trigger Conditions
 
-Root Incident được tạo khi có:
+Root Incident được xem xét khi có:
 
 ```text
 multiple child events
@@ -692,6 +692,13 @@ multiple user tickets
 shared dependency
 high-confidence common cause
 ```
+
+TASK-092 quyết định attach, đề xuất review hoặc không liên kết bằng
+correlation decision bất biến. Không được suy ra auto-link/root creation chỉ
+từ danh sách trigger dưới đây. Root tự động chỉ được tạo khi có ít nhất hai
+Incident eligible cùng tenant chia sẻ exact canonical source correlation key
+mạnh, không có Root hợp lệ hoặc active-root conflict; topology/heuristic-only
+correlation phải đưa qua human review.
 
 Root Incident:
 
@@ -721,22 +728,23 @@ Signals
   ├─ Network discovery
   └─ User tickets
        ↓
-Correlation Engine
+TASK-092 candidate discovery + versioned explainable score
        ↓
-Shared Dependency?
-├─ NO → independent handling
-└─ YES
-    ↓
-Existing Root Incident?
-├─ YES → attach
-└─ NO → create
+AUTO_LINK only: score ≥85 + strong evidence + exactly one plausible Root
+REVIEW_REQUIRED: score 60..84, competing candidates, or material ambiguity
+NO_LINK: score <60
+
+Existing valid Root is preferred. Never select the highest candidate when
+another Root reaches review threshold. Topology freshness comes only from
+TASK-051. Automatic new Root creation is limited to a deterministic shared
+canonical source key; topology-only correlation never creates a Root.
 ```
 
 Sau khi Root Incident tồn tại:
 
 ```text
-new matching alerts → attach
-new matching user tickets → attach
+new matching alerts/tickets → evaluate as new correlation evidence;
+attach automatically only when TASK-092 AUTO_LINK guards pass
 ```
 
 Không tạo incident trùng lặp.
@@ -1464,15 +1472,16 @@ Helpdesk không cần tham gia.
 10:03 1 switch unreachable
 10:03 6 users submit tickets
 ↓
-Correlation Engine
+TASK-092 scores candidate Root relationships using versioned evidence
 ↓
-Same Site + Same Upstream Dependency
+AUTO_LINK only if score ≥85, strong evidence and exactly one plausible Root;
+otherwise REVIEW_REQUIRED or NO_LINK
 ↓
-Root Incident INC-3002 created
+Existing eligible Root preferred; new Root auto-created only for the
+deterministic shared-source-key case defined by TASK-092
 ↓
-All alerts attached
-↓
-User tickets linked
+Only the active Incident↔Root relationship is changed; source Incidents,
+alerts and Tickets remain independently auditable
 ↓
 P1 Major Incident
 ↓
@@ -1490,7 +1499,8 @@ Synthetic tests PASS
 ↓
 Root Incident resolved
 ↓
-Child tickets resolved
+Each child Incident/Ticket follows its own authorized resolution workflow;
+correlation alone does not close either record
 ↓
 Affected users notified
 ```
