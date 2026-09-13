@@ -2120,3 +2120,19 @@ actionable data-integrity, authorization/audience inconsistency, infrastructure
 failure requiring an operator, or unsafe/incorrect Knowledge review supported
 by existing governance. Deduplicate exceptions; Work Queue is not
 recommendation state.
+
+## TASK-094 Asset Scoring Projections and Work Queue
+
+Operations/Reporting may expose the latest Operational Risk and Replacement
+Priority score, band, completeness, freshness and principal evidence reasons.
+Incomplete low scores and UNKNOWN bands must not rank an Asset as healthier
+than a complete assessment. A stale assessment is not current decision
+evidence; show its freshness explicitly and treat current Risk as UNKNOWN.
+
+Only a current CRITICAL Operational Risk assessment creates/upserts one
+`ASSET_RISK_REVIEW` Work Queue item per unresolved review. HIGH is reportable
+without an automatic Work Item. Replacement MONITOR/REVIEW is reporting only;
+UNKNOWN creates no candidate. PLAN/PRIORITY may feed the TASK-059 human
+replacement review path, never Procurement directly. Recalculations and
+repeated source events must not flood the queue. Work Queue remains a
+projection and cannot change computed assessment or human disposition.

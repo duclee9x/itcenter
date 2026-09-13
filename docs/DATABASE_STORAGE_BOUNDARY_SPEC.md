@@ -3130,3 +3130,22 @@ Knowledge search store is added. Ticket source context is stored in the
 Helpdesk Ticket row as an optional typed UUID reference and is immutable after
 creation. It has no FK to future RecommendationSession persistence and no
 direct Knowledge-owned Ticket write.
+
+## TASK-094 Assessment Storage Boundary
+
+`asset` owns immutable Risk and Replacement assessment history, the latest
+assessment projection, verified acquisition evidence and versioned
+replacement useful-life policy. Domain evidence remains in its owning
+relational/observation stores and is read through application query contracts.
+Maintenance owns corrective/preventive classification and repair history;
+Incident owns Root-episode identity; Monitoring owns failure-episode identity;
+Procurement owns immutable cost provenance. TASK-094 must not join private
+cross-domain tables directly.
+
+Enforce tenant-scoped assessment identity, profile/evidence generation
+idempotency and append-only assessment history durably. The latest projection
+is replaceable/rebuildable and records freshness; after 24 hours it is stale
+and cannot authorize or rank a current decision. Assessment payloads store
+references and minimal contributions, not whole Incident/Monitoring/Invoice
+documents. Exact entity fields and uniqueness semantics are defined in
+`tasks/TASK-094_ASSET_RISK_REPLACEMENT_SCORING.md`.

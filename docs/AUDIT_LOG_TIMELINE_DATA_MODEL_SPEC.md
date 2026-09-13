@@ -3623,3 +3623,19 @@ or typed link references, reason, version, correlation and outcome. Search
 reindexing is a derived projection effect and does not rewrite audit history.
 Ticket creation records the optional typed self-service source reference as
 intake provenance; it does not copy Knowledge body content.
+
+## TASK-094 Scoring History and Timeline
+
+Persist each Risk and Replacement assessment as immutable Asset-owned
+explainability evidence: profile/version, score/band/completeness, available
+and missing evidence, source references/versions, calculation/as-of/freshness
+times, trigger and correlation ID. Do not overwrite an earlier assessment on
+recalculation. Audit verified acquisition-date changes, useful-life policy
+changes, explicit recalculation and human review decisions with actor, tenant,
+Asset, reason, before/after references and outcome. Deterministic scores and
+human disposition remain separate.
+
+Timeline may report Risk band changes, Replacement reassessment and
+TASK-059 candidate creation using assessment references and minimal summaries.
+Do not expose full Incident, Monitoring, invoice or supplier documents, and
+do not claim that a score approved or executed an Asset replacement.

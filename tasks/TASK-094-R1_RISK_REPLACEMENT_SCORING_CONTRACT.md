@@ -2,12 +2,9 @@
 
 ## Status
 
-`BLOCKED / NOT_STARTED` — `SPEC_GAP / PLANNING_REQUIRED`.
-
-TASK-094 runtime remains `BLOCKED / NOT_STARTED` until the normative
-decisions below are resolved and a detailed implementation contract is
-persisted. This remediation is specification/planning only. It does not
-implement scoring or change Asset runtime behavior.
+`COMPLETE` — normative/specification remediation only. TASK-094 runtime was
+not implemented. See the detailed contract at
+[`TASK-094_ASSET_RISK_REPLACEMENT_SCORING.md`](TASK-094_ASSET_RISK_REPLACEMENT_SCORING.md).
 
 ## Objective
 
@@ -65,11 +62,12 @@ retire, or dispose an Asset, or invoke TASK-091.
   gives 91 without reproducible contributions. `MVP_PHASED_IMPLEMENTATION_PLAN`
   lists potential factors only.
 
-## Normative Decisions Required
+## Normative Decisions — Resolved
 
-The detailed TASK-094 contract cannot be generated until these decisions are
-specified. No answer is inferred from the examples in existing workflow
-documents.
+The following decision areas were resolved by the authoritative user-supplied
+TASK-094-R1 Asset Risk + Replacement Scoring Contract and recorded in the
+detailed TASK-094 contract. The illustrative formulas/examples previously in
+workflow documentation are superseded by that versioned contract.
 
 1. **Score relationship and purpose:** Are Risk Score and Replacement Score
    independent outputs, or is one derived from the other? Define the decision
@@ -187,10 +185,22 @@ These are planning candidates, not authorization to implement them in R1.
 7. TASK-094 is changed to `READY / NOT_STARTED` only after this contract is
    complete. No runtime TASK-094 code is part of R1.
 
-## Current Blocker
+## Remaining Implementation Dependencies
 
-The decisions above require normative product/business input. Until supplied,
-TASK-094 and TASK-094-R1 remain `BLOCKED / NOT_STARTED` with
-`SPEC_GAP / PLANNING_REQUIRED`. Do not choose weights, thresholds, data
-windows, unknown-data defaults, override semantics or automated actions by
-inference.
+Normative scoring gaps are cleared. Repository reconciliation found explicit
+implementation dependencies that must be resolved before TASK-094 can safely
+consume the required evidence or update existing interfaces:
+
+1. TASK-038 Maintenance Orders have no canonical typed corrective/preventive
+   classification; TASK-094 must not infer it from free text.
+2. TASK-059 candidate creation is implemented in the API route and has no
+   reusable Asset application command/port for TASK-094 to call.
+3. Offboarding currently uses `asset.assets.risk_state = 'MISSING'`, while the
+   new normative contract makes `risk_state` a derived assessment projection
+   and requires UNKNOWN without a current assessment. Preserve the missing
+   signal separately before projecting the score.
+
+These are recorded as `SCOPE_DEPENDENCY` in the TASK-094 detailed contract.
+No dependencies are replaced with free-text inference, cross-domain direct
+SQL, or lossy state rewriting. TASK-094 remains blocked until the owning
+boundaries are made implementable.

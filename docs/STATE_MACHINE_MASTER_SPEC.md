@@ -2963,3 +2963,19 @@ outcome is independent: `NO_RECOMMENDATION`, `PRESENTED`, `USER_RESOLVED`,
 `NOT_HELPFUL`, `ESCALATED`. Open/click or helpful feedback is not resolution;
 explicit `ISSUE_RESOLVED` confirmation is required. These outcomes never
 transition Knowledge, Ticket or Incident lifecycle.
+
+## TASK-094 Risk Projection Is Not Asset Lifecycle
+
+Operational Risk Assessment and Replacement Priority Assessment are separate
+immutable histories, not Asset lifecycle states. Their `LOW/MEDIUM/HIGH/
+CRITICAL` and `MONITOR/REVIEW/PLAN/PRIORITY/UNKNOWN` bands do not transition
+the Asset lifecycle, assignment, maintenance or disposal state. The latest
+Asset `risk_state` is a derived projection of a valid current Risk assessment;
+it is UNKNOWN when no usable assessment exists or its 24-hour validity has
+expired. A lifecycle transition out of eligible in-service states invalidates
+the current projection without deleting historical assessments.
+
+Human acknowledgement/defer/reject/approve decisions are stored separately
+through the TASK-059 review workflow. Score change cannot override or
+terminalize a human decision. Only canonical TASK-059 and Procurement
+commands may advance their respective workflows.

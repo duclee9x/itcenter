@@ -2613,3 +2613,17 @@ TASK-093-R2 makes `knowledge.read` a runtime read capability independent of
 where separately granted operator scope allows it. A read permission cannot
 override audience classification, and audience classification cannot grant
 read permission. Search candidates are subject to the same checks.
+
+## TASK-094 Asset Scoring Permissions
+
+Register narrow capabilities equivalent to `asset.scoring.read`,
+`asset.scoring.recalculate` and `asset.scoring.manage_policy`. Assessment
+reads require same-tenant Asset read scope; recalculation is a separate
+explicit command permission. Useful-life policy management is restricted to
+authorized Asset policy administrators. `SYSTEM_ASSET_SCORING` is an explicit
+tenant-scoped principal with only required Asset scoring, domain evidence
+query and narrow TASK-059 candidate-create grants. Never grant wildcard,
+tenantless, Asset-owner impersonation or general administrator authority.
+Incident, Monitoring, Maintenance and Procurement query permissions remain
+owned and enforced by those domains; approval does not substitute for
+authorization.

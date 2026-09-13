@@ -265,6 +265,7 @@ flowchart TD
   TASK_091["TASK-091<br/>Controlled Self-Healing + Compensation"]
   TASK_092["TASK-092<br/>Advanced Incident Correlation"]
   TASK_093["TASK-093<br/>Knowledge Deflection + Self-Service Recommendations"]
+  TASK_094_R1["TASK-094-R1<br/>Asset Risk + Replacement Scoring Contract"]
   TASK_094["TASK-094<br/>Risk + Replacement Scoring"]
   TASK_095["TASK-095<br/>Advanced Reporting + Governed KPI + Analytics"]
   TASK_096["TASK-096<br/>Explainable Recommendation Layer"]
@@ -290,13 +291,14 @@ flowchart TD
   TASK_061 --> TASK_093
   TASK_092 --> TASK_093
   TASK_038["TASK-038<br/>Maintenance + Warranty Core"]
-  TASK_038 --> TASK_094
+  TASK_038 --> TASK_094_R1
   TASK_050["TASK-050<br/>Asset Audit — Expected vs Observed"]
-  TASK_050 --> TASK_094
+  TASK_050 --> TASK_094_R1
   TASK_058["TASK-058<br/>License Assignment + Reclaim + Compliance"]
-  TASK_058 --> TASK_094
+  TASK_058 --> TASK_094_R1
   TASK_059["TASK-059<br/>Replacement + Retirement + Disposal + Data Wipe"]
-  TASK_059 --> TASK_094
+  TASK_059 --> TASK_094_R1
+  TASK_094_R1 --> TASK_094
   TASK_039 --> TASK_095
   TASK_061 --> TASK_095
   TASK_076 --> TASK_095

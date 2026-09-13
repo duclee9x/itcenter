@@ -4814,3 +4814,28 @@ Ticket intake may preserve optional immutable provenance using
 `source_context_reference_id`. It is a typed external reference, carries no
 authorization, and has no FK to future Knowledge recommendation persistence.
 R2 does not introduce RecommendationSession/Item or deflection runtime.
+
+## TASK-094 Asset Assessment Records
+
+Asset owns immutable `AssetRiskAssessment` and
+`AssetReplacementAssessment` records. Each binds tenant and Asset, integer
+score/band/completeness, immutable scoring profile ID/version, summarized
+contributions and evidence-availability/missing reasons, canonical evidence
+references and source versions, `calculated_at`, `as_of`, `valid_until`,
+trigger and correlation ID. Assessments are append-only; a recalculation
+creates a new record. A latest-assessment table/view is a rebuildable
+projection, not the history. Risk and Replacement assessments are separate
+records and do not become Asset lifecycle state.
+
+Asset also owns a versioned tenant/category-scoped replacement useful-life
+policy and, if missing from existing canonical data, verified acquisition/
+in-service evidence with source kind `PROCUREMENT_RECEIPT`, `IMPORT_VERIFIED`
+or `MANUAL_VERIFIED`. Manual verified dates retain actor, reason/source,
+audit and version. Existing rows are not backfilled from Asset creation time.
+
+The detailed TASK-094 contract defines score formulas, bands, completeness,
+24-hour freshness and permitted references. Cost evidence remains immutable
+Procurement `CostProvenance`/`CostAllocation`; score records retain minimal
+source references and same-currency amounts only where authorized. Maintenance
+classification remains Maintenance-owned. Do not persist cross-domain copies
+of source histories or raw payloads.

@@ -3041,3 +3041,19 @@ Detailed contract: `tasks/TASK-093-R2A_CANONICAL_SERVICE_PLATFORM_REFERENCE_FOUN
 
 TASK-093-R2 does not implement recommendation sessions, score/rank, feedback,
 deflection, or recommendation APIs; those remain TASK-093.
+
+## TASK-094 Asset Risk + Replacement Scoring
+
+| Capability | Owner / persistence | Acceptance evidence |
+|---|---|---|
+| Operational Risk assessment | Asset-owned immutable assessment/profile history; current condition, canonical Incident/Monitoring episodes, corrective Maintenance | exact v1 weights/bands, completeness/UNKNOWN behavior, Root and Monitoring episode dedup, append-only evidence |
+| Replacement Priority assessment | Asset-owned immutable assessment; Risk, verified age/useful-life policy, Warranty and canonical same-currency ACTUAL cost evidence | exact v1 score/bands, no FX, no duplicate failure counts, missing dimensions lower completeness |
+| Canonical age and useful-life inputs | Asset verified acquisition/in-service evidence and tenant/category/version policy | provenance retained, no `created_at` guessing, explicit policy version, historical assessments unchanged |
+| TASK-059 integration | Asset application command/port | PLAN/PRIORITY may request one human Replacement Candidate; no direct table write, no reopen after terminal human disposition |
+| Current projections and review work | Asset latest projection + Operations Work Queue projection | 24-hour freshness, stale Risk is UNKNOWN, one deduplicated Work Item only for current CRITICAL Risk |
+| Safety / boundaries | Asset scoring principal and owning-domain query contracts | no score-triggered PO/lifecycle/assignment/TASK-091 action; tenant/scope enforced; source documents and histories not leaked |
+
+Detailed implementation contract: `tasks/TASK-094_ASSET_RISK_REPLACEMENT_SCORING.md`.
+Current readiness is blocked by the explicitly recorded Maintenance
+classification, TASK-059 application-port and Asset `risk_state` compatibility
+dependencies; do not substitute free text or cross-domain SQL.

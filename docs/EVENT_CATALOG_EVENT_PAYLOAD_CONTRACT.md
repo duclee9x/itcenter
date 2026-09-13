@@ -5594,3 +5594,22 @@ projection. Service, Platform, ServiceEnvironment, Software Product and
 Problem state events may refresh linked Knowledge search documents. Events
 must not contain the Knowledge body. `TICKET.CREATED` may include the typed
 source-context reference; it contains no recommendation content or grants.
+
+## TASK-094 Asset Assessment Events
+
+Define/adapt the following reference-based event semantics:
+
+- `ASSET.RISK_ASSESSED`: tenant, Asset ID, Risk assessment ID, profile ID /
+  version, score, band, completeness, `as_of`, `valid_until`, correlation ID.
+- `ASSET.RISK_BAND_CHANGED`: previous/current band and the new assessment ID;
+  emit only when the projected current band changes.
+- `ASSET.REPLACEMENT_ASSESSED`: Asset ID, Replacement assessment ID, profile
+  ID/version, score, band, completeness, `as_of`, `valid_until`.
+- `ASSET.REPLACEMENT_RECOMMENDED`: assessment reference, band and TASK-059
+  candidate reference where one was created through the canonical command.
+
+Useful-life policy changes and material scoring-profile activation must emit
+versioned references sufficient to enqueue idempotent recalculation. Events
+must not contain full histories, invoices, supplier/commercial documents or
+protected Asset payloads. Events describe assessments, not approval or Asset
+replacement execution.

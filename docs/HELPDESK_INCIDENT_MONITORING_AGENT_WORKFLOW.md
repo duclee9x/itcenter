@@ -1823,3 +1823,19 @@ Canonical `TICKET.CREATE` accepts optional typed Knowledge recommendation
 source provenance and preserves normal structured intake fields. Ticket
 ownership remains Helpdesk; Knowledge does not write Ticket storage, and the
 source reference does not change Ticket lifecycle or authorization.
+
+## TASK-094 Asset Reliability Evidence Boundary
+
+TASK-094 consumes Incident and Monitoring reliability evidence only through
+their owning-domain, tenant-scoped read contracts. Incident history is
+deduplicated by canonical episode: Root Incident ID when linked, otherwise
+Incident ID, over the normative 90-day window. Monitoring reliability uses
+qualifying CRITICAL failure episodes over 30 days, not raw event rows;
+redeliveries and events already represented by a counted Incident/Root
+episode do not count again. Monitoring owns canonical source/problem/
+correlation episode identity and returns UNAVAILABLE when identity cannot be
+resolved safely. Reliability contribution is the greater of the two domain
+contributions, never their sum. Queries are read-only and return references,
+timestamps, episode identity and minimal scoring evidence, not full incident
+or telemetry payloads. Exact formulas and bands are in the TASK-094 detailed
+contract.

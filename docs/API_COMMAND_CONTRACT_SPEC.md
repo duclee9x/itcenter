@@ -2886,3 +2886,24 @@ managers use `POST /api/v1/knowledge/{id}/commands/set-audience` with
 Omission preserves existing clients. The value is tenant-bound to the Ticket,
 immutable after creation and authorization-neutral; it does not perform a
 cross-domain write or require a RecommendationSession table/FK.
+
+## TASK-094 Asset Scoring Commands and Queries
+
+Expose tenant/resource-scoped queries for current Risk and Replacement
+assessments and immutable assessment history. A current response includes
+score, band, completeness, profile/version, `as_of`, freshness/`valid_until`
+and explainable evidence references; it must not expose cost documents or
+cross-tenant evidence.
+
+Provide an explicit idempotent `ASSET.SCORING.RECALCULATE` (or equivalent)
+command guarded by `asset.scoring.recalculate`, expected Asset version and
+correlation context. Useful-life policy create/version/activate operations use
+`asset.scoring.manage_policy`, tenant/category scope, versioning, reason, audit
+and idempotency. A verified acquisition-date command, if required by existing
+Asset storage, requires source kind, actor/reason, expected version, audit and
+idempotency. It must not accept a guessed timestamp from `created_at`.
+
+Automated triggers enqueue scoring through the standard worker/outbox path;
+queries never recalculate implicitly. Candidate creation is delegated to the
+TASK-059 owning application command/port. TASK-094 APIs do not approve a
+candidate, create a PO, or mutate Asset lifecycle/assignment.

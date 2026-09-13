@@ -2818,3 +2818,20 @@ further automatic processing and creates one actionable correlation review
 Work Item with audit/timeline evidence. A successful retry marks the failure
 ledger resolved. This retry ledger is independent of Incident and
 CorrelationDecision state and never replays remediation actions.
+
+## TASK-094 Assessment Idempotency and Concurrency
+
+Scoring event/job redelivery is idempotent by tenant, Asset, assessment type,
+profile version and evidence generation/`as_of` epoch. Durable uniqueness
+prevents duplicate current assessments and duplicate candidate side effects.
+Workers serialize concurrent recalculation and use expected versions or
+equivalent database fencing. If source evidence or Asset eligibility changes
+during collection, persist an exact consistent evidence generation or reject
+and enqueue a fresh calculation; never silently present a mixed snapshot.
+
+Assessment history is append-only. The latest projection may advance only
+from a valid newer assessment. A CRITICAL Risk Work Item and TASK-059
+candidate upsert are idempotent across recalculation/redelivery. Do not
+automatically retry through a second business decision after an uncertain
+candidate command; reconcile the canonical TASK-059 result first. 24-hour
+expiry changes current freshness to STALE without rewriting history.

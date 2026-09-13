@@ -2210,3 +2210,36 @@ Cụm workflow này đạt yêu cầu khi:
 - Asset record vẫn tồn tại sau disposal.
 - Unified Timeline phản ánh toàn bộ maintenance/warranty/replacement/disposal history.
 - Tất cả workflow có permissions, notifications, timers, idempotency và audit trail.
+
+## TASK-094-R1 Asset Risk + Replacement Scoring
+
+The detailed normative scoring contract is
+`tasks/TASK-094_ASSET_RISK_REPLACEMENT_SCORING.md`; it supersedes the
+illustrative score/factor examples above for TASK-094 v1. Keep Operational
+Risk and Replacement Priority as separate immutable assessments with separate
+versioned profiles, completeness and freshness. A score is decision support,
+not replacement approval or an Asset/Procurement lifecycle command.
+
+Operational Risk v1 uses current condition (max health/operational
+contribution, max 40), reliability (max Incident/Monitoring episodes, max
+40) and completed corrective work over 180 days (max 20). Reliability
+windows are 90 days for Incident and 30 days for critical Monitoring; the
+same failure episode is counted once. Preventive maintenance is excluded.
+Replacement Priority v1 uses Risk (max 40), age/useful life (20),
+Warranty/supportability (15) and same-currency ACTUAL repair/acquisition cost
+pressure over 365 days (25). The detailed contract defines exact mappings,
+bands, completeness and UNKNOWN handling; no FX conversion is allowed.
+
+Asset score history is append-only and versioned. Latest `risk_state` is only
+a current, fresh assessment projection and must be UNKNOWN when no usable
+assessment exists. Recalculation preserves historical evidence. CRITICAL Risk
+may upsert one deduplicated `ASSET_RISK_REVIEW`; PLAN/PRIORITY may request a
+TASK-059 human Replacement Candidate through its owning application command.
+No score creates a PO, approves replacement, changes Asset lifecycle or
+invokes TASK-091.
+
+Maintenance owns typed corrective/preventive classification and the
+Maintenance Asset History query. Free-text descriptions are never a scoring
+classification. Until that canonical capability exists, corrective burden
+is unavailable and TASK-094 implementation is blocked by the recorded
+`SCOPE_DEPENDENCY`.

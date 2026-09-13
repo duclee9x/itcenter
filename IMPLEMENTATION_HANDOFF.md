@@ -2,13 +2,17 @@
 
 ## Current Task
 
-TASK-094-R1 — Risk + Replacement Scoring Contract — is
-`BLOCKED / NOT_STARTED` (`SPEC_GAP / PLANNING_REQUIRED`). The normative
-workflow contains illustrative score factors/examples but does not define an
-implementable profile. See
-`tasks/TASK-094-R1_RISK_REPLACEMENT_SCORING_CONTRACT.md` for source findings
-and unresolved decisions. TASK-094 runtime is `BLOCKED / NOT_STARTED`; do not
-implement scoring or begin TASK-095 until the decisions are resolved.
+TASK-094-R1 — Asset Risk + Replacement Scoring Contract — is
+`SATISFIED / CODE_COMPLETE` (normative/specification only). See
+`tasks/TASK-094-R1_RISK_REPLACEMENT_SCORING_CONTRACT.md` and
+`tasks/TASK-094_ASSET_RISK_REPLACEMENT_SCORING.md`. TASK-094 remains
+`BLOCKED / NOT_STARTED` by these exact `SCOPE_DEPENDENCY` items: Maintenance
+needs typed corrective/preventive order classification; TASK-059 needs a
+reusable candidate application command/port; and the existing
+`risk_state='MISSING'` Offboarding behavior needs a separate canonical
+missing/presence signal before `risk_state` can become the derived Risk
+projection. Do not implement scoring through free-text inference or direct
+cross-domain table access. TASK-095 has not started.
 
 TASK-093 is `CODE_COMPLETE`; see
 `tasks/TASK-093_IMPLEMENTATION_REPORT.md`.
@@ -42,9 +46,9 @@ Knowledge Deflection + Self-Service Recommendations (`CODE_COMPLETE`). See
   mutation and no TASK-090/091 remediation path.
 - Full verification passed: `npm test` (143 tests), typecheck, lint/boundaries,
   format check, migration/PostgreSQL integration and `git diff --check`.
-- TASK-094's dependencies TASK-038, TASK-050, TASK-058 and TASK-059 are
-  satisfied, but the missing scoring contract is a `SPEC_GAP`. No TASK-094
-  implementation was started.
+- TASK-094-R1 completed normative scoring and spec reconciliation. TASK-094's
+  declared foundation dependencies are satisfied, but the three explicit
+  owning-domain `SCOPE_DEPENDENCY` items above block runtime implementation.
 
 ## Last Completed Remediation — TASK-093-R2
 
