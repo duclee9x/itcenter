@@ -148,3 +148,112 @@ export async function transitionIncident(input: {
     version,
   };
 }
+
+export interface IncidentRecommendationContextQuery {
+  execute(input: { incidentId?: string; ticketId?: string }): Promise<{
+    incident_id: string | null;
+    incident_state: string | null;
+    service_ids: string[];
+    active_root: { id: string; state: string } | null;
+  } | null>;
+}
+
+/** Read-only, tenant-scoped context projection for Knowledge consumers. */
+export function incidentRecommendationContextQuery(
+  tx: Transaction,
+): IncidentRecommendationContextQuery {
+  return {
+    execute: (input) => readIncidentRecommendationContext({ tx, ...input }),
+  };
+}
+
+export async function readIncidentRecommendationContext(input: {
+  tx: Transaction;
+  incidentId?: string;
+  ticketId?: string;
+}) {
+  if (Boolean(input.incidentId) === Boolean(input.ticketId))
+    throw new ApplicationError(
+      "VALIDATION_ERROR",
+      "Provide exactly one incident_id or ticket_id.",
+    );
+  if (input.incidentId) {
+    const result = await input.tx.query<{
+      incident_id: string;
+      incident_state: string;
+      service_id: string | null;
+      root_incident_id: string | null;
+      root_state: string | null;
+      root_service_id: string | null;
+    }>(
+      `WITH subject AS (
+         SELECT id,state,service_id FROM incident.incidents
+          WHERE tenant_id=$1 AND id=$2
+       ), linked_root AS (
+         SELECT root.id,root.state,root.service_id
+           FROM incident.root_relations rel
+           JOIN incident.incidents root
+             ON root.tenant_id=rel.tenant_id AND root.id=rel.root_incident_id
+          WHERE rel.tenant_id=$1 AND rel.child_incident_id=$2
+            AND rel.relation_state='ACTIVE' AND root.state NOT IN ('CLOSED','CANCELLED')
+         UNION ALL
+         SELECT s.id,s.state,s.service_id FROM subject s
+          WHERE s.state NOT IN ('CLOSED','CANCELLED')
+            AND EXISTS (SELECT 1 FROM incident.root_relations rel
+              WHERE rel.tenant_id=$1 AND rel.root_incident_id=s.id
+                AND rel.relation_state='ACTIVE')
+       )
+       SELECT s.id AS incident_id,s.state AS incident_state,s.service_id,
+         r.id AS root_incident_id,r.state AS root_state,r.service_id AS root_service_id
+         FROM subject s LEFT JOIN LATERAL (
+           SELECT (array_agg(id))[1] AS id,(array_agg(state))[1] AS state,
+             (array_agg(service_id))[1] AS service_id
+             FROM linked_root HAVING count(*)=1
+         ) r ON true`,
+      [input.tx.tenantId, input.incidentId],
+    );
+    const row = result.rows[0];
+    return row
+      ? {
+          incident_id: row.incident_id,
+          incident_state: row.incident_state,
+          service_ids: [
+            ...new Set(
+              [row.service_id, row.root_service_id].filter((id): id is string =>
+                Boolean(id),
+              ),
+            ),
+          ],
+          active_root: row.root_incident_id
+            ? { id: row.root_incident_id, state: row.root_state! }
+            : null,
+        }
+      : null;
+  }
+  const root = await input.tx.query<{
+    id: string;
+    state: string;
+    service_id: string | null;
+  }>(
+    `SELECT (array_agg(i.id))[1] AS id,(array_agg(i.state))[1] AS state,
+        (array_agg(i.service_id))[1] AS service_id FROM incident.relations rel
+       JOIN incident.incidents i ON i.tenant_id=rel.tenant_id AND i.id=rel.root_incident_id
+      WHERE rel.tenant_id=$1 AND rel.related_entity_type='TICKET' AND rel.related_entity_id=$2
+        AND i.state NOT IN ('CLOSED','CANCELLED') HAVING count(DISTINCT i.id)=1`,
+    [input.tx.tenantId, input.ticketId],
+  );
+  const row = root.rows[0];
+  return row
+    ? {
+        incident_id: null,
+        incident_state: null,
+        service_ids: row.service_id ? [row.service_id] : [],
+        active_root: { id: row.id, state: row.state },
+      }
+    : {
+        incident_id: null,
+        incident_state: null,
+        service_ids: [] as string[],
+        active_root: null,
+      };
+}

@@ -2870,3 +2870,19 @@ is explicit and records `INACTIVE`; there is no generic `SET_STATE` or hard
 delete. Environment creation validates an active same-tenant canonical
 Service. Incident writes may reference only a canonical same-tenant Service
 ID; legacy references remain observational and unresolved.
+
+## TASK-093-R2 Knowledge and Ticket Foundation Commands
+
+`GET /api/v1/knowledge/{id}` returns only a canonical `PUBLISHED` article
+after tenant-scoped audience/read authorization (`knowledge.read` for
+`END_USER_SAFE`; `knowledge.read.operator` for `OPERATOR_ONLY`). Knowledge
+managers use `POST /api/v1/knowledge/{id}/commands/set-audience` with
+`expected_version`, audience and reason, or `.../set-applicability` with
+`expected_version`, typed canonical target references and reason. Both use
+`knowledge.manage`, `Idempotency-Key`, audit and `KNOWLEDGE.UPDATED` outbox.
+
+`TICKET.CREATE` accepts optional typed
+`source_context: {type: 'KNOWLEDGE_RECOMMENDATION', reference_id: UUID}`.
+Omission preserves existing clients. The value is tenant-bound to the Ticket,
+immutable after creation and authorization-neutral; it does not perform a
+cross-domain write or require a RecommendationSession table/FK.

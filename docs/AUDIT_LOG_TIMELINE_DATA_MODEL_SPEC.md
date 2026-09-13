@@ -3616,3 +3616,10 @@ self-service. Timeline is derived, not interaction authority. Recheck viewer
 authorization before exposing a Knowledge reference. Never reveal inaccessible
 title, snippet or existence, and do not store full article bodies, credentials
 or protected telemetry in broad audit, events or timeline.
+
+TASK-093-R2 audience/applicability mutations are governance changes and
+append audit evidence with actor, tenant, Knowledge ID, before/after audience
+or typed link references, reason, version, correlation and outcome. Search
+reindexing is a derived projection effect and does not rewrite audit history.
+Ticket creation records the optional typed self-service source reference as
+intake provenance; it does not copy Knowledge body content.

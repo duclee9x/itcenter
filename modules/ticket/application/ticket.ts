@@ -33,11 +33,16 @@ export async function createTicket(input: {
   requesterUserId: string;
   priority: string;
   sourceChannel: string;
+  sourceContext?: {
+    type: "KNOWLEDGE_RECOMMENDATION";
+    referenceId: string;
+  };
 }): Promise<{
   id: string;
   ticket_code: string;
   state: string;
   version: number;
+  source_context?: { type: "KNOWLEDGE_RECOMMENDATION"; reference_id: string };
 }> {
   if (
     !input.ticketCode.trim() ||
@@ -51,6 +56,17 @@ export async function createTicket(input: {
       "VALIDATION_ERROR",
       "ticket fields and source_channel are required.",
     );
+  if (
+    input.sourceContext &&
+    (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      input.sourceContext.referenceId,
+    ) ||
+      input.sourceContext.type !== "KNOWLEDGE_RECOMMENDATION")
+  )
+    throw new ApplicationError(
+      "VALIDATION_ERROR",
+      "source_context is invalid.",
+    );
   const user = await input.tx.query(
     "SELECT id FROM identity.users WHERE tenant_id=$1 AND id=$2 AND employment_status='ACTIVE'",
     [input.tx.tenantId, input.requesterUserId],
@@ -63,7 +79,7 @@ export async function createTicket(input: {
   const id = randomUUID();
   try {
     await input.tx.query(
-      "INSERT INTO helpdesk.tickets(id,tenant_id,ticket_code,title,description,requester_user_id,priority,source_channel) VALUES($1,$2,$3,$4,$5,$6,$7,$8)",
+      "INSERT INTO helpdesk.tickets(id,tenant_id,ticket_code,title,description,requester_user_id,priority,source_channel,source_context_type,source_context_reference_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)",
       [
         id,
         input.tx.tenantId,
@@ -73,6 +89,8 @@ export async function createTicket(input: {
         input.requesterUserId,
         input.priority,
         input.sourceChannel,
+        input.sourceContext?.type ?? null,
+        input.sourceContext?.referenceId ?? null,
       ],
     );
     await input.tx.query(
@@ -94,7 +112,20 @@ export async function createTicket(input: {
       );
     throw error;
   }
-  return { id, ticket_code: input.ticketCode, state: "NEW", version: 1 };
+  return {
+    id,
+    ticket_code: input.ticketCode,
+    state: "NEW",
+    version: 1,
+    ...(input.sourceContext
+      ? {
+          source_context: {
+            type: input.sourceContext.type,
+            reference_id: input.sourceContext.referenceId,
+          },
+        }
+      : {}),
+  };
 }
 export async function transitionTicket(input: {
   tx: Transaction;

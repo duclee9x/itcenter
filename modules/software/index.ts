@@ -1,5 +1,6 @@
 export {
   createSoftwareProduct,
+  readSoftwareProductReference,
   createSoftwareVersion,
   assertVersionAcceptsArtifact,
   changeSoftwareClassification,

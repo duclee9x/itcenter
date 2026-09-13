@@ -2639,3 +2639,23 @@ safe retrieval is unavailable, return `NO_RECOMMENDATION`; do not query
 unrelated canonical tables or block Ticket intake. Recommendation profile
 scoring and the maximum-three end-user result limit are defined by TASK-093,
 not by the general operator Search contract.
+
+## TASK-093-R2 Knowledge Projection
+
+`KNOWLEDGE` uses the existing `operations.search_documents` projection and
+outbox indexer. The source reread is tenant-scoped and indexes only canonical
+`PUBLISHED` articles. It carries exact Knowledge version, audience, state and
+typed applicability IDs needed for filtering; article body text may be used
+for retrieval but is never returned as a Search snippet. The indexed
+authorization action is `knowledge.read` for `END_USER_SAFE` and
+`knowledge.read.operator` for `OPERATOR_ONLY`.
+
+Search candidates are revalidated against current Knowledge state, exact
+version and audience before display, then authorization is evaluated. Stale
+versions and archived or newly operator-only articles are suppressed. Search
+responses do not expose inaccessible Knowledge metadata or counts; the
+projection is not an authorization source. Knowledge update events and
+material applicability-target state events refresh affected documents. Only
+currently active canonical applicability targets contribute to the indexed
+current context; free-text and legacy references never become canonical
+evidence.

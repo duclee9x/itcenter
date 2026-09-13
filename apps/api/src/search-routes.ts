@@ -14,6 +14,7 @@ import type {
 } from "../../../packages/persistence/src/index.js";
 import type { CorrelationContext } from "../../../packages/shared-kernel/src/index.js";
 import { PostgresAudit } from "../../../modules/audit/index.js";
+import { isKnowledgeSearchCandidateCurrent } from "../../../modules/problem/index.js";
 import { PostgresIdempotencyStore } from "../../../packages/messaging/src/index.js";
 import {
   SEARCH_ENTITY_TYPES,
@@ -110,11 +111,27 @@ function filterForResult(candidate: SearchCandidate, q: string) {
 }
 
 async function canReadCandidate(input: {
+  tx: Transaction;
   authorization: AuthorizationPort;
   principal: Principal;
   context: CorrelationContext;
   candidate: SearchCandidate;
 }): Promise<boolean> {
+  if (input.candidate.entity_type === "KNOWLEDGE") {
+    const version = input.candidate.filter_fields.version;
+    const audience = input.candidate.filter_fields.audience;
+    if (
+      !Number.isSafeInteger(version) ||
+      (audience !== "END_USER_SAFE" && audience !== "OPERATOR_ONLY") ||
+      !(await isKnowledgeSearchCandidateCurrent({
+        tx: input.tx,
+        knowledgeId: input.candidate.entity_id,
+        knowledgeVersion: Number(version),
+        audience,
+      }))
+    )
+      return false;
+  }
   const metadata = input.candidate.security_scope ?? {};
   const resourceScope: Record<string, string> = {};
   for (const [key, value] of Object.entries(metadata))
@@ -218,6 +235,7 @@ async function queryWithAuthorization(input: {
     const checks = await Promise.all(
       rows.map((candidate) =>
         canReadCandidate({
+          tx: input.tx,
           authorization: input.authorization,
           principal: input.principal,
           context: input.context,
@@ -252,7 +270,9 @@ async function queryWithAuthorization(input: {
       .slice(0, input.limit)
       .map((candidate) => filterForResult(candidate, input.q)),
     next_cursor: next ? encodeCursor(next) : null,
-    scan_limited: scanned >= 1000 && !next,
+    // Search must not reveal that inaccessible Knowledge matched a query.
+    scan_limited:
+      scanned >= 1000 && !next && !input.types.includes("KNOWLEDGE"),
   };
 }
 
@@ -299,6 +319,7 @@ async function exactFallbackWithAuthorization(input: {
   const checks = await Promise.all(
     candidates.map((candidate) =>
       canReadCandidate({
+        tx: input.tx,
         authorization: input.authorization,
         principal: input.principal,
         context: input.context,

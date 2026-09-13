@@ -3118,3 +3118,15 @@ uniqueness and composite tenant foreign keys in PostgreSQL. Existing
 `legacy_service_id`; migration does not infer or backfill canonical Service
 rows. Observed OS remains observational data; exact configured resolution is
 an application query. No large Platform catalog is seeded.
+
+## TASK-093-R2 Knowledge and Ticket Persistence
+
+Knowledge audience and typed applicability are stored with the TASK-037
+Problem/Knowledge owner. Existing Knowledge rows migrate to
+`OPERATOR_ONLY`; canonical composite tenant FKs target Service, Platform,
+ServiceEnvironment, Software Product and Problem identities. The
+`operations.search_documents` table remains a derived index; no parallel
+Knowledge search store is added. Ticket source context is stored in the
+Helpdesk Ticket row as an optional typed UUID reference and is immutable after
+creation. It has no FK to future RecommendationSession persistence and no
+direct Knowledge-owned Ticket write.

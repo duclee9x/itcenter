@@ -4796,3 +4796,21 @@ an exact, unique configured normalized key/name match. Knowledge applicability
 must use typed canonical IDs; TASK-054 owns Software Product and TASK-037 owns
 Problem/Known Error identities. Reference data does not expand TASK-093 into
 a CMDB project.
+
+## TASK-093-R2 Knowledge Foundation Records
+
+`problem.knowledge_articles.audience` is constrained to `END_USER_SAFE` or
+`OPERATOR_ONLY`, is `NOT NULL`, and defaults to `OPERATOR_ONLY` for
+pre-existing rows. `updated_at` follows material metadata and lifecycle
+version changes. `problem.knowledge_applicability` stores one typed canonical
+target ID per row, tenant and Knowledge article, with composite tenant foreign
+keys and durable duplicate prevention. Supported types are `SERVICE`,
+`PLATFORM`, `SERVICE_ENVIRONMENT`, `SOFTWARE_PRODUCT`, `PROBLEM`, and
+`KNOWN_ERROR`; Problem and Known Error refer to the same canonical Problem
+identity, with `KNOWN_ERROR` requiring that canonical state.
+
+Ticket intake may preserve optional immutable provenance using
+`source_context_type='KNOWLEDGE_RECOMMENDATION'` and a UUID
+`source_context_reference_id`. It is a typed external reference, carries no
+authorization, and has no FK to future Knowledge recommendation persistence.
+R2 does not introduce RecommendationSession/Item or deflection runtime.

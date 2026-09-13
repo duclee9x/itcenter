@@ -101,6 +101,9 @@ test("canonical Service migration preserves unresolved historical Incident Servi
     await unlink(
       path.join(temp, "incident/20260917_001_canonical_service_reference.sql"),
     );
+    await unlink(
+      path.join(temp, "problem/20260918_001_task093_knowledge_foundation.sql"),
+    );
     await migrate(db.pool, temp);
     await db.pool.query(
       `INSERT INTO incident.incidents

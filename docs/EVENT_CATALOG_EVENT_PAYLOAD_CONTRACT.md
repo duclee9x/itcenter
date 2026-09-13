@@ -5584,3 +5584,13 @@ The Service Reference owner may emit `SERVICE.CREATED`, `SERVICE.UPDATED`,
 `SERVICE_ENVIRONMENT.UPDATED` and `SERVICE_ENVIRONMENT.DEACTIVATED`.
 Payloads contain canonical entity ID, tenant-safe reference metadata, state
 and version only. They must not contain arbitrary observed OS payloads.
+
+## TASK-093-R2 Knowledge Index and Handoff Events
+
+Knowledge audience/applicability changes reuse `KNOWLEDGE.UPDATED` with
+Knowledge ID/version and the changed typed metadata references only. The
+Search indexer rereads canonical Knowledge and refreshes the existing
+projection. Service, Platform, ServiceEnvironment, Software Product and
+Problem state events may refresh linked Knowledge search documents. Events
+must not contain the Knowledge body. `TICKET.CREATED` may include the typed
+source-context reference; it contains no recommendation content or grants.

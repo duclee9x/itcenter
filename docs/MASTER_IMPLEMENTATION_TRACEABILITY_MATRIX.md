@@ -3027,3 +3027,16 @@ Detailed implementation gate and required tests: `tasks/TASK-093_KNOWLEDGE_DEFLE
 | Knowledge applicability prerequisites | Service Reference + TASK-054 + TASK-037 | no duplicate catalog; typed canonical target identities |
 
 Detailed contract: `tasks/TASK-093-R2A_CANONICAL_SERVICE_PLATFORM_REFERENCE_FOUNDATION.md`.
+
+## TASK-093-R2 Knowledge Foundation Gate
+
+| Capability | Owner / persistence | Acceptance evidence |
+|---|---|---|
+| Knowledge audience and narrow reads | TASK-037 Problem/Knowledge | legacy defaults fail closed; audience and RBAC both enforced |
+| Typed applicability | Knowledge links to Service, Platform, Environment, Software Product, Problem/Known Error | composite tenant FKs, canonical ID/state validation, auditable replacement |
+| Knowledge Search | TASK-061 projection/indexer | published-only indexing, audience action, canonical version check, no unauthorized metadata leak |
+| Incident recommendation context | Incident application query | minimal same-tenant active Root/Service output, read-only and non-mutating |
+| Ticket handoff provenance | Helpdesk `TICKET.CREATE` | optional typed immutable source reference; backward-compatible idempotent creation |
+
+TASK-093-R2 does not implement recommendation sessions, score/rank, feedback,
+deflection, or recommendation APIs; those remain TASK-093.

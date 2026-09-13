@@ -210,8 +210,8 @@ Only generate a detailed `TASK-xxx_*.md` when the task becomes `READY` or is the
 | `TASK-092` | `F-050` | `WF-INT01` | P5 | P2 | Advanced Incident Correlation | TASK-033, TASK-051, TASK-090, TASK-092-R1, TASK-092-R2 | **SATISFIED** | CODE_COMPLETE | `TASK-092_ADVANCED_INCIDENT_CORRELATION.md` |
 | `TASK-093-R1` | `KNOWLEDGE-DEFLECTION` | `WF-PC-K` | P5 | P0 | Knowledge Deflection + Self-Service Recommendation Contract | TASK-037, TASK-061, TASK-092 | **SATISFIED** | CODE_COMPLETE | `TASK-093-R1_KNOWLEDGE_DEFLECTION_SELF_SERVICE_CONTRACT.md` |
 | `TASK-093-R2A` | `KNOWLEDGE-DEFLECTION` | `WF-PC-K` | P5 | P0 | Canonical Service + Platform/Environment Reference Foundation | TASK-037, TASK-054 | **SATISFIED** | CODE_COMPLETE | `TASK-093-R2A_CANONICAL_SERVICE_PLATFORM_REFERENCE_FOUNDATION.md` |
-| `TASK-093-R2` | `KNOWLEDGE-DEFLECTION` | `WF-PC-K` | P5 | P0 | Knowledge Recommendation Foundation | TASK-037, TASK-061, TASK-092, TASK-093-R1, TASK-093-R2A | **READY** | NOT_STARTED | `TASK-093-R2_KNOWLEDGE_RECOMMENDATION_FOUNDATION.md` |
-| `TASK-093` | `KNOWLEDGE-DEFLECTION` | `WF-PC-K` | P5 | P2 | Knowledge Deflection + Self-Service Recommendations | TASK-037, TASK-061, TASK-092, TASK-093-R1, TASK-093-R2 | **BLOCKED** | NOT_STARTED | `TASK-093_KNOWLEDGE_DEFLECTION_SELF_SERVICE_RECOMMENDATIONS.md` |
+| `TASK-093-R2` | `KNOWLEDGE-DEFLECTION` | `WF-PC-K` | P5 | P0 | Knowledge Recommendation Foundation | TASK-037, TASK-061, TASK-092, TASK-093-R1, TASK-093-R2A | **SATISFIED** | CODE_COMPLETE | `TASK-093-R2_KNOWLEDGE_RECOMMENDATION_FOUNDATION.md` |
+| `TASK-093` | `KNOWLEDGE-DEFLECTION` | `WF-PC-K` | P5 | P2 | Knowledge Deflection + Self-Service Recommendations | TASK-037, TASK-061, TASK-092, TASK-093-R1, TASK-093-R2 | **READY** | NOT_STARTED | `TASK-093_KNOWLEDGE_DEFLECTION_SELF_SERVICE_RECOMMENDATIONS.md` |
 | `TASK-094` | `F-050` | `WF-017/WF-INT01` | P5 | P2 | Risk + Replacement Scoring | TASK-038, TASK-050, TASK-058, TASK-059 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |
 | `TASK-095` | `F-048` | `WF-RPT01` | P5 | P1 | Advanced Reporting + Governed KPI + Analytics | TASK-039, TASK-061, TASK-076 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |
 | `TASK-096` | `F-050` | `WF-INT01` | P5 | P2 | Explainable Recommendation Layer | TASK-090, TASK-092, TASK-093, TASK-094, TASK-095 | **BLOCKED** | NOT_STARTED | `GENERATE_ON_READY` |
@@ -348,8 +348,8 @@ reports and commits confirm TASK-015 (`32c3267`), TASK-036 (`e043c31`) and
 TASK-038 (`296336a`) are `CODE_COMPLETE`.
 
 ```text
-CURRENT = TASK-093-R2 (READY / NOT_STARTED; canonical Service, Platform and ServiceEnvironment dependencies are satisfied by TASK-093-R2A. Await explicit instruction before R2 runtime work.)
-NEXT = Stop after recording R2A completion. TASK-093-R2 is ready but not started; TASK-093 remains blocked/not started.
+CURRENT = TASK-093 (READY / NOT_STARTED; R2 knowledge audience/applicability/search, Incident query and Ticket source-context foundations are CODE_COMPLETE. Await explicit instruction before recommendation runtime work.)
+NEXT = Stop. TASK-093 is ready but not started; recommendation runtime is not implemented.
 TASK-059 = SATISFIED (CODE_COMPLETE)
 TASK-061 = SATISFIED (CODE_COMPLETE)
 TASK-070-R1 = SATISFIED (CODE_COMPLETE)
@@ -375,8 +375,8 @@ TASK-092-R2 = SATISFIED / CODE_COMPLETE (switch-name fallback requires same tena
 TASK-092 = SATISFIED / CODE_COMPLETE (TASK-092-R1 contract and TASK-092-R2 scoped topology identity clarification verified and implemented)
 TASK-093-R1 = SATISFIED / CODE_COMPLETE (normative contract persisted; canonical TASK-037 Knowledge lifecycle reconciled; no runtime changes)
 TASK-093-R2A = SATISFIED / CODE_COMPLETE (canonical reference foundation only; no recommendation runtime; see TASK-093-R2A_IMPLEMENTATION_REPORT.md)
-TASK-093-R2 = READY / NOT_STARTED (R2A canonical references are complete; recommendation foundation has not started)
-TASK-093 = BLOCKED / NOT_STARTED (SCOPE_DEPENDENCY / SECURITY_CONCERN; see TASK-093-R2)
+TASK-093-R2 = SATISFIED / CODE_COMPLETE (Knowledge recommendation foundations implemented and fully verified; no RecommendationSession, ranking, feedback, deflection or recommendation API)
+TASK-093 = READY / NOT_STARTED (R1 normative contract and R2 security/data/search/Incident/Ticket foundations are complete; runtime awaits explicit instruction)
 ```
 
 TASK-061's acceptance criteria and verification gates passed; its implementation
@@ -432,14 +432,14 @@ it requires matching tenant, unique Site scope and normalized switch name;
 both TASK-051 observations must be FRESH. The implementation and regression
 tests are recorded in `TASK-092-R2_TOPOLOGY_FAILURE_DOMAIN_IDENTITY.md`.
 
-TASK-093's declared dependencies TASK-037, TASK-061, TASK-092 and TASK-093-R1
-are satisfied. TASK-093-R1 records the normative recommendation contract.
-TASK-093-R2A supplied and verified canonical tenant-scoped Service, Platform
-and ServiceEnvironment references without recommendation runtime; see
-`TASK-093-R2A_IMPLEMENTATION_REPORT.md`. TASK-093-R2 is now
-`READY / NOT_STARTED` and must wait for explicit instruction before runtime
-work. TASK-093 remains `BLOCKED / NOT_STARTED`; no recommendation runtime has
-begun.
+TASK-093's declared dependencies TASK-037, TASK-061, TASK-092, TASK-093-R1
+and TASK-093-R2 are satisfied. TASK-093-R2A supplied canonical tenant-scoped
+Service, Platform and ServiceEnvironment references; TASK-093-R2 added and
+verified Knowledge audience/read authorization, typed applicability, Search
+indexing, canonical presentation checks, the Incident recommendation query
+and Ticket source provenance. TASK-093 is now `READY / NOT_STARTED`; no
+RecommendationSession, ranking, feedback, deflection or recommendation API
+runtime has begun. See `TASK-093-R2_IMPLEMENTATION_REPORT.md`.
 
 ---
 

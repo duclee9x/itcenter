@@ -9,6 +9,7 @@ export const SEARCH_ENTITY_TYPES = [
   "NETWORK_DEVICE",
   "SOFTWARE_PRODUCT",
   "LICENSE_ENTITLEMENT",
+  "KNOWLEDGE",
 ] as const;
 
 export type SearchEntityType = (typeof SEARCH_ENTITY_TYPES)[number];
@@ -38,6 +39,7 @@ interface CanonicalRow {
   security_scope: Record<string, unknown>;
   source_version: string | number;
   source_updated_at: string;
+  authorization_action?: string;
 }
 
 const sources: Record<
@@ -179,6 +181,31 @@ const sources: Record<
         AND t.term_version=e.current_term_version
       WHERE e.tenant_id=$1 AND e.id=$2 AND p.visibility<>'HIDDEN'`,
   },
+  KNOWLEDGE: {
+    table: "problem.knowledge_articles",
+    permission: "knowledge.read",
+    resource: "knowledge",
+    query: `SELECT k.id,k.slug AS display_code,k.title,NULL::text AS subtitle,
+        ARRAY[k.slug,k.title,k.body]::text[] AS exact_terms,
+        jsonb_build_object('state',k.state,'audience',k.audience,'version',k.version,
+          'applicability',coalesce((SELECT jsonb_agg(jsonb_build_object(
+            'type',a.target_type,'id',coalesce(a.service_id,a.platform_id,a.service_environment_id,a.software_product_id,a.problem_id)))
+            FROM problem.knowledge_applicability a WHERE a.tenant_id=k.tenant_id AND a.knowledge_id=k.id
+              AND CASE a.target_type
+                WHEN 'SERVICE' THEN EXISTS (SELECT 1 FROM service.services s WHERE s.tenant_id=a.tenant_id AND s.id=a.service_id AND s.state='ACTIVE')
+                WHEN 'PLATFORM' THEN EXISTS (SELECT 1 FROM service.platforms p WHERE p.tenant_id=a.tenant_id AND p.id=a.platform_id AND p.state='ACTIVE')
+                WHEN 'SERVICE_ENVIRONMENT' THEN EXISTS (SELECT 1 FROM service.environments e JOIN service.services s ON s.tenant_id=e.tenant_id AND s.id=e.service_id WHERE e.tenant_id=a.tenant_id AND e.id=a.service_environment_id AND e.state='ACTIVE' AND s.state='ACTIVE')
+                WHEN 'SOFTWARE_PRODUCT' THEN EXISTS (SELECT 1 FROM software.software_products p WHERE p.tenant_id=a.tenant_id AND p.id=a.software_product_id AND p.classification NOT IN ('PROHIBITED','DEPRECATED','RETIRED'))
+                WHEN 'PROBLEM' THEN EXISTS (SELECT 1 FROM problem.problems p WHERE p.tenant_id=a.tenant_id AND p.id=a.problem_id AND p.state NOT IN ('CLOSED','CANCELLED'))
+                WHEN 'KNOWN_ERROR' THEN EXISTS (SELECT 1 FROM problem.problems p WHERE p.tenant_id=a.tenant_id AND p.id=a.problem_id AND p.state='KNOWN_ERROR')
+                ELSE false END),'[]'::jsonb)) AS filter_fields,
+        jsonb_build_object('audience',k.audience) AS security_scope,
+        k.version AS source_version,k.updated_at AS source_updated_at,
+        CASE WHEN k.audience='OPERATOR_ONLY' THEN 'knowledge.read.operator'
+          ELSE 'knowledge.read' END AS authorization_action
+      FROM problem.knowledge_articles k
+      WHERE k.tenant_id=$1 AND k.id=$2 AND k.state='PUBLISHED'`,
+  },
 };
 
 export function normalizeSearchText(value: string): string {
@@ -265,7 +292,7 @@ async function upsertRow(
       Number(row.source_version),
       row.source_updated_at,
       source.resource,
-      source.permission,
+      row.authorization_action ?? source.permission,
     ],
   );
   await tx.query(
@@ -319,6 +346,44 @@ export async function refreshSearchEntity(
   return false;
 }
 
+/** Refresh Knowledge projections whose canonical applicability target changed. */
+export async function refreshKnowledgeByApplicabilityTarget(
+  tx: Transaction,
+  targetType:
+    | "SERVICE"
+    | "PLATFORM"
+    | "SERVICE_ENVIRONMENT"
+    | "SOFTWARE_PRODUCT"
+    | "PROBLEM",
+  targetId: string,
+) {
+  const query: Record<typeof targetType, string> = {
+    SERVICE: `SELECT DISTINCT k.id,k.version FROM problem.knowledge_articles k
+      JOIN problem.knowledge_applicability a ON a.tenant_id=k.tenant_id AND a.knowledge_id=k.id
+      LEFT JOIN service.environments e ON e.tenant_id=a.tenant_id AND e.id=a.service_environment_id
+      WHERE a.tenant_id=$1 AND (a.service_id=$2 OR e.service_id=$2)`,
+    PLATFORM: `SELECT DISTINCT k.id,k.version FROM problem.knowledge_articles k
+      JOIN problem.knowledge_applicability a ON a.tenant_id=k.tenant_id AND a.knowledge_id=k.id
+      WHERE a.tenant_id=$1 AND a.platform_id=$2`,
+    SERVICE_ENVIRONMENT: `SELECT DISTINCT k.id,k.version FROM problem.knowledge_articles k
+      JOIN problem.knowledge_applicability a ON a.tenant_id=k.tenant_id AND a.knowledge_id=k.id
+      WHERE a.tenant_id=$1 AND a.service_environment_id=$2`,
+    SOFTWARE_PRODUCT: `SELECT DISTINCT k.id,k.version FROM problem.knowledge_articles k
+      JOIN problem.knowledge_applicability a ON a.tenant_id=k.tenant_id AND a.knowledge_id=k.id
+      WHERE a.tenant_id=$1 AND a.software_product_id=$2`,
+    PROBLEM: `SELECT DISTINCT k.id,k.version FROM problem.knowledge_articles k
+      JOIN problem.knowledge_applicability a ON a.tenant_id=k.tenant_id AND a.knowledge_id=k.id
+      WHERE a.tenant_id=$1 AND a.problem_id=$2`,
+  };
+  const linked = await tx.query<{ id: string; version: number }>(
+    query[targetType],
+    [tx.tenantId, targetId],
+  );
+  for (const article of linked.rows)
+    await refreshSearchEntity(tx, "KNOWLEDGE", article.id, article.version);
+  return linked.rowCount;
+}
+
 export function searchTypeForAggregate(type: string): SearchEntityType | null {
   const map: Record<string, SearchEntityType> = {
     ASSET: "ASSET",
@@ -329,6 +394,7 @@ export function searchTypeForAggregate(type: string): SearchEntityType | null {
     NETWORK_OBSERVATION: "NETWORK_DEVICE",
     SOFTWARE_PRODUCT: "SOFTWARE_PRODUCT",
     LICENSE_ENTITLEMENT: "LICENSE_ENTITLEMENT",
+    KNOWLEDGE: "KNOWLEDGE",
   };
   return map[type] ?? null;
 }
@@ -463,6 +529,8 @@ export async function exactCanonicalFallback(input: {
       LICENSE_ENTITLEMENT: `SELECT e.id FROM license.license_entitlements e
         JOIN software.software_products p ON p.tenant_id=e.tenant_id AND p.id=e.software_product_id
         WHERE e.tenant_id=$1 AND (lower(p.product_code)=lower($2) OR lower(p.name)=lower($2))`,
+      KNOWLEDGE: `SELECT id FROM problem.knowledge_articles WHERE tenant_id=$1
+        AND state='PUBLISHED' AND lower(slug)=lower($2)`,
     };
     const values: (string | null)[] = [input.tx.tenantId, q];
     if (type === "ASSET") values.push(compact);
@@ -487,7 +555,7 @@ export async function exactCanonicalFallback(input: {
         score: 100,
         updated_at: doc.source_updated_at,
         authorization_resource_type: source.resource,
-        authorization_action: source.permission,
+        authorization_action: doc.authorization_action ?? source.permission,
         security_scope: doc.security_scope,
         filter_fields: doc.filter_fields,
       });

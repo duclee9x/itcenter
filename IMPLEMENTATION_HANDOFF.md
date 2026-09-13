@@ -2,13 +2,15 @@
 
 ## Current Task
 
-TASK-093-R2A — Canonical Service + Platform/Environment Reference Foundation
-— is `CODE_COMPLETE`; its report records canonical catalog entities,
-tenant-safe management commands, exact OS resolution, Incident Service
-reference migration, and full PostgreSQL verification. TASK-093-R2 is now
-`READY / NOT_STARTED`. Do not start R2 runtime until explicitly instructed.
-TASK-093 remains `BLOCKED / NOT_STARTED`; no recommendation runtime exists.
-See `tasks/TASK-093-R2A_IMPLEMENTATION_REPORT.md`.
+TASK-093-R2 — Knowledge Recommendation Foundation — is `CODE_COMPLETE` and
+fully verified. TASK-093 is now `READY / NOT_STARTED`; wait for explicit
+instruction before recommendation runtime work. R2 added fail-closed Knowledge
+audience/read authorization, typed canonical applicability, TASK-061 Knowledge
+indexing, canonical presentation-time eligibility, a minimal read-only
+Incident recommendation-context query and typed Ticket self-service source
+provenance. It did not add RecommendationSession/Item, scoring/ranking,
+feedback, deflection runtime or a recommendation API. See
+`tasks/TASK-093-R2_IMPLEMENTATION_REPORT.md`.
 
 Deployment note: `apps/agent-gateway/src/main.ts` continues to use the
 fail-closed `unavailableAuthentication` adapter. Configure the existing
@@ -23,8 +25,25 @@ Integration Gate (`SATISFIED / CODE_COMPLETE`); see
 commercial-document storage as `UNAVAILABLE_NOT_READY`; production storage is
 not asserted ready.
 
-The pre-existing `AGENTS.md` modification remains outside the TASK-092
-implementation and TASK-092-R2 commits.
+The pre-existing `AGENTS.md` modification remains outside the TASK-092 and
+TASK-092-R2 commits and is excluded from TASK-093-R2.
+
+## Last Completed Remediation — TASK-093-R2
+
+Knowledge Recommendation Foundation (`CODE_COMPLETE`). See
+`tasks/TASK-093-R2_IMPLEMENTATION_REPORT.md`.
+
+- Added fail-closed Knowledge audience classification/read authorization,
+  tenant-validated typed applicability relationships, TASK-061 Knowledge
+  indexing and canonical presentation-time eligibility checks.
+- Added a tenant-scoped, read-only Incident recommendation-context query and
+  optional immutable `KNOWLEDGE_RECOMMENDATION` source provenance for
+  `TICKET.CREATE`.
+- Full verification passed: `npm test` (138 tests, including PostgreSQL
+  migration, integration and E2E), typecheck, lint/boundaries, format check
+  and `git diff --check`.
+- TASK-093 is `READY / NOT_STARTED`. Recommendation runtime remains out of
+  scope and awaits explicit instruction.
 
 ## Last Completed Task — TASK-092
 

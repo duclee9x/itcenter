@@ -9,10 +9,10 @@ workflow_id: WF-PC-K
 phase: P5
 priority: P2
 status: NOT_STARTED
-readiness: BLOCKED
+readiness: READY
 owner_domain: Helpdesk / Problem Knowledge
 dependencies: [TASK-037, TASK-061, TASK-092, TASK-093-R1, TASK-093-R2]
-blocker: SCOPE_DEPENDENCY / SECURITY_CONCERN (TASK-093-R2 foundation must complete before recommendation runtime)
+blocker: null (TASK-093-R2 foundation completed; recommendation runtime remains unstarted)
 ```
 
 ## 2. Objective

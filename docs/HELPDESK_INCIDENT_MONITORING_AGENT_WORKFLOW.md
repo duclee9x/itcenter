@@ -1808,3 +1808,18 @@ infer a Service from display text or create catalog rows during migration.
 Incident and correlation consumers use canonical Service IDs only for
 Service-based evidence. The Service Reference owner provides typed read/query
 contracts; Incident does not own or mutate Service catalog records.
+
+## TASK-093-R2 Incident Recommendation Context Query
+
+Incident exposes a read-only, tenant-scoped recommendation context query for
+an Incident or existing Ticket reference. It returns only the active Root
+reference/state when exactly one nonterminal canonical Root relationship is
+resolvable, plus canonical Service IDs and minimum Incident context. Ambiguous
+or cross-tenant context returns no Root context. The query does not return
+correlation history/raw topology, mutate Root relationships, or require the
+Knowledge domain to query Incident tables.
+
+Canonical `TICKET.CREATE` accepts optional typed Knowledge recommendation
+source provenance and preserves normal structured intake fields. Ticket
+ownership remains Helpdesk; Knowledge does not write Ticket storage, and the
+source reference does not change Ticket lifecycle or authorization.

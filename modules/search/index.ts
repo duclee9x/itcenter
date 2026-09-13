@@ -5,6 +5,7 @@ export {
   normalizeExactTerm,
   normalizeSearchText,
   refreshSearchEntity,
+  refreshKnowledgeByApplicabilityTarget,
   reindexSearchPage,
   searchTypeForAggregate,
 } from "./application/search.js";

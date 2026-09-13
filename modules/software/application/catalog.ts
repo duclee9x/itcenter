@@ -31,6 +31,32 @@ function stringList(value: string[], field: string) {
   return [...new Set(value.map((item) => item.trim()))];
 }
 
+/** Minimal tenant-scoped product reference for other domains' query ports. */
+export async function readSoftwareProductReference(
+  tx: Transaction,
+  productId: string,
+) {
+  const result = await tx.query<{
+    id: string;
+    tenant_id: string;
+    classification: string;
+    visibility: string;
+  }>(
+    `SELECT id,tenant_id,classification,visibility FROM software.software_products
+      WHERE tenant_id=$1 AND id=$2`,
+    [tx.tenantId, productId],
+  );
+  const row = result.rows[0];
+  return row
+    ? {
+        ...row,
+        active: !["PROHIBITED", "DEPRECATED", "RETIRED"].includes(
+          row.classification,
+        ),
+      }
+    : null;
+}
+
 export async function createSoftwareProduct(input: {
   tx: Transaction;
   productCode: string;

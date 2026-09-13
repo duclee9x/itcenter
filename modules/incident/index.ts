@@ -1,4 +1,10 @@
-export { createIncident, transitionIncident } from "./application/incident.js";
+export {
+  createIncident,
+  transitionIncident,
+  readIncidentRecommendationContext,
+  incidentRecommendationContextQuery,
+} from "./application/incident.js";
+export type { IncidentRecommendationContextQuery } from "./application/incident.js";
 export { correlateIncident } from "./application/correlation.js";
 export {
   attachIncidentToRoot,

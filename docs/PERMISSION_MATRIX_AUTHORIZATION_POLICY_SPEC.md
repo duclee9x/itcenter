@@ -2605,3 +2605,11 @@ authoring/governance. Permission registration does not grant these permissions
 to roles automatically; existing role bindings are not broadened by this
 foundation. Recommendation use never bypasses read authorization or explicit
 audience classification.
+
+TASK-093-R2 makes `knowledge.read` a runtime read capability independent of
+`knowledge.manage`. `knowledge.read` permits only otherwise eligible
+`END_USER_SAFE` published Knowledge within tenant/resource scope.
+`knowledge.read.operator` permits published `OPERATOR_ONLY` Knowledge only
+where separately granted operator scope allows it. A read permission cannot
+override audience classification, and audience classification cannot grant
+read permission. Search candidates are subject to the same checks.

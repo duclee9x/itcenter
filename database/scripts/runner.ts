@@ -37,11 +37,15 @@ export async function migrate(
         ? { owner, before: "20260912_010_received_unit_registration.sql" }
         : owner === "operations"
           ? { owner, before: "20260914_001_contract_document_sources.sql" }
-          : { owner },
+          : owner === "problem"
+            ? { owner, before: "20260918_001_task093_knowledge_foundation.sql" }
+            : { owner },
     ),
     { owner: "software", before: "20260912_002_deployment.sql" },
     { owner: "artifact" },
     { owner: "software", after: "20260912_001_catalog.sql" },
+    // Knowledge applicability FKs resolve canonical Service and Software identities.
+    { owner: "problem", after: "20260912_001_problem_change_knowledge.sql" },
     { owner: "license" },
     { owner: "procurement" },
     // The Asset registration identity references immutable Procurement receipt units.

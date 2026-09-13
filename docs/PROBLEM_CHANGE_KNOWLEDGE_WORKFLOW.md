@@ -1605,3 +1605,22 @@ unchecked strings, free-text OS values or legacy Incident Service values as
 canonical matching evidence. Missing/unknown audience is fail-closed; a
 published article is not assumed end-user-safe. This foundation does not add
 recommendation sessions, ranking, feedback or deflection runtime.
+
+## TASK-093-R2 Knowledge Audience and Applicability Runtime
+
+Knowledge lifecycle remains `DRAFT`, `IN_REVIEW`, `PUBLISHED`, `ARCHIVED`.
+Each article has explicit `END_USER_SAFE` or `OPERATOR_ONLY` audience;
+existing rows and new rows default to `OPERATOR_ONLY`. Runtime read
+authorization is separate from `knowledge.manage`: end-user-safe reads require
+`knowledge.read`, while operator-only reads require
+`knowledge.read.operator`, both within tenant/resource scope. Exact-version
+recommendation eligibility requires current `PUBLISHED`, `END_USER_SAFE` and
+an authorization ALLOW before returning presentation metadata.
+
+Applicability is stored as typed, tenant-constrained links to Service,
+Platform, ServiceEnvironment, TASK-054 Software Product and TASK-037 Problem/
+Known Error IDs. Foreign/unknown IDs and inactive reference targets are
+rejected for new links. Replacing links increments the Knowledge version and
+retains before/after audit evidence. Knowledge changes emit the existing
+`KNOWLEDGE.UPDATED` semantic with version and reference-only metadata for
+Search indexing; article body is not included in the event.

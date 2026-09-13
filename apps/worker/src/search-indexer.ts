@@ -4,6 +4,7 @@ import { consume } from "../../../packages/messaging/src/index.js";
 import type { UnitOfWork } from "../../../packages/persistence/src/index.js";
 import {
   refreshSearchEntity,
+  refreshKnowledgeByApplicabilityTarget,
   searchTypeForAggregate,
 } from "../../../modules/search/index.js";
 import type { WorkerTask } from "./host.js";
@@ -30,21 +31,44 @@ async function applySearchEvent(
 ): Promise<"processed" | "duplicate" | "ignored"> {
   let type = searchTypeForAggregate(event.aggregate.type);
   let entityId = event.aggregate.id;
+  let applicabilityTarget:
+    | "SERVICE"
+    | "PLATFORM"
+    | "SERVICE_ENVIRONMENT"
+    | "SOFTWARE_PRODUCT"
+    | "PROBLEM"
+    | null = null;
   if (event.aggregate.type === "SOFTWARE_VERSION") {
     const productId = event.payload.software_product_id;
     if (typeof productId === "string") {
       type = "SOFTWARE_PRODUCT";
       entityId = productId;
+      applicabilityTarget = "SOFTWARE_PRODUCT";
     } else return "ignored";
-  }
-  if (!type) return "ignored";
+  } else if (
+    ["SERVICE", "PLATFORM", "SERVICE_ENVIRONMENT", "PROBLEM"].includes(
+      event.aggregate.type,
+    )
+  )
+    applicabilityTarget = event.aggregate.type as
+      "SERVICE" | "PLATFORM" | "SERVICE_ENVIRONMENT" | "PROBLEM";
+  else if (event.aggregate.type === "SOFTWARE_PRODUCT")
+    applicabilityTarget = "SOFTWARE_PRODUCT";
+  if (!type && !applicabilityTarget) return "ignored";
   return consume(uow, CONSUMER, event, async (tx, committedEvent) => {
-    await refreshSearchEntity(
-      tx,
-      type!,
-      entityId,
-      committedEvent.aggregate.version,
-    );
+    if (type)
+      await refreshSearchEntity(
+        tx,
+        type,
+        entityId,
+        committedEvent.aggregate.version,
+      );
+    if (applicabilityTarget)
+      await refreshKnowledgeByApplicabilityTarget(
+        tx,
+        applicabilityTarget,
+        entityId,
+      );
     await tx.query(
       `INSERT INTO operations.search_index_state(tenant_id,index_state,last_event_at,indexed_at,updated_at)
        VALUES($1,'CURRENT',$2,now(),now())
@@ -95,7 +119,8 @@ export function searchIndexerTask(input: {
              LEFT JOIN operations.search_index_retries r
                ON r.tenant_id=o.tenant_id AND r.event_id=o.event_id
              WHERE o.aggregate_type IN ('ASSET','USER','IDENTITY_USER','TICKET','INCIDENT',
-               'NETWORK_OBSERVATION','SOFTWARE_PRODUCT','SOFTWARE_VERSION','LICENSE_ENTITLEMENT')
+               'NETWORK_OBSERVATION','SOFTWARE_PRODUCT','SOFTWARE_VERSION','LICENSE_ENTITLEMENT','KNOWLEDGE',
+               'SERVICE','PLATFORM','SERVICE_ENVIRONMENT','PROBLEM')
                AND NOT EXISTS (
                  SELECT 1 FROM platform.inbox_events i
                  WHERE i.consumer_name=$1 AND i.event_id=o.event_id

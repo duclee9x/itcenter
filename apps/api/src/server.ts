@@ -127,6 +127,7 @@ import type { ObjectStore } from "../../../packages/object-storage/src/index.js"
 import { handleAutomationRoute } from "./automation-routes.js";
 import { handleAutomationExecutionRoute } from "./automation-execution-routes.js";
 import { handleServiceReferenceRoute } from "./service-reference-routes.js";
+import { handleKnowledgeRoute } from "./knowledge-routes.js";
 
 const networkExceptionQueue = {
   createReference: createNetworkExceptionWorkItem,
@@ -260,6 +261,18 @@ export function apiServer(
   objectStore?: ObjectStore,
 ) {
   return createHttpServer(config, ready, async (req, res, context) => {
+    if (
+      await handleKnowledgeRoute({
+        req,
+        res,
+        context,
+        config,
+        authentication,
+        authorization,
+        uow,
+      })
+    )
+      return true;
     if (
       await handleServiceReferenceRoute({
         req,
@@ -2728,6 +2741,31 @@ export function apiServer(
       } catch {
         throw new ApplicationError("VALIDATION_ERROR", "Invalid JSON request.");
       }
+      let ticketSourceContext:
+        { type: "KNOWLEDGE_RECOMMENDATION"; referenceId: string } | undefined;
+      if (input.source_context !== undefined) {
+        const source = input.source_context;
+        if (
+          !source ||
+          typeof source !== "object" ||
+          Array.isArray(source) ||
+          (source as Record<string, unknown>).type !==
+            "KNOWLEDGE_RECOMMENDATION" ||
+          typeof (source as Record<string, unknown>).reference_id !==
+            "string" ||
+          Object.keys(source).some(
+            (field) => !["type", "reference_id"].includes(field),
+          )
+        )
+          throw new ApplicationError(
+            "VALIDATION_ERROR",
+            "source_context is invalid.",
+          );
+        ticketSourceContext = {
+          type: "KNOWLEDGE_RECOMMENDATION",
+          referenceId: (source as { reference_id: string }).reference_id,
+        };
+      }
       const action = ticketCreateMatch
         ? "ticket.create"
         : ticketCommandMatch![2] === "resolve"
@@ -2775,6 +2813,9 @@ export function apiServer(
                   requesterUserId: input.requester_user_id as string,
                   priority: input.priority as string,
                   sourceChannel: input.source_channel as string,
+                  ...(ticketSourceContext
+                    ? { sourceContext: ticketSourceContext }
+                    : {}),
                 })
               : ticketCommandMatch![2] === "enrich"
                 ? await enrichTicket({
