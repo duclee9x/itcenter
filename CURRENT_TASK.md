@@ -1,8 +1,11 @@
 # Current Task
 
-TASK-096 — Explainable Recommendation Layer — is `READY / NOT_STARTED` after
-recalculating its dependencies. It was not started in this task; wait for an
-explicit assignment.
+TASK-096-R1 — Explainable Recommendation Layer Contract Gap — is the current
+planning task. TASK-096 is `BLOCKED / NOT_STARTED` with
+`SPEC_GAP / PLANNING_REQUIRED`: the registry has no detailed contract and the
+normative scope/ranking/lifecycle/security decisions are unresolved. See
+`tasks/TASK-096-R1_EXPLAINABLE_RECOMMENDATION_CONTRACT_GAP.md`. No runtime code
+was changed. TASK-097 remains `WAITING_DEPENDENCY / NOT_STARTED`.
 
 TASK-094 — Asset Risk + Replacement Scoring — is `CODE_COMPLETE`; see
 `tasks/TASK-094_IMPLEMENTATION_REPORT.md`.
@@ -21,4 +24,4 @@ snapshot/backfill, authorized drill-down and aggregate CSV are implemented and
 verified. See `tasks/TASK-095_IMPLEMENTATION_REPORT.md`.
 
 TASK-097 remains `WAITING_DEPENDENCY / NOT_STARTED` until TASK-096 completes.
-Unrelated `AGENTS.md` changes remain outside the TASK-095 commit.
+The unrelated `AGENTS.md` change remains outside this planning commit.

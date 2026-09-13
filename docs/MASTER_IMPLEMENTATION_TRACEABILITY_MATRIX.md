@@ -3109,5 +3109,22 @@ outcomes. Main TASK-095 is `CODE_COMPLETE`; its implementation and test mapping
 are in `tasks/TASK-095_IMPLEMENTATION_REPORT.md`, including the dedicated
 unit, PostgreSQL acceptance and Operations Overview compatibility tests.
 KPI-004 uses only typed RESOLUTION evidence; ambiguous legacy purposes fail
-closed. TASK-096 is `READY / NOT_STARTED`; TASK-097 remains waiting for
-TASK-096.
+closed. TASK-096 remains blocked pending its own normative contract; TASK-097
+remains waiting for TASK-096.
+
+## TASK-096 Explainable Recommendation Layer Contract Gap
+
+The registry names TASK-096 as “Explainable Recommendation Layer” (F-050,
+WF-INT01) and declares TASK-090/092/093/094/095 as dependencies, but no
+detailed task contract or acceptance model exists. TASK-093's Knowledge-only
+recommendation profile, TASK-092's correlation decisions, TASK-094's Asset
+assessments and TASK-095's read-only KPI results have separate owners; none
+defines a generic cross-domain recommender. Whether TASK-096 composes these
+outputs or owns additional recommendation categories, evidence, ranking,
+lifecycle, human decisions, APIs/events, authorization or action handoffs is
+unresolved. No runtime implementation may infer those choices.
+
+`TASK-096-R1` records the required normative decisions in
+`tasks/TASK-096-R1_EXPLAINABLE_RECOMMENDATION_CONTRACT_GAP.md`. TASK-096 is
+`BLOCKED / NOT_STARTED` with `SPEC_GAP / PLANNING_REQUIRED`; TASK-097 remains
+`WAITING_DEPENDENCY / NOT_STARTED` until TASK-096 completes.

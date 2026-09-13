@@ -2,9 +2,14 @@
 
 ## Current Task
 
-TASK-096 — Explainable Recommendation Layer — is `READY / NOT_STARTED` after
-dependency recalculation. It was not started as part of TASK-095; await an
-explicit assignment. TASK-095 is `CODE_COMPLETE`; see
+TASK-096-R1 — Explainable Recommendation Layer Contract Gap — is the current
+planning task. The parent TASK-096 is `BLOCKED / NOT_STARTED` with
+`SPEC_GAP / PLANNING_REQUIRED` because the registry contains no detailed
+contract and its recommendation scope, deterministic decision policy,
+lifecycle and security boundaries remain unspecified. See
+`tasks/TASK-096-R1_EXPLAINABLE_RECOMMENDATION_CONTRACT_GAP.md`. No runtime code
+was changed. TASK-097 remains `WAITING_DEPENDENCY / NOT_STARTED`. TASK-095 is
+`CODE_COMPLETE`; see
 `tasks/TASK-095_IMPLEMENTATION_REPORT.md` for the nine-KPI runtime, R2/R3
 source integration, snapshot/backfill, drill-down authorization, CSV and full
 verification results.
@@ -25,7 +30,7 @@ XLSX/PDF and underlying-record bulk export.
 TASK-095-R1 — Governed KPI + Analytics Contract — is `CODE_COMPLETE`
 (specification only). TASK-095-R2 historical-state and R3 typed-SLA
 prerequisites are `CODE_COMPLETE`. Main TASK-095 runtime and acceptance are
-also `CODE_COMPLETE`; TASK-096 recalculates to `READY / NOT_STARTED`, and
+also `CODE_COMPLETE`; TASK-096 is blocked on its normative contract and
 TASK-097 remains `WAITING_DEPENDENCY / NOT_STARTED` on TASK-096.
 
 TASK-093 is `CODE_COMPLETE`; see
@@ -54,8 +59,9 @@ Advanced Reporting + Governed KPI + Analytics (`CODE_COMPLETE`). See
 - Verification passed: `npm test` (185 tests: 68 unit/architecture, 2
   contract, 6 migration, 50 integration, 59 E2E), typecheck, lint/boundary,
   format check, migration tests and `git diff --check`.
-- TASK-096 is `READY / NOT_STARTED`; TASK-097 remains
-  `WAITING_DEPENDENCY / NOT_STARTED`. Neither was implemented.
+- TASK-096 is `BLOCKED / NOT_STARTED` with
+  `SPEC_GAP / PLANNING_REQUIRED`; TASK-097 remains
+  `WAITING_DEPENDENCY / NOT_STARTED`.
 
 ## Last Completed Task — TASK-094
 
