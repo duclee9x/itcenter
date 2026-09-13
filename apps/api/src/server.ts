@@ -128,6 +128,7 @@ import { handleAutomationRoute } from "./automation-routes.js";
 import { handleAutomationExecutionRoute } from "./automation-execution-routes.js";
 import { handleServiceReferenceRoute } from "./service-reference-routes.js";
 import { handleKnowledgeRoute } from "./knowledge-routes.js";
+import { handleKnowledgeRecommendationRoute } from "./knowledge-recommendation-routes.js";
 
 const networkExceptionQueue = {
   createReference: createNetworkExceptionWorkItem,
@@ -261,6 +262,18 @@ export function apiServer(
   objectStore?: ObjectStore,
 ) {
   return createHttpServer(config, ready, async (req, res, context) => {
+    if (
+      await handleKnowledgeRecommendationRoute({
+        req,
+        res,
+        context,
+        config,
+        authentication,
+        authorization,
+        uow,
+      })
+    )
+      return true;
     if (
       await handleKnowledgeRoute({
         req,

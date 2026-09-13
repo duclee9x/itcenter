@@ -2,6 +2,7 @@ export {
   SEARCH_ENTITY_TYPES,
   exactCanonicalFallback,
   findSearchCandidates,
+  findKnowledgeRecommendationCandidates,
   normalizeExactTerm,
   normalizeSearchText,
   refreshSearchEntity,

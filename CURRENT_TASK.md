@@ -1,16 +1,13 @@
 # Current Task
 
-`TASK-093` — Knowledge Deflection + Self-Service Recommendations — is
-`READY / NOT_STARTED`. TASK-093-R2 completed and verified its foundation:
-fail-closed audience/read authorization, typed canonical applicability,
-TASK-061 indexing, presentation-time eligibility, the Incident context query,
-and typed Ticket source provenance. Recommendation sessions, ranking,
-feedback, deflection and recommendation APIs are not implemented. Await
-explicit instruction before TASK-093 runtime work. See
-[R2 report](tasks/TASK-093-R2_IMPLEMENTATION_REPORT.md) and
-[R2 contract](tasks/TASK-093-R2_KNOWLEDGE_RECOMMENDATION_FOUNDATION.md).
+`TASK-094` — Risk + Replacement Scoring — is `READY / NOT_STARTED`. Its
+declared dependencies TASK-038, TASK-050, TASK-058 and TASK-059 are all
+`SATISFIED`. The registry still marks its detailed task contract
+`GENERATE_ON_READY`; no TASK-094 work has started. Stop here pending explicit
+instruction.
 
-The preceding completed work includes TASK-093-R2A canonical Service,
-Platform and ServiceEnvironment references and TASK-092-R2 verification
-reconciliation ([TASK-093-R2A report](tasks/TASK-093-R2A_IMPLEMENTATION_REPORT.md),
-[TASK-092-R2 report](tasks/TASK-092-R2_TOPOLOGY_FAILURE_DOMAIN_IDENTITY.md)).
+The just-completed `TASK-093` — Knowledge Deflection + Self-Service
+Recommendations — is `CODE_COMPLETE`. It reuses TASK-037 Knowledge,
+TASK-061 Search, TASK-092 context and canonical Ticket intake without changing
+Knowledge, Ticket or Incident lifecycle. See
+[`TASK-093_IMPLEMENTATION_REPORT.md`](tasks/TASK-093_IMPLEMENTATION_REPORT.md).

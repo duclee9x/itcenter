@@ -8,11 +8,11 @@ feature_id: KNOWLEDGE-DEFLECTION
 workflow_id: WF-PC-K
 phase: P5
 priority: P2
-status: NOT_STARTED
-readiness: READY
-owner_domain: Helpdesk / Problem Knowledge
+status: CODE_COMPLETE
+readiness: SATISFIED
+owner_domain: Problem / Knowledge with canonical Helpdesk Ticket intake
 dependencies: [TASK-037, TASK-061, TASK-092, TASK-093-R1, TASK-093-R2]
-blocker: null (TASK-093-R2 foundation completed; recommendation runtime remains unstarted)
+blocker: null
 ```
 
 ## 2. Objective
@@ -71,9 +71,8 @@ avoid Ticket creation only after explicit user resolution confirmation.
   `ARCHIVED`; aggregate `version` is the current optimistic version. Use these
   actual states and do not create a second KnowledgeVersion lifecycle model.
 - TASK-061 owns RBAC-aware Search/indexing and its explicitly bounded exact
-  canonical fallback. Its current PostgreSQL source list does not yet include
-  Knowledge; add Knowledge through that existing source/index architecture
-  only if required by implementation.
+  canonical fallback. TASK-093 retrieves candidates from the existing index
+  and validates exact Knowledge versions canonically before presentation.
 - TASK-092 provides explainable Root Incident correlation context.
 - Canonical Ticket creation/intake and state commands remain Helpdesk-owned.
 
@@ -482,7 +481,7 @@ TASK-094 or later work.
 ## Implementation Report
 
 ### Status
-IMPLEMENTED / PARTIAL / BLOCKED
+CODE_COMPLETE — see [`TASK-093_IMPLEMENTATION_REPORT.md`](TASK-093_IMPLEMENTATION_REPORT.md)
 
 ### Files Changed
 - ...

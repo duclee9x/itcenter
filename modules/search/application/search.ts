@@ -500,6 +500,63 @@ export async function findSearchCandidates(input: {
   return result.rows;
 }
 
+/** Knowledge recommendation discovery stays inside the TASK-061 index. */
+export async function findKnowledgeRecommendationCandidates(input: {
+  tx: Transaction;
+  q: string;
+  applicability: Array<{ type: string; id: string }>;
+  knowledgeId?: string;
+  limit?: number;
+}): Promise<SearchCandidate[]> {
+  const limit = Math.max(1, Math.min(input.limit ?? 100, 500));
+  const byId = new Map<string, SearchCandidate>();
+  const query = normalizeSearchText(input.q);
+  if (query.length >= 3) {
+    const textMatches = await findSearchCandidates({
+      tx: input.tx,
+      q: input.q,
+      types: ["KNOWLEDGE"],
+      limit,
+    });
+    for (const candidate of textMatches)
+      byId.set(candidate.entity_id, candidate);
+  }
+  if (input.applicability.length || input.knowledgeId) {
+    const referenceMatches = await input.tx.query<SearchCandidate>(
+      `SELECT entity_type,entity_id,display_code,title,subtitle,updated_at,
+          authorization_resource_type,authorization_action,security_scope,filter_fields,
+          100::integer AS score
+         FROM operations.search_documents d
+        WHERE d.tenant_id=$1 AND d.entity_type='KNOWLEDGE' AND NOT d.is_tombstone
+          AND (($2::uuid IS NOT NULL AND d.entity_id=$2)
+            OR EXISTS (
+              SELECT 1 FROM jsonb_array_elements(
+                coalesce(d.filter_fields->'applicability','[]'::jsonb)
+              ) link
+              CROSS JOIN jsonb_array_elements($3::jsonb) ref
+              WHERE link->>'type'=ref->>'type' AND lower(link->>'id')=lower(ref->>'id')
+            ))
+        ORDER BY d.entity_id LIMIT $4`,
+      [
+        input.tx.tenantId,
+        input.knowledgeId ?? null,
+        JSON.stringify(input.applicability),
+        limit,
+      ],
+    );
+    for (const candidate of referenceMatches.rows) {
+      const previous = byId.get(candidate.entity_id);
+      byId.set(candidate.entity_id, {
+        ...candidate,
+        score: Math.max(previous?.score ?? 0, candidate.score),
+      });
+    }
+  }
+  return [...byId.values()]
+    .sort((a, b) => b.score - a.score || a.entity_id.localeCompare(b.entity_id))
+    .slice(0, limit);
+}
+
 export async function exactCanonicalFallback(input: {
   tx: Transaction;
   q: string;

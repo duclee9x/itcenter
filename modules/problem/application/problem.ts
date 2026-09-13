@@ -85,6 +85,24 @@ export async function readKnowledgeArticle(tx: Transaction, id: string) {
   return result.rows[0] ?? null;
 }
 
+export async function readProblemRecommendationReference(
+  tx: Transaction,
+  id: string,
+  kind: "PROBLEM" | "KNOWN_ERROR",
+) {
+  const result = await tx.query<{ id: string; state: string }>(
+    `SELECT id,state FROM problem.problems WHERE tenant_id=$1 AND id=$2`,
+    [tx.tenantId, id],
+  );
+  const row = result.rows[0];
+  if (!row) return null;
+  const active =
+    kind === "KNOWN_ERROR"
+      ? row.state === "KNOWN_ERROR"
+      : !["CLOSED", "CANCELLED"].includes(row.state);
+  return { id: row.id, state: row.state, active };
+}
+
 /** Canonical fail-closed check used immediately before Knowledge presentation. */
 export async function readKnowledgeRecommendationEligibility(input: {
   tx: Transaction;

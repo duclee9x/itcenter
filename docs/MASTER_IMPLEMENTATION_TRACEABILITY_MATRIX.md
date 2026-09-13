@@ -3015,6 +3015,7 @@ Work Queue fallback and preservation of Incident state.
 | Operational measures | Reporting/KPI workflow | Clicks distinct from confirmed deflection; actionable Work Queue only for exceptions |
 
 Detailed implementation gate and required tests: `tasks/TASK-093_KNOWLEDGE_DEFLECTION_SELF_SERVICE_RECOMMENDATIONS.md`.
+Runtime implementation and full verification: `tasks/TASK-093_IMPLEMENTATION_REPORT.md`.
 
 ## TASK-093-R2A Canonical Reference Foundation
 

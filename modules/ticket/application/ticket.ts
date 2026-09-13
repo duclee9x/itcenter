@@ -127,6 +127,23 @@ export async function createTicket(input: {
       : {}),
   };
 }
+
+export async function readTicketReference(tx: Transaction, ticketId: string) {
+  const result = await tx.query<{
+    id: string;
+    ticket_code: string;
+    requester_user_id: string;
+    title: string;
+    description: string;
+    priority: string;
+    state: string;
+  }>(
+    `SELECT id,ticket_code,requester_user_id,title,description,priority,state
+       FROM helpdesk.tickets WHERE tenant_id=$1 AND id=$2`,
+    [tx.tenantId, ticketId],
+  );
+  return result.rows[0] ?? null;
+}
 export async function transitionTicket(input: {
   tx: Transaction;
   ticketId: string;

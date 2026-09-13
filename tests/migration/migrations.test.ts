@@ -14,9 +14,37 @@ import { testDatabase } from "../helpers.js";
 import { migrate } from "../../database/scripts/runner.js";
 test("empty DB applies all migrations; rerun is idempotent and changed migration is rejected", async () => {
   const db = await testDatabase(false);
+  let primaryError: unknown;
   try {
     await migrate(db.pool);
     await migrate(db.pool);
+    const recommendationTables = await db.pool.query(
+      `SELECT tablename FROM pg_tables WHERE schemaname='problem'
+        AND tablename IN ('knowledge_recommendation_sessions','knowledge_recommendation_items','knowledge_recommendation_interactions') ORDER BY tablename`,
+    );
+    assert.deepEqual(
+      recommendationTables.rows.map((row) => row.tablename),
+      [
+        "knowledge_recommendation_interactions",
+        "knowledge_recommendation_items",
+        "knowledge_recommendation_sessions",
+      ],
+    );
+    const immutableEvidence = await db.pool.query(
+      `SELECT tgname FROM pg_trigger WHERE tgrelid IN (
+        'problem.knowledge_recommendation_sessions'::regclass,
+        'problem.knowledge_recommendation_items'::regclass,
+        'problem.knowledge_recommendation_interactions'::regclass
+      ) AND NOT tgisinternal ORDER BY tgname`,
+    );
+    assert.deepEqual(
+      immutableEvidence.rows.map((row) => row.tgname),
+      [
+        "knowledge_recommendation_session_guard",
+        "recommendation_interactions_immutable",
+        "recommendation_items_immutable",
+      ],
+    );
     const tables = await db.pool.query(
       "SELECT schemaname,tablename FROM pg_tables WHERE schemaname IN ('identity','platform','audit')",
     );
@@ -83,8 +111,15 @@ test("empty DB applies all migrations; rerun is idempotent and changed migration
       "\n-- modified",
     );
     await assert.rejects(migrate(db.pool, temp), /Applied migration changed/);
+  } catch (error) {
+    primaryError = error;
+    throw error;
   } finally {
-    await db.close();
+    try {
+      await db.close();
+    } catch (cleanupError) {
+      if (!primaryError) throw cleanupError;
+    }
   }
 });
 
@@ -93,6 +128,7 @@ test("canonical Service migration preserves unresolved historical Incident Servi
   const temp = await mkdtemp(path.join(tmpdir(), "task093-r2a-migration-"));
   const legacyTenant = `legacy-${Date.now()}`;
   const legacyServiceId = "c0000000-0000-4000-8000-000000000001";
+  let primaryError: unknown;
   try {
     await cp("database/migrations", temp, { recursive: true });
     await unlink(
@@ -103,6 +139,9 @@ test("canonical Service migration preserves unresolved historical Incident Servi
     );
     await unlink(
       path.join(temp, "problem/20260918_001_task093_knowledge_foundation.sql"),
+    );
+    await unlink(
+      path.join(temp, "problem/20260918_002_task093_recommendations.sql"),
     );
     await migrate(db.pool, temp);
     await db.pool.query(
@@ -136,8 +175,16 @@ test("canonical Service migration preserves unresolved historical Incident Servi
       [legacyTenant],
     );
     assert.equal(created.rows[0]!.n, 0);
+  } catch (error) {
+    primaryError = error;
+    throw error;
   } finally {
-    await db.close();
-    await rm(temp, { recursive: true, force: true });
+    try {
+      await db.close();
+    } catch (cleanupError) {
+      if (!primaryError) throw cleanupError;
+    } finally {
+      await rm(temp, { recursive: true, force: true });
+    }
   }
 });

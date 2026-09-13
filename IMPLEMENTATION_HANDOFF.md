@@ -2,15 +2,11 @@
 
 ## Current Task
 
-TASK-093-R2 — Knowledge Recommendation Foundation — is `CODE_COMPLETE` and
-fully verified. TASK-093 is now `READY / NOT_STARTED`; wait for explicit
-instruction before recommendation runtime work. R2 added fail-closed Knowledge
-audience/read authorization, typed canonical applicability, TASK-061 Knowledge
-indexing, canonical presentation-time eligibility, a minimal read-only
-Incident recommendation-context query and typed Ticket self-service source
-provenance. It did not add RecommendationSession/Item, scoring/ranking,
-feedback, deflection runtime or a recommendation API. See
-`tasks/TASK-093-R2_IMPLEMENTATION_REPORT.md`.
+TASK-093 is `CODE_COMPLETE`; see
+`tasks/TASK-093_IMPLEMENTATION_REPORT.md`. TASK-094 is `READY / NOT_STARTED`
+because all declared dependencies TASK-038, TASK-050, TASK-058 and TASK-059
+are satisfied. Its detailed task contract remains marked `GENERATE_ON_READY`.
+Do not start TASK-094 without explicit instruction.
 
 Deployment note: `apps/agent-gateway/src/main.ts` continues to use the
 fail-closed `unavailableAuthentication` adapter. Configure the existing
@@ -25,8 +21,24 @@ Integration Gate (`SATISFIED / CODE_COMPLETE`); see
 commercial-document storage as `UNAVAILABLE_NOT_READY`; production storage is
 not asserted ready.
 
-The pre-existing `AGENTS.md` modification remains outside the TASK-092 and
-TASK-092-R2 commits and is excluded from TASK-093-R2.
+The pre-existing `AGENTS.md` modification remains outside the TASK-092,
+TASK-092-R2, TASK-093-R2 and TASK-093 commits.
+
+## Last Completed Task — TASK-093
+
+Knowledge Deflection + Self-Service Recommendations (`CODE_COMPLETE`). See
+`tasks/TASK-093_IMPLEMENTATION_REPORT.md`.
+
+- Added durable session, item and append-only interaction history with a
+  versioned, explainable score profile, canonical exact-version presentation
+  authorization, three-item limit, feedback and explicit resolution.
+- Added idempotent self-service escalation through canonical Ticket creation
+  with typed recommendation-session provenance; no Ticket/Incident lifecycle
+  mutation and no TASK-090/091 remediation path.
+- Full verification passed: `npm test` (143 tests), typecheck, lint/boundaries,
+  format check, migration/PostgreSQL integration and `git diff --check`.
+- TASK-094 recalculates to `READY / NOT_STARTED` from its declared dependency
+  set. No TASK-094 implementation was started.
 
 ## Last Completed Remediation — TASK-093-R2
 
@@ -42,8 +54,8 @@ Knowledge Recommendation Foundation (`CODE_COMPLETE`). See
 - Full verification passed: `npm test` (138 tests, including PostgreSQL
   migration, integration and E2E), typecheck, lint/boundaries, format check
   and `git diff --check`.
-- TASK-093 is `READY / NOT_STARTED`. Recommendation runtime remains out of
-  scope and awaits explicit instruction.
+- TASK-093 runtime subsequently completed as `CODE_COMPLETE`; see the report
+  above for the implementation and verification.
 
 ## Last Completed Task — TASK-092
 
