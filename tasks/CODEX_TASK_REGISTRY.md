@@ -223,7 +223,7 @@ Only generate a detailed `TASK-xxx_*.md` when the task becomes `READY` or is the
 | `TASK-096-R1` | `F-050` | `WF-INT01` | P5 | P0 | Explainable Recommendation Layer Contract | TASK-090, TASK-092, TASK-093, TASK-094, TASK-095 | **SATISFIED** | CODE_COMPLETE | `TASK-096-R1_EXPLAINABLE_RECOMMENDATION_CONTRACT_GAP.md` |
 | `TASK-096-R2` | `F-050` | `WF-INT01` | P5 | P0 | Recommendation Source Read Adapters Foundation | TASK-059, TASK-092, TASK-093, TASK-094, TASK-096-R1 | **SATISFIED** | CODE_COMPLETE | `TASK-096-R2_RECOMMENDATION_SOURCE_READ_ADAPTERS.md` |
 | `TASK-096` | `F-050` | `WF-INT01` | P5 | P2 | Explainable Recommendation Layer | TASK-090, TASK-092, TASK-093, TASK-094, TASK-095, TASK-096-R1, TASK-096-R2 | **SATISFIED** | CODE_COMPLETE | `TASK-096_EXPLAINABLE_RECOMMENDATION_LAYER.md` |
-| `TASK-097` | `PHASE-GATE` | `P5-E2E` | P5 | P0 | Phase 5 System Integration + Intelligence Gate | TASK-091, TASK-092, TASK-093, TASK-094, TASK-095, TASK-096 | **READY** | NOT_STARTED | `GENERATE_ON_READY` |
+| `TASK-097` | `PHASE-GATE` | `P5-E2E` | P5 | P0 | Phase 5 System Integration + Intelligence Gate | TASK-091, TASK-092, TASK-093, TASK-094, TASK-095, TASK-096 | **SATISFIED** | CODE_COMPLETE | `TASK-097_IMPLEMENTATION_REPORT.md` |
 
 ---
 
@@ -348,7 +348,7 @@ Only generate a detailed `TASK-xxx_*.md` when the task becomes `READY` or is the
 - **TASK-096-R1 — Explainable Recommendation Layer Contract:** `CODE_COMPLETE`; normative scope and ownership are persisted.
 - **TASK-096-R2 — Recommendation Source Read Adapters Foundation:** `CODE_COMPLETE`; Incident correlation review and Asset replacement-candidate/current-assessment source reads are implemented within their owning domains. See `tasks/TASK-096-R2_IMPLEMENTATION_REPORT.md`.
 - **TASK-096 — Explainable Recommendation Layer:** `CODE_COMPLETE`; see `tasks/TASK-096_IMPLEMENTATION_REPORT.md` for the three-family aggregation, immutable projection/revisions, actor interactions, authorization and reconciliation verification.
-- **TASK-097 — Phase 5 System Integration + Intelligence Gate:** Advanced automation/intelligence capabilities integrated.
+- **TASK-097 — Phase 5 System Integration + Intelligence Gate:** Phase 5 implementation, ownership/security boundaries, migrations, history semantics, traceability and full verification passed; see `tasks/TASK-097_IMPLEMENTATION_REPORT.md`.
 
 ---
 
@@ -364,8 +364,8 @@ reports and commits confirm TASK-015 (`32c3267`), TASK-036 (`e043c31`) and
 TASK-038 (`296336a`) are `CODE_COMPLETE`.
 
 ```text
-CURRENT = TASK-097 (READY / NOT_STARTED; TASK-096 implementation and verification are complete.)
-NEXT = TASK-097 is ready after dependency recalculation; implementation has not started.
+CURRENT = TASK-097 (CODE_COMPLETE / VERIFIED; Phase 5 gate passed.)
+NEXT = No later task is declared by the Phase 5 gate; do not infer a TASK-098.
 TASK-059 = SATISFIED (CODE_COMPLETE)
 TASK-061 = SATISFIED (CODE_COMPLETE)
 TASK-070-R1 = SATISFIED (CODE_COMPLETE)
@@ -404,7 +404,7 @@ TASK-095 = SATISFIED / CODE_COMPLETE (see TASK-095_IMPLEMENTATION_REPORT.md)
 TASK-096-R1 = SATISFIED / CODE_COMPLETE (normative aggregation contract persisted)
 TASK-096-R2 = SATISFIED / CODE_COMPLETE (Incident/TASK-092 and Asset/TASK-059/TASK-094 read adapters implemented and verified)
 TASK-096 = SATISFIED / CODE_COMPLETE (three-family aggregation runtime and acceptance verification complete; see tasks/TASK-096_IMPLEMENTATION_REPORT.md)
-TASK-097 = READY / NOT_STARTED (all declared dependencies are satisfied; runtime implementation not started)
+TASK-097 = SATISFIED / CODE_COMPLETE (Phase 5 gate verified; see tasks/TASK-097_IMPLEMENTATION_REPORT.md)
 ```
 
 TASK-061's acceptance criteria and verification gates passed; its implementation
@@ -480,8 +480,9 @@ normative Explainable Recommendation Aggregation Layer contract in
 `tasks/TASK-096_EXPLAINABLE_RECOMMENDATION_LAYER.md`. TASK-096-R2 added the
 Incident and Asset owner-domain source adapters; see
 `tasks/TASK-096-R2_IMPLEMENTATION_REPORT.md`. TASK-096 runtime is
-`CODE_COMPLETE`; see `tasks/TASK-096_IMPLEMENTATION_REPORT.md`. TASK-097 is
-`READY / NOT_STARTED` after dependency recalculation and has not been started.
+`CODE_COMPLETE`; see `tasks/TASK-096_IMPLEMENTATION_REPORT.md`. TASK-097 has
+passed its Phase 5 integration/intelligence gate; see
+`tasks/TASK-097_IMPLEMENTATION_REPORT.md`.
 
 ---
 

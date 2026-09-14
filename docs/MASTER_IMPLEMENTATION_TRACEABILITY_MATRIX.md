@@ -2237,15 +2237,16 @@ expiry
 # 53. Phase 5 Implementation Checklist
 
 ```text
-[ ] Advanced Rules Engine
-[ ] Controlled automation
-[ ] Risk scoring
-[ ] Replacement scoring
-[ ] Knowledge deflection
-[ ] Advanced correlation
-[ ] Analytics warehouse if justified
-[ ] Executive KPI
-[ ] Explainable recommendations
+[x] Advanced Rules Engine — TASK-090
+[x] Controlled automation — TASK-090 intent policy + TASK-091 execution boundary
+[x] Risk scoring — TASK-094
+[x] Replacement scoring — TASK-094 with TASK-059 candidate workflow
+[x] Knowledge deflection — TASK-093
+[x] Advanced correlation — TASK-092
+[x] Analytics warehouse assessment — not justified for v1; governed TASK-095 uses PostgreSQL and excludes an external BI warehouse
+[x] Executive KPI — TASK-095 governed KPI catalog
+[x] Explainable recommendations — TASK-096
+[x] Phase 5 Integration + Intelligence Gate — TASK-097
 ```
 
 ---
@@ -3109,8 +3110,11 @@ outcomes. Main TASK-095 is `CODE_COMPLETE`; its implementation and test mapping
 are in `tasks/TASK-095_IMPLEMENTATION_REPORT.md`, including the dedicated
 unit, PostgreSQL acceptance and Operations Overview compatibility tests.
 KPI-004 uses only typed RESOLUTION evidence; ambiguous legacy purposes fail
-closed. TASK-096-R1 has completed the normative aggregation contract and
-TASK-096 is `READY / NOT_STARTED`; TASK-097 remains waiting for TASK-096.
+closed. TASK-096-R1/R2 and runtime are `CODE_COMPLETE`; its report maps the
+three canonical families, immutable revisions, interactions, authorization,
+availability, tests and intentional v1 exclusions. TASK-097 is the Phase 5
+gate, became `READY / NOT_STARTED` only after TASK-096 completed, and is now
+`CODE_COMPLETE / VERIFIED`; see `tasks/TASK-097_IMPLEMENTATION_REPORT.md`.
 
 ## TASK-096 Explainable Recommendation Aggregation Layer
 
@@ -3124,14 +3128,25 @@ TASK-096 is `READY / NOT_STARTED`; TASK-097 remains waiting for TASK-096.
 | Side-effect boundary | TASK-096 | No Work Queue, ActionIntent, TASK-091, source mutation, approval, Procurement or lifecycle action from projection/presentation |
 
 The normative specification is
-`tasks/TASK-096_EXPLAINABLE_RECOMMENDATION_LAYER.md`; R1 is
-`CODE_COMPLETE` and specification-only. TASK-096-R2 (`CODE_COMPLETE`)
-supplies the Incident-owned current correlation
-review source and Asset-owned active replacement-candidate/current-assessment
-source. The Knowledge family continues to compose TASK-093 session and
-presentation-eligibility ports. No Recommendation persistence or runtime
-aggregation was added. Parent TASK-096 is `READY / NOT_STARTED`; TASK-097
-remains `WAITING_DEPENDENCY / NOT_STARTED`. No direct cross-domain SQL is
-allowed.
+`tasks/TASK-096_EXPLAINABLE_RECOMMENDATION_LAYER.md`; R1 is `CODE_COMPLETE` and
+specification-only. TASK-096-R2 (`CODE_COMPLETE`) supplies the Incident-owned
+current correlation review source and Asset-owned active replacement
+candidate/current assessment source. The Knowledge family composes TASK-093
+session and presentation-eligibility ports. TASK-096 runtime supports exactly
+three advisory families with current projections, immutable revisions and
+actor interactions; it uses tenant/source authorization and explicit family
+availability. It creates no Work Queue items, ActionIntents, source commands
+or cross-family score. See `tasks/TASK-096_IMPLEMENTATION_REPORT.md`.
 
-TASK-096 runtime supports exactly three advisory families with Recommendation-owned current projections, immutable revisions/interactions, source-domain reads, explicit family availability and tenant/RBAC checks. It creates no Work Queue items, ActionIntents, source commands or cross-family score.
+## Phase 5 final gate traceability — TASK-097
+
+| Requirement | Owning task / runtime | Acceptance evidence | Gate status |
+|---|---|---|---|
+| Evaluate versioned rules and produce policy-gated intents without execution | TASK-090, `modules/automation`, Automation worker | `tests/unit/automation-rules.test.ts`, `tests/e2e/automation-rules.test.ts`; `tasks/TASK-090_IMPLEMENTATION_REPORT.md` | CODE_COMPLETE |
+| Execute only authenticated, authorized, bounded actions and preserve timeout/reconciliation evidence | TASK-091, Automation execution + Agent Gateway | `tests/e2e/automation-executions.test.ts`; `tasks/TASK-091_IMPLEMENTATION_REPORT.md` | CODE_COMPLETE; production Agent auth adapter configuration remains deployment work |
+| Correlate Incidents with immutable decisions and human-governed link lifecycle | TASK-092, Incident domain/worker | `tests/unit/incident-correlation.test.ts`, `tests/integration/incident-correlation.test.ts`, `tests/e2e/incident-correlation-api.test.ts`; `tasks/TASK-092_IMPLEMENTATION_REPORT.md` | CODE_COMPLETE |
+| Rank/present Knowledge guidance and preserve confirmed self-service outcomes | TASK-093, Problem/Knowledge domain | `tests/unit/task093-recommendations.test.ts`, `tests/integration/task093-knowledge-foundation.test.ts`, `tests/e2e/task093-recommendations.test.ts`; `tasks/TASK-093_IMPLEMENTATION_REPORT.md` | CODE_COMPLETE |
+| Calculate separate Asset Risk and Replacement assessments from owner-domain evidence | TASK-094, Asset domain | `tests/unit/asset-scoring.test.ts`, `tests/integration/task094-scoring.test.ts`, `tests/integration/task094-r2-foundations.test.ts`, `tests/integration/task094-r3-foundations.test.ts`; `tasks/TASK-094_IMPLEMENTATION_REPORT.md` | CODE_COMPLETE; actual repair-cost ledger is unavailable and correctly remains unavailable evidence |
+| Govern nine KPI families, histories/backfill, authorized drill-down and aggregate CSV | TASK-095, Reporting domain | `tests/unit/task095-reporting.test.ts`, `tests/integration/task095-reporting-acceptance.test.ts`, `tests/integration/task095-r2-state-history.test.ts`, `tests/integration/task095-r3-sla-target-purpose.test.ts`, `tests/e2e/task095-reporting-overview-compatibility.test.ts`; `tasks/TASK-095_IMPLEMENTATION_REPORT.md` | CODE_COMPLETE |
+| Aggregate three explainable recommendation families without source mutation or action execution | TASK-096, Recommendation module/API/worker | `tests/unit/task096-recommendation.test.ts`, `tests/integration/task096-recommendation-projection.test.ts`, `tests/integration/task096-r2-recommendation-sources.test.ts`, `tests/e2e/task096-recommendations.test.ts`; `tasks/TASK-096_IMPLEMENTATION_REPORT.md` | CODE_COMPLETE |
+| Phase integration, security, domain boundaries, migrations, historical evidence, idempotency and full repository acceptance | TASK-097 gate | Full `npm test`, typecheck, lint/boundary, format, migrations, dependency/report/code audit; `tasks/TASK-097_IMPLEMENTATION_REPORT.md` | PASS — CODE_COMPLETE / VERIFIED |

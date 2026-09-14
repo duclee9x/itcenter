@@ -1,11 +1,13 @@
 # Current Task
 
 TASK-097 — Phase 5 System Integration + Intelligence Gate — is
-`READY / NOT_STARTED`. TASK-096 — Explainable Recommendation Layer — is
-`CODE_COMPLETE`; see `tasks/TASK-096_IMPLEMENTATION_REPORT.md`. TASK-096
+`CODE_COMPLETE / VERIFIED`; Phase 5 passed the gate. See
+`tasks/TASK-097_IMPLEMENTATION_REPORT.md`. No later task is declared here; do
+not infer or start TASK-098. TASK-096 — Explainable Recommendation Layer —
+is `CODE_COMPLETE`; see `tasks/TASK-096_IMPLEMENTATION_REPORT.md`. It
 aggregates exactly three canonical source families, preserves immutable
 explanations and actor-scoped interactions, and revalidates source
-authorization at read time. TASK-097 is next but has not been started.
+authorization at read time.
 
 TASK-094 — Asset Risk + Replacement Scoring — is `CODE_COMPLETE`; see
 `tasks/TASK-094_IMPLEMENTATION_REPORT.md`.

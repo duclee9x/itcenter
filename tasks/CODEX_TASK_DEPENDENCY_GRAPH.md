@@ -261,17 +261,30 @@ flowchart TD
 
 ```mermaid
 flowchart TD
+  TASK_090_R1["TASK-090-R1<br/>Automation Action Policy + System Principal Contract"]
   TASK_090["TASK-090<br/>Advanced Rules Engine + Policy-Gated Automation"]
+  TASK_091_R1["TASK-091-R1<br/>Automation Action Execution + Verification Contract"]
   TASK_091["TASK-091<br/>Controlled Self-Healing + Compensation"]
+  TASK_092_R1["TASK-092-R1<br/>Advanced Incident Correlation Contract"]
+  TASK_092_R2["TASK-092-R2<br/>Scoped Switch Identity Foundation"]
   TASK_092["TASK-092<br/>Advanced Incident Correlation"]
+  TASK_093_R1["TASK-093-R1<br/>Knowledge Deflection + Self-Service Contract"]
+  TASK_093_R2A["TASK-093-R2A<br/>Canonical Service/Platform Reference Foundation"]
+  TASK_093_R2["TASK-093-R2<br/>Knowledge Recommendation Foundation"]
   TASK_093["TASK-093<br/>Knowledge Deflection + Self-Service Recommendations"]
   TASK_094_R1["TASK-094-R1<br/>Asset Risk + Replacement Scoring Contract"]
+  TASK_094_R2["TASK-094-R2<br/>Asset Scoring Prerequisite Foundations"]
+  TASK_094_R3["TASK-094-R3<br/>Incident Reliability + Warranty Foundation"]
   TASK_094["TASK-094<br/>Risk + Replacement Scoring"]
+  TASK_095_R1["TASK-095-R1<br/>Governed KPI + Analytics Contract"]
+  TASK_095_R2["TASK-095-R2<br/>Historical State Timeline Foundation"]
+  TASK_095_R3["TASK-095-R3<br/>Typed SLA Target Purpose Foundation"]
   TASK_095["TASK-095<br/>Advanced Reporting + Governed KPI + Analytics"]
   TASK_096_R1["TASK-096-R1<br/>Explainable Recommendation Layer Contract"]
   TASK_096_R2["TASK-096-R2<br/>Recommendation Source Read Adapters Foundation"]
   TASK_096["TASK-096<br/>Explainable Recommendation Layer"]
   TASK_097["TASK-097<br/>Phase 5 System Integration + Intelligence Gate"]
+  TASK_090_R1 --> TASK_090
   TASK_039["TASK-039<br/>Safe Automation + Operations Overview + Phase 2 Gate"]
   TASK_039 --> TASK_090
   TASK_061["TASK-061<br/>Advanced Search + Phase 3 Integration Gate"]
@@ -283,15 +296,37 @@ flowchart TD
   TASK_053["TASK-053<br/>Controlled Network Change + Verification + Rollback"]
   TASK_053 --> TASK_091
   TASK_090 --> TASK_091
+  TASK_090 --> TASK_091_R1
+  TASK_091_R1 --> TASK_091
   TASK_033["TASK-033<br/>Root Incident Correlation + Ticket Linking"]
   TASK_033 --> TASK_092
   TASK_051["TASK-051<br/>Network Discovery + Current Topology Projection"]
   TASK_051 --> TASK_092
   TASK_090 --> TASK_092
+  TASK_033 --> TASK_092_R1
+  TASK_051 --> TASK_092_R1
+  TASK_090 --> TASK_092_R1
+  TASK_051 --> TASK_092_R2
+  TASK_092_R1 --> TASK_092_R2
+  TASK_092_R1 --> TASK_092
+  TASK_092_R2 --> TASK_092
   TASK_037["TASK-037<br/>Problem + Change + Knowledge Foundation"]
   TASK_037 --> TASK_093
   TASK_061 --> TASK_093
   TASK_092 --> TASK_093
+  TASK_037 --> TASK_093_R1
+  TASK_061 --> TASK_093_R1
+  TASK_092 --> TASK_093_R1
+  TASK_037 --> TASK_093_R2A
+  TASK_054["TASK-054<br/>Canonical Service Foundation"]
+  TASK_054 --> TASK_093_R2A
+  TASK_037 --> TASK_093_R2
+  TASK_061 --> TASK_093_R2
+  TASK_092 --> TASK_093_R2
+  TASK_093_R1 --> TASK_093_R2
+  TASK_093_R2A --> TASK_093_R2
+  TASK_093_R1 --> TASK_093
+  TASK_093_R2 --> TASK_093
   TASK_038["TASK-038<br/>Maintenance + Warranty Core"]
   TASK_038 --> TASK_094_R1
   TASK_050["TASK-050<br/>Asset Audit — Expected vs Observed"]
@@ -300,10 +335,43 @@ flowchart TD
   TASK_058 --> TASK_094_R1
   TASK_059["TASK-059<br/>Replacement + Retirement + Disposal + Data Wipe"]
   TASK_059 --> TASK_094_R1
+  TASK_038 --> TASK_094_R2
+  TASK_059 --> TASK_094_R2
+  TASK_060["TASK-060<br/>User Offboarding Orchestration"]
+  TASK_060 --> TASK_094_R2
+  TASK_094_R1 --> TASK_094_R2
+  TASK_033 --> TASK_094_R3
+  TASK_038 --> TASK_094_R3
+  TASK_051 --> TASK_094_R3
+  TASK_094_R1 --> TASK_094_R3
+  TASK_094_R2 --> TASK_094_R3
   TASK_094_R1 --> TASK_094
+  TASK_038 --> TASK_094
+  TASK_050 --> TASK_094
+  TASK_058 --> TASK_094
+  TASK_059 --> TASK_094
+  TASK_094_R2 --> TASK_094
+  TASK_094_R3 --> TASK_094
+  TASK_039 --> TASK_095_R1
+  TASK_061 --> TASK_095_R1
+  TASK_076 --> TASK_095_R1
+  TASK_093 --> TASK_095_R1
+  TASK_094 --> TASK_095_R1
+  TASK_095_R1 --> TASK_095_R2
+  TASK_092 --> TASK_095_R2
+  TASK_039 --> TASK_095_R2
+  TASK_095_R1 --> TASK_095_R3
+  TASK_095_R2 --> TASK_095_R3
+  TASK_039 --> TASK_095_R3
   TASK_039 --> TASK_095
   TASK_061 --> TASK_095
   TASK_076 --> TASK_095
+  TASK_092 --> TASK_095
+  TASK_093 --> TASK_095
+  TASK_094 --> TASK_095
+  TASK_095_R1 --> TASK_095
+  TASK_095_R2 --> TASK_095
+  TASK_095_R3 --> TASK_095
   TASK_090 --> TASK_096_R1
   TASK_092 --> TASK_096_R1
   TASK_093 --> TASK_096_R1

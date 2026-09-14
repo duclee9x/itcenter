@@ -3,7 +3,9 @@
 ## Current Task
 
 TASK-097 — Phase 5 System Integration + Intelligence Gate — is
-`READY / NOT_STARTED` and has not been started. TASK-096 — Explainable
+`CODE_COMPLETE / VERIFIED`; the Phase 5 integration/governance gate and full
+repository verification passed. See `tasks/TASK-097_IMPLEMENTATION_REPORT.md`.
+No later task is declared; do not infer or start TASK-098. TASK-096 — Explainable
 Recommendation Layer — is `CODE_COMPLETE`; see
 `tasks/TASK-096_IMPLEMENTATION_REPORT.md`. Its three-family runtime consumes
 owner-domain Incident, Knowledge, and replacement candidate sources, preserves
@@ -30,8 +32,8 @@ TASK-095-R1 — Governed KPI + Analytics Contract — is `CODE_COMPLETE`
 (specification only). TASK-095-R2 historical-state and R3 typed-SLA
 prerequisites are `CODE_COMPLETE`. Main TASK-095 runtime and acceptance are
 also `CODE_COMPLETE`; TASK-096-R1 and TASK-096-R2 are `CODE_COMPLETE`; TASK-096
-is `CODE_COMPLETE`. TASK-097 is `READY / NOT_STARTED` after dependency
-recalculation and has not been started.
+is `CODE_COMPLETE`. TASK-097 has passed its Phase 5 gate; see
+`tasks/TASK-097_IMPLEMENTATION_REPORT.md`.
 
 TASK-093 is `CODE_COMPLETE`; see
 `tasks/TASK-093_IMPLEMENTATION_REPORT.md`.
@@ -61,7 +63,8 @@ Advanced Reporting + Governed KPI + Analytics (`CODE_COMPLETE`). See
   format check, migration tests and `git diff --check`.
 - TASK-096-R1, TASK-096-R2 and TASK-096 are `CODE_COMPLETE`; see
   `tasks/TASK-096_IMPLEMENTATION_REPORT.md`. TASK-097 is
-  `READY / NOT_STARTED`; no TASK-097 runtime work has begun.
+  `CODE_COMPLETE / VERIFIED`; gate results and known intentional limitations
+  are recorded in `tasks/TASK-097_IMPLEMENTATION_REPORT.md`.
 
 ## Last Completed Remediation — TASK-096-R2
 
