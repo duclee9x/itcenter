@@ -8,7 +8,7 @@ flowchart TD
   R001[RELEASE-001 API Authentication & Authorization]
   R002[RELEASE-002 Agent Authentication — CODE_COMPLETE / staging verification pending]
   R003[RELEASE-003 Worker Readiness — CODE_COMPLETE / staging verification pending]
-  R004[RELEASE-004 Immutable Build / Promotion — BLOCKED: operational contract gap]
+  R004[RELEASE-004 Immutable Build / Promotion — READY / NOT_STARTED]
   R005[RELEASE-005 Backup / Restore]
   R006[RELEASE-006 Migration Rehearsal / N-1]
   R007[RELEASE-007 TLS Ingress / Rate Limiting]
@@ -34,7 +34,7 @@ flowchart TD
 | RELEASE-001      | None                                                                                      | Foundational API security adapter is `CODE_COMPLETE`; real IdP/staging verification remains.                 |
 | RELEASE-002      | None                                                                                      | Agent-channel authentication can be designed/configured independently while retaining fail-closed execution. |
 | RELEASE-003      | None                                                                                      | No release-item dependency; RELEASE-003-R1 fixes the readiness profiles and all 13 worker policies.          |
-| RELEASE-004      | None                                                                                      | Cannot start until R1's artifact, target, migration, promotion, and recovery decisions are approved.         |
+| RELEASE-004      | None                                                                                      | R1 fixes the OCI/Compose host target, artifact, migration, promotion, and recovery contracts.                |
 | RELEASE-005      | None                                                                                      | Establishes and proves backup/restore before migrations or promotion.                                        |
 | RELEASE-006      | RELEASE-004, RELEASE-005                                                                  | Rehearsal must use the immutable release artifact and proven recovery path.                                  |
 | RELEASE-007      | RELEASE-004                                                                               | Edge security validation must match the deployable release topology.                                         |
@@ -42,22 +42,22 @@ flowchart TD
 
 ## Derived readiness
 
-Derived state after RELEASE-003 automated implementation and RELEASE-004-R1
-gap discovery:
+Derived state after RELEASE-004-R1 contract completion:
 
 - **CODE_COMPLETE, awaiting environment verification:** RELEASE-001.
 - **CODE_COMPLETE, awaiting environment verification:** RELEASE-002.
 - **CODE_COMPLETE, awaiting staging verification:** RELEASE-003.
-- **READY:** RELEASE-005.
-- **BLOCKED:** RELEASE-004 (`SPEC_GAP / OPERATIONAL_DECISION`).
+- **READY:** RELEASE-004, RELEASE-005.
+- **BLOCKED:** None.
 - **WAITING_DEPENDENCY:** RELEASE-006, RELEASE-007, RELEASE-GATE-001.
   RELEASE-006 depends on RELEASE-004 and RELEASE-005; RELEASE-007 depends on
   RELEASE-004.
 
 “Ready” means eligible to start under the release-item status model. It does
-not claim implementation or verification. RELEASE-003 remains
-`CODE_COMPLETE / NOT VERIFIED`. RELEASE-004 is blocked pending decisions in
+not claim implementation or verification. RELEASE-004 is
+`READY / NOT_STARTED` under
 [RELEASE-004-R1](items/RELEASE-004-R1_IMMUTABLE_ARTIFACT_DEPLOYMENT_PROMOTION_CONTRACT.md).
-RELEASE-005 remains independently ready. Any newly discovered blocker must be
+RELEASE-001 through RELEASE-003 remain unverified pending their environment
+evidence. RELEASE-005 is independent. Any newly discovered blocker must be
 recorded on the affected item and readiness recomputed; dependencies must not
 be bypassed.

@@ -1,127 +1,272 @@
 # RELEASE-004-R1 — Immutable Artifact & Deployment Promotion Contract
 
-| Field                      | Value                                                                                                    |
-| -------------------------- | -------------------------------------------------------------------------------------------------------- |
-| Scope                      | Planning and operational decision record only                                                            |
-| Status                     | `CODE_COMPLETE` — repository gap and required decisions recorded; deployment contract remains incomplete |
-| RELEASE-004                | `BLOCKED / NOT_STARTED`                                                                                  |
-| Blocker                    | `SPEC_GAP / OPERATIONAL_DECISION`                                                                        |
-| Release decision           | `BLOCKED_FOR_RC`                                                                                         |
-| Runtime / pipeline changes | None authorized by R1                                                                                    |
+| Field                      | Value                                                   |
+| -------------------------- | ------------------------------------------------------- |
+| Scope                      | Planning and deployment contract only                   |
+| Status                     | `CODE_COMPLETE`                                         |
+| RELEASE-004                | `READY / NOT_STARTED`                                   |
+| Blocker                    | Cleared: `SPEC_GAP / OPERATIONAL_DECISION`              |
+| Overall release            | `BLOCKED_FOR_RC`                                        |
+| Runtime / pipeline changes | None; implementation is a separate RELEASE-004 activity |
 
-## Purpose and boundary
+## 1. Purpose and boundary
 
-RELEASE-004 cannot safely implement a deployment pipeline until the artifact,
-registry, target environments, migration gate, rollout, promotion authority,
-and recovery mechanism have approved operational choices. This R1 records the
-repository evidence, the non-negotiable release invariants, and the decisions
-that must be resolved before RELEASE-004 becomes `READY`.
+This contract fixes the v1 artifact, host deployment, staging, migration,
+promotion, and recovery model for RELEASE-004. The production target is a
+Linux server or VM running Docker Engine and Docker Compose v2. Docker Compose
+is the canonical deployment mechanism. The v1 design is a single-host,
+non-HA deployment optimized for operational simplicity.
 
-This is a planning record, not an implementation recipe. It does not select a
-container orchestrator, registry, secret manager, signing service, CI provider
-integration, or production topology. It authorizes no runtime, CI, container,
-manifest, migration, or deployment change. RELEASE-005, RELEASE-006, and
-RELEASE-007 remain outside this item.
+This is planning/specification work only. It adds no runtime code, image,
+Compose file, CI workflow, deployment script, migration, or production secret.
+RELEASE-005 backup/restore, RELEASE-006 migration rehearsal, and RELEASE-007
+edge hardening remain separate release items.
 
-## Repository reconciliation at `bead89f`
+## 2. Repository reconciliation
 
-The repository has three production deployables: API (`apps/api`), Agent
-Gateway (`apps/agent-gateway`), and Worker (`apps/worker`). Each has an npm
-start script; the root `npm run build` runs TypeScript compilation and copies
-contracts to `dist/`. It does not produce a production deployment artifact.
-The deployable package manifests do not define separate production build or
-container commands.
+The actual deployables are API (`apps/api`), Agent Gateway
+(`apps/agent-gateway`), and Worker (`apps/worker`). The root TypeScript build
+compiles all three and shared `packages/` and `modules/` into one `dist/`
+tree; `scripts/copy-contracts.mjs` copies the shared contracts. Their entry
+points are `dist/apps/api/src/main.js`,
+`dist/apps/agent-gateway/src/main.js`, and `dist/apps/worker/src/main.js`.
+The migration runner is compiled into the same tree at
+`dist/database/scripts/migrate.js`, and SQL migrations are data files under
+`database/migrations/`. One OCI image can therefore safely serve all three
+processes and the one-shot migration command by using different Node entry
+commands. V1 uses one shared image; the evidence does not justify splitting
+images by process.
 
-The only container file found is `infra/docker/compose.yaml`, which starts a
-local PostgreSQL instance for development. No API, Agent Gateway, or Worker
-Dockerfile/Containerfile, OCI build, Kubernetes/Helm/Kustomize/GitOps manifest,
-staging environment, production environment, or deployment target is present.
-The existing `.github/workflows/ci.yml` runs verification and uploads `dist/`,
-contracts, migrations, and package manifests as a GitHub Actions artifact. It
-does not publish an image to a registry or deploy/promote/rollback an
-environment. GitHub Actions is therefore the current CI verification provider,
-but no release deployment authorization or credentials are configured here.
+The existing CI provider is GitHub Actions. Its current workflow verifies and
+uploads build output but does not build/push an OCI image or deploy. The
+existing `infra/docker/compose.yaml` is local PostgreSQL development setup.
+No production deployment topology or registry was configured before this R1.
+Applications already expose RELEASE-003 health at
+`GET /api/v1/health/live` and `GET /api/v1/health/ready`; their container
+defaults are API port 3000, Agent Gateway port 3001, and Worker health port 3002. Agent Gateway itself terminates TLS client authentication. Runtime
+configuration already accepts protected file references for database and
+Agent TLS/CA materials. Migrations run through the built migration runner,
+which uses the ordered manifest, checksums, PostgreSQL advisory lock, and a
+transaction per migration.
 
-`npm run db:migrate` invokes the repository migration runner. The runner uses
-the ordered migration manifest, a PostgreSQL advisory lock, per-migration
-transactions, and a checksum ledger. There is no release-owned migration job
-or declared ordering relative to application rollout. Database configuration
-is supplied through `DATABASE_SECRET_REF` (including environment/file-backed
-references); no production secret manager or Agent CA/PKI delivery integration
-is selected. RELEASE-003 implements deployable-specific health/readiness and
-drain behavior in the applications, but no orchestrator currently wires those
-probes or shutdown semantics. No current mechanism promotes one artifact
-unchanged or records a last-known-good deployment set.
+## 3. Canonical build artifact and provenance
 
-The existing RC checklist proposes build-once, immutable digest, provenance,
-staging checks, promotion, and forward-fix behavior. It is a future checklist,
-not a selected artifact, registry, deployment, authorization, migration, or
-rollback contract. RELEASE_READINESS.md likewise describes remediation goals,
-not a deployable topology.
+The canonical artifact is one OCI image for the shared compiled runtime. CI
+builds it once from a clean, immutable Git commit after required verification.
+The production server pulls the image; it never checks out application source
+to build, runs `npm install`, runs `npm run build`, or invokes `docker build`.
 
-## Invariants for a future RELEASE-004 implementation
+The immutable deployment identity is `image@sha256:<digest>`. Git-SHA, RC, and
+release tags are human-readable aliases only; mutable tags are never the
+production identity. An environment may change Compose values, secret files,
+ports, or process count without changing the artifact digest. Source or build
+input changes produce a new artifact.
 
-The following requirements are already authorized by the RELEASE-004 scope and
-must be preserved when the operational decisions below are made:
+GitHub Actions is the existing CI provider and owns VERIFY, OCI BUILD, PUSH,
+digest capture, and RC metadata creation. Use a normal OCI registry supported
+by that provider, with a private repository where required. Keep the contract
+registry-vendor-neutral. CI push and host pull credentials are external
+secrets; the host credential is read-only. Retain all artifacts referenced by
+staging, production, or last-known-good release metadata.
 
-- Build from a clean, identified Git commit using lockfiles, deterministic
-  dependency installation, and explicit runtime/build versions. One source
-  commit produces an immutable artifact set; promote the same digest(s) from
-  staging to production without rebuilding.
-- Separate deploy-time environment configuration and secret references from
-  the artifact. Never bake database credentials, OIDC secrets/configuration,
-  Agent CA private keys, or environment-specific endpoints/data into artifacts.
-- A production release record identifies the source commit, artifact digest
-  set, build provenance, schema revision, environment/config revision,
-  staging evidence, promotion actor, and timestamps. Public health responses
-  remain free of sensitive configuration.
-- The migration input comes from the same release artifact/source provenance.
-  Exactly one controlled deployment step owns migrations; migration failure
-  blocks application rollout. Readiness does not run migrations.
-- API, Agent Gateway, and Worker retain their RELEASE-003 readiness profiles,
-  startup and drain behavior. Unready instances receive no normal traffic;
-  health failure in one deployable does not couple unrelated deployables.
-- Production promotion requires the approved staging gate and an explicit
-  authorized promotion control. Preserve RELEASE-001 OIDC/X-Tenant-ID/RBAC and
-  RELEASE-002 mTLS/credential/session semantics without test or bypass modes.
-- Application rollback targets an exact previously deployed immutable digest
-  set and is allowed only when the currently applied schema is compatible.
-  Database rollback is not assumed. When the previous application cannot run
-  safely against the current schema, use a new immutable forward-fix release.
-- Worker rollout retains the 13-worker RELEASE-003 inventory and durable
-  `CONCURRENT_SAFE` coordination. No in-memory leader election is implied.
-- SBOM, signature, and supply-chain provenance claims require recorded evidence
-  and an approved tool/key custody path; unmanaged signing keys are forbidden.
+Each RC record is committed under `release/rc/<id>.json` and contains at least
+the release id, Git commit, shared image digest, schema/migration manifest
+revision, build time, provenance reference, SBOM reference/status, staging
+status/evidence, production status, configuration revision/reference,
+approver/operator identity, and timestamps. It contains no secret values.
+Runtime diagnostics may expose safe version, commit, build time, and digest
+through protected capabilities; public health remains minimal.
 
-## Decisions required before RELEASE-004 is READY
+Build provenance is required and must tie commit, workflow invocation,
+lockfile state, build time, and image digest. Generate and associate an SBOM
+using standard tooling supported by the selected CI/registry path. The
+repository contains no normative artifact-signing requirement or signing
+service; v1 does not claim signed images or introduce a signing key. A later
+mandatory signing policy must use approved managed key custody and be recorded
+as a security-policy change before implementation.
 
-| Decision                                           | Current repository evidence                                                                                                         | Required approved outcome                                                                                                                                                                                                                                 |
-| -------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Canonical artifact format and deployable packaging | `npm run build` emits build output; there are no application images or packages designated as release artifacts.                    | Select the canonical immutable artifact format, whether the three deployables are separate artifacts, and how runtime/migrations are packaged. OCI digest is preferred by the release request but not yet adopted as repository policy.                   |
-| Registry and immutability/retention                | No registry configuration or credentials.                                                                                           | Name the registry/repository model, enforce digest-based deployment, define immutable identity and retention for deployed/rollback artifacts.                                                                                                             |
-| Staging and production targets/topology            | No environment definitions or deployment manifests.                                                                                 | Select the deployment target and define production-like staging and production topology for API, Agent Gateway, Worker, PostgreSQL, and ingress boundaries.                                                                                               |
-| Build/publish/deploy trust boundaries              | GitHub Actions currently verifies and uploads a build artifact only.                                                                | Define trusted-branch/commit rules, clean-tree provenance, permissions for build, publish, staging deploy, and production promotion; keep production authority away from untrusted pull-request contexts.                                                 |
-| Promotion authorization and evidence               | RC checklist names reviewers but no protected environment, approval mechanism, or release record is implemented.                    | Define who/what may approve a digest, required staging evidence, promotion record format, and idempotent retry semantics.                                                                                                                                 |
-| Configuration and secret/PKI delivery              | App configuration accepts secret references; no production secret manager or PKI integration is selected.                           | Select the deployment-time config/version mechanism and secret/Agent CA delivery path, including access boundaries and safe rotation; do not place values in Git, artifacts, or logs.                                                                     |
-| Migration ownership and ordering                   | `db:migrate` and an advisory-lock runner exist, but no release job or rollout ordering is defined.                                  | Specify the single migration owner/job, artifact provenance, database roles, exact pre-rollout/rollout order, failure stop behavior, and state recorded after partial migration progress.                                                                 |
-| Rollout and capacity policy                        | Readiness/drain exists in runtime, but no orchestrator or rollout strategy is configured.                                           | Select the orchestration-native rollout, probe wiring, startup/drain bounds, resource policy, and old/new worker overlap policy consistent with schema constraints.                                                                                       |
-| Staging smoke gate                                 | RC checklist has proposed checks; no executable staging workflow or verification record exists.                                     | Define deterministic non-destructive smoke/acceptance checks and the exact evidence threshold required before production promotion, including real OIDC and mTLS paths.                                                                                   |
-| Rollback and forward-fix authority                 | No deployment rollback mechanism/runbook exists; migration runner has no down-migration mechanism.                                  | Define who can initiate application rollback, how the exact last-known-good digest set and schema compatibility are checked, when rollback is prohibited, and how forward-fix is authorized. Do not claim database rollback without RELEASE-006 evidence. |
-| Release provenance and version metadata            | CI artifact is named `bootstrap-build`; no release/RC identity, OCI digest, runtime build metadata, or config revision is recorded. | Define RC/release identity, digest-to-SBOM/provenance relationship, safe runtime diagnostic fields, and the durable location/owner for promotion history.                                                                                                 |
-| Artifact signing/SBOM policy                       | RC checklist says signature/SBOM “where the chosen platform supports them”; no policy or mechanism is selected.                     | Decide whether signing and SBOM are mandatory for this release, approved tools/identity/key custody, verification point, and failure behavior. Never introduce unmanaged CI signing keys.                                                                 |
+## 4. Shared image and Compose topology
 
-These are operational decisions, not implementation details for an engineer to
-guess. Until the relevant release, security, platform, and database owners
-approve them and the normative release documents are updated, RELEASE-004
-remains blocked. Any later architecture change must preserve the invariants
-above and must not broaden RELEASE-004 into RELEASE-005/006/007.
+The deployment source is version-controlled under this structure, with exact
+filenames following the repository convention:
 
-## Release state
+```text
+deploy/
+  compose.yaml
+  compose.staging.yaml
+  compose.production.yaml
+  env/
+    staging.example
+    production.example
+  scripts/
+    deploy.sh
+    smoke.sh
+    rollback.sh
+```
 
-R1 records the discovered contract gap as a completed planning artifact. It
-does not clear the gap. RELEASE-004 is `BLOCKED / NOT_STARTED` with blocker
-`SPEC_GAP / OPERATIONAL_DECISION`; RELEASE-005 remains independently
-`READY / NOT_STARTED`; RELEASE-006 and RELEASE-007 remain
-`WAITING_DEPENDENCY` on RELEASE-004 (and RELEASE-005 for RELEASE-006).
-RELEASE-001 through RELEASE-003 remain `CODE_COMPLETE / NOT VERIFIED`, and the
-overall release remains `BLOCKED_FOR_RC`.
+Use a base Compose definition plus concise environment overrides. The same
+digest configures the `api`, `agent-gateway`, `worker`, and one-shot `migrate`
+services; their commands select the corresponding compiled entry point. The
+production stack includes a lightweight Caddy reverse proxy for API HTTPS. It
+routes API requests and applies basic proxy headers; RELEASE-007 owns full
+edge hardening. Agent clients connect directly to the dedicated Agent Gateway TLS/mTLS port;
+the reverse proxy does not terminate or forward Agent client identity.
+PostgreSQL may be a `postgres` Compose service or an external PostgreSQL
+service. Both modes are supported by configuration; a Compose-managed
+database uses a named persistent volume and an internal network, with no
+public bind by default.
+
+API listens internally on 3000 behind Caddy. Agent Gateway listens internally
+on 3001 and is published on its dedicated configurable host port, directly to
+that TLS listener. Worker runs independently and serves health on 3002; it is
+not routed through the public reverse proxy. Bind application listeners to
+the container interface only inside the Compose network. Expose only the
+reverse-proxy ports, the dedicated Agent mTLS port, and restricted host
+administration. PostgreSQL is not public. RELEASE-007 later finalizes ingress
+TLS lifecycle, rate limits, headers, and edge restrictions.
+
+The expected steady state is one API, one Agent Gateway, and one Worker
+process. Compose does not auto-scale. All 13 Worker pollers retain the
+RELEASE-003 `CONCURRENT_SAFE` durable database coordination contract; no
+leader-election mechanism is introduced. The single-process default is not an
+HA claim.
+
+## 5. Environment isolation and secrets
+
+Staging defaults to a separate Compose project on the same Docker host, with
+project name `itsm-staging`; production uses stable project name
+`itsm-production`. An operator may place staging on a separate VM without
+changing the artifact. Same-host staging must use distinct project networks,
+volumes, host ports, PostgreSQL database/schema and roles, secret files,
+OIDC client/configuration, and Agent CA/certificates. It uses no production
+credentials or production data. Staging external ports bind to loopback or
+otherwise remain isolated from production traffic. A production-owned Caddy
+service publishes the production API; staging access is isolated and uses
+separate staging host/port configuration.
+
+Configuration enters at runtime through environment, Compose env/config files,
+or mounted secret files. The image contains no environment-specific endpoint,
+database credential, OIDC secret/configuration, tenant data, or Agent CA
+private key. Commit only `.example` files, non-secret configuration, schemas,
+and secret variable names. Production secrets are host-local protected files
+or references to an approved secret store, with restrictive ownership and
+permissions; deployment scripts must not print their contents. Production
+and staging use distinct secret sets.
+
+Agent Gateway server TLS material, Agent trust certificate, and CA signing
+material are mounted only where the RELEASE-002 issuer requires them. CA
+private keys remain outside Git and OCI images. Staging uses a separate Agent
+CA. Caddy's API TLS private material also stays outside the image and Git.
+
+## 6. Migration and deployment order
+
+Exactly one one-shot Compose migration service owns schema migration for a
+release. It uses the same OCI digest as the application services and invokes
+`node dist/database/scripts/migrate.js` with the migration SQL shipped in that
+image. Application replicas never race to migrate. Migration is not run from
+a developer checkout or another artifact. Migration exit code 0 is a hard
+precondition for application rollout; failure stops the release command and
+records the failed RC/deployment state. Readiness never runs migrations.
+
+The canonical deployment command performs, in order:
+
+1. Validate the explicit digest, approved RC, Compose configuration, required
+   production auth/Agent mTLS/database configuration, mounts, ports, and
+   configuration revision without printing secret values.
+2. Pull the exact image digest.
+3. Run any pre-migration backup prerequisite required by the approved release
+   policy; backup/restore implementation and evidence remain RELEASE-005.
+4. Run the one-shot migration service and require successful completion.
+5. Start/update Compose services with that same digest.
+6. Poll the RELEASE-003 readiness endpoint for each owned deployable using a
+   bounded timeout; do not substitute a fixed sleep for readiness.
+7. Run deterministic, non-destructive staging smoke checks. Production smoke
+   uses only safe read-only or disposable-fixture operations.
+8. Record success/failure, artifact, schema, config revision, and actor in the
+   RC/deployment metadata.
+
+The command uses strict failure handling and does not advance after config,
+migration, service-start, readiness, or smoke failure. Compose healthchecks
+may use `/api/v1/health/live` or `/api/v1/health/ready` as appropriate;
+deployment acceptance uses readiness semantics. Services use an approved
+restart policy, and Docker stdout/stderr logging has host-level rotation
+limits.
+
+## 7. Deployment control and host lifecycle
+
+CI has no production deployment credential in v1. CI verifies, builds, pushes,
+and records the candidate; an authorized release operator explicitly runs
+the versioned deployment script on the target host with the approved RC id,
+image digest, and configuration revision. Staging deployment/evidence must
+pass before a separate explicit production approval and command. The command
+records operator identity, approval reference, and time. No arbitrary branch
+or mutable image tag may deploy production.
+
+Production deployment commands acquire a host-level `flock` lock before
+changing Compose state, preventing concurrent releases. The stable project
+name and named volumes remain predictable. A systemd unit starts the approved
+Compose production project after Docker at host boot and performs controlled
+Compose shutdown at host stop. Compose stops containers with SIGTERM so
+RELEASE-003 readiness/drain occurs before exit; the existing 10-second
+application shutdown bound remains. Deployment and host shutdown can cause
+maintenance downtime; the single-host service has no automatic failover.
+
+Staging and production may share a host in v1 but must remain separately
+isolated. Production is explicitly `NO_HA / SINGLE_HOST`: a host failure or
+maintenance may make the service unavailable; there is no automatic failover
+and scaling is manual. This is an accepted v1 limitation, not a reason to add
+cluster orchestration. RELEASE-005 must place backups outside the production
+host; backup implementation is not part of this R1/R4 contract.
+
+## 8. Promotion, rollback, and forward-fix
+
+Promotion approves an already-built digest; it never rebuilds or retags an
+unknown mutable image. The digest deployed and verified in staging is exactly
+the digest promoted to production. Failed staging verification blocks
+production promotion. A configuration-only failure is repaired through the
+approved config revision without rebuilding the image; a source/build fix
+creates a new commit and digest.
+
+Persist the exact last-known-good release set: shared image digest, source
+commit, schema revision, and configuration revision/reference. Update
+last-known-good only after production readiness and required smoke checks pass.
+Application rollback is a controlled redeployment of that exact prior digest
+and config revision, guarded by a schema-compatibility check. Do not rebuild
+the previous source. Never execute down migrations automatically. Until
+RELEASE-006 proves N/N-1 compatibility, rollback across a schema-changing
+release is not presumed safe. If the previous application cannot safely use
+the current schema, stop rollback and use an authorized forward-fix with a new
+immutable digest, or a separately validated recovery procedure. R4 does not
+claim database rollback safety.
+
+## 9. Acceptance and verification
+
+RELEASE-004 implementation must prove: one clean commit produces one OCI image
+digest; all three deployables and migration command use that digest; CI
+provenance and RC metadata bind digest to source; staging and production use
+the identical digest; the server never builds; Compose separates configuration
+and secrets; same-host staging isolation works; PostgreSQL managed/external
+modes are supported; migration failure blocks rollout; readiness and smoke
+gates stop failed releases; deployment lock prevents concurrency; rollback
+uses an exact prior digest and checks schema; systemd host boot/drain behavior
+works; and no secret is committed, logged, or baked into the image.
+
+Staging verification must use real OIDC and direct Agent mTLS, not test
+adapters, and prove tenant selector/RBAC, all three readiness profiles,
+migration, safe smoke flow, and Compose SIGTERM drain before RELEASE-001,
+RELEASE-002, or RELEASE-003 can be marked `VERIFIED`. Pipeline implementation
+alone does not verify those releases. RELEASE-006 later rehearses migrations
+and N/N-1 behavior on this same OCI/Compose model using the proven RELEASE-005
+recovery path. RELEASE-007 later hardens this host topology with edge controls;
+it does not add a cluster ingress layer.
+
+## 10. State
+
+All v1 deployment-platform decisions are now fixed by this contract.
+RELEASE-004-R1 is `CODE_COMPLETE`; the `SPEC_GAP / OPERATIONAL_DECISION`
+blocker is cleared; RELEASE-004 is `READY / NOT_STARTED`. This permits a
+separate future RELEASE-004 implementation activity but does not implement
+it. RELEASE-005 remains independently `READY / NOT_STARTED`; RELEASE-006 and
+RELEASE-007 remain `WAITING_DEPENDENCY`. RELEASE-001 through RELEASE-003
+remain `CODE_COMPLETE / NOT VERIFIED`, and overall release remains
+`BLOCKED_FOR_RC`.

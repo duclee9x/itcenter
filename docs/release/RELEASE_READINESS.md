@@ -88,18 +88,20 @@ still prove real configuration, failure/recovery transitions, issuer-only
 degradation, orchestrator HTTP behavior, and drain against the immutable
 deployment topology before `VERIFIED`.
 
-## RELEASE-004 operational decision gap
+## RELEASE-004 deployment contract
 
-Repository reconciliation confirms there is no production container/image
-build, registry, staging/production deployment target, manifest, promotion
-authorization, controlled migration stage, or rollback path. The current
-GitHub Actions workflow verifies and uploads build output only; the local
-Compose file supplies PostgreSQL for development. The RC checklist defines
-desired gates but does not select the required operational architecture.
-RELEASE-004 is therefore `BLOCKED / NOT_STARTED` with
-`SPEC_GAP / OPERATIONAL_DECISION`. See
-[RELEASE-004-R1](items/RELEASE-004-R1_IMMUTABLE_ARTIFACT_DEPLOYMENT_PROMOTION_CONTRACT.md)
-for repository evidence, fixed invariants, and decisions requiring approval.
+RELEASE-004-R1 resolves the deployment decision gap. V1 uses one immutable
+OCI image for API, Agent Gateway, Worker, and the migration command, built by
+the existing GitHub Actions CI and promoted by digest through Docker Compose
+v2 on a Linux host. Same-host staging uses an isolated Compose project by
+default. An authorized operator runs the versioned deployment command; the
+production host pulls but never builds. Caddy serves API HTTPS, while Agent
+mTLS terminates directly in Agent Gateway. Migration, readiness, smoke,
+promotion, and exact-digest rollback gates are defined in the contract.
+
+RELEASE-004-R1 is `CODE_COMPLETE` and clears `SPEC_GAP / OPERATIONAL_DECISION`;
+RELEASE-004 is `READY / NOT_STARTED`. The production build, registry, Compose
+deployment, and rollback mechanism remain unimplemented under RR-04.
 RELEASE-005 remains independently ready; RELEASE-006 and RELEASE-007 remain
 waiting for their declared dependencies. Overall readiness remains
 `BLOCKED_FOR_RC`.
@@ -207,9 +209,8 @@ No secret values belong in this document or in source control.
 2. Validate the implemented RELEASE-003 readiness profiles in staging;
    establish the deployment edge, TLS, trusted proxy, rate/size limits, and
    process supervision.
-3. Resolve the RELEASE-004-R1 operational decisions, then produce a
-   traceable immutable application artifact and staging-to-production
-   promotion pipeline that uses the same identifier.
+3. Implement the approved RELEASE-004-R1 build-once Compose pipeline and
+   promote the staging-verified OCI digest unchanged to production.
 4. Rehearse migrations against a production-like previous schema. Measure
    duration/locks, test runtime roles, establish expand/forward-fix behavior,
    and record whether N-1 can operate during/after migration.

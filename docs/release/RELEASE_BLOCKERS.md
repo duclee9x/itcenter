@@ -43,15 +43,14 @@ is included in the approved release scope.
 ## RR-04 — No production build, immutable deployment, or rollback path
 
 - **Type:** `OPERATIONAL_GAP`
-- **RELEASE-004 status blocker:** `SPEC_GAP / OPERATIONAL_DECISION`; see [RELEASE-004-R1](items/RELEASE-004-R1_IMMUTABLE_ARTIFACT_DEPLOYMENT_PROMOTION_CONTRACT.md).
 - **Severity:** High
 - **Affected capability:** Release packaging and deployment of API, Worker, Agent Gateway
 - **Production impact:** The repository has no production Dockerfile/image pipeline, staging or production manifests, or promotion/rollback runbook. `infra/docker/compose.yaml` is a local PostgreSQL setup; `npm run build` creates code output and is not a production deployment artifact. There is no evidence of immutable image tagging, signing/SBOM, configuration injection, process supervision, ordered rollout or health-gated promotion.
-- **Required action:** First approve the artifact format, registry, deployment target/topology, promotion authority, secret/PKI delivery, migration ownership/order, rollout, staging gate, and rollback/forward-fix decisions recorded in RELEASE-004-R1. Then establish the repeatable pipeline without weakening the release invariants.
+- **Required action:** Implement the approved [RELEASE-004-R1](items/RELEASE-004-R1_IMMUTABLE_ARTIFACT_DEPLOYMENT_PROMOTION_CONTRACT.md) contract: one OCI image, registry digest promotion, Linux/Docker Compose v2 topology, isolated staging, operator-authorized deploy, one-shot same-image migration, readiness/smoke gates, secret separation, and exact-digest rollback/forward-fix handling.
 - **Verification:** Build once, record digest, deploy that digest to staging, execute the RC checklist, promote the identical digest to production, and demonstrate rollback/forward-fix without rebuilding a different artifact.
 - **Owner/domain:** Platform / Release Engineering
 - **Release-blocking:** Yes
-- **Evidence:** `package.json`; `infra/docker/compose.yaml`; `README.md` (local development and no production deployment claim).
+- **Evidence:** [RELEASE-004 item](items/RELEASE-004_IMMUTABLE_BUILD_STAGING_PROMOTION_ROLLBACK.md); [R1 contract](items/RELEASE-004-R1_IMMUTABLE_ARTIFACT_DEPLOYMENT_PROMOTION_CONTRACT.md); `package.json`; `infra/docker/compose.yaml`; `README.md` (local development and no production deployment claim).
 
 ## RR-05 — Production migration compatibility is unproven
 

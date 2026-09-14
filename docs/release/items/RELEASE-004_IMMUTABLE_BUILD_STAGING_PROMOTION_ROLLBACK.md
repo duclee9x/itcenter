@@ -2,11 +2,11 @@
 
 | Field           | Value                                                                                |
 | --------------- | ------------------------------------------------------------------------------------ |
-| Status          | `BLOCKED / NOT_STARTED`                                                              |
-| Readiness       | `BLOCKED`                                                                            |
-| Blocker         | `SPEC_GAP / OPERATIONAL_DECISION`                                                    |
+| Status          | `READY / NOT_STARTED`                                                                |
+| Readiness       | `READY`                                                                              |
+| Blocker         | Cleared by RELEASE-004-R1                                                            |
 | Overall release | `BLOCKED_FOR_RC`                                                                     |
-| Contract gap    | [RELEASE-004-R1](RELEASE-004-R1_IMMUTABLE_ARTIFACT_DEPLOYMENT_PROMOTION_CONTRACT.md) |
+| Contract        | [RELEASE-004-R1](RELEASE-004-R1_IMMUTABLE_ARTIFACT_DEPLOYMENT_PROMOTION_CONTRACT.md) |
 
 ## Objective
 
@@ -20,18 +20,18 @@ application rollback versus database forward-fix behavior.
 
 ## Current blocker
 
-The repository currently contains a TypeScript build, a verification-only
-GitHub Actions workflow, a local PostgreSQL Compose file, and a standalone
-migration command. It contains no production deployable images, registry,
-staging/production deployment target, manifests, promotion authorization path,
-or rollback runbook. The existing release checklist states goals but does not
-resolve the operational choices required to implement them.
+RELEASE-004-R1 now normatively selects Linux + Docker Engine + Compose v2,
+one shared OCI image, Caddy for API HTTPS, operator-triggered deployment,
+isolated Compose staging, a one-shot migration service, and exact-digest
+promotion/rollback semantics. Runtime and pipeline implementation has not
+started; the existing repository still has no production images, registry
+configuration, deployment manifests, scripts, or staging environment.
 
-RELEASE-004-R1 records repository evidence, fixed release invariants, and the
-operational decisions that must be approved. Do not start runtime or pipeline
-implementation until those decisions are normative and the blocker is
-cleared. RELEASE-005 remains independent; RELEASE-006 and RELEASE-007 retain
-their declared dependencies on RELEASE-004.
+RELEASE-004-R1 clears the operational-decision blocker and makes this item
+`READY / NOT_STARTED`. Implement only this approved Compose v2 contract in the
+separate RELEASE-004 implementation activity. RELEASE-005 remains
+independent; RELEASE-006 and RELEASE-007 retain their declared dependencies on
+RELEASE-004.
 
 ## Scope after the blocker is cleared
 

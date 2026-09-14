@@ -17,8 +17,8 @@
   `CODE_COMPLETE / NOT VERIFIED`. Staging/orchestrator verification remains.
   See
   [RELEASE-003-R1](items/RELEASE-003-R1_PRODUCTION_READINESS_CRITICAL_WORKER_CONTRACT.md).
-- RELEASE-004 is `BLOCKED / NOT_STARTED` with
-  `SPEC_GAP / OPERATIONAL_DECISION`; see
+- RELEASE-004-R1 is `CODE_COMPLETE`; RELEASE-004 is `READY / NOT_STARTED`.
+  Its authoritative Linux/Docker Compose v2 contract is at
   [RELEASE-004-R1](items/RELEASE-004-R1_IMMUTABLE_ARTIFACT_DEPLOYMENT_PROMOTION_CONTRACT.md).
 - Unrelated user change in `AGENTS.md` is preserved and must remain outside
   release-planning commits unless a later explicit scope requires a separate
@@ -31,18 +31,17 @@ staging IdP before `VERIFIED`; RR-01 remains open. RELEASE-002 runtime and
 automated tests are complete under its R1 mTLS contract, but real CA
 provisioning and staging topology validation remain before `VERIFIED`.
 RELEASE-003 runtime is implemented and automated checks pass; staging/
-orchestrator verification remains required before `VERIFIED`. R4 repository
-reconciliation found only a TypeScript build, verification-only GitHub Actions
-workflow, local PostgreSQL Compose setup, and standalone migration runner; no
-production image, registry, deployment target, promotion mechanism, or rollback
-contract exists. RELEASE-004-R1 records the operational decisions required.
-Resolve those decisions and update the normative release contract before
-starting implementation. Do not begin RELEASE-005 or RELEASE-006 in this
-work item.
+orchestrator verification remains required before `VERIFIED`. RELEASE-004-R1
+resolves the deployment decisions and authorizes a separate implementation
+activity using one OCI image promoted unchanged through Docker Compose v2 on a
+Linux host. The selected v1 deployment is single-host and explicitly not HA.
+The production operator runs the versioned deployment command; the server
+pulls but never builds the image. See the R1 contract before implementation.
+Do not begin RELEASE-005, RELEASE-006, or RELEASE-007 in that activity.
 
 ## Release order
 
-RELEASE-005 remains READY. RELEASE-004 is blocked; RELEASE-006 waits for
+RELEASE-004 and RELEASE-005 are independently READY. RELEASE-006 waits for
 RELEASE-004 and RELEASE-005; RELEASE-007 waits for RELEASE-004; the final
 RELEASE-GATE-001 waits for every initial remediation item to be verified.
 Follow [RELEASE_DEPENDENCY_GRAPH.md](RELEASE_DEPENDENCY_GRAPH.md).

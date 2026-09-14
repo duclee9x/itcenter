@@ -5,12 +5,12 @@ until all release blockers in [RELEASE_BLOCKERS.md](RELEASE_BLOCKERS.md) are
 closed and the release scope is approved. Smoke operations below are read-only
 or use explicitly disposable staging fixtures.
 
-RELEASE-004 is currently blocked by unresolved deployment operational
-decisions. This checklist states release goals; it does not select the
-artifact format, registry, deployment target, migration job, or promotion
-mechanism. Resolve and approve
+RELEASE-004-R1 normatively selects the Linux/Docker Compose v2 deployment
+model, shared OCI artifact, operator-run deployment, migration and promotion
+gates, and recovery rules. RELEASE-004 implementation and staging evidence
+remain required before production promotion. Follow
 [RELEASE-004-R1](items/RELEASE-004-R1_IMMUTABLE_ARTIFACT_DEPLOYMENT_PROMOTION_CONTRACT.md)
-before implementing or executing a staging-to-production pipeline.
+for the binding decisions; this checklist does not replace that contract.
 
 ## Entry gate
 
