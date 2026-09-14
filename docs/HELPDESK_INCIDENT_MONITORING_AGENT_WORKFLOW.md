@@ -1681,6 +1681,16 @@ positive authenticated acknowledgement for that exact `command_id` after the
 Agent durably records it for execution. Acceptance does not prove successful
 restart.
 
+The TASK-091 execution contract does not select the production Agent
+credential or enrollment protocol. RELEASE-002-R1 records the security gap:
+credential type, trust bootstrap, expiry, rotation/revocation, replay/channel
+binding and credential-compromise handling must be approved before a
+production Agent adapter is implemented. Until then the Agent Gateway stays
+fail-closed. Agent identity and tenant continue to come from the canonical
+registered Agent principal, never from request-supplied tenant/Agent values;
+this requirement alone does not make a particular credential protocol
+normative.
+
 ## 44.3 Pre-execution baseline and restart proof
 
 Before dispatch, capture an immutable baseline including available canonical

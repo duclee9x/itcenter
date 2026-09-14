@@ -3735,3 +3735,14 @@ authentication appends restricted `IDENTITY.EMERGENCY_IDENTITY_USED` evidence
 with the local principal, tenant, IdentityLink reference and request
 correlation. Failure to persist this audit evidence fails authentication
 closed. Routine standard-user API authentication remains unaudited per request.
+
+### RELEASE-002 — Agent credential lifecycle audit requirements
+
+The production Agent profile must define audit evidence for trusted
+enrollment, credential issuance/rotation/revocation, canonical Agent/Asset
+binding changes, and security-relevant authentication failure patterns.
+Audit may reference the credential record/version and Agent/tenant without
+including credential material, private keys, bearer tokens, enrollment
+secrets, or full authentication payloads. Audit failure behavior for each
+operation must be fixed by RELEASE-002-R1 before implementation. No separate
+Agent authentication audit store is authorized.

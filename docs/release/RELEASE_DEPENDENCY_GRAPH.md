@@ -6,7 +6,7 @@ only release items and the edges approved for the initial release backlog.
 ```mermaid
 flowchart TD
   R001[RELEASE-001 API Authentication & Authorization]
-  R002[RELEASE-002 Agent Authentication]
+  R002[RELEASE-002 Agent Authentication — SECURITY DECISION BLOCKED]
   R003[RELEASE-003 Worker Readiness]
   R004[RELEASE-004 Immutable Build / Promotion]
   R005[RELEASE-005 Backup / Restore]
@@ -42,10 +42,11 @@ flowchart TD
 
 ## Derived readiness
 
-Derived readiness after RELEASE-001-R2:
+Derived readiness after RELEASE-002 contract review:
 
-- **READY:** RELEASE-001, RELEASE-002, RELEASE-003, RELEASE-004, RELEASE-005.
-- **BLOCKED:** None.
+- **CODE_COMPLETE, awaiting environment verification:** RELEASE-001.
+- **READY:** RELEASE-003, RELEASE-004, RELEASE-005.
+- **BLOCKED:** RELEASE-002 (`SECURITY_DECISION / SPEC_GAP`).
 - **WAITING_DEPENDENCY:** RELEASE-006, RELEASE-007, RELEASE-GATE-001.
 
 “Ready” means eligible to start under the release-item status model. It does

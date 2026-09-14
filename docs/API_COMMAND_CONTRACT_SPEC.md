@@ -3032,6 +3032,21 @@ All API routes require authentication by default and are classified as PUBLIC, P
 
 See the normative [RELEASE-001-R1 contract](release/items/RELEASE-001-R1_PRODUCTION_AUTHENTICATION_CONTRACT.md) for principal, IdentityLink/TenantMembership, bootstrap, emergency access, audit, errors and acceptance rules. RELEASE-007 remains responsible for TLS ingress configuration, trusted proxy policy and rate limiting.
 
+### RELEASE-002 production Agent authentication decision gap
+
+The general service-authentication methods listed above do not select a
+production credential for the Agent Gateway. TASK-091 requires an
+authenticated enrolled Agent and binds its requests to the canonical Agent,
+tenant, Asset and exact execution/command, but the credential type, enrollment
+trust bootstrap, issuance, expiry, rotation/revocation, replay and
+authenticated-channel semantics are not normatively defined. RELEASE-002 is
+blocked on the security decision recorded in
+[RELEASE-002-R1](release/items/RELEASE-002-R1_PRODUCTION_AGENT_AUTHENTICATION_CONTRACT.md).
+Until an approved contract and runtime adapter exist, Agent Gateway
+production authentication remains unavailable and fail-closed. Do not infer
+Agent authentication from human OIDC, arbitrary service tokens, client
+tenant claims, or generic mTLS/workload-identity options.
+
 The concrete tenant selector, exact header validation, route classification, HTTP error precedence, and tenant-local User membership binding are normative in [RELEASE-001-R2](release/items/RELEASE-001-R2_EXPLICIT_TENANT_CONTEXT_MEMBERSHIP_FOUNDATION.md). No path/query/token/default selector competes with `X-Tenant-ID`; proxy-supplied authenticated-tenant headers are not trusted. R2 additionally fixes public `GET /api/v1/health/live` and `/api/v1/health/ready`; capabilities is a protected tenant-scoped route. See R2 for the exact canonical tenant ID grammar and duplicate-header rejection rule.
 
 Runtime Identity command routes are `POST /api/v1/identity/links`,

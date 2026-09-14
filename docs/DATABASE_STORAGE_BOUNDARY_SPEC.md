@@ -3268,3 +3268,14 @@ Identity unlink sets the canonical link to REVOKED with an expected version
 and retains all memberships/audit. A tenant-scoped unlink is rejected while
 another tenant still has an active membership on that link. No migration
 creates an emergency classification or IdentityLink from legacy rows.
+
+### RELEASE-002 — Agent credential storage decision pending
+
+`agent.agents` remains the canonical registration record for current Agent
+ID, tenant and required Asset binding. Existing enrollment-token hash and
+expiry columns are legacy persistence evidence only; they do not specify
+issuance, validation, rotation, revocation or channel semantics. RELEASE-002-R1
+must select a credential profile and storage boundary before runtime schema
+changes are designed. Never persist plaintext long-lived credentials or
+infer identity from descriptive device attributes. R1 authorizes no migration
+and does not alter the current fail-closed Agent Gateway.

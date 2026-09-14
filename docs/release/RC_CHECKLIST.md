@@ -71,9 +71,12 @@ or use explicitly disposable staging fixtures.
       unknown `kid` performs only bounded trusted-JWKS refresh; unavailable
       JWKS without a valid cached key fails closed; no mock, anonymous,
       default-admin or local-password fallback is enabled.
-- [ ] If TASK-091 is enabled, provision real enrolled-Agent mTLS/workload
-      identity. Exercise rotation/revocation and negative identities. Never use
-      fake/test authentication in staging or production.
+- [ ] If TASK-091 is enabled, confirm RELEASE-002's Agent credential,
+      enrollment, tenant/Asset binding, rotation/revocation, expiry,
+      replay/channel and stolen-credential profile is approved before
+      provisioning. Configure real enrolled-Agent credentials according to
+      that profile; exercise its rotation/revocation and negative cases. Never
+      use fake/test authentication in staging or production.
 - [ ] Configure only approved tenant-scoped system principals and narrow
       capabilities; review effective grants and absence of wildcard/tenantless
       authority.

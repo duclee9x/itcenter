@@ -28,17 +28,17 @@ is included in the approved release scope.
 - **Release-blocking:** Yes
 - **Evidence:** `apps/worker/src/main.ts`; `apps/worker/src/host.ts`; `docs/runbooks/local-development.md`.
 
-## RR-03 — TASK-091 Agent authentication adapter is absent
+## RR-03 — TASK-091 production Agent authentication profile is undefined
 
-- **Type:** `PRODUCTION_CONFIGURATION`
+- **Type:** `SECURITY_GAP`
 - **Severity:** High
 - **Affected capability:** Agent Gateway and self-healing execution
 - **Production impact:** `apps/agent-gateway/src/main.ts` uses `unavailableAuthentication`. TASK-091 requires identity for an enrolled Agent and fail-closed execution; test authentication is synthetic. Production execution cannot authenticate a real Agent today.
-- **Required action:** Configure a production `AuthenticationPort` adapter using an enrolled-Agent identity backed by mTLS or workload identity, as allowed by `docs/API_COMMAND_CONTRACT_SPEC.md`. Bind authenticated identity to enrolled Agent and tenant; define certificate/token issuance, rotation and revocation. Do not use mock/test auth in production.
-- **Verification:** In staging, test valid enrolled identity, invalid/expired/revoked credential, unknown Agent, wrong tenant, duplicate command delivery, authenticated acknowledgement/report, and credential rotation. Prove the unauthenticated gateway remains fail-closed.
+- **Required action:** Resolve RELEASE-002-R1 and approve one coherent credential, enrollment, tenant/Asset binding, issuance, rotation/revocation, expiry, replay/channel, stolen-credential, audit and readiness profile. The general mTLS/workload identity options do not constitute that decision. Keep the production gateway fail-closed until the contract is approved and implemented.
+- **Verification:** After contract approval, test the selected credential and trust bootstrap in staging, including valid/invalid/expired/revoked/unknown Agent, wrong tenant/Asset/execution, replay, duplicate delivery, rotation/re-enrollment, late TASK-091 evidence, audit and readiness. Prove the production gateway rejects test authentication.
 - **Owner/domain:** Agent Gateway / Automation (TASK-091)
 - **Release-blocking:** Yes when Agent execution is in scope; assumed in this assessment
-- **Evidence:** `apps/agent-gateway/src/main.ts`; `tasks/TASK-091_IMPLEMENTATION_REPORT.md`; `docs/HELPDESK_INCIDENT_MONITORING_AGENT_WORKFLOW.md` (Agent authentication and acknowledgement contract).
+- **Evidence:** [RELEASE-002 item](items/RELEASE-002_PRODUCTION_AGENT_AUTH.md); [R1 decision contract](items/RELEASE-002-R1_PRODUCTION_AGENT_AUTHENTICATION_CONTRACT.md); `apps/agent-gateway/src/main.ts`; `tasks/TASK-091_IMPLEMENTATION_REPORT.md`; `docs/HELPDESK_INCIDENT_MONITORING_AGENT_WORKFLOW.md`.
 
 ## RR-04 — No production build, immutable deployment, or rollback path
 

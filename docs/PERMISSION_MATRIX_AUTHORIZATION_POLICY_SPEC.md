@@ -2703,6 +2703,16 @@ omitted without returning their source identifiers or explanations.
 
 TASK-096 feed/detail/history requires `recommendation.read`; interaction requires `recommendation.interact`. Each source adapter rechecks narrow Incident, Knowledge/session/audience or Asset/scoring read permissions. The scoped `SYSTEM_RECOMMENDATION` worker also requires explicit tenant grants for reconciliation and source reads; wildcard and tenantless principals are invalid.
 
+### RELEASE-002 — Agent authentication does not grant execution authority
+
+Agent credentials establish only a registered machine identity. They do not
+grant arbitrary Agent Gateway routes, cross-tenant access, Asset mutation, or
+authority over another Agent's execution. Each route must continue to enforce
+the canonical Agent registration, tenant and Asset binding and exact
+execution/command target. The production credential profile and corresponding
+route scopes are not selected; RELEASE-002-R1 records the security gap. Do
+not map Agent credentials to human roles or a wildcard SystemPrincipal.
+
 # 112. RELEASE-001-R1 — OIDC Principal and Local Authorization
 
 OIDC authenticates an external identity; platform authorization remains canonical local RBAC. A validated user is resolved by exact issuer + subject to a local IdentityLink, then checked against current User state and an active platform TenantMembership for the explicitly requested tenant. Missing link, inactive principal, missing membership, missing permission or resource denial is denied; a valid token alone grants no application permissions.

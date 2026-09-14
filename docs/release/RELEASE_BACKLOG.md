@@ -27,16 +27,16 @@ Each entry records a `status` and a derived `readiness` independently.
 These are exactly the seven remediation items and one final gate authorized
 for this backlog. Initial P0 entries are listed in priority order.
 
-| ID               | Title                                                     | Priority | Status          | Readiness            | Dependencies                    | Blocker / note                                                                                         |
-| ---------------- | --------------------------------------------------------- | -------: | --------------- | -------------------- | ------------------------------- | ------------------------------------------------------------------------------------------------------ |
-| RELEASE-001      | Production API Authentication & Authorization Adapter     |       P0 | `CODE_COMPLETE` | `N/A`                | None                            | Automated acceptance passes; real IdP/staging validation remains before VERIFIED and keeps RR-01 open. |
-| RELEASE-002      | Production Agent Authentication for TASK-091              |       P0 | `NOT_STARTED`   | `READY`              | None                            | Use a real enrolled-Agent identity; retain fail-closed behavior.                                       |
-| RELEASE-003      | Worker Readiness & Background Processing Health           |       P0 | `NOT_STARTED`   | `READY`              | None                            | Readiness must reflect actual required worker dependencies.                                            |
-| RELEASE-004      | Immutable Build / Staging / Promotion / Rollback Pipeline |       P0 | `NOT_STARTED`   | `READY`              | None                            | Produce and promote one immutable artifact.                                                            |
-| RELEASE-005      | Backup / Restore + RPO / RTO Validation                   |       P0 | `NOT_STARTED`   | `READY`              | None                            | Restore must be tested; define and approve RPO/RTO.                                                    |
-| RELEASE-006      | PostgreSQL Migration Rehearsal + N-1 Compatibility        |       P0 | `NOT_STARTED`   | `WAITING_DEPENDENCY` | RELEASE-004, RELEASE-005        | Must use the verified artifact and recovery path.                                                      |
-| RELEASE-007      | Production TLS Ingress + Rate Limiting                    |       P0 | `NOT_STARTED`   | `WAITING_DEPENDENCY` | RELEASE-004                     | Validate controls against the actual release topology.                                                 |
-| RELEASE-GATE-001 | Release Candidate Readiness Re-verification               |     Gate | `NOT_STARTED`   | `WAITING_DEPENDENCY` | RELEASE-001 through RELEASE-007 | Run only after each required item is verified and all blockers are cleared.                            |
+| ID               | Title                                                     | Priority | Status          | Readiness            | Dependencies                    | Blocker / note                                                                                                  |
+| ---------------- | --------------------------------------------------------- | -------: | --------------- | -------------------- | ------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| RELEASE-001      | Production API Authentication & Authorization Adapter     |       P0 | `CODE_COMPLETE` | `N/A`                | None                            | Automated acceptance passes; real IdP/staging validation remains before VERIFIED and keeps RR-01 open.          |
+| RELEASE-002      | Production Agent Authentication for TASK-091              |       P0 | `BLOCKED`       | `BLOCKED`            | None                            | `SECURITY_DECISION / SPEC_GAP`: credential, enrollment, lifecycle, replay and channel profile require approval. |
+| RELEASE-003      | Worker Readiness & Background Processing Health           |       P0 | `NOT_STARTED`   | `READY`              | None                            | Readiness must reflect actual required worker dependencies.                                                     |
+| RELEASE-004      | Immutable Build / Staging / Promotion / Rollback Pipeline |       P0 | `NOT_STARTED`   | `READY`              | None                            | Produce and promote one immutable artifact.                                                                     |
+| RELEASE-005      | Backup / Restore + RPO / RTO Validation                   |       P0 | `NOT_STARTED`   | `READY`              | None                            | Restore must be tested; define and approve RPO/RTO.                                                             |
+| RELEASE-006      | PostgreSQL Migration Rehearsal + N-1 Compatibility        |       P0 | `NOT_STARTED`   | `WAITING_DEPENDENCY` | RELEASE-004, RELEASE-005        | Must use the verified artifact and recovery path.                                                               |
+| RELEASE-007      | Production TLS Ingress + Rate Limiting                    |       P0 | `NOT_STARTED`   | `WAITING_DEPENDENCY` | RELEASE-004                     | Validate controls against the actual release topology.                                                          |
+| RELEASE-GATE-001 | Release Candidate Readiness Re-verification               |     Gate | `NOT_STARTED`   | `WAITING_DEPENDENCY` | RELEASE-001 through RELEASE-007 | Run only after each required item is verified and all blockers are cleared.                                     |
 
 RELEASE-001 remains the selected first item because it blocks normal
 production API access until staging verification. Its R1 and R2 contracts and
@@ -70,3 +70,9 @@ Foundation](items/RELEASE-001-R2_EXPLICIT_TENANT_CONTEXT_MEMBERSHIP_FOUNDATION.m
 No provider brand is selected; the provider-neutral OIDC profile and sole
 `X-Tenant-ID` selector are fixed. Real provider configuration and staging
 verification remain open; overall release readiness remains `BLOCKED_FOR_RC`.
+
+RELEASE-002 is blocked pending the security decisions listed in
+[RELEASE-002-R1](items/RELEASE-002-R1_PRODUCTION_AGENT_AUTHENTICATION_CONTRACT.md).
+The generic service-authentication options in API standards do not select an
+Agent credential profile. Keep Agent Gateway authentication fail-closed;
+RELEASE-003 is not selected or started.

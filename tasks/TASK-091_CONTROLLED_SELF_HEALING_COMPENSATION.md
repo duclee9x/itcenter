@@ -87,8 +87,12 @@ protocol operation.
 - TASK-090 persists canonical `READY` Action Intents, the allow-listed
   `RESTART_AGENT` capability and tenant Action Policy/System Automation
   authorization evidence.
-- Existing Agent Gateway authenticates enrolled Agents and handles
-  heartbeat/inventory plus other typed claim/report workflows.
+- Existing Agent Gateway defines authenticated enrolled-Agent identity as a
+  precondition and handles heartbeat/inventory plus typed claim/report
+  workflows. It does not normatively choose the production credential,
+  enrollment trust, credential lifecycle or channel/replay profile; those
+  security decisions are tracked by RELEASE-002-R1. The runtime remains
+  fail-closed until RELEASE-002 implements an approved profile.
 - No TASK-091 execution aggregate, restart command protocol, runtime marker
   or restart verification implementation exists before this task.
 - PostgreSQL migrations are owned by Automation for execution history and by

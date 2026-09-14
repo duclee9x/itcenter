@@ -2269,3 +2269,15 @@ human links are explicitly marked
 claim containing `mfa`, and append a restricted `IDENTITY.EMERGENCY_IDENTITY_USED`
 audit record for each successful emergency authentication. No raw token or
 claims payload is audited.
+
+### RELEASE-002 — Agent machine identity is a separate security boundary
+
+The human OIDC IdentityLink and TenantMembership flow does not provision
+Agent identities. `agent.agents` is the existing tenant/Asset registration
+record; its legacy enrollment-token hash/expiry columns do not define a
+production credential or enrollment protocol. Agent credentials must resolve
+to a registered Agent and its canonical tenant/Asset binding, without mapping
+the Agent into a human User or granting human roles. The credential,
+enrollment, rotation/revocation, replay/channel and incident-response profile
+is pending RELEASE-002-R1 security decisions. Until an approved profile is
+implemented, Agent Gateway authentication remains fail-closed.
