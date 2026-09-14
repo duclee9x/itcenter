@@ -7,7 +7,7 @@ only release items and the edges approved for the initial release backlog.
 flowchart TD
   R001[RELEASE-001 API Authentication & Authorization]
   R002[RELEASE-002 Agent Authentication — CODE_COMPLETE / staging verification pending]
-  R003[RELEASE-003 Worker Readiness]
+  R003[RELEASE-003 Worker Readiness — BLOCKED: R1 operational decision]
   R004[RELEASE-004 Immutable Build / Promotion]
   R005[RELEASE-005 Backup / Restore]
   R006[RELEASE-006 Migration Rehearsal / N-1]
@@ -33,7 +33,7 @@ flowchart TD
 | ---------------- | ----------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
 | RELEASE-001      | None                                                                                      | Foundational API security adapter. R1/R2 resolved its contract gaps; runtime implementation and verification remain. |
 | RELEASE-002      | None                                                                                      | Agent-channel authentication can be designed/configured independently while retaining fail-closed execution.         |
-| RELEASE-003      | None                                                                                      | Worker health/readiness behavior is independent of release packaging.                                                |
+| RELEASE-003      | None                                                                                      | No release-item dependency; blocked pending RELEASE-003-R1 policy for required workers and degraded readiness.       |
 | RELEASE-004      | None                                                                                      | Establishes immutable artifact and deployment lifecycle.                                                             |
 | RELEASE-005      | None                                                                                      | Establishes and proves backup/restore before migrations or promotion.                                                |
 | RELEASE-006      | RELEASE-004, RELEASE-005                                                                  | Rehearsal must use the immutable release artifact and proven recovery path.                                          |
@@ -45,8 +45,8 @@ flowchart TD
 Derived state after RELEASE-002 automated implementation:
 
 - **CODE_COMPLETE, awaiting environment verification:** RELEASE-001.
-- **READY:** RELEASE-003, RELEASE-004, RELEASE-005.
-- **BLOCKED:** None.
+- **READY:** RELEASE-004, RELEASE-005.
+- **BLOCKED:** RELEASE-003 pending its operational contract; no dependency edge is being bypassed.
 - **WAITING_DEPENDENCY:** RELEASE-006, RELEASE-007, RELEASE-GATE-001.
 
 “Ready” means eligible to start under the release-item status model. It does

@@ -13,8 +13,10 @@
   validation remains open.
 - RELEASE-002 is `CODE_COMPLETE`, not `VERIFIED`; real private CA provisioning
   and mTLS validation through the RELEASE-007 staging topology remain open.
-- No next release item is selected. RELEASE-003 is dependency-ready but must
-  not start automatically.
+- RELEASE-003 is selected but `BLOCKED / NOT_STARTED` pending an explicit
+  production critical-worker/degraded-operation policy. See
+  [RELEASE-003-R1](items/RELEASE-003-R1_PRODUCTION_READINESS_CRITICAL_WORKER_CONTRACT.md).
+- RELEASE-004 is not started.
 - Unrelated user change in `AGENTS.md` is preserved and must remain outside
   release-planning commits unless a later explicit scope requires a separate
   relevant edit.
@@ -25,13 +27,17 @@ RELEASE-001 runtime has full automated verification but still requires a real
 staging IdP before `VERIFIED`; RR-01 remains open. RELEASE-002 runtime and
 automated tests are complete under its R1 mTLS contract, but real CA
 provisioning and staging topology validation remain before `VERIFIED`.
-RELEASE-003 is not started or selected by this completion.
+RELEASE-003 runtime is not started. Recovery established that current
+contracts do not classify the 13 Worker pollers as mandatory/optional for a
+launch profile or specify degraded-operation thresholds. Complete the
+planning decision in RELEASE-003-R1 before runtime work. Do not begin
+RELEASE-004 in the same work item.
 
 ## Release order
 
-The remaining independent READY items are RELEASE-003 through RELEASE-005.
-RELEASE-006 waits
-for RELEASE-004 and RELEASE-005; RELEASE-007 waits for RELEASE-004; the final
+RELEASE-004 and RELEASE-005 are the remaining independent READY items.
+RELEASE-003 waits on its operational contract decision. RELEASE-006 waits for
+RELEASE-004 and RELEASE-005; RELEASE-007 waits for RELEASE-004; the final
 RELEASE-GATE-001 waits for every initial remediation item to be verified.
 Follow [RELEASE_DEPENDENCY_GRAPH.md](RELEASE_DEPENDENCY_GRAPH.md).
 

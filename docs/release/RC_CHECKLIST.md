@@ -85,8 +85,10 @@ or use explicitly disposable staging fixtures.
       publishing only if those capabilities are in scope. Otherwise keep the
       affected routes/integrations disabled and fail-closed.
 - [ ] Confirm DB/API/Agent Gateway/Worker readiness reflects actual dependency
-      health. Worker must not be marked ready while its required adapters are
-      absent.
+      health under the approved RELEASE-003-R1 deployable/worker criticality
+      matrix. Worker must not be marked ready while a required adapter is
+      absent; optional degradation must follow the contract's explicit HTTP
+      readiness semantics.
 
 ## Health and safe smoke tests
 

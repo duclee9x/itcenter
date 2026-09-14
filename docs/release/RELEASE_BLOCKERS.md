@@ -22,11 +22,11 @@ is included in the approved release scope.
 - **Severity:** High
 - **Affected capability:** Worker deployment, job execution, rollout health
 - **Production impact:** `apps/worker/src/main.ts` passes `async () => false` to its health server. The worker health endpoint therefore remains not-ready even while worker loops are started. Orchestrators cannot safely distinguish a functioning worker from one that has not initialized required adapters.
-- **Required action:** Define and wire readiness from actual DB and required worker/delivery adapter state; retain failure when dependencies are absent. Define rollout and graceful-shutdown behavior.
+- **Required action:** Resolve critical-worker, optional/degraded, per-task heartbeat, outbox/scheduler, replica and drain policy in [RELEASE-003-R1](items/RELEASE-003-R1_PRODUCTION_READINESS_CRITICAL_WORKER_CONTRACT.md), then wire readiness from actual DB and approved required-worker state. Retain failure when mandatory dependencies are absent.
 - **Verification:** Deploy to staging, observe readiness transition only after dependencies initialize; stop DB/required adapters and verify readiness becomes false; terminate a worker during claimed work and verify safe recovery/no duplicate business effect.
 - **Owner/domain:** Platform / Worker runtime
 - **Release-blocking:** Yes
-- **Evidence:** `apps/worker/src/main.ts`; `apps/worker/src/host.ts`; `docs/runbooks/local-development.md`.
+- **Evidence:** `apps/worker/src/main.ts`; `apps/worker/src/host.ts`; [RELEASE-003 item](items/RELEASE-003_WORKER_READINESS.md); [RELEASE-003-R1](items/RELEASE-003-R1_PRODUCTION_READINESS_CRITICAL_WORKER_CONTRACT.md); `docs/runbooks/local-development.md`.
 
 ## RR-03 — Production Agent mTLS and credentials are not verified in staging
 

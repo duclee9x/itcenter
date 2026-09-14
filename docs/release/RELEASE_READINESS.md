@@ -21,13 +21,13 @@ remain required for any production release.
 The repository is not ready to produce and promote a production Release
 Candidate. The decisive blockers are: the API authentication adapter is
 implemented but has not been configured and validated against a real staging
-OIDC provider; worker readiness is intentionally false until required adapters are installed; no
-staging/production image and promotion path is present; no production-like
-migration compatibility rehearsal exists; no production backup/restore drill
-or RPO/RTO is evidenced; and TLS/rate limiting are not supplied by a checked-in
-deployment edge. Agent execution additionally remains fail-closed until its
-real Agent CA and credentials are configured and mTLS is validated through
-staging.
+OIDC provider; worker readiness remains false and required-worker /
+degraded-operation policy is unresolved; no staging/production image and
+promotion path is present; no production-like migration compatibility
+rehearsal exists; no production backup/restore drill or RPO/RTO is evidenced;
+and TLS/rate limiting are not supplied by a checked-in deployment edge. Agent
+execution additionally remains fail-closed until its real Agent CA and
+credentials are configured and mTLS is validated through staging.
 
 Do not bypass fail-closed behavior to clear these findings. Read
 [RELEASE_BLOCKERS.md](RELEASE_BLOCKERS.md) for actions and acceptance evidence,
@@ -120,7 +120,7 @@ deployment.
 | ID    | Type                     | Severity | Finding                                                                                                                                   | Release-blocking                                                          |
 | ----- | ------------------------ | -------- | ----------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
 | RR-01 | RELEASE_BLOCKER          | Critical | RELEASE-001 is implemented, but no real OIDC provider configuration or staging acceptance evidence is recorded.                           | Yes                                                                       |
-| RR-02 | OPERATIONAL_GAP          | High     | Worker readiness is fixed false until delivery/runtime adapters are wired; no deployable worker readiness contract is demonstrated.       | Yes                                                                       |
+| RR-02 | OPERATIONAL_GAP          | High     | Worker readiness is fixed false; required-worker/degraded-operation policy remains unresolved in RELEASE-003-R1.                          | Yes                                                                       |
 | RR-03 | PRODUCTION_CONFIGURATION | High     | RELEASE-002 mTLS code is complete, but private-CA provisioning and staging-topology validation remain; Agent execution stays unavailable. | Yes when Agent execution is in launch scope; assumed in this assessment   |
 | RR-04 | OPERATIONAL_GAP          | High     | No production build/image, immutable promotion, staging deployment, or rollback procedure is present.                                     | Yes                                                                       |
 | RR-05 | DATA_MIGRATION_GAP       | High     | No production-like prior-schema upgrade, lock/duration measurement, N-1 compatibility, or forward-recovery rehearsal is evidenced.        | Yes                                                                       |

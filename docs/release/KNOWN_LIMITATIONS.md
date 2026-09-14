@@ -34,8 +34,10 @@ work:
 - User API authentication and authorization adapters are not wired. Protected
   API operations fail closed; this is a release blocker, not a supported
   production mode.
-- Worker readiness remains false until runtime adapters are configured. Do
-  not override readiness to force an orchestrator rollout.
+- Worker readiness remains false. RELEASE-003 is blocked until
+  [RELEASE-003-R1](items/RELEASE-003-R1_PRODUCTION_READINESS_CRITICAL_WORKER_CONTRACT.md)
+  defines required-worker and degraded-operation policy; do not override the
+  current fail-closed probe to force an orchestrator rollout.
 - Object/artifact storage routes use unavailable adapters unless a concrete
   production adapter is supplied. Keep affected workflows disabled until
   configured and verified.
