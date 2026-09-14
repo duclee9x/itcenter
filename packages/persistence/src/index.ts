@@ -1,4 +1,11 @@
 import pg from "pg";
+export {
+  listMigrationFiles,
+  migrationManifestRevision,
+  readExpectedMigrationManifest,
+  type MigrationManifestEntry,
+} from "./migration-manifest.js";
+export { PostgresReadiness } from "./readiness.js";
 export interface SqlExecutor {
   query<R extends pg.QueryResultRow = pg.QueryResultRow>(
     sql: string,

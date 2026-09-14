@@ -4,7 +4,11 @@ import { handleReportingRoute } from "./reporting-routes.js";
 import { handleSlaTargetPurposeRoute } from "./sla-target-purpose-routes.js";
 import {
   createHttpServer,
+  addReadinessComponent,
+  asReadinessSnapshot,
   json,
+  ReadinessCheckCache,
+  type ReadinessSnapshot,
 } from "../../../packages/observability/src/index.js";
 import {
   authenticate,
@@ -278,16 +282,35 @@ async function appendNetworkVlanChangeEffects(input: {
 
 export function apiServer(
   config: Config,
-  ready: () => Promise<boolean>,
+  ready: () => Promise<boolean | ReadinessSnapshot>,
   authentication: AuthenticationPort,
   authorization: AuthorizationPort,
   uow: UnitOfWork,
   softwareArtifactAdapters?: SoftwareArtifactAdapters,
   objectStore?: ObjectStore,
 ) {
+  const authenticationReadiness = new ReadinessCheckCache(5000);
   return createHttpServer(
     config,
-    async () => (await ready()) && ((await authentication.isReady?.()) ?? true),
+    async () => {
+      const snapshot = asReadinessSnapshot(await ready(), "API");
+      if (
+        snapshot.components.some((component) => component.state === "STOPPING")
+      )
+        return snapshot;
+      const authenticationReady = await authenticationReadiness.check(
+        "authentication",
+        async () => (await authentication.isReady?.()) ?? true,
+      );
+      return addReadinessComponent(snapshot, {
+        id: "authentication",
+        state: authenticationReady ? "READY" : "NOT_READY",
+        criticality: "MANDATORY",
+        ...(!authenticationReady
+          ? { reasonCode: "AUTHENTICATION_UNAVAILABLE" }
+          : {}),
+      });
+    },
     async (req, res, context) => {
       const dispatch = async () => {
         if (

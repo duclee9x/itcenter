@@ -4,10 +4,11 @@
 | ------------- | --------------------------------------------------------------------------------------- |
 | Selected item | RELEASE-003 — Worker Readiness & Background Processing Health                           |
 | Priority      | P0                                                                                      |
-| Status        | `NOT_STARTED`                                                                           |
-| Readiness     | `READY`                                                                                 |
-| Blocker       | None; RELEASE-003-R1 operational contract is `CODE_COMPLETE`.                           |
+| Status        | `CODE_COMPLETE`                                                                         |
+| Readiness     | `N/A`                                                                                   |
+| Blocker       | Staging/orchestrator verification is pending; item is not `VERIFIED`.                   |
 | Contract      | [RELEASE-003-R1](items/RELEASE-003-R1_PRODUCTION_READINESS_CRITICAL_WORKER_CONTRACT.md) |
+| Report        | [RELEASE-003 implementation report](items/RELEASE-003_IMPLEMENTATION_REPORT.md)         |
 
 RELEASE-001 runtime is `CODE_COMPLETE` but not `VERIFIED`; real provider and
 staging acceptance remain open. RELEASE-002-R1 fixes Agent authentication as
@@ -21,9 +22,10 @@ The decisions are persisted in
 [RELEASE-001-R1](items/RELEASE-001-R1_PRODUCTION_AUTHENTICATION_CONTRACT.md)
 and [RELEASE-001-R2](items/RELEASE-001-R2_EXPLICIT_TENANT_CONTEXT_MEMBERSHIP_FOUNDATION.md).
 The global release decision remains `BLOCKED_FOR_RC`. RELEASE-002 code
-completion does not verify production mTLS or staging. RELEASE-003 is selected
-and ready for runtime implementation under its completed R1 contract. Overall
-release readiness remains `BLOCKED_FOR_RC`.
+completion does not verify production mTLS or staging. RELEASE-003 runtime is
+`CODE_COMPLETE`, but staging/orchestrator verification remains pending. Keep
+RELEASE-003 selected until that evidence is recorded; RELEASE-004 is not
+started. Overall release readiness remains `BLOCKED_FOR_RC`.
 
 RELEASE-004 and RELEASE-005 remain independently `READY`. RELEASE-004 is not
 started. See

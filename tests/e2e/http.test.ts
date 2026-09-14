@@ -9,6 +9,10 @@ import {
   denyAll,
   unavailableAuthentication,
 } from "../../packages/auth/src/index.js";
+import {
+  aggregateReadiness,
+  createHttpServer,
+} from "../../packages/observability/src/index.js";
 import type { UnitOfWork } from "../../packages/persistence/src/index.js";
 async function listen(server: Server): Promise<string> {
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
@@ -83,6 +87,122 @@ test("agent boundary authenticates agent namespace and exposes no user administr
   try {
     assert.equal((await fetch(url + "/api/v1/agent/heartbeat")).status, 401);
     assert.equal((await fetch(url + "/api/v1/me")).status, 404);
+  } finally {
+    await close(server);
+  }
+});
+
+test("health probes keep liveness independent and map readiness states to HTTP", async () => {
+  let snapshot = aggregateReadiness("WORKER", [
+    { id: "worker-host", state: "READY", criticality: "MANDATORY" },
+  ]);
+  let readinessCalls = 0;
+  const server = createHttpServer(config, async () => {
+    readinessCalls += 1;
+    return snapshot;
+  });
+  const url = await listen(server);
+  try {
+    const live = await fetch(url + "/api/v1/health/live");
+    assert.equal(live.status, 200);
+    assert.equal(readinessCalls, 0);
+
+    const ready = await fetch(url + "/api/v1/health/ready");
+    assert.equal(ready.status, 200);
+    assert.equal((await ready.json()).data.status, "READY");
+
+    snapshot = aggregateReadiness("WORKER", [
+      { id: "worker-host", state: "READY", criticality: "MANDATORY" },
+      {
+        id: "reporting-worker",
+        state: "NOT_READY",
+        criticality: "DEGRADABLE",
+        reasonCode: "WORKER_EXITED_UNEXPECTEDLY",
+      },
+    ]);
+    const degraded = await fetch(url + "/api/v1/health/ready");
+    assert.equal(degraded.status, 200);
+    assert.equal((await degraded.json()).data.status, "DEGRADED");
+
+    snapshot = aggregateReadiness("WORKER", [
+      {
+        id: "automation-action-executions",
+        state: "NOT_READY",
+        criticality: "MANDATORY",
+        reasonCode: "WORKER_HEARTBEAT_STALE",
+      },
+    ]);
+    const unavailable = await fetch(url + "/api/v1/health/ready");
+    assert.equal(unavailable.status, 503);
+    const body = await unavailable.json();
+    assert.equal(body.data.status, "NOT_READY");
+    assert.equal(body.data.components[0].reason_code, "WORKER_HEARTBEAT_STALE");
+    assert.equal(JSON.stringify(body).includes("stack"), false);
+  } finally {
+    await close(server);
+  }
+});
+
+test("API readiness includes the RELEASE-001 authentication readiness port", async () => {
+  const server = apiServer(
+    config,
+    async () => true,
+    {
+      async isReady() {
+        return false;
+      },
+      async authenticate() {
+        throw new Error("Not used by health probes");
+      },
+    },
+    denyAll,
+    uow,
+  );
+  const url = await listen(server);
+  try {
+    const unavailable = await fetch(url + "/api/v1/health/ready");
+    assert.equal(unavailable.status, 503);
+    const unavailableBody = await unavailable.json();
+    assert.equal(unavailableBody.data.profile, "API");
+    assert.equal(
+      unavailableBody.data.components.find(
+        (item: { id: string }) => item.id === "authentication",
+      ).reason_code,
+      "AUTHENTICATION_UNAVAILABLE",
+    );
+  } finally {
+    await close(server);
+  }
+});
+
+test("API readiness retains STOPPING through authentication component composition", async () => {
+  let authenticationReadinessCalls = 0;
+  const server = apiServer(
+    config,
+    async () =>
+      aggregateReadiness("API", [
+        {
+          id: "runtime",
+          state: "STOPPING",
+          criticality: "MANDATORY",
+        },
+      ]),
+    {
+      async isReady() {
+        authenticationReadinessCalls += 1;
+        return true;
+      },
+      async authenticate() {
+        throw new Error("Not used by health probes");
+      },
+    },
+    denyAll,
+    uow,
+  );
+  const url = await listen(server);
+  try {
+    assert.equal((await fetch(url + "/api/v1/health/ready")).status, 503);
+    assert.equal(authenticationReadinessCalls, 0);
   } finally {
     await close(server);
   }

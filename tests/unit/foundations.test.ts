@@ -17,7 +17,7 @@ import {
   type AuthorizationPort,
 } from "../../packages/auth/src/index.js";
 import { requestHash } from "../../packages/messaging/src/index.js";
-import { WorkerHost } from "../../apps/worker/src/host.js";
+import { WorkerHost, WorkerRegistry } from "../../apps/worker/src/host.js";
 const env = { DATABASE_SECRET_REF: "env:TEST_URL" };
 test("configuration validates ports, environment, log level and secret refs", () => {
   assert.equal(loadConfig(env).port, 3000);
@@ -142,7 +142,16 @@ test("canonical hashes preserve semantic equality and detect changed content", (
   assert.throws(() => assertVersion(2, 1), { code: "VERSION_CONFLICT" });
 });
 test("worker hosts a task and waits for graceful abort", async () => {
-  const host = new WorkerHost();
+  const host = new WorkerHost(
+    new WorkerRegistry([
+      {
+        name: "test-consumer",
+        criticality: "MANDATORY",
+        replicaMode: "CONCURRENT_SAFE",
+        coordination: "durable unit test identity",
+      },
+    ]),
+  );
   let stopped = false;
   host.start([
     {
@@ -160,9 +169,46 @@ test("worker hosts a task and waits for graceful abort", async () => {
         ),
     },
   ]);
+  host.beginStop();
+  assert.equal(host.snapshot().status, "NOT_READY");
   await host.stop();
   assert.equal(stopped, true);
   assert.throws(() => host.start([]));
+});
+
+test("worker host marks a crashed worker unavailable and restores readiness after restart", async () => {
+  const registry = new WorkerRegistry([
+    {
+      name: "test-projection",
+      criticality: "DEGRADABLE",
+      replicaMode: "CONCURRENT_SAFE",
+      coordination: "durable test identity",
+    },
+  ]);
+  const host = new WorkerHost(registry, {
+    heartbeatIntervalMs: 10,
+    restartDelayMs: 10,
+  });
+  let attempts = 0;
+  host.start([
+    {
+      name: "test-projection",
+      run: (signal) => {
+        attempts += 1;
+        if (attempts === 1) return Promise.reject(new Error("test crash"));
+        return new Promise<void>((resolve) =>
+          signal.addEventListener("abort", () => resolve(), { once: true }),
+        );
+      },
+    },
+  ]);
+  await new Promise((resolve) => setTimeout(resolve, 1));
+  assert.equal(host.snapshot().status, "DEGRADED");
+  for (let i = 0; i < 50 && attempts < 2; i += 1)
+    await new Promise((resolve) => setTimeout(resolve, 2));
+  assert.equal(attempts, 2);
+  assert.equal(host.snapshot().status, "READY");
+  await host.stop();
 });
 
 test("audit policy rejects nested secret fields before persistence", async () => {

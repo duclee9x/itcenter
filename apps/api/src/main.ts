@@ -6,9 +6,14 @@ import {
 import {
   createPool,
   PostgresUnitOfWork,
-  databaseReady,
+  PostgresReadiness,
+  readExpectedMigrationManifest,
 } from "../../../packages/persistence/src/index.js";
-import { logger } from "../../../packages/observability/src/index.js";
+import {
+  aggregateReadiness,
+  logger,
+  type ReadinessComponent,
+} from "../../../packages/observability/src/index.js";
 import { installShutdown } from "../../../packages/observability/src/lifecycle.js";
 import { apiServer } from "./server.js";
 import {
@@ -24,6 +29,9 @@ const pool = createPool(
 );
 pool.on("error", () => log("error", "database.connection_error"));
 const uow = new PostgresUnitOfWork(pool);
+const migrationManifest = await readExpectedMigrationManifest();
+const readiness = new PostgresReadiness(pool, migrationManifest);
+let draining = false;
 let authentication: AuthenticationPort;
 try {
   authentication =
@@ -44,12 +52,29 @@ try {
 if (config.authMode === "oidc") log("info", "auth.adapter.initialized");
 const server = apiServer(
   config,
-  () => databaseReady(pool),
+  async () => {
+    if (draining)
+      return aggregateReadiness("API", [
+        {
+          id: "runtime",
+          state: "STOPPING",
+          criticality: "MANDATORY",
+        },
+      ]);
+    const components: ReadinessComponent[] = await readiness.components();
+    return aggregateReadiness("API", components);
+  },
   authentication,
   postgresAuthorization(uow),
   uow,
 );
 server.listen(config.port, config.host, () => log("info", "started"));
-installShutdown(server, async () => {
-  await pool.end();
-});
+installShutdown(
+  server,
+  async () => {
+    await pool.end();
+  },
+  () => {
+    draining = true;
+  },
+);

@@ -84,15 +84,31 @@ or use explicitly disposable staging fixtures.
 - [ ] Configure concrete object storage/scanning and/or external event
       publishing only if those capabilities are in scope. Otherwise keep the
       affected routes/integrations disabled and fail-closed.
-- [ ] Confirm DB/API/Agent Gateway/Worker readiness reflects actual dependency
-      health under [RELEASE-003-R1](items/RELEASE-003-R1_PRODUCTION_READINESS_CRITICAL_WORKER_CONTRACT.md).
+- [ ] Verify `/health/live` remains HTTP 200 with DB/auth/worker dependency
+      failures and performs no dependency checks. Verify `/health/ready` is
+      HTTP 200 for READY/DEGRADED and 503 for NOT_READY, without sensitive
+      diagnostics.
+- [ ] Verify separate RELEASE-003 profiles under
+      [R1](items/RELEASE-003-R1_PRODUCTION_READINESS_CRITICAL_WORKER_CONTRACT.md):
       API requires DB/schema/OIDC; Agent Gateway requires DB/schema/mTLS;
-      Worker requires DB/schema and all three mandatory workers. Confirm the
-      full 13-worker registry, 15-second heartbeat / 45-second stale limit,
-      60-second startup deadline, and exact migration-manifest match. A
-      mandatory failure must return `NOT_READY/503`; a degradable worker or
-      safely isolated certificate-issuer failure returns `DEGRADED/200`.
-      Verify drain marks the instance not-ready before stopping new work.
+      Worker requires DB/schema/WorkerHost/WorkerRegistry and all mandatory
+      workers. Failure in another deployable must not affect this profile.
+- [ ] Verify exact applied migration-manifest compatibility, including
+      behind/ahead/mismatch failure, bounded recovery after DB/schema recovery,
+      and that probes never execute migrations.
+- [ ] Verify the exact 13-worker registry: `goods-receipt-assetizer`,
+      `contract-alert-expiry`, and `automation-action-executions` are
+      MANDATORY; the other ten are DEGRADABLE; all 13 remain
+      CONCURRENT_SAFE under their documented durable DB coordination. Confirm
+      15-second heartbeat, 45-second stale limit, 60-second startup deadline,
+      idle-worker health, crash/restart recovery, and `DEGRADED/200` versus
+      `NOT_READY/503` classification.
+- [ ] Verify Agent certificate-issuer failure alone is `DEGRADED/200` only
+      while existing-Agent mTLS authentication remains safe; otherwise require
+      `NOT_READY/503` as R1 specifies.
+- [ ] Verify SIGTERM/drain marks each deployable not-ready before listener
+      shutdown; WorkerHost enters STOPPING and claims no subsequent jobs; probes
+      have no business side effects.
 
 ## Health and safe smoke tests
 

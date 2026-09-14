@@ -3,6 +3,7 @@ import {
   createHttpServer,
   createHttpsServer,
   json,
+  type ReadinessSnapshot,
   type Route,
 } from "../../../packages/observability/src/index.js";
 import { TLSSocket } from "node:tls";
@@ -59,7 +60,7 @@ function isMtlsAuthentication(
 
 export function agentServer(
   config: Config,
-  ready: () => Promise<boolean>,
+  ready: () => Promise<boolean | ReadinessSnapshot>,
   agentAuthentication: AuthenticationPort | AgentPeerAuthenticationPort,
   uow?: UnitOfWork,
   deploymentAdapters?: AgentDeploymentAdapters,

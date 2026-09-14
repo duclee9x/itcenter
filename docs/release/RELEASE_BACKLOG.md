@@ -31,7 +31,7 @@ for this backlog. Initial P0 entries are listed in priority order.
 | ---------------- | --------------------------------------------------------- | -------: | --------------- | -------------------- | ------------------------------- | ------------------------------------------------------------------------------------------------------ |
 | RELEASE-001      | Production API Authentication & Authorization Adapter     |       P0 | `CODE_COMPLETE` | `N/A`                | None                            | Automated acceptance passes; real IdP/staging validation remains before VERIFIED and keeps RR-01 open. |
 | RELEASE-002      | Production Agent Authentication for TASK-091              |       P0 | `CODE_COMPLETE` | `N/A`                | None                            | Automated implementation passes; real CA provisioning and staging-topology mTLS verification remain.   |
-| RELEASE-003      | Worker Readiness & Background Processing Health           |       P0 | `NOT_STARTED`   | `READY`              | None                            | RELEASE-003-R1 is `CODE_COMPLETE`; runtime and staging verification remain.                            |
+| RELEASE-003      | Worker Readiness & Background Processing Health           |       P0 | `CODE_COMPLETE` | `N/A`                | None                            | Runtime and automated checks pass; deployable-profile staging verification remains before `VERIFIED`.  |
 | RELEASE-004      | Immutable Build / Staging / Promotion / Rollback Pipeline |       P0 | `NOT_STARTED`   | `READY`              | None                            | Produce and promote one immutable artifact.                                                            |
 | RELEASE-005      | Backup / Restore + RPO / RTO Validation                   |       P0 | `NOT_STARTED`   | `READY`              | None                            | Restore must be tested; define and approve RPO/RTO.                                                    |
 | RELEASE-006      | PostgreSQL Migration Rehearsal + N-1 Compatibility        |       P0 | `NOT_STARTED`   | `WAITING_DEPENDENCY` | RELEASE-004, RELEASE-005        | Must use the verified artifact and recovery path.                                                      |
@@ -79,5 +79,7 @@ verification recorded in
 Real CA provisioning and validation through the RELEASE-007 staging topology
 remain required before `VERIFIED`. RELEASE-003-R1 is now `CODE_COMPLETE` and
 clears its operational-decision gap. The contract defines deployable-specific
-profiles and all 13 workers; RELEASE-003 is `READY / NOT_STARTED` for runtime
-implementation. Overall readiness remains `BLOCKED_FOR_RC`.
+profiles and all 13 workers. RELEASE-003 runtime is implemented and locally
+verified; deployable-profile staging/orchestrator verification remains before
+`VERIFIED`. RELEASE-004 remains not started. Overall readiness remains
+`BLOCKED_FOR_RC`.

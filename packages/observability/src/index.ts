@@ -11,16 +11,38 @@ import {
 import type { Config } from "../../config/src/index.js";
 import type { CorrelationContext } from "../../shared-kernel/src/index.js";
 import {
+  aggregateReadiness,
+  asReadinessSnapshot,
+  publicReadiness,
+  type ReadinessSnapshot,
+} from "./readiness.js";
+export {
+  aggregateReadiness,
+  addReadinessComponent,
+  asReadinessSnapshot,
+  publicReadiness,
+  ReadinessCheckCache,
+  type ComponentCriticality,
+  type ComponentReadinessState,
+  type ReadinessComponent,
+  type ReadinessSnapshot,
+  type ReadinessState,
+} from "./readiness.js";
+import {
   ApplicationError,
   errorResponse,
 } from "../../api-contracts/src/index.js";
 export interface MetricsRecorder {
   increment(name: string): void;
+  gauge(name: string, value: number): void;
 }
 export class Metrics implements MetricsRecorder {
   private readonly counts = new Map<string, number>();
   increment(name: string): void {
     this.counts.set(name, (this.counts.get(name) ?? 0) + 1);
+  }
+  gauge(name: string, value: number): void {
+    this.counts.set(name, value);
   }
   snapshot(): Readonly<Record<string, number>> {
     return Object.fromEntries(this.counts);
@@ -75,11 +97,13 @@ export function json(res: ServerResponse, status: number, body: unknown): void {
 }
 function requestListener(
   config: Pick<Config, "serviceName" | "environment" | "logLevel">,
-  ready: () => Promise<boolean>,
+  ready: () => Promise<boolean | ReadinessSnapshot>,
   route?: Route,
   metrics = new Metrics(),
 ): (req: IncomingMessage, res: ServerResponse) => void {
   const log = logger(config);
+  let lastReadinessKey: string | undefined;
+  const lastComponentStates = new Map<string, string>();
   return (req, res) => {
     const context = requestContext(req.headers["x-correlation-id"]);
     res.setHeader("X-Request-Id", context.request_id);
@@ -95,19 +119,83 @@ function requestListener(
           return;
         }
         if (req.method === "GET" && req.url === "/api/v1/health/ready") {
-          let available = false;
+          let readiness: ReadinessSnapshot;
           try {
-            available = await ready();
+            readiness = asReadinessSnapshot(await ready());
           } catch {
-            available = false;
+            readiness = aggregateReadiness("APPLICATION", [
+              {
+                id: "readiness-check",
+                state: "NOT_READY",
+                criticality: "MANDATORY",
+                reasonCode: "READINESS_CHECK_FAILED",
+              },
+            ]);
           }
-          if (!available)
-            throw new ApplicationError(
-              "DEPENDENCY_UNAVAILABLE",
-              "Service dependencies are not ready.",
-              true,
+          const readinessKey = JSON.stringify([
+            readiness.profile,
+            readiness.status,
+            readiness.components.map((component) => [
+              component.id,
+              component.state,
+              component.reasonCode ?? null,
+            ]),
+          ]);
+          if (lastReadinessKey !== readinessKey) {
+            lastReadinessKey = readinessKey;
+            log(
+              "info",
+              `readiness.transition.${readiness.profile.toLowerCase()}.${readiness.status.toLowerCase()}`,
+              context,
             );
-          json(res, 200, { data: { status: "ok" }, meta: context });
+          }
+          for (const state of ["READY", "DEGRADED", "NOT_READY"] as const)
+            metrics.gauge(
+              `readiness_${readiness.profile.toLowerCase()}_${state.toLowerCase()}`,
+              readiness.status === state ? 1 : 0,
+            );
+          for (const component of readiness.components) {
+            for (const state of [
+              "STARTING",
+              "READY",
+              "DEGRADED",
+              "NOT_READY",
+              "STOPPING",
+            ] as const)
+              metrics.gauge(
+                `readiness_component_${component.id}_${state.toLowerCase()}`,
+                component.state === state ? 1 : 0,
+              );
+            if (component.restartCount !== undefined)
+              metrics.gauge(
+                `worker_unexpected_exit_restart_count_${component.id}`,
+                component.restartCount,
+              );
+            if (component.lastHeartbeatAt) {
+              metrics.gauge(
+                `worker_heartbeat_age_seconds_${component.id}`,
+                Math.max(
+                  0,
+                  (Date.now() - Date.parse(component.lastHeartbeatAt)) / 1000,
+                ),
+              );
+            }
+            const previousState = lastComponentStates.get(component.id);
+            if (
+              previousState !== undefined &&
+              previousState !== component.state
+            )
+              log(
+                "info",
+                `readiness.component_transition.${component.id}.${component.state.toLowerCase()}`,
+                context,
+              );
+            lastComponentStates.set(component.id, component.state);
+          }
+          json(res, readiness.status === "NOT_READY" ? 503 : 200, {
+            data: publicReadiness(readiness),
+            meta: context,
+          });
           return;
         }
         if (route && (await route(req, res, context))) return;
@@ -125,7 +213,7 @@ function requestListener(
 
 export function createHttpServer(
   config: Pick<Config, "serviceName" | "environment" | "logLevel">,
-  ready: () => Promise<boolean>,
+  ready: () => Promise<boolean | ReadinessSnapshot>,
   route?: Route,
   metrics = new Metrics(),
 ) {
@@ -137,7 +225,7 @@ export function createHttpServer(
 
 export function createHttpsServer(
   config: Pick<Config, "serviceName" | "environment" | "logLevel">,
-  ready: () => Promise<boolean>,
+  ready: () => Promise<boolean | ReadinessSnapshot>,
   tls: TlsServerOptions,
   route?: Route,
   metrics = new Metrics(),

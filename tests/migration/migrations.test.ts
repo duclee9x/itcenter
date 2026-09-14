@@ -13,6 +13,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { testDatabase } from "../helpers.js";
 import { migrate } from "../../database/scripts/runner.js";
+import { readExpectedMigrationManifest } from "../../packages/persistence/src/migration-manifest.js";
 import { queryIncidentStateAt } from "../../modules/incident/index.js";
 import { queryWorkItemStateAt } from "../../modules/work-queue/index.js";
 test("empty DB applies all migrations; rerun is idempotent and changed migration is rejected", async () => {
@@ -21,6 +22,16 @@ test("empty DB applies all migrations; rerun is idempotent and changed migration
   try {
     await migrate(db.pool);
     await migrate(db.pool);
+    const appliedManifest = await db.pool.query(
+      "SELECT name,checksum FROM migration_meta.applied ORDER BY name",
+    );
+    const expectedManifest = await readExpectedMigrationManifest();
+    assert.deepEqual(
+      appliedManifest.rows.sort((a, b) => a.name.localeCompare(b.name)),
+      expectedManifest
+        .map(({ name, checksum }) => ({ name, checksum }))
+        .sort((a, b) => a.name.localeCompare(b.name)),
+    );
     const knowledgeRecommendationTables = await db.pool.query(
       `SELECT tablename FROM pg_tables WHERE schemaname='problem'
         AND tablename IN ('knowledge_recommendation_sessions','knowledge_recommendation_items','knowledge_recommendation_interactions') ORDER BY tablename`,

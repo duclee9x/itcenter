@@ -16,17 +16,17 @@ is included in the approved release scope.
 - **Release-blocking:** Yes
 - **Evidence:** [RELEASE-001 implementation report](items/RELEASE-001_IMPLEMENTATION_REPORT.md); `apps/api/src/main.ts`; `modules/identity/infrastructure/oidc-authentication.ts`; [R1](items/RELEASE-001-R1_PRODUCTION_AUTHENTICATION_CONTRACT.md); [R2](items/RELEASE-001-R2_EXPLICIT_TENANT_CONTEXT_MEMBERSHIP_FOUNDATION.md). Automated implementation evidence does not replace provider/staging verification.
 
-## RR-02 — Worker readiness is not deployable
+## RR-02 — Deployable readiness has not been validated in staging
 
 - **Type:** `OPERATIONAL_GAP`
 - **Severity:** High
 - **Affected capability:** Worker deployment, job execution, rollout health
-- **Production impact:** `apps/worker/src/main.ts` passes `async () => false` to its health server. The worker health endpoint therefore remains not-ready even while worker loops are started. Orchestrators cannot safely distinguish a functioning worker from one that has not initialized required adapters.
-- **Required action:** Implement the now-approved [RELEASE-003-R1](items/RELEASE-003-R1_PRODUCTION_READINESS_CRITICAL_WORKER_CONTRACT.md) contract: deployable profiles, exact schema compatibility, bounded DB checks, WorkerRegistry/heartbeat, mandatory/degradable aggregation, and readiness-first drain. Preserve the specified `READY/DEGRADED` HTTP 200 and `NOT_READY` HTTP 503 semantics.
-- **Verification:** Unit/integration tests must prove API/Agent Gateway/Worker profile isolation; exact schema mismatch; Worker startup deadline, heartbeat staleness, mandatory crash versus degradable failure, idle health and recovery; issuer-only degradation where safe; drain/readiness order; and side-effect-free probes. Staging must then verify those behaviors against the immutable release topology.
+- **Production impact:** RELEASE-003 implements separate API, Agent Gateway, and Worker readiness profiles, exact migration-manifest checks, OIDC/mTLS readiness, the 13-worker registry and readiness-first drain. Automated tests pass, but no staging/orchestrator evidence proves probe behavior, configured production dependencies, or failure/recovery behavior against deployed processes.
+- **Required action:** Deploy the same immutable candidate to staging and complete the RELEASE-003 section of the RC checklist for API, Agent Gateway and Worker. Preserve fail-closed semantics and the exact R1 worker policy.
+- **Verification:** Record staging evidence for profile isolation; exact schema; mandatory/degradable startup, heartbeat and crash behavior; issuer-only degradation where safe; dependency recovery; readiness-first drain; and side-effect-free probes. RELEASE-003 remains `CODE_COMPLETE`, not `VERIFIED`, until this evidence is accepted.
 - **Owner/domain:** Platform / Worker runtime
 - **Release-blocking:** Yes
-- **Evidence:** `apps/worker/src/main.ts`; `apps/worker/src/host.ts`; [RELEASE-003 item](items/RELEASE-003_WORKER_READINESS.md); [RELEASE-003-R1](items/RELEASE-003-R1_PRODUCTION_READINESS_CRITICAL_WORKER_CONTRACT.md); `docs/runbooks/local-development.md`.
+- **Evidence:** [RELEASE-003 implementation report](items/RELEASE-003_IMPLEMENTATION_REPORT.md); `apps/worker/src/main.ts`; `apps/worker/src/host.ts`; [RELEASE-003-R1](items/RELEASE-003-R1_PRODUCTION_READINESS_CRITICAL_WORKER_CONTRACT.md); [RC checklist](RC_CHECKLIST.md).
 
 ## RR-03 — Production Agent mTLS and credentials are not verified in staging
 
@@ -93,7 +93,7 @@ is included in the approved release scope.
 - **Type:** `OBSERVABILITY_GAP`
 - **Severity:** High
 - **Affected capability:** Service operations and incident response
-- **Production impact:** `packages/observability/src/index.ts` provides structured console logs and an in-process metrics map, but no metrics exporter or OpenTelemetry tracer is wired. No alert routing/policies were found for API/DB availability, worker stopped, outbox backlog, repeated job failures, stale Reporting, Recommendation reconciliation failure, execution `UNKNOWN` rate, or disk/storage risk. Worker readiness currently stays false.
+- **Production impact:** `packages/observability/src/index.ts` provides structured console logs and an in-process metrics map, including bounded readiness/worker signals, but no metrics exporter or OpenTelemetry tracer is wired. No alert routing/policies were found for API/DB availability, worker stopped, outbox backlog, repeated job failures, stale Reporting, Recommendation reconciliation failure, execution `UNKNOWN` rate, or disk/storage risk. Readiness implementation does not provide production monitoring/alert delivery by itself.
 - **Required action:** Export the existing signals through the organization’s chosen stack; define dashboards and actionable alert routes/owners for the listed failure modes. Validate log retention and request/correlation IDs without recording secrets. This does not require a second observability stack.
 - **Verification:** Staging fault-injection/runbook exercise: stop DB/worker, create a controlled job failure and backlog, force a stale projection, and confirm alert delivery, routing, links and recovery signal.
 - **Owner/domain:** SRE / Platform Observability
