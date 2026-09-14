@@ -268,7 +268,7 @@ flowchart TD
   TASK_094_R1["TASK-094-R1<br/>Asset Risk + Replacement Scoring Contract"]
   TASK_094["TASK-094<br/>Risk + Replacement Scoring"]
   TASK_095["TASK-095<br/>Advanced Reporting + Governed KPI + Analytics"]
-  TASK_096_R1["TASK-096-R1<br/>Explainable Recommendation Layer Contract Gap"]
+  TASK_096_R1["TASK-096-R1<br/>Explainable Recommendation Layer Contract"]
   TASK_096["TASK-096<br/>Explainable Recommendation Layer"]
   TASK_097["TASK-097<br/>Phase 5 System Integration + Intelligence Gate"]
   TASK_039["TASK-039<br/>Safe Automation + Operations Overview + Phase 2 Gate"]

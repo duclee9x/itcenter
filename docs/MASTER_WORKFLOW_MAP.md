@@ -1308,3 +1308,14 @@ Một workflow chỉ được xem là hoàn chỉnh khi đã xác định đủ:
 - Escalation
 - Idempotency / duplicate prevention
 - Permission requirement
+
+## TASK-096 Explainable Recommendation Aggregation
+
+TASK-096 aggregates and presents only canonical TASK-092 Incident review,
+TASK-093 Knowledge guidance and TASK-059/TASK-094 Asset replacement review
+artifacts. Source domains retain decision, eligibility, score and lifecycle
+ownership. The aggregation layer provides immutable explanation revisions,
+context filtering and actor-scoped view/dismiss/open metadata; it is not a
+global recommender, Work Queue or automation workflow. A recommendation only
+navigates to its owning workflow. It never executes the suggested action.
+See `tasks/TASK-096_EXPLAINABLE_RECOMMENDATION_LAYER.md`.

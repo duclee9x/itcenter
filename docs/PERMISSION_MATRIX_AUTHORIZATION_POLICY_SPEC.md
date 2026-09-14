@@ -2680,3 +2680,15 @@ authorized using its owning-domain read permission; denied rows are omitted
 without returning their identifiers or metadata. The internal worker uses
 only the active tenant's `SYSTEM_REPORTING` principal and its explicit
 capability allow-list.
+
+### TASK-096 recommendation access
+
+`recommendation.read` grants access to the recommendation aggregation
+interface only. Every item additionally requires owning-source authorization:
+Incident read for correlation review; TASK-093/Knowledge read, audience and
+resource eligibility for Knowledge guidance; and Asset/TASK-059 candidate read
+for replacement review. `recommendation.interact` grants only actor-scoped
+`VIEWED`, `DISMISSED` and `OPENED_SOURCE` metadata writes. It grants no
+Incident review/attach, Knowledge mutation, Asset/TASK-059 disposition,
+approval, Work Queue mutation or Automation execution. All checks are
+tenant/resource scoped; denial fails closed without revealing source metadata.

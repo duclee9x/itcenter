@@ -3693,3 +3693,11 @@ anchor timestamp forward.
 actor, reason, target version, correlation, idempotency and the immutable
 classification-history reference. Reporting reads purpose but never edits
 classification or rewrites historical SLA outcomes.
+
+TASK-096 actor interactions and material projection corrections follow the
+canonical AuditPort and timeline policy. Audit records bind tenant, actor,
+recommendation/revision, source reference, interaction/reason, correlation and
+outcome without copying Incident comments, Ticket descriptions, Knowledge body
+or financial source data. Source-domain decisions retain their own audit
+records; recommendation projection events do not duplicate them. Routine feed
+reads need not create compliance audit records.

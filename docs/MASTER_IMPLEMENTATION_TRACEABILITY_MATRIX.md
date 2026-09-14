@@ -3109,22 +3109,25 @@ outcomes. Main TASK-095 is `CODE_COMPLETE`; its implementation and test mapping
 are in `tasks/TASK-095_IMPLEMENTATION_REPORT.md`, including the dedicated
 unit, PostgreSQL acceptance and Operations Overview compatibility tests.
 KPI-004 uses only typed RESOLUTION evidence; ambiguous legacy purposes fail
-closed. TASK-096 remains blocked pending its own normative contract; TASK-097
-remains waiting for TASK-096.
+closed. TASK-096-R1 has completed the normative aggregation contract and
+TASK-096 is `READY / NOT_STARTED`; TASK-097 remains waiting for TASK-096.
 
-## TASK-096 Explainable Recommendation Layer Contract Gap
+## TASK-096 Explainable Recommendation Aggregation Layer
 
-The registry names TASK-096 as “Explainable Recommendation Layer” (F-050,
-WF-INT01) and declares TASK-090/092/093/094/095 as dependencies, but no
-detailed task contract or acceptance model exists. TASK-093's Knowledge-only
-recommendation profile, TASK-092's correlation decisions, TASK-094's Asset
-assessments and TASK-095's read-only KPI results have separate owners; none
-defines a generic cross-domain recommender. Whether TASK-096 composes these
-outputs or owns additional recommendation categories, evidence, ranking,
-lifecycle, human decisions, APIs/events, authorization or action handoffs is
-unresolved. No runtime implementation may infer those choices.
+| Capability | Canonical owner | Acceptance evidence |
+|---|---|---|
+| Incident review recommendation | TASK-092 Incident correlation | Only current human-review decisions; source score/profile/reasons preserved; AUTO_LINK and NO_LINK excluded; no rescoring or relationship mutation |
+| Knowledge guidance | TASK-093 + TASK-037 Knowledge | Canonical session items and rank preserved; current publication, exact version, audience and read authorization revalidated; no independent search/ranking or body copy |
+| Replacement review | TASK-059 candidate + TASK-094 assessment | Active PLAN/PRIORITY candidate with current valid assessment only; human disposition preserved; no duplicate candidate or approval |
+| Projection/explainability | TASK-096 Recommendation | Three fixed families; immutable source-generation revisions; actor-scoped interactions; no global score; deterministic reason codes/evidence and freshness |
+| Secure discovery | Recommendation API + owner-domain query adapters | Tenant isolation, recommendation permission plus source authorization, explicit per-family source availability, no metadata leakage |
+| Side-effect boundary | TASK-096 | No Work Queue, ActionIntent, TASK-091, source mutation, approval, Procurement or lifecycle action from projection/presentation |
 
-`TASK-096-R1` records the required normative decisions in
-`tasks/TASK-096-R1_EXPLAINABLE_RECOMMENDATION_CONTRACT_GAP.md`. TASK-096 is
-`BLOCKED / NOT_STARTED` with `SPEC_GAP / PLANNING_REQUIRED`; TASK-097 remains
-`WAITING_DEPENDENCY / NOT_STARTED` until TASK-096 completes.
+The normative specification is
+`tasks/TASK-096_EXPLAINABLE_RECOMMENDATION_LAYER.md`; R1 is
+`CODE_COMPLETE` and specification-only. Potential implementation-time
+`SCOPE_DEPENDENCY` items are the missing minimal Incident review-feed and
+Asset candidate/current-assessment read adapters; Knowledge requires a compact
+adapter composed from TASK-093 session and eligibility queries. No direct
+cross-domain SQL is allowed. TASK-096 is `READY / NOT_STARTED`; TASK-097
+remains `WAITING_DEPENDENCY / NOT_STARTED` until TASK-096 completes.

@@ -2198,3 +2198,13 @@ The internal snapshot worker runs under an active tenant-scoped
 `SYSTEM_REPORTING` principal with exact reporting/domain capabilities. The
 15-minute daily-close target is recorded as an SLO; late closed periods remain
 backfillable, and a changed source generation creates one immutable revision.
+
+### TASK-096 recommendation aggregation boundary
+
+Recommendation feed is separate from governed KPI and Work Queue. TASK-096
+surfaces only TASK-092 `REVIEW_REQUIRED`, eligible TASK-093 Knowledge items,
+and active TASK-059 candidates backed by current TASK-094 `PLAN`/`PRIORITY`
+assessments. It does not add a KPI, create Work Items, compare family scores,
+or trigger Automation. Family source failure is exposed as unavailable rather
+than an empty family. Canonical source authorization is required before
+presentation.

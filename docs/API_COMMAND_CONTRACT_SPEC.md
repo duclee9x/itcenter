@@ -2987,3 +2987,19 @@ unsupported dimensions are rejected. Drill-down candidates are returned only
 after owning-domain authorization; aggregate access alone does not reveal
 contributing IDs or metadata. CSV uses the same governed result/snapshot path
 and writes a metadata-only export audit record before responding.
+
+### TASK-096 recommendation discovery API
+
+TASK-096 exposes tenant-scoped `GET /api/v1/recommendations`,
+`GET /api/v1/recommendations/{id}`,
+`GET /api/v1/recommendations/{id}/revisions`, and
+`POST /api/v1/recommendations/{id}/commands/interact`. Feed filters are
+allow-listed to v1 family, canonical context type and projection state;
+pagination is bounded. Interactions accept only `VIEWED`, `DISMISSED` and
+`OPENED_SOURCE` with `Idempotency-Key`. There is no generic accept/action
+command. Responses include per-family `AVAILABLE_EMPTY` or
+`SOURCE_UNAVAILABLE` status and typed server-defined source-workflow action
+descriptors, never arbitrary persisted URLs. The actor must pass both
+`recommendation.read` and the owning source's current read/presentation
+authorization. No unauthorized source identity or explanation metadata is
+returned.

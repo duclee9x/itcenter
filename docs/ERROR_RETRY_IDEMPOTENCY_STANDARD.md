@@ -2892,3 +2892,15 @@ checked. Replaying the same request returns its prior classification without
 another target version, audit or outbox effect; reusing the key for different
 semantics conflicts. Purpose-history triggers enforce append-only storage only;
 authorization and classification rules remain in the application layer.
+
+TASK-096 projection identity is tenant + family + source artifact + source
+generation/version + applicable projection-profile version. A repeated source
+generation must reuse its revision; a material generation change creates one
+next immutable revision under a durable uniqueness/transaction boundary.
+Reconciliation and event delivery races must converge on the same identity.
+Interactions bind tenant, actor, recommendation revision/source generation
+and durable idempotency key; replay returns the prior logical interaction.
+Dismissal racing a source update remains bound to the old generation. Source
+query failure is distinct from `AVAILABLE_EMPTY`, and a terminal source is
+rechecked before presentation. Do not retry a source-domain business command
+from a recommendation projection.

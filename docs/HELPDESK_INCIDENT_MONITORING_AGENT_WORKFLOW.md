@@ -1874,3 +1874,13 @@ queries use effective time and transition sequence. Root membership is
 evaluated over `[linked_at, detached_at)`, so current Root membership cannot
 rewrite an earlier episode snapshot. A `LEGACY_BASELINE` anchor provides
 forward-only coverage and proves nothing before its timestamp.
+
+## TASK-096 Incident correlation review presentation
+
+TASK-096 may present only current TASK-092 human-review correlation decisions
+as `INCIDENT_CORRELATION_REVIEW`. It preserves canonical candidate references,
+score/profile, reason codes and evidence categories after Incident read
+authorization. It does not rescore, present already-applied `AUTO_LINK` or
+`NO_LINK` decisions, or attach/detach Incidents. Review navigation invokes the
+existing TASK-092 workflow; Recommendation Layer interaction is not a
+correlation disposition.

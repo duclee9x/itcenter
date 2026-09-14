@@ -5696,3 +5696,15 @@ outbox. It references the SLA target, prior and resulting typed purpose,
 target version, reason, actor, correlation and idempotency context. It does not
 contain SLA clocks or Ticket contents. The append-only target-purpose history
 is persistence evidence and does not independently publish an event.
+
+### TASK-096 recommendation projection events
+
+Recommendation Layer may emit only recommendation-owned events equivalent to
+`RECOMMENDATION.PROJECTED`, `RECOMMENDATION.SUPERSEDED`,
+`RECOMMENDATION.SOURCE_RESOLVED` and `RECOMMENDATION.DISMISSED`. Payloads
+reference recommendation/revision, family, source domain/type/ID and source
+generation with minimal reason/evidence summary, tenant, actor where relevant,
+correlation and causation. These events describe projection/interaction facts;
+they are not Incident, Knowledge, Asset, Work Queue, Procurement or Automation
+commands. Source events are consumed idempotently through the application
+projection path; Recommendation events never invoke source mutations.

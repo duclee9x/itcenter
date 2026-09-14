@@ -1624,3 +1624,14 @@ rejected for new links. Replacing links increments the Knowledge version and
 retains before/after audit evidence. Knowledge changes emit the existing
 `KNOWLEDGE.UPDATED` semantic with version and reference-only metadata for
 Search indexing; article body is not included in the event.
+
+## TASK-096 Knowledge guidance aggregation
+
+TASK-096 may aggregate only canonical eligible items from TASK-093 sessions
+associated with supported Ticket/RecommendationSession context. TASK-093 owns
+candidate discovery, rank, score, profile, session and presentation
+eligibility. The aggregator preserves these values, revalidates publication,
+exact version, audience and `knowledge.read` before presentation, and stores
+references/summaries only. It does not search/rank Knowledge independently,
+copy article bodies, generate fallback explanations or mutate a session. Any
+Knowledge outcome continues through TASK-093.

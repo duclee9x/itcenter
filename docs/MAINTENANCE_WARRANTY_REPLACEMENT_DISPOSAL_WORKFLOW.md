@@ -2279,3 +2279,14 @@ notification milestones, not separate Warranty states. A tenant-scoped
 worker refreshes projections idempotently at least once per minute so time
 boundaries are observed even without a Warranty row mutation. Scoring was not
 part of R3; TASK-094 now consumes this query and projection.
+
+## TASK-096 Asset replacement review presentation
+
+TASK-096 may surface an active TASK-059 Replacement Candidate only when its
+associated latest valid TASK-094 Replacement Assessment is current and band
+`PLAN` or `PRIORITY`. Preserve the Asset, candidate and assessment references,
+score/band/completeness/profile and summarized reasons, subject to Asset and
+candidate read authorization. TASK-059 owns candidate lifecycle and human
+disposition. TASK-096 creates no candidate, Work Item, approval, Procurement
+request, PO or Asset lifecycle transition. Critical-risk review remains the
+TASK-094 Work Queue path and is not duplicated in Recommendation Layer.

@@ -2,14 +2,14 @@
 
 ## Current Task
 
-TASK-096-R1 — Explainable Recommendation Layer Contract Gap — is the current
-planning task. The parent TASK-096 is `BLOCKED / NOT_STARTED` with
-`SPEC_GAP / PLANNING_REQUIRED` because the registry contains no detailed
-contract and its recommendation scope, deterministic decision policy,
-lifecycle and security boundaries remain unspecified. See
-`tasks/TASK-096-R1_EXPLAINABLE_RECOMMENDATION_CONTRACT_GAP.md`. No runtime code
-was changed. TASK-097 remains `WAITING_DEPENDENCY / NOT_STARTED`. TASK-095 is
-`CODE_COMPLETE`; see
+TASK-096 — Explainable Recommendation Layer — is `READY / NOT_STARTED` after
+TASK-096-R1 completed its normative aggregation contract. See
+`tasks/TASK-096_EXPLAINABLE_RECOMMENDATION_LAYER.md`. Runtime work has not
+started. Potential implementation-time `SCOPE_DEPENDENCY` items are the
+minimal Incident review-feed and Asset candidate/current-assessment read
+adapters; Knowledge can compose existing TASK-093 session and eligibility
+queries. Cross-domain private-table SQL is prohibited. TASK-097 remains
+`WAITING_DEPENDENCY / NOT_STARTED`. TASK-095 is `CODE_COMPLETE`; see
 `tasks/TASK-095_IMPLEMENTATION_REPORT.md` for the nine-KPI runtime, R2/R3
 source integration, snapshot/backfill, drill-down authorization, CSV and full
 verification results.
@@ -30,8 +30,9 @@ XLSX/PDF and underlying-record bulk export.
 TASK-095-R1 — Governed KPI + Analytics Contract — is `CODE_COMPLETE`
 (specification only). TASK-095-R2 historical-state and R3 typed-SLA
 prerequisites are `CODE_COMPLETE`. Main TASK-095 runtime and acceptance are
-also `CODE_COMPLETE`; TASK-096 is blocked on its normative contract and
-TASK-097 remains `WAITING_DEPENDENCY / NOT_STARTED` on TASK-096.
+also `CODE_COMPLETE`; TASK-096-R1 is `CODE_COMPLETE` and TASK-096 is
+`READY / NOT_STARTED`. TASK-097 remains `WAITING_DEPENDENCY / NOT_STARTED` on
+TASK-096.
 
 TASK-093 is `CODE_COMPLETE`; see
 `tasks/TASK-093_IMPLEMENTATION_REPORT.md`.
@@ -59,9 +60,17 @@ Advanced Reporting + Governed KPI + Analytics (`CODE_COMPLETE`). See
 - Verification passed: `npm test` (185 tests: 68 unit/architecture, 2
   contract, 6 migration, 50 integration, 59 E2E), typecheck, lint/boundary,
   format check, migration tests and `git diff --check`.
-- TASK-096 is `BLOCKED / NOT_STARTED` with
-  `SPEC_GAP / PLANNING_REQUIRED`; TASK-097 remains
-  `WAITING_DEPENDENCY / NOT_STARTED`.
+- TASK-096-R1 is `CODE_COMPLETE`; TASK-096 is `READY / NOT_STARTED` and
+  TASK-097 remains `WAITING_DEPENDENCY / NOT_STARTED`.
+
+## Last Completed Remediation — TASK-096-R1
+
+Explainable Recommendation Layer Contract (`CODE_COMPLETE`, specification
+only). The detailed v1 contract defines three canonical families, immutable
+explainability revisions, actor-scoped interactions, source authorization,
+family availability, source-owned actions and explicit no-side-effect
+boundaries. Potential Incident and Asset read-adapter dependencies are
+recorded for TASK-096 implementation. No runtime code was changed.
 
 ## Last Completed Task — TASK-094
 

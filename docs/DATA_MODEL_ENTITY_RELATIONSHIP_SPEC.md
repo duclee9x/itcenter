@@ -4917,3 +4917,17 @@ generation appends the next revision; an identical generation reuses the
 existing revision. Export audit records contain KPI/version, tenant, period,
 dimensions, revision/as-of and format only; they do not copy source records or
 financial evidence rows.
+
+### TASK-096 Recommendation projection
+
+Recommendation persistence consists of tenant-scoped current projections,
+append-only `RecommendationRevision` evidence and append-only
+`RecommendationInteraction` records. The v1 families are
+`INCIDENT_CORRELATION_REVIEW`, `KNOWLEDGE_GUIDANCE` and
+`ASSET_REPLACEMENT_REVIEW`; each references, but does not own, its canonical
+source artifact. Revisions bind source generation/version and source
+profile/version, structured reasons and minimal evidence references. Do not
+copy source payloads. Interactions (`VIEWED`, `DISMISSED`, `OPENED_SOURCE`)
+are actor-scoped and bind the revision/source generation. Dismissal does not
+mutate recommendation validity or source state. Initial reconciliation does
+not fabricate historical presentation evidence.

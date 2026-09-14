@@ -3206,3 +3206,12 @@ before calculating; wildcard grants and tenantless system access are invalid.
 Source watermarks record last materialization, generation, lag, duration and
 safe error. The 15-minute closed-period goal is observability metadata, never a
 retention or eligibility cutoff.
+
+TASK-096 stores only its tenant-scoped recommendation projection, immutable
+revision/explanation evidence, actor-scoped interactions and any reconciliation
+watermark required for recovery. Source facts remain in Incident, Problem/
+Knowledge and Asset domains. Recommendation storage has durable uniqueness
+over family/source/source-generation/profile and interaction idempotency; it
+does not create cross-domain foreign-table ownership or duplicate source
+payloads. Owner-domain read adapters, not arbitrary cross-schema SQL, supply
+source state and current eligibility.
