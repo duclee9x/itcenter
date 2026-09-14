@@ -11,8 +11,10 @@
 - Release-readiness assessment: commit `3a0cda2`.
 - RELEASE-001 is `CODE_COMPLETE`, not `VERIFIED`; real OIDC provider/staging
   validation remains open.
-- Current release item: RELEASE-002, `READY / NOT_STARTED`. Its R1 mTLS
-  security contract is `CODE_COMPLETE`; runtime is not implemented.
+- RELEASE-002 is `CODE_COMPLETE`, not `VERIFIED`; real private CA provisioning
+  and mTLS validation through the RELEASE-007 staging topology remain open.
+- No next release item is selected. RELEASE-003 is dependency-ready but must
+  not start automatically.
 - Unrelated user change in `AGENTS.md` is preserved and must remain outside
   release-planning commits unless a later explicit scope requires a separate
   relevant edit.
@@ -20,15 +22,14 @@
 ## Next action
 
 RELEASE-001 runtime has full automated verification but still requires a real
-staging IdP before `VERIFIED`; RR-01 remains open. RELEASE-002-R1 now
-normatively defines per-Agent mTLS certificates, trusted enrollment,
-credential lifecycle, session/message replay and TASK-091 execution binding.
-RELEASE-002 may begin under that contract in a later authorized run. This R1
-completion does not start runtime or RELEASE-003.
+staging IdP before `VERIFIED`; RR-01 remains open. RELEASE-002 runtime and
+automated tests are complete under its R1 mTLS contract, but real CA
+provisioning and staging topology validation remain before `VERIFIED`.
+RELEASE-003 is not started or selected by this completion.
 
 ## Release order
 
-The current independent READY items are RELEASE-002 through RELEASE-005.
+The remaining independent READY items are RELEASE-003 through RELEASE-005.
 RELEASE-006 waits
 for RELEASE-004 and RELEASE-005; RELEASE-007 waits for RELEASE-004; the final
 RELEASE-GATE-001 waits for every initial remediation item to be verified.

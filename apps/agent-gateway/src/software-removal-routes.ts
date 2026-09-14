@@ -18,6 +18,10 @@ import {
   reportRemovalResult,
 } from "../../../modules/software/index.js";
 import { json } from "../../../packages/observability/src/index.js";
+import {
+  agentMessageIdempotencyPrincipal,
+  withAgentMessageReceipt,
+} from "./agent-message.js";
 
 const supported = ["MSI_PRODUCT_CODE", "PACKAGE_IDENTIFIER", "MANAGED_PACKAGE"];
 
@@ -163,7 +167,7 @@ export async function handleAgentSoftwareRemovalRoute(input: {
         "supported_methods must list supported symbolic methods.",
       );
     const intent = {
-      principalId: principal.id,
+      principalId: agentMessageIdempotencyPrincipal(principal),
       operation: "SOFTWARE.REMOVAL_AGENT_CLAIM",
       businessScope: principal.id,
       key,
@@ -194,61 +198,69 @@ export async function handleAgentSoftwareRemovalRoute(input: {
     const now = Date.now();
     const leaseExpiresAt = new Date(now + 180_000).toISOString();
     const result = await uow.run(principal.tenant_id, (tx) =>
-      new PostgresIdempotencyStore(tx).execute(intent, async () => {
-        const claim = await claimRemovalJob({
-          tx,
-          agentId: principal.id,
-          supportedMethods: body.supported_methods as string[],
-          leaseId,
-          leaseExpiresAt,
-          now: new Date(now).toISOString(),
-        });
-        for (const exception of claim.expired_exceptions) {
-          await appendEffects({
-            tx,
-            config,
-            principal,
-            context,
-            key,
-            eventType: "SOFTWARE.EXCEPTION_UPDATED",
-            aggregateType: "SOFTWARE_EXCEPTION",
-            aggregateId: String(exception.id),
-            version: Number(exception.version),
-            reason: String(exception.reason),
-            after: {
-              software_exception_id: String(exception.id),
-              state: "OPEN",
-              version: Number(exception.version),
-              reason: String(exception.reason),
-              approval_request_id: null,
-              approved_until: null,
-            },
-          });
-        }
-        if (!claim.job) return { status: 200, body: null as never };
-        const job = claim.job;
-        await appendEffects({
-          tx,
-          config,
-          principal,
-          context,
-          key,
-          eventType: "SOFTWARE.REMOVAL_JOB_CLAIMED",
-          aggregateId: job.id,
-          version: job.version,
-          reason:
-            "Authenticated agent claimed an approved symbolic removal job.",
-          after: {
-            removal_job_id: job.id,
-            software_exception_id: job.exception_id,
-            asset_id: job.asset_id,
-            agent_id: principal.id,
-            symbolic_method: job.symbolic_method,
-            attempt_number: job.attempt_number,
-            lease_expires_at: job.lease_expires_at,
-          },
-        });
-        return { status: 200, body: job as never };
+      withAgentMessageReceipt({
+        tx,
+        req,
+        principal,
+        body,
+        production: config.environment === "production",
+        process: () =>
+          new PostgresIdempotencyStore(tx).execute(intent, async () => {
+            const claim = await claimRemovalJob({
+              tx,
+              agentId: principal.id,
+              supportedMethods: body.supported_methods as string[],
+              leaseId,
+              leaseExpiresAt,
+              now: new Date(now).toISOString(),
+            });
+            for (const exception of claim.expired_exceptions) {
+              await appendEffects({
+                tx,
+                config,
+                principal,
+                context,
+                key,
+                eventType: "SOFTWARE.EXCEPTION_UPDATED",
+                aggregateType: "SOFTWARE_EXCEPTION",
+                aggregateId: String(exception.id),
+                version: Number(exception.version),
+                reason: String(exception.reason),
+                after: {
+                  software_exception_id: String(exception.id),
+                  state: "OPEN",
+                  version: Number(exception.version),
+                  reason: String(exception.reason),
+                  approval_request_id: null,
+                  approved_until: null,
+                },
+              });
+            }
+            if (!claim.job) return { status: 200, body: null as never };
+            const job = claim.job;
+            await appendEffects({
+              tx,
+              config,
+              principal,
+              context,
+              key,
+              eventType: "SOFTWARE.REMOVAL_JOB_CLAIMED",
+              aggregateId: job.id,
+              version: job.version,
+              reason:
+                "Authenticated agent claimed an approved symbolic removal job.",
+              after: {
+                removal_job_id: job.id,
+                software_exception_id: job.exception_id,
+                asset_id: job.asset_id,
+                agent_id: principal.id,
+                symbolic_method: job.symbolic_method,
+                attempt_number: job.attempt_number,
+                lease_expires_at: job.lease_expires_at,
+              },
+            });
+            return { status: 200, body: job as never };
+          }),
       }),
     );
     res.writeHead(result.status, { "content-type": "application/json" });
@@ -285,82 +297,93 @@ export async function handleAgentSoftwareRemovalRoute(input: {
     );
   const jobId = reportPath![1]!;
   const result = await uow.run(principal.tenant_id, (tx) =>
-    new PostgresIdempotencyStore(tx).execute(
-      {
-        principalId: principal.id,
-        operation: "SOFTWARE.REMOVAL_AGENT_REPORT",
-        businessScope: jobId,
-        key,
-        semanticRequest: body as never,
-        expiresAt: new Date(Date.now() + 86400000),
-      },
-      async () => {
-        const changed = await reportRemovalResult({
-          tx,
-          agentId: principal.id,
-          jobId,
-          leaseId: text(body, "lease_id"),
-          outcome: body.outcome as "REMOVAL_REPORTED" | "FAILED",
-          retryable: body.retryable as boolean,
-          ...(typeof body.error_code === "string"
-            ? { errorCode: body.error_code }
-            : {}),
-          ...(typeof body.summary === "string"
-            ? { summary: body.summary }
-            : {}),
-        });
-        const eventType =
-          body.outcome === "FAILED"
-            ? "SOFTWARE.REMOVAL_FAILED"
-            : "SOFTWARE.REMOVAL_JOB_REPORTED";
-        await appendEffects({
-          tx,
-          config,
-          principal,
-          context,
-          key,
-          eventType,
-          aggregateId: jobId,
-          version: changed.version,
-          reason: changed.outcome,
-          after: {
-            removal_job_id: changed.id,
-            software_exception_id: changed.exception_id,
-            outcome: changed.outcome,
-            state: changed.state,
-            error_code: body.error_code ?? null,
-            version: changed.version,
+    withAgentMessageReceipt({
+      tx,
+      req,
+      principal,
+      body,
+      production: config.environment === "production",
+      process: () =>
+        new PostgresIdempotencyStore(tx).execute(
+          {
+            principalId: agentMessageIdempotencyPrincipal(principal),
+            operation: "SOFTWARE.REMOVAL_AGENT_REPORT",
+            businessScope: jobId,
+            key,
+            semanticRequest: body as never,
+            expiresAt: new Date(Date.now() + 86400000),
           },
-        });
-        if (
-          changed.exception_update &&
-          typeof changed.exception_update === "object"
-        ) {
-          const exception = changed.exception_update as Record<string, unknown>;
-          await appendEffects({
-            tx,
-            config,
-            principal,
-            context,
-            key: `${key}:exception`,
-            eventType: "SOFTWARE.EXCEPTION_UPDATED",
-            aggregateType: "SOFTWARE_EXCEPTION",
-            aggregateId: String(exception.id),
-            version: Number(exception.version),
-            reason: String(exception.reason),
-            after: {
-              software_exception_id: String(exception.id),
-              state: "OPEN",
-              version: Number(exception.version),
-              reason: String(exception.reason),
-              approval_request_id: null,
-              approved_until: null,
-            },
-          });
-        }
-        return { status: 200, body: changed as never };
-      },
-    ),
+          async () => {
+            const changed = await reportRemovalResult({
+              tx,
+              agentId: principal.id,
+              jobId,
+              leaseId: text(body, "lease_id"),
+              outcome: body.outcome as "REMOVAL_REPORTED" | "FAILED",
+              retryable: body.retryable as boolean,
+              ...(typeof body.error_code === "string"
+                ? { errorCode: body.error_code }
+                : {}),
+              ...(typeof body.summary === "string"
+                ? { summary: body.summary }
+                : {}),
+            });
+            const eventType =
+              body.outcome === "FAILED"
+                ? "SOFTWARE.REMOVAL_FAILED"
+                : "SOFTWARE.REMOVAL_JOB_REPORTED";
+            await appendEffects({
+              tx,
+              config,
+              principal,
+              context,
+              key,
+              eventType,
+              aggregateId: jobId,
+              version: changed.version,
+              reason: changed.outcome,
+              after: {
+                removal_job_id: changed.id,
+                software_exception_id: changed.exception_id,
+                outcome: changed.outcome,
+                state: changed.state,
+                error_code: body.error_code ?? null,
+                version: changed.version,
+              },
+            });
+            if (
+              changed.exception_update &&
+              typeof changed.exception_update === "object"
+            ) {
+              const exception = changed.exception_update as Record<
+                string,
+                unknown
+              >;
+              await appendEffects({
+                tx,
+                config,
+                principal,
+                context,
+                key: `${key}:exception`,
+                eventType: "SOFTWARE.EXCEPTION_UPDATED",
+                aggregateType: "SOFTWARE_EXCEPTION",
+                aggregateId: String(exception.id),
+                version: Number(exception.version),
+                reason: String(exception.reason),
+                after: {
+                  software_exception_id: String(exception.id),
+                  state: "OPEN",
+                  version: Number(exception.version),
+                  reason: String(exception.reason),
+                  approval_request_id: null,
+                  approved_until: null,
+                },
+              });
+            }
+            return { status: 200, body: changed as never };
+          },
+        ),
+    }),
   );
   json(res, result.status, { data: result.body, meta: context });
   return true;

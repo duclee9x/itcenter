@@ -4,7 +4,7 @@ export interface Principal {
   id: string;
   tenant_id: string;
   actor_type: string;
-  auth_method?: "OIDC_ACCESS_TOKEN" | "TEST" | "INTERNAL";
+  auth_method?: "OIDC_ACCESS_TOKEN" | "MTLS" | "TEST" | "INTERNAL";
   issuer?: string;
   subject?: string;
   /** OIDC assurance claims copied only from a verified token. */

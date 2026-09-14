@@ -6,7 +6,7 @@ only release items and the edges approved for the initial release backlog.
 ```mermaid
 flowchart TD
   R001[RELEASE-001 API Authentication & Authorization]
-  R002[RELEASE-002 Agent Authentication — READY]
+  R002[RELEASE-002 Agent Authentication — CODE_COMPLETE / staging verification pending]
   R003[RELEASE-003 Worker Readiness]
   R004[RELEASE-004 Immutable Build / Promotion]
   R005[RELEASE-005 Backup / Restore]
@@ -42,10 +42,10 @@ flowchart TD
 
 ## Derived readiness
 
-Derived readiness after RELEASE-002-R1 completion:
+Derived state after RELEASE-002 automated implementation:
 
 - **CODE_COMPLETE, awaiting environment verification:** RELEASE-001.
-- **READY:** RELEASE-002, RELEASE-003, RELEASE-004, RELEASE-005.
+- **READY:** RELEASE-003, RELEASE-004, RELEASE-005.
 - **BLOCKED:** None.
 - **WAITING_DEPENDENCY:** RELEASE-006, RELEASE-007, RELEASE-GATE-001.
 

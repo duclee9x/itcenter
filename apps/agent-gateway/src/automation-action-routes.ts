@@ -9,11 +9,13 @@ import { json } from "../../../packages/observability/src/index.js";
 import {
   acceptAutomationAction,
   isRegisteredAgent,
+  processAgentMessage,
   readPendingAutomationAction,
   readRestartBaseline,
   recordAutomationActionDelivery,
   rejectAutomationAction,
 } from "../../../modules/agent/index.js";
+import type { AgentPrincipal } from "../../../modules/agent/application/authentication.js";
 import {
   claimAgentRestart,
   PostgresAutomationSecurity,
@@ -92,6 +94,8 @@ export async function handleAgentAutomationActionRoute(input: {
     );
   if (!claim && !accept && !report) return false;
   requireAgent(input.principal);
+  const agentSessionId = (input.principal as Partial<AgentPrincipal>)
+    .agent_session_id;
   const registered = await input.uow.run(input.principal.tenant_id, (tx) =>
     isRegisteredAgent({ tx, agentId: input.principal.id }),
   );
@@ -100,6 +104,29 @@ export async function handleAgentAutomationActionRoute(input: {
       "AUTHENTICATION_REQUIRED",
       "Authenticated identity is not a registered Agent.",
     );
+  const authenticatedAgent = input.principal as Principal &
+    Partial<AgentPrincipal>;
+  const messageHeader = input.req.headers["idempotency-key"];
+  const messageId =
+    typeof messageHeader === "string" ? messageHeader : undefined;
+  if (
+    input.config.environment === "production" &&
+    (!messageId || !authenticatedAgent.agent_session_id)
+  )
+    throw new ApplicationError(
+      "VALIDATION_ERROR",
+      "Idempotency-Key is required for authenticated Agent messages.",
+    );
+  if (Array.isArray(messageHeader))
+    throw new ApplicationError(
+      "VALIDATION_ERROR",
+      "Exactly one Idempotency-Key is allowed.",
+    );
+  if (messageId && !/^[A-Za-z0-9._:-]{1,200}$/.test(messageId))
+    throw new ApplicationError(
+      "VALIDATION_ERROR",
+      "Idempotency-Key message identity is invalid.",
+    );
   if (claim) {
     const request = await body(input.req);
     if (Object.keys(request).length)
@@ -107,60 +134,81 @@ export async function handleAgentAutomationActionRoute(input: {
         "VALIDATION_ERROR",
         "Agent command claim does not accept caller-supplied target or action parameters.",
       );
+    const requestHash = createHash("sha256")
+      .update(
+        canonical({ method: input.req.method, path: pathname, body: request }),
+      )
+      .digest("hex");
     const result = await input.uow.run(
       input.principal.tenant_id,
       async (tx) => {
-        const prior = await readPendingAutomationAction({
-          tx,
-          agentId: input.principal.id,
-        });
-        if (prior) {
-          const delivery = await readDispatchedAgentCommand(tx, {
+        const process = async () => {
+          const prior = await readPendingAutomationAction({
+            tx,
             agentId: input.principal.id,
-            commandId: prior.command_id,
-            executionId: prior.execution_id,
+            ...(agentSessionId ? { agentSessionId } : {}),
           });
-          if (!delivery)
-            throw new ApplicationError(
-              "AGENT_COMMAND_ID_CONFLICT",
-              "Agent delivery receipt has no matching execution.",
-            );
-          if (delivery.state !== "DISPATCHED") return null;
-          const command = delivery.command;
+          if (prior) {
+            const delivery = await readDispatchedAgentCommand(tx, {
+              agentId: input.principal.id,
+              commandId: prior.command_id,
+              executionId: prior.execution_id,
+            });
+            if (!delivery)
+              throw new ApplicationError(
+                "AGENT_COMMAND_ID_CONFLICT",
+                "Agent delivery receipt has no matching execution.",
+              );
+            if (delivery.state !== "DISPATCHED") return null;
+            const command = delivery.command;
+            const hash = createHash("sha256")
+              .update(canonical(command))
+              .digest("hex");
+            if (hash !== prior.command_hash)
+              throw new ApplicationError(
+                "AGENT_COMMAND_ID_CONFLICT",
+                "Dispatched command content changed after delivery.",
+              );
+            return command;
+          }
+          const baseline = await readRestartBaseline({
+            tx,
+            agentId: input.principal.id,
+          });
+          const command = await claimAgentRestart(
+            tx,
+            input.principal.id,
+            baseline,
+            new PostgresAutomationSecurity(tx),
+          );
+          if (!command) return null;
+          const executionId = String(command.execution_id),
+            commandId = String(command.command_id);
           const hash = createHash("sha256")
             .update(canonical(command))
             .digest("hex");
-          if (hash !== prior.command_hash)
-            throw new ApplicationError(
-              "AGENT_COMMAND_ID_CONFLICT",
-              "Dispatched command content changed after delivery.",
-            );
+          await recordAutomationActionDelivery({
+            tx,
+            agentId: input.principal.id,
+            commandId,
+            executionId,
+            commandHash: hash,
+            ...(agentSessionId ? { agentSessionId } : {}),
+          });
           return command;
-        }
-        const baseline = await readRestartBaseline({
+        };
+        if (!messageId || !agentSessionId) return process();
+        return processAgentMessage({
           tx,
-          agentId: input.principal.id,
+          principal: authenticatedAgent as AgentPrincipal,
+          messageId,
+          requestSha256: requestHash,
+          resolveExecutionAttemptId: (value) =>
+            value && typeof value === "object" && "execution_id" in value
+              ? String((value as { execution_id: unknown }).execution_id)
+              : undefined,
+          process,
         });
-        const command = await claimAgentRestart(
-          tx,
-          input.principal.id,
-          baseline,
-          new PostgresAutomationSecurity(tx),
-        );
-        if (!command) return null;
-        const executionId = String(command.execution_id),
-          commandId = String(command.command_id);
-        const hash = createHash("sha256")
-          .update(canonical(command))
-          .digest("hex");
-        await recordAutomationActionDelivery({
-          tx,
-          agentId: input.principal.id,
-          commandId,
-          executionId,
-          commandHash: hash,
-        });
-        return command;
       },
     );
     json(input.res, 200, { data: result, meta: input.context });
@@ -171,43 +219,68 @@ export async function handleAgentAutomationActionRoute(input: {
   )!;
   const commandId = match[1]!;
   const request = await body(input.req);
+  const requestHash = createHash("sha256")
+    .update(
+      canonical({ method: input.req.method, path: pathname, body: request }),
+    )
+    .digest("hex");
   const result = await input.uow.run(input.principal.tenant_id, async (tx) => {
-    if (accept) {
-      if (Object.keys(request).length)
+    const process = async () => {
+      if (accept) {
+        if (Object.keys(request).length)
+          throw new ApplicationError(
+            "VALIDATION_ERROR",
+            "Acceptance is bound to the command ID in the route and accepts no mutable payload.",
+          );
+        return acceptAutomationAction({
+          tx,
+          agentId: input.principal.id,
+          commandId,
+          acceptedAt: new Date().toISOString(),
+          correlationId: input.context.correlation_id,
+          ...(agentSessionId ? { agentSessionId } : {}),
+        });
+      }
+      const allowed = new Set(["outcome", "reason_code"]);
+      if (
+        Object.keys(request).some((key) => !allowed.has(key)) ||
+        request.outcome !== "REJECTED" ||
+        typeof request.reason_code !== "string" ||
+        !new Set([
+          "UNSUPPORTED_CAPABILITY",
+          "LOCAL_SAFETY_DENIED",
+          "AGENT_BUSY",
+          "COMMAND_EXPIRED",
+        ]).has(request.reason_code)
+      )
         throw new ApplicationError(
           "VALIDATION_ERROR",
-          "Acceptance is bound to the command ID in the route and accepts no mutable payload.",
+          "Only a typed RESTART_AGENT rejection can be reported.",
         );
-      return acceptAutomationAction({
+      return rejectAutomationAction({
         tx,
         agentId: input.principal.id,
         commandId,
-        acceptedAt: new Date().toISOString(),
+        reason: request.reason_code,
         correlationId: input.context.correlation_id,
+        ...(agentSessionId ? { agentSessionId } : {}),
       });
-    }
-    const allowed = new Set(["outcome", "reason_code"]);
-    if (
-      Object.keys(request).some((key) => !allowed.has(key)) ||
-      request.outcome !== "REJECTED" ||
-      typeof request.reason_code !== "string" ||
-      !new Set([
-        "UNSUPPORTED_CAPABILITY",
-        "LOCAL_SAFETY_DENIED",
-        "AGENT_BUSY",
-        "COMMAND_EXPIRED",
-      ]).has(request.reason_code)
-    )
-      throw new ApplicationError(
-        "VALIDATION_ERROR",
-        "Only a typed RESTART_AGENT rejection can be reported.",
-      );
-    return rejectAutomationAction({
+    };
+    if (!messageId || !authenticatedAgent.agent_session_id) return process();
+    const attempt = await tx.query<{ id: string }>(
+      `SELECT id FROM automation.action_executions
+       WHERE tenant_id=$1 AND target_agent_id=$2 AND command_id=$3`,
+      [input.principal.tenant_id, input.principal.id, commandId],
+    );
+    return processAgentMessage({
       tx,
-      agentId: input.principal.id,
-      commandId,
-      reason: request.reason_code,
-      correlationId: input.context.correlation_id,
+      principal: authenticatedAgent as AgentPrincipal,
+      messageId,
+      requestSha256: requestHash,
+      ...(attempt.rows[0]?.id
+        ? { executionAttemptId: attempt.rows[0].id }
+        : {}),
+      process,
     });
   });
   json(input.res, 200, { data: result, meta: input.context });

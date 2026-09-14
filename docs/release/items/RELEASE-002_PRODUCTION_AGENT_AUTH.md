@@ -2,11 +2,12 @@
 
 | Field        | Value                                                                                                                                     |
 | ------------ | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| Status       | `READY / NOT_STARTED`                                                                                                                     |
-| Readiness    | `READY`                                                                                                                                   |
+| Status       | `CODE_COMPLETE`                                                                                                                           |
+| Readiness    | `N/A`                                                                                                                                     |
 | Dependencies | None                                                                                                                                      |
-| Blocker      | None. Production Agent Gateway remains fail-closed until RELEASE-002 is implemented and verified.                                         |
+| Blocker      | Runtime implementation is complete; real CA provisioning and mTLS through the RELEASE-007 staging topology remain unverified.             |
 | Contract     | [RELEASE-002-R1 — Production Agent Authentication Contract](RELEASE-002-R1_PRODUCTION_AGENT_AUTHENTICATION_CONTRACT.md) (`CODE_COMPLETE`) |
+| Report       | [RELEASE-002 implementation report](RELEASE-002_IMPLEMENTATION_REPORT.md)                                                                 |
 
 ## Purpose
 
@@ -17,44 +18,49 @@ from human OIDC in RELEASE-001. TASK-091 and the owning domain still authorize
 the operation and bind it to the authenticated Agent, tenant, Asset/device,
 execution and command.
 
-## Repository evidence
+## Runtime state
 
-- `apps/agent-gateway/src/main.ts` currently wires
-  `unavailableAuthentication`; the gateway remains fail-closed in production.
-- `apps/agent-gateway/src/server.ts` authenticates Agent routes through the
-  generic `AuthenticationPort` Bearer-token interface. Handlers derive the
-  Agent ID and tenant from the resulting principal.
-- `agent.agents` stores a UUID Agent ID, tenant, required Asset ID, status,
-  and legacy enrollment-token hash/expiry fields. The current unique
-  `(tenant_id, asset_id)` constraint permits one registration per Asset and
-  tenant.
-- Agent runtime/session IDs and last-seen time are mutable latest reported
-  values. They are not proof of credential identity or authenticated channel
-  generation.
-- TASK-091 binds claim, accept and report to the authenticated Agent and
-  tenant. Durable command receipts deduplicate by tenant, Agent and command;
-  same-command content conflicts are rejected. Late evidence may be recorded
-  after `UNKNOWN`, but cannot resurrect the execution.
-- No production credential issuance, rotation, revocation, enrollment trust,
-  certificate validation, workload identity adapter, or Agent auth readiness
-  implementation is present.
+The production Agent Gateway now terminates TLS/mTLS directly and consumes
+verified TLS peer certificates from the socket. It resolves the exact
+server-issued URI SAN through tenant-scoped `AgentCredential` and canonical
+`agent.agents` registration state; production configuration fails closed and
+readiness includes the database, mTLS adapter and certificate issuer.
+
+The migration adds retained credential lifecycle, single-use hashed
+Enrollment Tokens, durable issuance attempts, server transport sessions and
+per-session message receipts. Enrollment and self-rotation use an
+`AgentCertificateIssuerPort` implemented by an OpenSSL adapter whose CA key
+comes from file-backed secret references; only ephemeral CA material is used
+in tests. Registration, enrollment-token issue/revoke, forced re-enrollment,
+credential revoke and registration state changes require local permissions
+and append audit/outbox evidence.
+
+TASK-091 remains the execution owner. The authenticated Agent ID, tenant,
+Asset and server transport session are checked before writes; existing
+execution assignment/session checks and `UNKNOWN` late-evidence behavior are
+preserved. No human OIDC, tenant header, bearer token, or client-supplied
+identity header authenticates the Agent channel.
+
+Automated implementation evidence is recorded in the linked report. Runtime
+code deliberately does not claim production verification: the real private
+CA and certificates must be provisioned, and mTLS must be exercised through
+the RELEASE-007 staging topology before this item can become `VERIFIED`.
 
 ## Required boundary
 
 R1 normatively fixes mTLS, the private Agent CA, pre-provisioned registration,
 single-use Enrollment Token, certificate issuance/rotation/revocation,
 server-derived tenant, session/message replay, and TASK-091 execution binding.
-Until runtime implementation is complete, Agent execution remains unavailable.
-Unknown clients cannot self-enroll; host/network attributes cannot identify
-an Agent; an Agent cannot choose a tenant.
+The production Gateway remains unavailable/not-ready unless mTLS, CA and
+database trust are configured. Unknown clients cannot self-enroll;
+host/network attributes cannot identify an Agent; an Agent cannot choose a
+tenant.
 
 ## Release evidence required
 
-Acceptance must prove registration/enrollment, mTLS certificate validation,
-tenant/Asset and execution binding; invalid, unknown, expired and revoked
-credentials; rotation/re-enrollment; replay and duplicate delivery;
-production rejection of test adapters; fail-closed configuration/provider
-behavior; credential secrecy; audit and operational readiness; and
-preservation of TASK-091 `UNKNOWN` and late-evidence semantics. Real private
-PKI provisioning and mTLS validation through staging are required before this
-release item can be `VERIFIED`.
+Remaining release verification must prove real private-PKI provisioning and
+mTLS through the intended staging/release topology, then retain evidence for
+certificate rejection/rotation/revocation, production configuration,
+session/message replay, exact TASK-091 binding, readiness and audit. Automated
+acceptance results and their exact test files are listed in the report; they
+do not substitute for staging evidence.

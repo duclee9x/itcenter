@@ -15,6 +15,10 @@ import {
 } from "../../../packages/messaging/src/index.js";
 import { PostgresAudit } from "../../../modules/audit/index.js";
 import { json } from "../../../packages/observability/src/index.js";
+import {
+  agentMessageIdempotencyPrincipal,
+  withAgentMessageReceipt,
+} from "./agent-message.js";
 import type { Json } from "../../../packages/shared-kernel/src/index.js";
 import {
   upsertAssetLifecycleWorkItem,
@@ -79,7 +83,7 @@ export async function handleAgentAssetWipeRoute(input: {
   const inputBody = await body(req);
   const intent = claim
     ? {
-        principalId: principal.id,
+        principalId: agentMessageIdempotencyPrincipal(principal),
         operation: "DATA_WIPE.CLAIM",
         businessScope: principal.id,
         key,
@@ -87,7 +91,7 @@ export async function handleAgentAssetWipeRoute(input: {
         expiresAt: new Date(Date.now() + 86400000),
       }
     : {
-        principalId: principal.id,
+        principalId: agentMessageIdempotencyPrincipal(principal),
         operation: "DATA_WIPE.REPORT",
         businessScope: reportMatch![1]!,
         key,
@@ -153,52 +157,62 @@ export async function handleAgentAssetWipeRoute(input: {
   }
   const result = await uow.run(principal.tenant_id, async (tx) => {
     if (claim) {
-      const replay = await new PostgresIdempotencyStore(tx).execute(
-        {
-          principalId: principal.id,
-          operation: "DATA_WIPE.CLAIM",
-          businessScope: principal.id,
-          key,
-          semanticRequest: {},
-          expiresAt: new Date(Date.now() + 86400000),
-        },
-        async () => {
-          if (
-            !Array.isArray(inputBody.supported_methods) ||
-            inputBody.supported_methods.some((item) => typeof item !== "string")
-          )
-            throw new ApplicationError(
-              "VALIDATION_ERROR",
-              "supported_methods capability list is required.",
-            );
-          const pending = await tx.query(
-            "SELECT id,asset_id,method,generation,version FROM asset.data_wipe_jobs WHERE tenant_id=$1 AND agent_id=$2 AND state='QUEUED' AND method=ANY($3::text[]) ORDER BY created_at FOR UPDATE SKIP LOCKED LIMIT 1",
-            [tx.tenantId, principal.id, inputBody.supported_methods],
-          );
-          if (!pending.rowCount) return { status: 204, body: null };
-          const job = pending.rows[0]!;
-          await tx.query(
-            "UPDATE asset.data_wipe_jobs SET state='CLAIMED',claimed_at=now(),version=version+1,updated_at=now() WHERE tenant_id=$1 AND id=$2 AND state='QUEUED'",
-            [tx.tenantId, job.id],
-          );
-          await new OperationRegistry(tx).transition({
-            operationId: String(job.id),
-            expectedVersion: 1,
-            from: "QUEUED",
-            to: "RUNNING",
-          });
-          return {
-            status: 200,
-            body: {
-              job_id: job.id,
-              asset_id: job.asset_id,
-              method: job.method,
-              generation: job.generation,
-              version: Number(job.version) + 1,
+      const replay = await withAgentMessageReceipt({
+        tx,
+        req,
+        principal,
+        body: inputBody,
+        production: config.environment === "production",
+        process: () =>
+          new PostgresIdempotencyStore(tx).execute(
+            {
+              principalId: agentMessageIdempotencyPrincipal(principal),
+              operation: "DATA_WIPE.CLAIM",
+              businessScope: principal.id,
+              key,
+              semanticRequest: {},
+              expiresAt: new Date(Date.now() + 86400000),
             },
-          };
-        },
-      );
+            async () => {
+              if (
+                !Array.isArray(inputBody.supported_methods) ||
+                inputBody.supported_methods.some(
+                  (item) => typeof item !== "string",
+                )
+              )
+                throw new ApplicationError(
+                  "VALIDATION_ERROR",
+                  "supported_methods capability list is required.",
+                );
+              const pending = await tx.query(
+                "SELECT id,asset_id,method,generation,version FROM asset.data_wipe_jobs WHERE tenant_id=$1 AND agent_id=$2 AND state='QUEUED' AND method=ANY($3::text[]) ORDER BY created_at FOR UPDATE SKIP LOCKED LIMIT 1",
+                [tx.tenantId, principal.id, inputBody.supported_methods],
+              );
+              if (!pending.rowCount) return { status: 204, body: null };
+              const job = pending.rows[0]!;
+              await tx.query(
+                "UPDATE asset.data_wipe_jobs SET state='CLAIMED',claimed_at=now(),version=version+1,updated_at=now() WHERE tenant_id=$1 AND id=$2 AND state='QUEUED'",
+                [tx.tenantId, job.id],
+              );
+              await new OperationRegistry(tx).transition({
+                operationId: String(job.id),
+                expectedVersion: 1,
+                from: "QUEUED",
+                to: "RUNNING",
+              });
+              return {
+                status: 200,
+                body: {
+                  job_id: job.id,
+                  asset_id: job.asset_id,
+                  method: job.method,
+                  generation: job.generation,
+                  version: Number(job.version) + 1,
+                },
+              };
+            },
+          ),
+      });
       return { status: replay.status, body: replay.body };
     }
     const jobId = reportMatch![1]!;
@@ -240,173 +254,184 @@ export async function handleAgentAssetWipeRoute(input: {
         ? inputBody.reason.trim()
         : "Agent wipe report";
     const evidence = verifiedEvidence;
-    const replay = await new PostgresIdempotencyStore(tx).execute(
-      {
-        principalId: principal.id,
-        operation: "DATA_WIPE.REPORT",
-        businessScope: jobId,
-        key,
-        semanticRequest: inputBody as Json,
-        expiresAt: new Date(Date.now() + 86400000),
-      },
-      async () => {
-        const success =
-          outcome === "PASS" ||
-          outcome === "NOT_APPLICABLE" ||
-          outcome === "PHYSICAL_DESTRUCTION_REQUIRED";
-        const state = success ? "COMPLETED" : "FAILED";
-        const changed = await tx.query(
-          "UPDATE asset.data_wipe_jobs SET state=$1,result=$2,verification_result=$3,evidence_document_id=$4,evidence_storage_ref=$5,evidence_checksum=$6,report_key=$7,failure_code=$8,completed_at=now(),version=version+1,updated_at=now() WHERE tenant_id=$9 AND id=$10 AND state='CLAIMED' RETURNING version",
-          [
-            state,
-            outcome,
-            inputBody.verification_result ?? outcome,
-            evidence?.document ?? null,
-            evidence?.storageRef ?? null,
-            evidence?.checksum ?? null,
+    const replay = await withAgentMessageReceipt({
+      tx,
+      req,
+      principal,
+      body: inputBody,
+      production: config.environment === "production",
+      process: () =>
+        new PostgresIdempotencyStore(tx).execute(
+          {
+            principalId: agentMessageIdempotencyPrincipal(principal),
+            operation: "DATA_WIPE.REPORT",
+            businessScope: jobId,
             key,
-            outcome === "FAIL"
-              ? String(inputBody.error_code ?? "WIPE_FAILED")
-              : null,
-            tx.tenantId,
-            jobId,
-          ],
-        );
-        if (!changed.rowCount)
-          throw new ApplicationError(
-            "VERSION_CONFLICT",
-            "Wipe job was concurrently changed.",
-          );
-        const after: { [key: string]: Json } = {
-          job_id: jobId,
-          asset_id: String(job.rows[0]!.asset_id),
-          result: String(outcome),
-          state,
-          version: Number(changed.rows[0]!.version),
-          evidence_document_id: evidence?.document ?? null,
-          evidence_checksum: evidence?.checksum ?? null,
-        };
-        const now = new Date().toISOString();
-        const event =
-          outcome === "PASS" ||
-          outcome === "NOT_APPLICABLE" ||
-          outcome === "PHYSICAL_DESTRUCTION_REQUIRED"
-            ? "DATA_WIPE.COMPLETED"
-            : "DATA_WIPE.FAILED";
-        await new PostgresOutboxWriter(tx).append({
-          event_id: randomUUID(),
-          event_type: event,
-          schema_version: 1,
-          occurred_at: now,
-          producer: { service: config.serviceName, instance: "agent-gateway" },
-          aggregate: {
-            type: "DATA_WIPE_JOB",
-            id: jobId,
-            version: Number(changed.rows[0]!.version),
+            semanticRequest: inputBody as Json,
+            expiresAt: new Date(Date.now() + 86400000),
           },
-          actor: { type: principal.actor_type, id: principal.id },
-          correlation_id: context.correlation_id,
-          causation_id: context.causation_id,
-          tenant_id: principal.tenant_id,
-          organization_id: principal.tenant_id,
-          idempotency_key: key,
-          payload: after,
-        });
-        await new PostgresAudit(tx).append({
-          id: randomUUID(),
-          tenant_id: principal.tenant_id,
-          event_type: event,
-          occurred_at: now,
-          actor: { type: principal.actor_type, id: principal.id },
-          action: { command_type: "DATA_WIPE.REPORT" },
-          subject: { entity_type: "DATA_WIPE_JOB", entity_id: jobId },
-          correlation_id: context.correlation_id,
-          causation_id: context.causation_id,
-          reason: { code: String(outcome), text: reportReason },
-          before: { state: "CLAIMED", version: job.rows[0]!.version },
-          after: after as { [key: string]: Json },
-          outcome: { status: success ? "SUCCESS" : "FAILURE" },
-          classification: "INTERNAL",
-          relations: [
-            {
-              entity_type: "ASSET",
-              entity_id: String(job.rows[0]!.asset_id),
-              relation: "SUBJECT",
-            },
-          ],
-          evidence: evidence
-            ? [
+          async () => {
+            const success =
+              outcome === "PASS" ||
+              outcome === "NOT_APPLICABLE" ||
+              outcome === "PHYSICAL_DESTRUCTION_REQUIRED";
+            const state = success ? "COMPLETED" : "FAILED";
+            const changed = await tx.query(
+              "UPDATE asset.data_wipe_jobs SET state=$1,result=$2,verification_result=$3,evidence_document_id=$4,evidence_storage_ref=$5,evidence_checksum=$6,report_key=$7,failure_code=$8,completed_at=now(),version=version+1,updated_at=now() WHERE tenant_id=$9 AND id=$10 AND state='CLAIMED' RETURNING version",
+              [
+                state,
+                outcome,
+                inputBody.verification_result ?? outcome,
+                evidence?.document ?? null,
+                evidence?.storageRef ?? null,
+                evidence?.checksum ?? null,
+                key,
+                outcome === "FAIL"
+                  ? String(inputBody.error_code ?? "WIPE_FAILED")
+                  : null,
+                tx.tenantId,
+                jobId,
+              ],
+            );
+            if (!changed.rowCount)
+              throw new ApplicationError(
+                "VERSION_CONFLICT",
+                "Wipe job was concurrently changed.",
+              );
+            const after: { [key: string]: Json } = {
+              job_id: jobId,
+              asset_id: String(job.rows[0]!.asset_id),
+              result: String(outcome),
+              state,
+              version: Number(changed.rows[0]!.version),
+              evidence_document_id: evidence?.document ?? null,
+              evidence_checksum: evidence?.checksum ?? null,
+            };
+            const now = new Date().toISOString();
+            const event =
+              outcome === "PASS" ||
+              outcome === "NOT_APPLICABLE" ||
+              outcome === "PHYSICAL_DESTRUCTION_REQUIRED"
+                ? "DATA_WIPE.COMPLETED"
+                : "DATA_WIPE.FAILED";
+            await new PostgresOutboxWriter(tx).append({
+              event_id: randomUUID(),
+              event_type: event,
+              schema_version: 1,
+              occurred_at: now,
+              producer: {
+                service: config.serviceName,
+                instance: "agent-gateway",
+              },
+              aggregate: {
+                type: "DATA_WIPE_JOB",
+                id: jobId,
+                version: Number(changed.rows[0]!.version),
+              },
+              actor: { type: principal.actor_type, id: principal.id },
+              correlation_id: context.correlation_id,
+              causation_id: context.causation_id,
+              tenant_id: principal.tenant_id,
+              organization_id: principal.tenant_id,
+              idempotency_key: key,
+              payload: after,
+            });
+            await new PostgresAudit(tx).append({
+              id: randomUUID(),
+              tenant_id: principal.tenant_id,
+              event_type: event,
+              occurred_at: now,
+              actor: { type: principal.actor_type, id: principal.id },
+              action: { command_type: "DATA_WIPE.REPORT" },
+              subject: { entity_type: "DATA_WIPE_JOB", entity_id: jobId },
+              correlation_id: context.correlation_id,
+              causation_id: context.causation_id,
+              reason: { code: String(outcome), text: reportReason },
+              before: { state: "CLAIMED", version: job.rows[0]!.version },
+              after: after as { [key: string]: Json },
+              outcome: { status: success ? "SUCCESS" : "FAILURE" },
+              classification: "INTERNAL",
+              relations: [
                 {
-                  type: "ARTIFACT",
-                  id: evidence.document,
-                  checksum: evidence.checksum,
-                  relation: "WIPE_EVIDENCE",
+                  entity_type: "ASSET",
+                  entity_id: String(job.rows[0]!.asset_id),
+                  relation: "SUBJECT",
                 },
-              ]
-            : [],
-        });
-        const operation = await tx.query(
-          "SELECT state,version FROM platform.operations WHERE tenant_id=$1 AND operation_id=$2",
-          [tx.tenantId, jobId],
-        );
-        if (!operation.rowCount || operation.rows[0]!.state !== "RUNNING")
-          throw new ApplicationError(
-            "VERSION_CONFLICT",
-            "Wipe operation state is not RUNNING.",
-          );
-        await new OperationRegistry(tx).transition({
-          operationId: jobId,
-          expectedVersion: Number(operation.rows[0]!.version),
-          from: "RUNNING",
-          to: success ? "SUCCEEDED" : "FAILED",
-          ...(!success ? { errorCode: "WIPE_FAILED" } : {}),
-        });
-        await tx.query(
-          "INSERT INTO asset.lifecycle_evidence_history(id,tenant_id,asset_id,related_id,evidence_type,payload,actor_id,reason) VALUES($1,$2,$3,$4,$5,$6,$7,$8)",
-          [
-            randomUUID(),
-            tx.tenantId,
-            job.rows[0]!.asset_id,
-            jobId,
-            event,
-            JSON.stringify(after),
-            principal.id,
-            reportReason,
-          ],
-        );
-        await upsertAssetLifecycleWorkItem({
-          tx,
-          sourceId: jobId,
-          title: success
-            ? "Wipe evidence recorded; disposition review required"
-            : "Wipe failed; reconcile before retry or disposition",
-        });
-        await recordAssetLifecycleTimelineEvent({
-          tx,
-          assetId: String(job.rows[0]!.asset_id),
-          eventType: event,
-          summary: success ? "Data wipe verified" : "Data wipe failed",
-          payload: after,
-        });
-        const requesterId = String(job.rows[0]!.created_by);
-        if (
-          !success &&
-          /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
-            requesterId,
-          )
-        )
-          await tx.query(
-            "INSERT INTO communication.notifications(id,tenant_id,recipient_user_id,event_type,subject,body,dedupe_key) SELECT $1,$2,u.id,'DATA_WIPE.FAILED','Data wipe failed','The wipe failed and the asset remains blocked. Reconcile the operation before retry or disposition.',$3 FROM identity.users u WHERE u.tenant_id=$2 AND u.id=$4 ON CONFLICT(tenant_id,dedupe_key) DO NOTHING",
-            [
-              randomUUID(),
-              tx.tenantId,
-              `wipe-failed:${jobId}:${changed.rows[0]!.version}`,
-              requesterId,
-            ],
-          );
-        return { status: 200, body: after as { [key: string]: Json } };
-      },
-    );
+              ],
+              evidence: evidence
+                ? [
+                    {
+                      type: "ARTIFACT",
+                      id: evidence.document,
+                      checksum: evidence.checksum,
+                      relation: "WIPE_EVIDENCE",
+                    },
+                  ]
+                : [],
+            });
+            const operation = await tx.query(
+              "SELECT state,version FROM platform.operations WHERE tenant_id=$1 AND operation_id=$2",
+              [tx.tenantId, jobId],
+            );
+            if (!operation.rowCount || operation.rows[0]!.state !== "RUNNING")
+              throw new ApplicationError(
+                "VERSION_CONFLICT",
+                "Wipe operation state is not RUNNING.",
+              );
+            await new OperationRegistry(tx).transition({
+              operationId: jobId,
+              expectedVersion: Number(operation.rows[0]!.version),
+              from: "RUNNING",
+              to: success ? "SUCCEEDED" : "FAILED",
+              ...(!success ? { errorCode: "WIPE_FAILED" } : {}),
+            });
+            await tx.query(
+              "INSERT INTO asset.lifecycle_evidence_history(id,tenant_id,asset_id,related_id,evidence_type,payload,actor_id,reason) VALUES($1,$2,$3,$4,$5,$6,$7,$8)",
+              [
+                randomUUID(),
+                tx.tenantId,
+                job.rows[0]!.asset_id,
+                jobId,
+                event,
+                JSON.stringify(after),
+                principal.id,
+                reportReason,
+              ],
+            );
+            await upsertAssetLifecycleWorkItem({
+              tx,
+              sourceId: jobId,
+              title: success
+                ? "Wipe evidence recorded; disposition review required"
+                : "Wipe failed; reconcile before retry or disposition",
+            });
+            await recordAssetLifecycleTimelineEvent({
+              tx,
+              assetId: String(job.rows[0]!.asset_id),
+              eventType: event,
+              summary: success ? "Data wipe verified" : "Data wipe failed",
+              payload: after,
+            });
+            const requesterId = String(job.rows[0]!.created_by);
+            if (
+              !success &&
+              /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+                requesterId,
+              )
+            )
+              await tx.query(
+                "INSERT INTO communication.notifications(id,tenant_id,recipient_user_id,event_type,subject,body,dedupe_key) SELECT $1,$2,u.id,'DATA_WIPE.FAILED','Data wipe failed','The wipe failed and the asset remains blocked. Reconcile the operation before retry or disposition.',$3 FROM identity.users u WHERE u.tenant_id=$2 AND u.id=$4 ON CONFLICT(tenant_id,dedupe_key) DO NOTHING",
+                [
+                  randomUUID(),
+                  tx.tenantId,
+                  `wipe-failed:${jobId}:${changed.rows[0]!.version}`,
+                  requesterId,
+                ],
+              );
+            return { status: 200, body: after as { [key: string]: Json } };
+          },
+        ),
+    });
     return { status: replay.status, body: replay.body };
   });
   if (result.status === 204) {

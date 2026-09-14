@@ -54,7 +54,14 @@ import {
   queryMonitoringAssetReliability,
   resolveMonitoringEventForIncident,
 } from "../../../modules/monitoring/index.js";
-import { issueEnrollmentToken } from "../../../modules/agent/index.js";
+import {
+  createAgentRegistration,
+  forceAgentReenrollment,
+  issueEnrollmentToken,
+  revokeAgentCredential,
+  revokeEnrollmentToken,
+  transitionAgentRegistration,
+} from "../../../modules/agent/index.js";
 import { linkPurchaseOrderApproval } from "../../../modules/procurement/index.js";
 import {
   createApproval,
@@ -2982,7 +2989,7 @@ export function apiServer(
           json(res, result.status, { data: result.body, meta: context });
           return true;
         }
-        if (req.method === "POST" && req.url === "/api/v1/agents/enroll") {
+        if (req.method === "POST" && req.url === "/api/v1/agents") {
           const principal = await authenticate(
             authentication,
             req.headers.authorization,
@@ -3002,55 +3009,760 @@ export function apiServer(
             );
           }
           if (
+            Object.keys(input).some(
+              (key) => !new Set(["asset_id", "reason"]).has(key),
+            ) ||
             typeof input.asset_id !== "string" ||
-            typeof input.agent_version !== "string"
+            typeof input.reason !== "string" ||
+            !input.reason.trim()
           )
             throw new ApplicationError(
               "VALIDATION_ERROR",
-              "asset_id and agent_version are required.",
+              "asset_id and reason are required.",
+            );
+          const key = req.headers["idempotency-key"];
+          if (typeof key !== "string" || !key.trim())
+            throw new ApplicationError(
+              "VALIDATION_ERROR",
+              "Idempotency-Key is required.",
             );
           await authorize(authorization, {
             principal,
-            action: "agent.enroll",
+            action: "agent.registration.manage",
             resource: {
-              type: "agent",
+              type: "agent_registration",
               id: input.asset_id,
               tenant_id: principal.tenant_id,
             },
             scope: {},
             context: { ...context },
           });
-          const result = await uow.run(principal.tenant_id, async (tx) => {
-            const enrollment = await issueEnrollmentToken({
+          const result = await uow.run(principal.tenant_id, async (tx) =>
+            new PostgresIdempotencyStore(tx).execute(
+              {
+                principalId: principal.id,
+                operation: "AGENT.REGISTER",
+                businessScope: input.asset_id as string,
+                key,
+                semanticRequest: input as never,
+                expiresAt: new Date(Date.now() + 86400000),
+              },
+              async () => {
+                const registration = await createAgentRegistration({
+                  tx,
+                  assetId: input.asset_id as string,
+                  actorId: principal.id,
+                });
+                const now = new Date().toISOString();
+                await new PostgresOutboxWriter(tx).append({
+                  event_id: randomUUID(),
+                  event_type: "AGENT.REGISTERED",
+                  schema_version: 1,
+                  occurred_at: now,
+                  producer: { service: config.serviceName, instance: "api" },
+                  aggregate: {
+                    type: "AGENT",
+                    id: String(registration.id),
+                    version: 1,
+                  },
+                  actor: { type: principal.actor_type, id: principal.id },
+                  correlation_id: context.correlation_id,
+                  causation_id: context.causation_id,
+                  tenant_id: principal.tenant_id,
+                  organization_id: principal.tenant_id,
+                  idempotency_key: key,
+                  payload: {
+                    agent_id: registration.id,
+                    asset_id: registration.asset_id,
+                    registration_status: registration.registration_status,
+                    provisioned_at: now,
+                  },
+                });
+                await new PostgresAudit(tx).append({
+                  id: randomUUID(),
+                  tenant_id: principal.tenant_id,
+                  event_type: "AGENT.REGISTERED",
+                  occurred_at: now,
+                  actor: { type: principal.actor_type, id: principal.id },
+                  action: { command_type: "AGENT.REGISTER" },
+                  subject: {
+                    entity_type: "AGENT",
+                    entity_id: String(registration.id),
+                  },
+                  correlation_id: context.correlation_id,
+                  causation_id: context.causation_id,
+                  reason: {
+                    code: "AUTHORIZED_PROVISIONING",
+                    text: input.reason as string,
+                  },
+                  before: null,
+                  after: {
+                    asset_id: registration.asset_id,
+                    registration_status: registration.registration_status,
+                  },
+                  outcome: { status: "SUCCESS" },
+                  classification: "INTERNAL",
+                  relations: [],
+                  evidence: [],
+                });
+                return { status: 201, body: registration as never };
+              },
+            ),
+          );
+          json(res, result.status, { data: result.body, meta: context });
+          return true;
+        }
+        const tokenRoute = req.url?.match(
+          /^\/api\/v1\/agents\/([0-9a-f-]{36})\/enrollment-tokens$/i,
+        );
+        if (req.method === "POST" && tokenRoute) {
+          const principal = await authenticate(
+            authentication,
+            req.headers.authorization,
+          );
+          const body = await new Promise<string>((resolve) => {
+            let data = "";
+            req.on("data", (chunk) => (data += chunk));
+            req.on("end", () => resolve(data));
+          });
+          let input: Record<string, unknown>;
+          try {
+            input = (body ? JSON.parse(body) : {}) as Record<string, unknown>;
+          } catch {
+            throw new ApplicationError(
+              "VALIDATION_ERROR",
+              "Invalid JSON request.",
+            );
+          }
+          if (
+            Object.keys(input).some((key) => key !== "reason") ||
+            typeof input.reason !== "string" ||
+            !input.reason.trim()
+          )
+            throw new ApplicationError(
+              "VALIDATION_ERROR",
+              "A non-empty reason is required.",
+            );
+          const key = req.headers["idempotency-key"];
+          if (typeof key !== "string" || !key.trim())
+            throw new ApplicationError(
+              "VALIDATION_ERROR",
+              "Idempotency-Key is required.",
+            );
+          const agentId = tokenRoute[1]!.toLowerCase();
+          await authorize(authorization, {
+            principal,
+            action: "agent.enrollment_token.issue",
+            resource: {
+              type: "agent_enrollment_token",
+              id: agentId,
+              tenant_id: principal.tenant_id,
+            },
+            scope: {},
+            context: { ...context },
+          });
+          const enrollment = await uow.run(principal.tenant_id, async (tx) => {
+            const token = await issueEnrollmentToken({
               tx,
-              assetId: input.asset_id as string,
-              agentVersion: input.agent_version as string,
-              expiresAt: new Date(Date.now() + 86400000).toISOString(),
+              agentId,
+              actorId: principal.id,
+              reason: input.reason as string,
+              idempotencyKey: key,
             });
             const now = new Date().toISOString();
             await new PostgresOutboxWriter(tx).append({
               event_id: randomUUID(),
-              event_type: "AGENT.ENROLLED",
+              event_type: "AGENT.ENROLLMENT_TOKEN_ISSUED",
               schema_version: 1,
               occurred_at: now,
               producer: { service: config.serviceName, instance: "api" },
-              aggregate: { type: "AGENT", id: enrollment.id, version: 1 },
+              aggregate: { type: "AGENT", id: agentId, version: 1 },
               actor: { type: principal.actor_type, id: principal.id },
               correlation_id: context.correlation_id,
               causation_id: context.causation_id,
               tenant_id: principal.tenant_id,
               organization_id: principal.tenant_id,
-              idempotency_key: randomUUID(),
+              idempotency_key: key,
               payload: {
-                agent_id: enrollment.id,
-                asset_id: enrollment.asset_id,
-                agent_version: enrollment.agent_version,
-                enrolled_at: now,
+                token_id: token.token_id,
+                agent_id: agentId,
+                asset_id: token.asset_id,
+                expires_at: token.expires_at,
               },
             });
-            return enrollment;
+            await new PostgresAudit(tx).append({
+              id: randomUUID(),
+              tenant_id: principal.tenant_id,
+              event_type: "AGENT.ENROLLMENT_TOKEN_ISSUED",
+              occurred_at: now,
+              actor: { type: principal.actor_type, id: principal.id },
+              action: { command_type: "AGENT.CREATE_ENROLLMENT_TOKEN" },
+              subject: { entity_type: "AGENT", entity_id: agentId },
+              correlation_id: context.correlation_id,
+              causation_id: context.causation_id,
+              reason: {
+                code: "AUTHORIZED_ENROLLMENT",
+                text: input.reason as string,
+              },
+              before: null,
+              after: {
+                token_id: token.token_id,
+                expires_at: token.expires_at,
+              },
+              outcome: { status: "SUCCESS" },
+              classification: "RESTRICTED",
+              relations: [],
+              evidence: [],
+            });
+            return token;
           });
-          json(res, 201, { data: result, meta: context });
+          json(res, 201, { data: enrollment, meta: context });
+          return true;
+        }
+        const forceReenrollmentRoute = req.url?.match(
+          /^\/api\/v1\/agents\/([0-9a-f-]{36})\/commands\/force-reenrollment$/i,
+        );
+        if (req.method === "POST" && forceReenrollmentRoute) {
+          const principal = await authenticate(
+            authentication,
+            req.headers.authorization,
+          );
+          const raw = await new Promise<string>((resolve) => {
+            let data = "";
+            req.on("data", (chunk) => (data += chunk));
+            req.on("end", () => resolve(data));
+          });
+          let input: Record<string, unknown>;
+          try {
+            input = (raw ? JSON.parse(raw) : {}) as Record<string, unknown>;
+          } catch {
+            throw new ApplicationError(
+              "VALIDATION_ERROR",
+              "Invalid JSON request.",
+            );
+          }
+          if (
+            !input ||
+            typeof input !== "object" ||
+            Array.isArray(input) ||
+            Object.keys(input).some(
+              (key) =>
+                !["reason", "expected_registration_version"].includes(key),
+            ) ||
+            typeof input.reason !== "string" ||
+            !input.reason.trim() ||
+            !Number.isSafeInteger(input.expected_registration_version)
+          )
+            throw new ApplicationError(
+              "VALIDATION_ERROR",
+              "Reason and expected_registration_version are required.",
+            );
+          const key = req.headers["idempotency-key"];
+          if (typeof key !== "string" || !key.trim())
+            throw new ApplicationError(
+              "VALIDATION_ERROR",
+              "Idempotency-Key is required.",
+            );
+          const agentId = forceReenrollmentRoute[1]!.toLowerCase();
+          await authorize(authorization, {
+            principal,
+            action: "agent.credential.force_rotate",
+            resource: {
+              type: "agent_registration",
+              id: agentId,
+              tenant_id: principal.tenant_id,
+            },
+            scope: {},
+            context: { ...context },
+          });
+          const enrollment = await uow.run(principal.tenant_id, async (tx) => {
+            const token = await forceAgentReenrollment({
+              tx,
+              agentId,
+              actorId: principal.id,
+              reason: input.reason as string,
+              expectedRegistrationVersion:
+                input.expected_registration_version as number,
+              idempotencyKey: key,
+            });
+            const now = new Date().toISOString();
+            await new PostgresOutboxWriter(tx).append({
+              event_id: randomUUID(),
+              event_type: "AGENT.FORCED_REENROLLMENT_STARTED",
+              schema_version: 1,
+              occurred_at: now,
+              producer: { service: config.serviceName, instance: "api" },
+              aggregate: {
+                type: "AGENT",
+                id: agentId,
+                version: input.expected_registration_version as number,
+              },
+              actor: { type: principal.actor_type, id: principal.id },
+              correlation_id: context.correlation_id,
+              causation_id: context.causation_id,
+              tenant_id: principal.tenant_id,
+              organization_id: principal.tenant_id,
+              idempotency_key: key,
+              payload: {
+                agent_id: agentId,
+                token_id: token.token_id,
+                expires_at: token.expires_at,
+                revoked_credential_ids: token.revoked_credential_ids,
+              },
+            });
+            await new PostgresAudit(tx).append({
+              id: randomUUID(),
+              tenant_id: principal.tenant_id,
+              event_type: "AGENT.FORCED_REENROLLMENT_STARTED",
+              occurred_at: now,
+              actor: { type: principal.actor_type, id: principal.id },
+              action: { command_type: "AGENT.FORCE_REENROLLMENT" },
+              subject: { entity_type: "AGENT", entity_id: agentId },
+              correlation_id: context.correlation_id,
+              causation_id: context.causation_id,
+              reason: {
+                code: "PRIVILEGED_FORCED_ROTATION",
+                text: input.reason as string,
+              },
+              before: null,
+              after: {
+                token_id: token.token_id,
+                expires_at: token.expires_at,
+                revoked_credential_ids: token.revoked_credential_ids,
+              },
+              outcome: { status: "SUCCESS" },
+              classification: "RESTRICTED",
+              relations: [],
+              evidence: [],
+            });
+            return token;
+          });
+          json(res, 201, { data: enrollment, meta: context });
+          return true;
+        }
+        const revokeEnrollmentTokenRoute = req.url?.match(
+          /^\/api\/v1\/agents\/([0-9a-f-]{36})\/enrollment-tokens\/([0-9a-f-]{36})\/commands\/revoke$/i,
+        );
+        if (req.method === "POST" && revokeEnrollmentTokenRoute) {
+          const principal = await authenticate(
+            authentication,
+            req.headers.authorization,
+          );
+          const raw = await new Promise<string>((resolve) => {
+            let data = "";
+            req.on("data", (chunk) => (data += chunk));
+            req.on("end", () => resolve(data));
+          });
+          let input: Record<string, unknown>;
+          try {
+            input = (raw ? JSON.parse(raw) : {}) as Record<string, unknown>;
+          } catch {
+            throw new ApplicationError(
+              "VALIDATION_ERROR",
+              "Invalid JSON request.",
+            );
+          }
+          if (
+            !input ||
+            typeof input !== "object" ||
+            Array.isArray(input) ||
+            Object.keys(input).some(
+              (key) => !["reason", "expected_version"].includes(key),
+            ) ||
+            typeof input.reason !== "string" ||
+            !input.reason.trim() ||
+            !Number.isSafeInteger(input.expected_version)
+          )
+            throw new ApplicationError(
+              "VALIDATION_ERROR",
+              "Reason and expected_version are required.",
+            );
+          const key = req.headers["idempotency-key"];
+          if (typeof key !== "string" || !key.trim())
+            throw new ApplicationError(
+              "VALIDATION_ERROR",
+              "Idempotency-Key is required.",
+            );
+          const agentId = revokeEnrollmentTokenRoute[1]!.toLowerCase();
+          const tokenId = revokeEnrollmentTokenRoute[2]!.toLowerCase();
+          await authorize(authorization, {
+            principal,
+            action: "agent.enrollment_token.issue",
+            resource: {
+              type: "agent_enrollment_token",
+              id: tokenId,
+              tenant_id: principal.tenant_id,
+            },
+            scope: {},
+            context: { ...context },
+          });
+          const result = await uow.run(principal.tenant_id, async (tx) =>
+            new PostgresIdempotencyStore(tx).execute(
+              {
+                principalId: principal.id,
+                operation: "AGENT.REVOKE_ENROLLMENT_TOKEN",
+                businessScope: tokenId,
+                key,
+                semanticRequest: input as never,
+                expiresAt: new Date(Date.now() + 86400000),
+              },
+              async () => {
+                const revoked = await revokeEnrollmentToken({
+                  tx,
+                  agentId,
+                  tokenId,
+                  expectedVersion: input.expected_version as number,
+                  reason: input.reason as string,
+                });
+                const now = new Date().toISOString();
+                await new PostgresOutboxWriter(tx).append({
+                  event_id: randomUUID(),
+                  event_type: "AGENT.ENROLLMENT_TOKEN_REVOKED",
+                  schema_version: 1,
+                  occurred_at: now,
+                  producer: { service: config.serviceName, instance: "api" },
+                  aggregate: {
+                    type: "AGENT",
+                    id: agentId,
+                    version: revoked.entity_version,
+                  },
+                  actor: { type: principal.actor_type, id: principal.id },
+                  correlation_id: context.correlation_id,
+                  causation_id: context.causation_id,
+                  tenant_id: principal.tenant_id,
+                  organization_id: principal.tenant_id,
+                  idempotency_key: key,
+                  payload: {
+                    agent_id: agentId,
+                    token_id: tokenId,
+                    status: "REVOKED",
+                  },
+                });
+                await new PostgresAudit(tx).append({
+                  id: randomUUID(),
+                  tenant_id: principal.tenant_id,
+                  event_type: "AGENT.ENROLLMENT_TOKEN_REVOKED",
+                  occurred_at: now,
+                  actor: { type: principal.actor_type, id: principal.id },
+                  action: { command_type: "AGENT.REVOKE_ENROLLMENT_TOKEN" },
+                  subject: {
+                    entity_type: "AGENT_ENROLLMENT_TOKEN",
+                    entity_id: tokenId,
+                  },
+                  correlation_id: context.correlation_id,
+                  causation_id: context.causation_id,
+                  reason: {
+                    code: "AUTHORIZED_REVOCATION",
+                    text: input.reason as string,
+                  },
+                  before: { status: "ISSUED" },
+                  after: { status: "REVOKED" },
+                  outcome: { status: "SUCCESS" },
+                  classification: "RESTRICTED",
+                  relations: [],
+                  evidence: [],
+                });
+                return { status: 200, body: revoked as never };
+              },
+            ),
+          );
+          json(res, result.status, { data: result.body, meta: context });
+          return true;
+        }
+        const revokeAgentCredentialRoute = req.url?.match(
+          /^\/api\/v1\/agents\/([0-9a-f-]{36})\/credentials\/([0-9a-f-]{36})\/commands\/revoke$/i,
+        );
+        if (req.method === "POST" && revokeAgentCredentialRoute) {
+          const principal = await authenticate(
+            authentication,
+            req.headers.authorization,
+          );
+          const raw = await new Promise<string>((resolve) => {
+            let data = "";
+            req.on("data", (chunk) => (data += chunk));
+            req.on("end", () => resolve(data));
+          });
+          let input: Record<string, unknown>;
+          try {
+            input = (raw ? JSON.parse(raw) : {}) as Record<string, unknown>;
+          } catch {
+            throw new ApplicationError(
+              "VALIDATION_ERROR",
+              "Invalid JSON request.",
+            );
+          }
+          if (
+            !input ||
+            typeof input !== "object" ||
+            Array.isArray(input) ||
+            Object.keys(input).some(
+              (key) => !["reason", "expected_version"].includes(key),
+            ) ||
+            typeof input.reason !== "string" ||
+            !input.reason.trim() ||
+            !Number.isSafeInteger(input.expected_version)
+          )
+            throw new ApplicationError(
+              "VALIDATION_ERROR",
+              "Reason and expected_version are required.",
+            );
+          const key = req.headers["idempotency-key"];
+          if (typeof key !== "string" || !key.trim())
+            throw new ApplicationError(
+              "VALIDATION_ERROR",
+              "Idempotency-Key is required.",
+            );
+          const agentId = revokeAgentCredentialRoute[1]!.toLowerCase();
+          const credentialId = revokeAgentCredentialRoute[2]!.toLowerCase();
+          await authorize(authorization, {
+            principal,
+            action: "agent.credential.revoke",
+            resource: {
+              type: "agent_credential",
+              id: credentialId,
+              tenant_id: principal.tenant_id,
+            },
+            scope: {},
+            context: { ...context },
+          });
+          const result = await uow.run(principal.tenant_id, async (tx) =>
+            new PostgresIdempotencyStore(tx).execute(
+              {
+                principalId: principal.id,
+                operation: "AGENT.REVOKE_CREDENTIAL",
+                businessScope: credentialId,
+                key,
+                semanticRequest: input as never,
+                expiresAt: new Date(Date.now() + 86400000),
+              },
+              async () => {
+                const before = await tx.query<{
+                  status: string;
+                  entity_version: number;
+                }>(
+                  "SELECT status,entity_version FROM agent.agent_credentials WHERE tenant_id=$1 AND agent_id=$2 AND id=$3 FOR UPDATE",
+                  [principal.tenant_id, agentId, credentialId],
+                );
+                if (!before.rowCount)
+                  throw new ApplicationError(
+                    "NOT_FOUND",
+                    "Credential was not found.",
+                  );
+                const revoked = await revokeAgentCredential({
+                  tx,
+                  agentId,
+                  credentialId,
+                  actorId: principal.id,
+                  reason: input.reason as string,
+                  expectedVersion: input.expected_version as number,
+                });
+                const now = new Date().toISOString();
+                await new PostgresOutboxWriter(tx).append({
+                  event_id: randomUUID(),
+                  event_type: "AGENT.CREDENTIAL_REVOKED",
+                  schema_version: 1,
+                  occurred_at: now,
+                  producer: { service: config.serviceName, instance: "api" },
+                  aggregate: {
+                    type: "AGENT",
+                    id: agentId,
+                    version: revoked.entity_version,
+                  },
+                  actor: { type: principal.actor_type, id: principal.id },
+                  correlation_id: context.correlation_id,
+                  causation_id: context.causation_id,
+                  tenant_id: principal.tenant_id,
+                  organization_id: principal.tenant_id,
+                  idempotency_key: key,
+                  payload: {
+                    agent_id: agentId,
+                    credential_id: credentialId,
+                    status: "REVOKED",
+                  },
+                });
+                await new PostgresAudit(tx).append({
+                  id: randomUUID(),
+                  tenant_id: principal.tenant_id,
+                  event_type: "AGENT.CREDENTIAL_REVOKED",
+                  occurred_at: now,
+                  actor: { type: principal.actor_type, id: principal.id },
+                  action: { command_type: "AGENT.REVOKE_CREDENTIAL" },
+                  subject: {
+                    entity_type: "AGENT_CREDENTIAL",
+                    entity_id: credentialId,
+                  },
+                  correlation_id: context.correlation_id,
+                  causation_id: context.causation_id,
+                  reason: {
+                    code: "AUTHORIZED_REVOCATION",
+                    text: input.reason as string,
+                  },
+                  before: {
+                    status: before.rows[0]!.status,
+                    version: before.rows[0]!.entity_version,
+                  },
+                  after: {
+                    status: revoked.status,
+                    version: revoked.entity_version,
+                  },
+                  outcome: { status: "SUCCESS" },
+                  classification: "RESTRICTED",
+                  relations: [],
+                  evidence: [],
+                });
+                return { status: 200, body: revoked as never };
+              },
+            ),
+          );
+          json(res, result.status, { data: result.body, meta: context });
+          return true;
+        }
+        const registrationStateRoute = req.url?.match(
+          /^\/api\/v1\/agents\/([0-9a-f-]{36})\/commands\/registration-state$/i,
+        );
+        if (req.method === "POST" && registrationStateRoute) {
+          const principal = await authenticate(
+            authentication,
+            req.headers.authorization,
+          );
+          const raw = await new Promise<string>((resolve) => {
+            let data = "";
+            req.on("data", (chunk) => (data += chunk));
+            req.on("end", () => resolve(data));
+          });
+          let input: Record<string, unknown>;
+          try {
+            input = (raw ? JSON.parse(raw) : {}) as Record<string, unknown>;
+          } catch {
+            throw new ApplicationError(
+              "VALIDATION_ERROR",
+              "Invalid JSON request.",
+            );
+          }
+          if (
+            !input ||
+            typeof input !== "object" ||
+            Array.isArray(input) ||
+            Object.keys(input).some(
+              (key) =>
+                !["target_state", "reason", "expected_version"].includes(key),
+            ) ||
+            !["ACTIVE", "DISABLED", "RETIRED"].includes(
+              String(input.target_state),
+            ) ||
+            typeof input.reason !== "string" ||
+            !input.reason.trim() ||
+            !Number.isSafeInteger(input.expected_version)
+          )
+            throw new ApplicationError(
+              "VALIDATION_ERROR",
+              "target_state, reason and expected_version are required.",
+            );
+          const key = req.headers["idempotency-key"];
+          if (typeof key !== "string" || !key.trim())
+            throw new ApplicationError(
+              "VALIDATION_ERROR",
+              "Idempotency-Key is required.",
+            );
+          const agentId = registrationStateRoute[1]!.toLowerCase();
+          await authorize(authorization, {
+            principal,
+            action: "agent.registration.manage",
+            resource: {
+              type: "agent_registration",
+              id: agentId,
+              tenant_id: principal.tenant_id,
+            },
+            scope: {},
+            context: { ...context },
+          });
+          const result = await uow.run(principal.tenant_id, async (tx) =>
+            new PostgresIdempotencyStore(tx).execute(
+              {
+                principalId: principal.id,
+                operation: "AGENT.TRANSITION_REGISTRATION",
+                businessScope: agentId,
+                key,
+                semanticRequest: input as never,
+                expiresAt: new Date(Date.now() + 86400000),
+              },
+              async () => {
+                const before = await tx.query<{
+                  registration_status: string;
+                  registration_version: number;
+                }>(
+                  "SELECT registration_status,registration_version FROM agent.agents WHERE tenant_id=$1 AND id=$2 FOR UPDATE",
+                  [principal.tenant_id, agentId],
+                );
+                if (!before.rowCount)
+                  throw new ApplicationError(
+                    "NOT_FOUND",
+                    "Agent registration was not found.",
+                  );
+                const changed = await transitionAgentRegistration({
+                  tx,
+                  agentId,
+                  target: input.target_state as
+                    "ACTIVE" | "DISABLED" | "RETIRED",
+                  expectedVersion: input.expected_version as number,
+                  reason: input.reason as string,
+                });
+                const now = new Date().toISOString();
+                await new PostgresOutboxWriter(tx).append({
+                  event_id: randomUUID(),
+                  event_type: "AGENT.REGISTRATION_STATE_CHANGED",
+                  schema_version: 1,
+                  occurred_at: now,
+                  producer: { service: config.serviceName, instance: "api" },
+                  aggregate: {
+                    type: "AGENT",
+                    id: agentId,
+                    version: changed.registration_version,
+                  },
+                  actor: { type: principal.actor_type, id: principal.id },
+                  correlation_id: context.correlation_id,
+                  causation_id: context.causation_id,
+                  tenant_id: principal.tenant_id,
+                  organization_id: principal.tenant_id,
+                  idempotency_key: key,
+                  payload: {
+                    agent_id: agentId,
+                    registration_status: changed.registration_status,
+                    registration_version: changed.registration_version,
+                  },
+                });
+                await new PostgresAudit(tx).append({
+                  id: randomUUID(),
+                  tenant_id: principal.tenant_id,
+                  event_type: "AGENT.REGISTRATION_STATE_CHANGED",
+                  occurred_at: now,
+                  actor: { type: principal.actor_type, id: principal.id },
+                  action: { command_type: "AGENT.TRANSITION_REGISTRATION" },
+                  subject: { entity_type: "AGENT", entity_id: agentId },
+                  correlation_id: context.correlation_id,
+                  causation_id: context.causation_id,
+                  reason: {
+                    code: "AUTHORIZED_REGISTRATION_CHANGE",
+                    text: input.reason as string,
+                  },
+                  before: {
+                    status: before.rows[0]!.registration_status,
+                    version: before.rows[0]!.registration_version,
+                  },
+                  after: {
+                    status: changed.registration_status,
+                    version: changed.registration_version,
+                  },
+                  outcome: { status: "SUCCESS" },
+                  classification: "RESTRICTED",
+                  relations: [],
+                  evidence: [],
+                });
+                return { status: 200, body: changed as never };
+              },
+            ),
+          );
+          json(res, result.status, { data: result.body, meta: context });
           return true;
         }
         if (req.method === "POST" && req.url === "/api/v1/monitoring/events") {

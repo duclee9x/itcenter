@@ -4,6 +4,10 @@ import {
   type IncomingMessage,
   type ServerResponse,
 } from "node:http";
+import {
+  createServer as createTlsServer,
+  type ServerOptions as TlsServerOptions,
+} from "node:https";
 import type { Config } from "../../config/src/index.js";
 import type { CorrelationContext } from "../../shared-kernel/src/index.js";
 import {
@@ -69,14 +73,14 @@ export function json(res: ServerResponse, status: number, body: unknown): void {
   res.setHeader("Content-Type", "application/json");
   res.end(JSON.stringify(body));
 }
-export function createHttpServer(
+function requestListener(
   config: Pick<Config, "serviceName" | "environment" | "logLevel">,
   ready: () => Promise<boolean>,
   route?: Route,
   metrics = new Metrics(),
-) {
+): (req: IncomingMessage, res: ServerResponse) => void {
   const log = logger(config);
-  const server = createServer(async (req, res) => {
+  return (req, res) => {
     const context = requestContext(req.headers["x-correlation-id"]);
     res.setHeader("X-Request-Id", context.request_id);
     res.setHeader("X-Correlation-Id", context.correlation_id);
@@ -84,37 +88,64 @@ export function createHttpServer(
       metrics.increment(`http_${res.statusCode}`);
       log("info", "http.request", context, res.statusCode);
     });
-    try {
-      if (req.method === "GET" && req.url === "/api/v1/health/live") {
-        json(res, 200, { data: { status: "ok" }, meta: context });
-        return;
-      }
-      if (req.method === "GET" && req.url === "/api/v1/health/ready") {
-        let available = false;
-        try {
-          available = await ready();
-        } catch {
-          available = false;
+    void (async () => {
+      try {
+        if (req.method === "GET" && req.url === "/api/v1/health/live") {
+          json(res, 200, { data: { status: "ok" }, meta: context });
+          return;
         }
-        if (!available)
-          throw new ApplicationError(
-            "DEPENDENCY_UNAVAILABLE",
-            "Service dependencies are not ready.",
-            true,
-          );
-        json(res, 200, { data: { status: "ok" }, meta: context });
-        return;
+        if (req.method === "GET" && req.url === "/api/v1/health/ready") {
+          let available = false;
+          try {
+            available = await ready();
+          } catch {
+            available = false;
+          }
+          if (!available)
+            throw new ApplicationError(
+              "DEPENDENCY_UNAVAILABLE",
+              "Service dependencies are not ready.",
+              true,
+            );
+          json(res, 200, { data: { status: "ok" }, meta: context });
+          return;
+        }
+        if (route && (await route(req, res, context))) return;
+        throw new ApplicationError("NOT_FOUND", "Route not found.");
+      } catch (error) {
+        const response = errorResponse(error, context);
+        if (error instanceof ApplicationError)
+          for (const [name, value] of Object.entries(error.headers))
+            res.setHeader(name, value);
+        json(res, response.status, response.body);
       }
-      if (route && (await route(req, res, context))) return;
-      throw new ApplicationError("NOT_FOUND", "Route not found.");
-    } catch (error) {
-      const response = errorResponse(error, context);
-      if (error instanceof ApplicationError)
-        for (const [name, value] of Object.entries(error.headers))
-          res.setHeader(name, value);
-      json(res, response.status, response.body);
-    }
-  });
+    })();
+  };
+}
+
+export function createHttpServer(
+  config: Pick<Config, "serviceName" | "environment" | "logLevel">,
+  ready: () => Promise<boolean>,
+  route?: Route,
+  metrics = new Metrics(),
+) {
+  const server = createServer(requestListener(config, ready, route, metrics));
+  server.requestTimeout = 10000;
+  server.headersTimeout = 10000;
+  return server;
+}
+
+export function createHttpsServer(
+  config: Pick<Config, "serviceName" | "environment" | "logLevel">,
+  ready: () => Promise<boolean>,
+  tls: TlsServerOptions,
+  route?: Route,
+  metrics = new Metrics(),
+) {
+  const server = createTlsServer(
+    tls,
+    requestListener(config, ready, route, metrics),
+  );
   server.requestTimeout = 10000;
   server.headersTimeout = 10000;
   return server;

@@ -191,6 +191,26 @@ export const permissions: readonly Permission[] = [
   { code: "role_binding.read", resource_type: "role_binding", action: "read" },
   { code: "rbac.manage", resource_type: "rbac", action: "manage" },
   { code: "agent.enroll", resource_type: "agent", action: "enroll" },
+  {
+    code: "agent.registration.manage",
+    resource_type: "agent_registration",
+    action: "manage",
+  },
+  {
+    code: "agent.enrollment_token.issue",
+    resource_type: "agent_enrollment_token",
+    action: "issue",
+  },
+  {
+    code: "agent.credential.revoke",
+    resource_type: "agent_credential",
+    action: "revoke",
+  },
+  {
+    code: "agent.credential.force_rotate",
+    resource_type: "agent_credential",
+    action: "force_rotate",
+  },
   { code: "agent.restart", resource_type: "agent", action: "restart" },
   {
     code: "automation.intent.read",
