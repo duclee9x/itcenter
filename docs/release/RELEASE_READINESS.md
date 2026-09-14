@@ -21,8 +21,8 @@ remain required for any production release.
 The repository is not ready to produce and promote a production Release
 Candidate. The decisive blockers are: the API authentication adapter is
 implemented but has not been configured and validated against a real staging
-OIDC provider; worker readiness remains false and required-worker /
-degraded-operation policy is unresolved; no staging/production image and
+OIDC provider; worker readiness remains false although its operational policy
+is now defined in RELEASE-003-R1; no staging/production image and
 promotion path is present; no production-like migration compatibility
 rehearsal exists; no production backup/restore drill or RPO/RTO is evidenced;
 and TLS/rate limiting are not supplied by a checked-in deployment edge. Agent
@@ -117,23 +117,23 @@ deployment.
 
 ## Findings summary
 
-| ID    | Type                     | Severity | Finding                                                                                                                                   | Release-blocking                                                          |
-| ----- | ------------------------ | -------- | ----------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
-| RR-01 | RELEASE_BLOCKER          | Critical | RELEASE-001 is implemented, but no real OIDC provider configuration or staging acceptance evidence is recorded.                           | Yes                                                                       |
-| RR-02 | OPERATIONAL_GAP          | High     | Worker readiness is fixed false; required-worker/degraded-operation policy remains unresolved in RELEASE-003-R1.                          | Yes                                                                       |
-| RR-03 | PRODUCTION_CONFIGURATION | High     | RELEASE-002 mTLS code is complete, but private-CA provisioning and staging-topology validation remain; Agent execution stays unavailable. | Yes when Agent execution is in launch scope; assumed in this assessment   |
-| RR-04 | OPERATIONAL_GAP          | High     | No production build/image, immutable promotion, staging deployment, or rollback procedure is present.                                     | Yes                                                                       |
-| RR-05 | DATA_MIGRATION_GAP       | High     | No production-like prior-schema upgrade, lock/duration measurement, N-1 compatibility, or forward-recovery rehearsal is evidenced.        | Yes                                                                       |
-| RR-06 | RECOVERY_GAP             | Critical | No production backup/restore procedure, verified restore, RPO/RTO, or pre-migration backup control is evidenced.                          | Yes                                                                       |
-| RR-07 | SECURITY_GAP             | Critical | TLS ingress and rate limiting are not implemented/configured in a deployment edge; no production edge policy is evidenced.                | Yes                                                                       |
-| RR-08 | OBSERVABILITY_GAP        | High     | Metrics are process-local, there is no exporter/tracing/alert routing, and required worker readiness currently remains false.             | Yes for monitored production operation                                    |
-| RR-09 | PRODUCTION_CONFIGURATION | High     | Production secret, database roles, system-principal grants and capability-specific adapters need deployment provisioning and validation.  | Yes for enabled capabilities                                              |
-| RR-10 | PRODUCTION_CONFIGURATION | Medium   | Concrete object/artifact storage and scanning adapters are not wired for artifact-dependent workflows.                                    | Conditional on those workflows being in release scope                     |
-| RR-11 | OPERATIONAL_GAP          | Medium   | External broker publishing/acknowledgement and poison-event operations are not deployed; current outbox path is local/database-backed.    | Conditional on broker-dependent integrations                              |
-| RR-12 | PERFORMANCE_GAP          | Medium   | There is no production dataset load baseline or measured capacity envelope.                                                               | No for a limited RC; required before capacity claims/scale-up             |
-| RR-13 | OPERATIONAL_GAP          | Medium   | Production retention/archive operations for growing append-only records are not configured.                                               | No for initial RC; owner/limits required before sustained production      |
-| RR-14 | KNOWN_LIMITATION         | Low      | TASK-094 economic repair-cost evidence is intentionally unavailable without a canonical repair-cost ledger.                               | No, unless complete economic scoring is a release promise                 |
-| RR-15 | TECH_DEBT                | Low      | A PostgreSQL client-query deprecation warning is emitted by the Operations Overview request path.                                         | No for current pinned runtime; address before incompatible driver upgrade |
+| ID    | Type                     | Severity | Finding                                                                                                                                                  | Release-blocking                                                          |
+| ----- | ------------------------ | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| RR-01 | RELEASE_BLOCKER          | Critical | RELEASE-001 is implemented, but no real OIDC provider configuration or staging acceptance evidence is recorded.                                          | Yes                                                                       |
+| RR-02 | OPERATIONAL_GAP          | High     | Worker readiness is fixed false; RELEASE-003-R1 now defines deployable profiles and all 13 workers, but runtime implementation and staging proof remain. | Yes                                                                       |
+| RR-03 | PRODUCTION_CONFIGURATION | High     | RELEASE-002 mTLS code is complete, but private-CA provisioning and staging-topology validation remain; Agent execution stays unavailable.                | Yes when Agent execution is in launch scope; assumed in this assessment   |
+| RR-04 | OPERATIONAL_GAP          | High     | No production build/image, immutable promotion, staging deployment, or rollback procedure is present.                                                    | Yes                                                                       |
+| RR-05 | DATA_MIGRATION_GAP       | High     | No production-like prior-schema upgrade, lock/duration measurement, N-1 compatibility, or forward-recovery rehearsal is evidenced.                       | Yes                                                                       |
+| RR-06 | RECOVERY_GAP             | Critical | No production backup/restore procedure, verified restore, RPO/RTO, or pre-migration backup control is evidenced.                                         | Yes                                                                       |
+| RR-07 | SECURITY_GAP             | Critical | TLS ingress and rate limiting are not implemented/configured in a deployment edge; no production edge policy is evidenced.                               | Yes                                                                       |
+| RR-08 | OBSERVABILITY_GAP        | High     | Metrics are process-local, there is no exporter/tracing/alert routing, and required worker readiness currently remains false.                            | Yes for monitored production operation                                    |
+| RR-09 | PRODUCTION_CONFIGURATION | High     | Production secret, database roles, system-principal grants and capability-specific adapters need deployment provisioning and validation.                 | Yes for enabled capabilities                                              |
+| RR-10 | PRODUCTION_CONFIGURATION | Medium   | Concrete object/artifact storage and scanning adapters are not wired for artifact-dependent workflows.                                                   | Conditional on those workflows being in release scope                     |
+| RR-11 | OPERATIONAL_GAP          | Medium   | External broker publishing/acknowledgement and poison-event operations are not deployed; current outbox path is local/database-backed.                   | Conditional on broker-dependent integrations                              |
+| RR-12 | PERFORMANCE_GAP          | Medium   | There is no production dataset load baseline or measured capacity envelope.                                                                              | No for a limited RC; required before capacity claims/scale-up             |
+| RR-13 | OPERATIONAL_GAP          | Medium   | Production retention/archive operations for growing append-only records are not configured.                                                              | No for initial RC; owner/limits required before sustained production      |
+| RR-14 | KNOWN_LIMITATION         | Low      | TASK-094 economic repair-cost evidence is intentionally unavailable without a canonical repair-cost ledger.                                              | No, unless complete economic scoring is a release promise                 |
+| RR-15 | TECH_DEBT                | Low      | A PostgreSQL client-query deprecation warning is emitted by the Operations Overview request path.                                                        | No for current pinned runtime; address before incompatible driver upgrade |
 
 Finding definitions, owner, actions, and verification are in
 [RELEASE_BLOCKERS.md](RELEASE_BLOCKERS.md). Known product limits are in
@@ -171,8 +171,9 @@ No secret values belong in this document or in source control.
    authorization; configure enrolled-Agent authentication if self-healing is
    included. Validate tenant mapping and negative authorization cases in
    staging.
-2. Establish the deployment edge and readiness contract: TLS, trusted proxy,
-   rate/size limits, real worker readiness, and process supervision.
+2. Implement the approved readiness contract and validate it in staging;
+   establish the deployment edge, TLS, trusted proxy, rate/size limits, and
+   process supervision.
 3. Produce a signed/traceable immutable application image or artifact and a
    staging-to-production promotion pipeline that uses that same identifier.
 4. Rehearse migrations against a production-like previous schema. Measure

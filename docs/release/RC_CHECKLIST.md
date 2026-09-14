@@ -85,10 +85,14 @@ or use explicitly disposable staging fixtures.
       publishing only if those capabilities are in scope. Otherwise keep the
       affected routes/integrations disabled and fail-closed.
 - [ ] Confirm DB/API/Agent Gateway/Worker readiness reflects actual dependency
-      health under the approved RELEASE-003-R1 deployable/worker criticality
-      matrix. Worker must not be marked ready while a required adapter is
-      absent; optional degradation must follow the contract's explicit HTTP
-      readiness semantics.
+      health under [RELEASE-003-R1](items/RELEASE-003-R1_PRODUCTION_READINESS_CRITICAL_WORKER_CONTRACT.md).
+      API requires DB/schema/OIDC; Agent Gateway requires DB/schema/mTLS;
+      Worker requires DB/schema and all three mandatory workers. Confirm the
+      full 13-worker registry, 15-second heartbeat / 45-second stale limit,
+      60-second startup deadline, and exact migration-manifest match. A
+      mandatory failure must return `NOT_READY/503`; a degradable worker or
+      safely isolated certificate-issuer failure returns `DEGRADED/200`.
+      Verify drain marks the instance not-ready before stopping new work.
 
 ## Health and safe smoke tests
 

@@ -31,13 +31,14 @@ work:
 
 ## Infrastructure limitations that remain fail-closed
 
-- User API authentication and authorization adapters are not wired. Protected
-  API operations fail closed; this is a release blocker, not a supported
-  production mode.
-- Worker readiness remains false. RELEASE-003 is blocked until
-  [RELEASE-003-R1](items/RELEASE-003-R1_PRODUCTION_READINESS_CRITICAL_WORKER_CONTRACT.md)
-  defines required-worker and degraded-operation policy; do not override the
-  current fail-closed probe to force an orchestrator rollout.
+- RELEASE-001 API authentication and RELEASE-002 Agent mTLS are
+  `CODE_COMPLETE`, not `VERIFIED`; production provider/CA configuration and
+  staging validation remain release blockers. Keep both adapters fail-closed
+  until configured and verified.
+- Worker readiness currently remains false. RELEASE-003-R1 now defines the
+  approved profiles and all 13 worker policies; RELEASE-003 runtime must
+  implement them before deployment. Do not override the current fail-closed
+  probe to force an orchestrator rollout.
 - Object/artifact storage routes use unavailable adapters unless a concrete
   production adapter is supplied. Keep affected workflows disabled until
   configured and verified.

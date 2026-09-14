@@ -7,7 +7,7 @@ only release items and the edges approved for the initial release backlog.
 flowchart TD
   R001[RELEASE-001 API Authentication & Authorization]
   R002[RELEASE-002 Agent Authentication — CODE_COMPLETE / staging verification pending]
-  R003[RELEASE-003 Worker Readiness — BLOCKED: R1 operational decision]
+  R003[RELEASE-003 Worker Readiness — READY / NOT_STARTED]
   R004[RELEASE-004 Immutable Build / Promotion]
   R005[RELEASE-005 Backup / Restore]
   R006[RELEASE-006 Migration Rehearsal / N-1]
@@ -29,27 +29,29 @@ flowchart TD
 
 ## Direct dependency table
 
-| Release item     | Depends on                                                                                | Reason                                                                                                               |
-| ---------------- | ----------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| RELEASE-001      | None                                                                                      | Foundational API security adapter. R1/R2 resolved its contract gaps; runtime implementation and verification remain. |
-| RELEASE-002      | None                                                                                      | Agent-channel authentication can be designed/configured independently while retaining fail-closed execution.         |
-| RELEASE-003      | None                                                                                      | No release-item dependency; blocked pending RELEASE-003-R1 policy for required workers and degraded readiness.       |
-| RELEASE-004      | None                                                                                      | Establishes immutable artifact and deployment lifecycle.                                                             |
-| RELEASE-005      | None                                                                                      | Establishes and proves backup/restore before migrations or promotion.                                                |
-| RELEASE-006      | RELEASE-004, RELEASE-005                                                                  | Rehearsal must use the immutable release artifact and proven recovery path.                                          |
-| RELEASE-007      | RELEASE-004                                                                               | Edge security validation must match the deployable release topology.                                                 |
-| RELEASE-GATE-001 | RELEASE-001, RELEASE-002, RELEASE-003, RELEASE-004, RELEASE-005, RELEASE-006, RELEASE-007 | Re-run the complete RC gate after all P0 evidence is verified.                                                       |
+| Release item     | Depends on                                                                                | Reason                                                                                                       |
+| ---------------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| RELEASE-001      | None                                                                                      | Foundational API security adapter is `CODE_COMPLETE`; real IdP/staging verification remains.                 |
+| RELEASE-002      | None                                                                                      | Agent-channel authentication can be designed/configured independently while retaining fail-closed execution. |
+| RELEASE-003      | None                                                                                      | No release-item dependency; RELEASE-003-R1 fixes the readiness profiles and all 13 worker policies.          |
+| RELEASE-004      | None                                                                                      | Establishes immutable artifact and deployment lifecycle.                                                     |
+| RELEASE-005      | None                                                                                      | Establishes and proves backup/restore before migrations or promotion.                                        |
+| RELEASE-006      | RELEASE-004, RELEASE-005                                                                  | Rehearsal must use the immutable release artifact and proven recovery path.                                  |
+| RELEASE-007      | RELEASE-004                                                                               | Edge security validation must match the deployable release topology.                                         |
+| RELEASE-GATE-001 | RELEASE-001, RELEASE-002, RELEASE-003, RELEASE-004, RELEASE-005, RELEASE-006, RELEASE-007 | Re-run the complete RC gate after all P0 evidence is verified.                                               |
 
 ## Derived readiness
 
 Derived state after RELEASE-002 automated implementation:
 
 - **CODE_COMPLETE, awaiting environment verification:** RELEASE-001.
-- **READY:** RELEASE-004, RELEASE-005.
-- **BLOCKED:** RELEASE-003 pending its operational contract; no dependency edge is being bypassed.
+- **CODE_COMPLETE, awaiting environment verification:** RELEASE-002.
+- **READY:** RELEASE-003, RELEASE-004, RELEASE-005.
+- **BLOCKED:** None.
 - **WAITING_DEPENDENCY:** RELEASE-006, RELEASE-007, RELEASE-GATE-001.
 
 “Ready” means eligible to start under the release-item status model. It does
-not claim implementation or verification. Any newly discovered blocker must
-be recorded on the affected item and readiness recomputed; dependencies must
-not be bypassed.
+not claim implementation or verification. RELEASE-003 is selected next;
+RELEASE-004 is not started in the same work item. Any newly discovered
+blocker must be recorded on the affected item and readiness recomputed;
+dependencies must not be bypassed.

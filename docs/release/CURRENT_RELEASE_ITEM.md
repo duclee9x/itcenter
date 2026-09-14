@@ -4,9 +4,9 @@
 | ------------- | --------------------------------------------------------------------------------------- |
 | Selected item | RELEASE-003 — Worker Readiness & Background Processing Health                           |
 | Priority      | P0                                                                                      |
-| Status        | `BLOCKED / NOT_STARTED`                                                                 |
-| Readiness     | `BLOCKED`                                                                               |
-| Blocker       | `SPEC_GAP / OPERATIONAL_DECISION` — critical-worker/degraded policy unresolved.         |
+| Status        | `NOT_STARTED`                                                                           |
+| Readiness     | `READY`                                                                                 |
+| Blocker       | None; RELEASE-003-R1 operational contract is `CODE_COMPLETE`.                           |
 | Contract      | [RELEASE-003-R1](items/RELEASE-003-R1_PRODUCTION_READINESS_CRITICAL_WORKER_CONTRACT.md) |
 
 RELEASE-001 runtime is `CODE_COMPLETE` but not `VERIFIED`; real provider and
@@ -22,7 +22,8 @@ The decisions are persisted in
 and [RELEASE-001-R2](items/RELEASE-001-R2_EXPLICIT_TENANT_CONTEXT_MEMBERSHIP_FOUNDATION.md).
 The global release decision remains `BLOCKED_FOR_RC`. RELEASE-002 code
 completion does not verify production mTLS or staging. RELEASE-003 is selected
-but blocked until its critical-worker/degraded-operation contract is resolved.
+and ready for runtime implementation under its completed R1 contract. Overall
+release readiness remains `BLOCKED_FOR_RC`.
 
 RELEASE-004 and RELEASE-005 remain independently `READY`. RELEASE-004 is not
 started. See
