@@ -88,6 +88,22 @@ still prove real configuration, failure/recovery transitions, issuer-only
 degradation, orchestrator HTTP behavior, and drain against the immutable
 deployment topology before `VERIFIED`.
 
+## RELEASE-004 operational decision gap
+
+Repository reconciliation confirms there is no production container/image
+build, registry, staging/production deployment target, manifest, promotion
+authorization, controlled migration stage, or rollback path. The current
+GitHub Actions workflow verifies and uploads build output only; the local
+Compose file supplies PostgreSQL for development. The RC checklist defines
+desired gates but does not select the required operational architecture.
+RELEASE-004 is therefore `BLOCKED / NOT_STARTED` with
+`SPEC_GAP / OPERATIONAL_DECISION`. See
+[RELEASE-004-R1](items/RELEASE-004-R1_IMMUTABLE_ARTIFACT_DEPLOYMENT_PROMOTION_CONTRACT.md)
+for repository evidence, fixed invariants, and decisions requiring approval.
+RELEASE-005 remains independently ready; RELEASE-006 and RELEASE-007 remain
+waiting for their declared dependencies. Overall readiness remains
+`BLOCKED_FOR_RC`.
+
 ## Evidence and verification baseline
 
 The Phase 5 gate report, [TASK-097_IMPLEMENTATION_REPORT.md](../../tasks/TASK-097_IMPLEMENTATION_REPORT.md),
@@ -191,8 +207,9 @@ No secret values belong in this document or in source control.
 2. Validate the implemented RELEASE-003 readiness profiles in staging;
    establish the deployment edge, TLS, trusted proxy, rate/size limits, and
    process supervision.
-3. Produce a signed/traceable immutable application image or artifact and a
-   staging-to-production promotion pipeline that uses that same identifier.
+3. Resolve the RELEASE-004-R1 operational decisions, then produce a
+   traceable immutable application artifact and staging-to-production
+   promotion pipeline that uses the same identifier.
 4. Rehearse migrations against a production-like previous schema. Measure
    duration/locks, test runtime roles, establish expand/forward-fix behavior,
    and record whether N-1 can operate during/after migration.

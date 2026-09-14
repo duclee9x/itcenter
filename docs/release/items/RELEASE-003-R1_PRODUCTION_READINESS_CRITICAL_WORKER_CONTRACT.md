@@ -208,6 +208,9 @@ This R1 resolves all operational decisions required for RELEASE-003,
 including criticality and replica mode for all 13 workers. No `TBD`, unknown
 criticality, unknown replica mode, shared-scheduler component, or fictional
 global outbox dispatcher remains. RELEASE-003-R1 is `CODE_COMPLETE`; the
-`SPEC_GAP / OPERATIONAL_DECISION` blocker is cleared; RELEASE-003 is
-`READY / NOT_STARTED`. Runtime is not implemented here, RELEASE-004 remains
-not started, and overall release remains `BLOCKED_FOR_RC`.
+`SPEC_GAP / OPERATIONAL_DECISION` blocker is cleared; RELEASE-003 was set to
+`READY / NOT_STARTED` when this contract was completed. RELEASE-004 is outside
+this contract; its current blocked state is tracked in
+[RELEASE_BACKLOG.md](../RELEASE_BACKLOG.md) and its deployment decision gap in
+[RELEASE-004-R1](RELEASE-004-R1_IMMUTABLE_ARTIFACT_DEPLOYMENT_PROMOTION_CONTRACT.md).
+Overall release remains `BLOCKED_FOR_RC`.

@@ -5,6 +5,13 @@ until all release blockers in [RELEASE_BLOCKERS.md](RELEASE_BLOCKERS.md) are
 closed and the release scope is approved. Smoke operations below are read-only
 or use explicitly disposable staging fixtures.
 
+RELEASE-004 is currently blocked by unresolved deployment operational
+decisions. This checklist states release goals; it does not select the
+artifact format, registry, deployment target, migration job, or promotion
+mechanism. Resolve and approve
+[RELEASE-004-R1](items/RELEASE-004-R1_IMMUTABLE_ARTIFACT_DEPLOYMENT_PROMOTION_CONTRACT.md)
+before implementing or executing a staging-to-production pipeline.
+
 ## Entry gate
 
 - [ ] Approved launch scope lists enabled capabilities, including whether

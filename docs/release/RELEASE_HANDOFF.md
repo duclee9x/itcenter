@@ -17,7 +17,9 @@
   `CODE_COMPLETE / NOT VERIFIED`. Staging/orchestrator verification remains.
   See
   [RELEASE-003-R1](items/RELEASE-003-R1_PRODUCTION_READINESS_CRITICAL_WORKER_CONTRACT.md).
-- RELEASE-004 is not started.
+- RELEASE-004 is `BLOCKED / NOT_STARTED` with
+  `SPEC_GAP / OPERATIONAL_DECISION`; see
+  [RELEASE-004-R1](items/RELEASE-004-R1_IMMUTABLE_ARTIFACT_DEPLOYMENT_PROMOTION_CONTRACT.md).
 - Unrelated user change in `AGENTS.md` is preserved and must remain outside
   release-planning commits unless a later explicit scope requires a separate
   relevant edit.
@@ -28,16 +30,19 @@ RELEASE-001 runtime has full automated verification but still requires a real
 staging IdP before `VERIFIED`; RR-01 remains open. RELEASE-002 runtime and
 automated tests are complete under its R1 mTLS contract, but real CA
 provisioning and staging topology validation remain before `VERIFIED`.
-RELEASE-003 runtime is implemented and automated checks pass. Before marking it
-`VERIFIED`, stage each deployable profile and verify orchestrator behavior,
-dependency failures/recovery, issuer degradation, worker heartbeat/startup,
-and readiness-first drain against the intended deployment topology. Keep
-RELEASE-003 selected for that verification. Do not begin RELEASE-004 in this
-work item; select it separately after the current release item is closed.
+RELEASE-003 runtime is implemented and automated checks pass; staging/
+orchestrator verification remains required before `VERIFIED`. R4 repository
+reconciliation found only a TypeScript build, verification-only GitHub Actions
+workflow, local PostgreSQL Compose setup, and standalone migration runner; no
+production image, registry, deployment target, promotion mechanism, or rollback
+contract exists. RELEASE-004-R1 records the operational decisions required.
+Resolve those decisions and update the normative release contract before
+starting implementation. Do not begin RELEASE-005 or RELEASE-006 in this
+work item.
 
 ## Release order
 
-RELEASE-004 and RELEASE-005 remain independently READY. RELEASE-006 waits for
+RELEASE-005 remains READY. RELEASE-004 is blocked; RELEASE-006 waits for
 RELEASE-004 and RELEASE-005; RELEASE-007 waits for RELEASE-004; the final
 RELEASE-GATE-001 waits for every initial remediation item to be verified.
 Follow [RELEASE_DEPENDENCY_GRAPH.md](RELEASE_DEPENDENCY_GRAPH.md).
