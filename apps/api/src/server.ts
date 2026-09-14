@@ -9,6 +9,7 @@ import {
 import {
   authenticate,
   authorize,
+  withAuthenticatedRequest,
   requireStepUpMfa,
   type AuthenticationPort,
   type AuthorizationPort,
@@ -144,6 +145,7 @@ import { handleServiceReferenceRoute } from "./service-reference-routes.js";
 import { handleKnowledgeRoute } from "./knowledge-routes.js";
 import { handleKnowledgeRecommendationRoute } from "./knowledge-recommendation-routes.js";
 import { handleRecommendationRoute } from "./recommendation-routes.js";
+import { handleIdentityProvisioningRoute } from "./identity-provisioning-routes.js";
 
 const networkExceptionQueue = {
   createReference: createNetworkExceptionWorkItem,
@@ -276,4293 +278,4513 @@ export function apiServer(
   softwareArtifactAdapters?: SoftwareArtifactAdapters,
   objectStore?: ObjectStore,
 ) {
-  return createHttpServer(config, ready, async (req, res, context) => {
-    if (
-      await handleSlaTargetPurposeRoute({
-        req,
-        res,
-        context,
-        authentication,
-        authorization,
-        uow,
-      })
-    )
-      return true;
-    if (
-      await handleReportingRoute({
-        req,
-        res,
-        context,
-        authentication,
-        authorization,
-        uow,
-      })
-    )
-      return true;
-    if (
-      await handleAssetScoringRoute({
-        req,
-        res,
-        context,
-        config,
-        authentication,
-        authorization,
-        uow,
-      })
-    )
-      return true;
-    if (
-      await handleRecommendationRoute({
-        req,
-        res,
-        context,
-        authentication,
-        authorization,
-        uow,
-      })
-    )
-      return true;
-    if (
-      await handleKnowledgeRecommendationRoute({
-        req,
-        res,
-        context,
-        config,
-        authentication,
-        authorization,
-        uow,
-      })
-    )
-      return true;
-    if (
-      await handleKnowledgeRoute({
-        req,
-        res,
-        context,
-        config,
-        authentication,
-        authorization,
-        uow,
-      })
-    )
-      return true;
-    const warrantyStateMatch =
-      /^\/api\/v1\/assets\/([^/]+)\/warranty-state(?:\?.*)?$/.exec(
-        req.url ?? "",
-      );
-    if (req.method === "GET" && warrantyStateMatch) {
-      const principal = await authenticate(
-        authentication,
-        req.headers.authorization,
-      );
-      const query = new URL(req.url ?? "", "http://localhost").searchParams;
-      const value = await uow.run(principal.tenant_id, (tx) =>
-        queryWarrantyAsset({
-          tx,
-          assetId: warrantyStateMatch[1]!,
-          asOf: query.get("as_of") ?? new Date().toISOString(),
-          principal,
-          authorization,
-          correlationId: context.correlation_id,
-        }),
-      );
-      json(res, 200, { data: value, meta: context });
-      return true;
-    }
-    const monitoringReliabilityMatch =
-      /^\/api\/v1\/assets\/([^/]+)\/monitoring-reliability(?:\?.*)?$/.exec(
-        req.url ?? "",
-      );
-    if (req.method === "GET" && monitoringReliabilityMatch) {
-      const principal = await authenticate(
-        authentication,
-        req.headers.authorization,
-      );
-      const query = new URL(req.url ?? "", "http://localhost").searchParams;
-      const from = query.get("from");
-      const to = query.get("to");
-      if (!from || !to)
-        throw new ApplicationError(
-          "VALIDATION_ERROR",
-          "from and to are required.",
-        );
-      const value = await uow.run(principal.tenant_id, (tx) =>
-        queryMonitoringAssetReliability({
-          tx,
-          assetId: monitoringReliabilityMatch[1]!,
-          from,
-          to,
-          principal,
-          authorization,
-          correlationId: context.correlation_id,
-        }),
-      );
-      json(res, 200, { data: value, meta: context });
-      return true;
-    }
-    if (
-      await handleServiceReferenceRoute({
-        req,
-        res,
-        context,
-        config,
-        authentication,
-        authorization,
-        uow,
-      })
-    )
-      return true;
-    if (
-      await handleAutomationExecutionRoute({
-        req,
-        res,
-        context,
-        config,
-        authentication,
-        authorization,
-        uow,
-      })
-    )
-      return true;
-    if (
-      await handleAutomationRoute({
-        req,
-        res,
-        context,
-        config,
-        authentication,
-        authorization,
-        uow,
-      })
-    )
-      return true;
-    if (
-      req.method === "GET" &&
-      req.url?.split("?")[0] === "/api/v1/health/capabilities"
-    ) {
-      const configured = objectStore !== undefined;
-      const productionReady =
-        config.environment === "production" &&
-        objectStore?.production_verified === true;
-      json(res, 200, {
-        data: {
-          commercial_document_storage: {
-            status: !configured
-              ? "UNAVAILABLE_NOT_READY"
-              : productionReady
-                ? "CONFIGURED"
-                : "ADAPTER_PRESENT_NOT_PRODUCTION_VERIFIED",
-            adapter_present: configured,
-            test_environment: config.environment === "test",
-            production_ready: productionReady,
-          },
-        },
-        meta: context,
-      } as never);
-      return true;
-    }
-    if (
-      await handleCostProvenanceRoute({
-        req,
-        res,
-        context,
-        authentication,
-        authorization,
-        uow,
-      })
-    )
-      return true;
-    if (
-      await handleAssetLifecycleRoute({
-        req,
-        res,
-        context,
-        config,
-        authentication,
-        authorization,
-        uow,
-      })
-    )
-      return true;
-    if (
-      await handleSearchRoute({
-        req,
-        res,
-        context,
-        authentication,
-        authorization,
-        uow,
-      })
-    )
-      return true;
-    if (
-      await handleSoftwareComplianceRoute({
-        req,
-        res,
-        context,
-        config,
-        authentication,
-        authorization,
-        uow,
-      })
-    )
-      return true;
-    if (
-      await handleSoftwareArtifactRoute({
-        req,
-        res,
-        context,
-        config,
-        authentication,
-        authorization,
-        uow,
-        ...(softwareArtifactAdapters
-          ? { adapters: softwareArtifactAdapters }
-          : {}),
-      })
-    )
-      return true;
-    if (
-      await handleSoftwareDeploymentRoute({
-        req,
-        res,
-        context,
-        config,
-        authentication,
-        authorization,
-        uow,
-      })
-    )
-      return true;
-    if (
-      await handleLicenseRoute({
-        req,
-        res,
-        context,
-        config,
-        authentication,
-        authorization,
-        uow,
-      })
-    )
-      return true;
-    if (
-      await handleContractRoute({
-        req,
-        res,
-        context,
-        config,
-        authentication,
-        authorization,
-        uow,
-        ...(objectStore ? { objectStore } : {}),
-      })
-    )
-      return true;
-    if (
-      await handleGoodsReceiptRoute({
-        req,
-        res,
-        context,
-        config,
-        authentication,
-        authorization,
-        uow,
-      })
-    )
-      return true;
-    if (
-      await handleInvoiceRoute({
-        req,
-        res,
-        context,
-        config,
-        authentication,
-        authorization,
-        uow,
-      })
-    )
-      return true;
-    if (
-      await handlePurchaseOrderRoute({
-        req,
-        res,
-        context,
-        config,
-        authentication,
-        authorization,
-        uow,
-      })
-    )
-      return true;
-    if (
-      await handleProcurementRoute({
-        req,
-        res,
-        context,
-        config,
-        authentication,
-        authorization,
-        uow,
-      })
-    )
-      return true;
-    if (
-      await handleRfqRoute({
-        req,
-        res,
-        context,
-        config,
-        authentication,
-        authorization,
-        uow,
-      })
-    )
-      return true;
-    if (
-      await handleOffboardingRoute({
-        req,
-        res,
-        context,
-        config,
-        authentication,
-        authorization,
-        uow,
-      })
-    )
-      return true;
-    if (req.method !== "GET" && req.method !== "POST") return false;
-    if (req.method === "GET" && req.url === "/api/v1/operations/overview") {
-      const principal = await authenticate(
-        authentication,
-        req.headers.authorization,
-      );
-      const overview = await uow.run(principal.tenant_id, async (tx) => {
-        const [work, incidents, sla, approvals, maintenance, automation] =
-          await Promise.all([
-            tx.query(
-              "SELECT COUNT(*)::int AS count FROM operations.work_items WHERE tenant_id=$1 AND state NOT IN ('RESOLVED','CLOSED')",
-              [principal.tenant_id],
-            ),
-            tx.query(
-              "SELECT COUNT(*)::int AS count FROM incident.incidents WHERE tenant_id=$1 AND state NOT IN ('RESOLVED','CLOSED','CANCELLED')",
-              [principal.tenant_id],
-            ),
-            tx.query(
-              "SELECT COUNT(*)::int AS count FROM control.sla_instances WHERE tenant_id=$1 AND state IN ('CRITICAL','BREACHED')",
-              [principal.tenant_id],
-            ),
-            tx.query(
-              "SELECT COUNT(*)::int AS count FROM control.approval_requests WHERE tenant_id=$1 AND state='PENDING'",
-              [principal.tenant_id],
-            ),
-            tx.query(
-              "SELECT COUNT(*)::int AS count FROM maintenance.orders WHERE tenant_id=$1 AND state NOT IN ('COMPLETED','CANCELLED','FAILED')",
-              [principal.tenant_id],
-            ),
-            tx.query(
-              "SELECT COUNT(*)::int AS count FROM automation.executions WHERE tenant_id=$1 AND state IN ('FAILED','WAITING_APPROVAL')",
-              [principal.tenant_id],
-            ),
-          ]);
-        return {
-          actionable_work: work.rows[0]!.count,
-          open_incidents: incidents.rows[0]!.count,
-          sla_at_risk: sla.rows[0]!.count,
-          pending_approvals: approvals.rows[0]!.count,
-          active_maintenance: maintenance.rows[0]!.count,
-          automation_attention: automation.rows[0]!.count,
-          generated_at: new Date().toISOString(),
-        };
-      });
-      json(res, 200, { data: overview, meta: context });
-      return true;
-    }
-    if (req.method === "GET" && req.url === "/api/v1/network/topology") {
-      const principal = await authenticate(
-        authentication,
-        req.headers.authorization,
-      );
-      await authorize(authorization, {
-        principal,
-        action: "network.topology.read",
-        resource: {
-          type: "network_topology",
-          id: "current",
-          tenant_id: principal.tenant_id,
-        },
-        scope: {},
-        context: { ...context },
-      });
-      const topology = await uow.run(principal.tenant_id, readCurrentTopology);
-      json(res, 200, { data: topology, meta: context });
-      return true;
-    }
-    if (
-      req.method === "GET" &&
-      (req.url === "/api/v1/network/exceptions" ||
-        req.url?.startsWith("/api/v1/network/exceptions?"))
-    ) {
-      const principal = await authenticate(
-        authentication,
-        req.headers.authorization,
-      );
-      await authorize(authorization, {
-        principal,
-        action: "network.read",
-        resource: {
-          type: "network_exception",
-          id: "collection",
-          tenant_id: principal.tenant_id,
-        },
-        scope: {},
-        context: { ...context },
-      });
-      const query = new URL(req.url ?? "", "http://localhost").searchParams;
-      const exceptions = await uow.run(principal.tenant_id, (tx) =>
-        listNetworkExceptions({
-          tx,
-          ...(query.has("state") ? { state: query.get("state")! } : {}),
-          ...(query.has("type") ? { exceptionType: query.get("type")! } : {}),
-        }),
-      );
-      json(res, 200, { data: exceptions, meta: context });
-      return true;
-    }
-    const timelineMatch = /^\/api\/v1\/tickets\/([^/]+)\/timeline$/.exec(
-      req.url ?? "",
-    );
-    if (req.method === "GET" && timelineMatch) {
-      const principal = await authenticate(
-        authentication,
-        req.headers.authorization,
-      );
-      const result = await uow.run(principal.tenant_id, async (tx) => {
-        return (
-          await tx.query(
-            "SELECT id,event_type,summary,payload,occurred_at FROM operations.timeline_events WHERE tenant_id=$1 AND entity_type='TICKET' AND entity_id=$2 ORDER BY occurred_at DESC",
-            [principal.tenant_id, timelineMatch[1]!],
-          )
-        ).rows;
-      });
-      json(res, 200, { data: result, meta: context });
-      return true;
-    }
-    const retireMatch = /^\/api\/v1\/assets\/([^/]+)\/commands\/retire$/.exec(
-      req.url ?? "",
-    );
-    const reserveMatch = /^\/api\/v1\/assets\/([^/]+)\/commands\/reserve$/.exec(
-      req.url ?? "",
-    );
-    const assignMatch = /^\/api\/v1\/assets\/([^/]+)\/commands\/assign$/.exec(
-      req.url ?? "",
-    );
-    const transferMatch =
-      /^\/api\/v1\/assets\/([^/]+)\/commands\/transfer$/.exec(req.url ?? "");
-    const requestReturnMatch =
-      /^\/api\/v1\/assets\/([^/]+)\/commands\/request-return$/.exec(
-        req.url ?? "",
-      );
-    const receiveReturnMatch =
-      /^\/api\/v1\/assets\/([^/]+)\/commands\/receive-return$/.exec(
-        req.url ?? "",
-      );
-    const ticketCreateMatch = req.url === "/api/v1/tickets";
-    const ticketCommandMatch =
-      /^\/api\/v1\/tickets\/([^/]+)\/commands\/([^/]+)$/.exec(req.url ?? "");
-    const workResolveMatch =
-      /^\/api\/v1\/work-items\/([^/]+)\/commands\/resolve$/.exec(req.url ?? "");
-    const incidentTransitionMatch =
-      /^\/api\/v1\/incidents\/([^/]+)\/commands\/transition$/.exec(
-        req.url ?? "",
-      );
-    const incidentCorrelateMatch =
-      /^\/api\/v1\/incidents\/([^/]+)\/commands\/correlate$/.exec(
-        req.url ?? "",
-      );
-    const incidentCorrelationAttachMatch =
-      /^\/api\/v1\/incidents\/([^/]+)\/commands\/correlation-attach$/.exec(
-        req.url ?? "",
-      );
-    const incidentCorrelationDetachMatch =
-      /^\/api\/v1\/incidents\/([^/]+)\/commands\/correlation-detach$/.exec(
-        req.url ?? "",
-      );
-    const incidentCorrelationRejectMatch =
-      /^\/api\/v1\/incidents\/([^/]+)\/commands\/correlation-reject$/.exec(
-        req.url ?? "",
-      );
-    const incidentCorrelationHistoryMatch =
-      /^\/api\/v1\/incidents\/([^/]+)\/correlations$/.exec(req.url ?? "");
-    const incidentAssetLinkMatch =
-      /^\/api\/v1\/incidents\/([^/]+)\/commands\/asset-link$/.exec(
-        req.url ?? "",
-      );
-    const incidentAssetUnlinkMatch =
-      /^\/api\/v1\/incidents\/([^/]+)\/assets\/([^/]+)\/commands\/unlink$/.exec(
-        req.url ?? "",
-      );
-    const majorMatch =
-      /^\/api\/v1\/incidents\/([^/]+)\/commands\/declare-major$/.exec(
-        req.url ?? "",
-      );
-    const communicationMatch =
-      /^\/api\/v1\/incidents\/([^/]+)\/communications$/.exec(req.url ?? "");
-    const slaTransitionMatch =
-      /^\/api\/v1\/sla-instances\/([^/]+)\/commands\/transition$/.exec(
-        req.url ?? "",
-      );
-    const approvalDecisionMatch =
-      /^\/api\/v1\/approvals\/([^/]+)\/commands\/(approve|reject)$/.exec(
-        req.url ?? "",
-      );
-    const recordTransitionMatch =
-      /^\/api\/v1\/(problems|changes|knowledge)\/([^/]+)\/commands\/transition$/.exec(
-        req.url ?? "",
-      );
-    const recordCreateKind =
-      req.url === "/api/v1/problems"
-        ? "PROBLEM"
-        : req.url === "/api/v1/changes"
-          ? "CHANGE"
-          : req.url === "/api/v1/knowledge"
-            ? "KNOWLEDGE"
-            : null;
-    const maintenanceTransitionMatch =
-      /^\/api\/v1\/maintenance\/([^/]+)\/commands\/transition$/.exec(
-        req.url ?? "",
-      );
-    const maintenanceClassificationMatch =
-      /^\/api\/v1\/maintenance\/([^/]+)\/commands\/classification$/.exec(
-        req.url ?? "",
-      );
-    const isWarrantyCreate = req.url === "/api/v1/warranties";
-    const isMaintenanceCreate = req.url === "/api/v1/maintenance";
-    const discoveryCreate = req.url === "/api/v1/network/discovery-jobs";
-    const discoveryObservation =
-      /^\/api\/v1\/network\/discovery-jobs\/([^/]+)\/observations$/.exec(
-        req.url ?? "",
-      );
-    const discoveryTransition =
-      /^\/api\/v1\/network\/discovery-jobs\/([^/]+)\/commands\/transition$/.exec(
-        req.url ?? "",
-      );
-    const vlanCheck =
-      /^\/api\/v1\/network\/observations\/([^/]+)\/commands\/check-vlan$/.exec(
-        req.url ?? "",
-      );
-    const networkExceptionResolve =
-      /^\/api\/v1\/network\/exceptions\/([^/]+)\/commands\/resolve$/.exec(
-        req.url ?? "",
-      );
-    const vlanChangeCreate = req.url === "/api/v1/network/vlan-changes";
-    const vlanChangeCommand =
-      /^\/api\/v1\/network\/vlan-changes\/([^/]+)\/commands\/(start|record-implementation|verify|rollback)$/.exec(
-        req.url ?? "",
-      );
-    if (req.method === "POST" && (vlanChangeCreate || vlanChangeCommand)) {
-      const principal = await authenticate(
-        authentication,
-        req.headers.authorization,
-      );
-      const key = req.headers["idempotency-key"];
-      if (typeof key !== "string" || !key.trim())
-        throw new ApplicationError(
-          "VALIDATION_ERROR",
-          "Idempotency-Key is required.",
-        );
-      const body = await new Promise<string>((resolve) => {
-        let data = "";
-        req.on("data", (chunk) => (data += chunk));
-        req.on("end", () => resolve(data));
-      });
-      let input: Record<string, unknown>;
-      try {
-        input = (body ? JSON.parse(body) : {}) as Record<string, unknown>;
-      } catch {
-        throw new ApplicationError("VALIDATION_ERROR", "Invalid JSON request.");
-      }
-      await authorize(authorization, {
-        principal,
-        action: "network.vlan.change",
-        resource: {
-          type: "network_vlan_change",
-          id: vlanChangeCommand?.[1] ?? String(input.change_id ?? "new"),
-          tenant_id: principal.tenant_id,
-        },
-        scope: {},
-        context: {
-          ...context,
-          high_risk: true,
-          change_required: true,
-          mfa_required: true,
-          reauth_required: true,
-        },
-      });
-      requireStepUpMfa(principal, {
-        requiredAcr: config.networkChangeRequiredAcr,
-        maxAgeSeconds: config.networkChangeMaxAuthAgeSeconds,
-      });
-      const command = vlanChangeCommand?.[2];
-      const operation = vlanChangeCreate
-        ? "NETWORK.VLAN_CHANGE.CREATE"
-        : `NETWORK.VLAN_CHANGE.${command!.replaceAll("-", "_").toUpperCase()}`;
-      const businessScope =
-        vlanChangeCommand?.[1] ?? String(input.change_id ?? "new");
-      const result = await uow.run(principal.tenant_id, (tx) =>
-        new PostgresIdempotencyStore(tx).execute(
-          {
-            principalId: principal.id,
-            operation,
-            businessScope,
-            key,
-            semanticRequest: input as never,
-            expiresAt: new Date(Date.now() + 86400000),
-          },
-          async () => {
-            let value: { id: string; version: number };
-            let eventType: string;
-            if (vlanChangeCreate) {
-              value = await createVlanChange({
-                tx,
-                changeId: String(input.change_id ?? ""),
-                targetDevice: String(input.target_device ?? ""),
-                targetPort: String(input.target_port ?? ""),
-                previousVlan: String(input.previous_vlan ?? ""),
-                desiredVlan: String(input.desired_vlan ?? ""),
-                reason: String(input.reason ?? ""),
-                rollbackPlan: String(input.rollback_plan ?? ""),
-              });
-              eventType = "NETWORK.VLAN_CHANGE_CREATED";
-            } else if (command === "start") {
-              value = await startVlanChange({
-                tx,
-                id: vlanChangeCommand![1]!,
-                expectedVersion: input.expected_version as number,
-              });
-              eventType = "NETWORK.VLAN_CHANGE_STARTED";
-            } else if (command === "record-implementation") {
-              value = await recordVlanImplementation({
-                tx,
-                id: vlanChangeCommand![1]!,
-                expectedVersion: input.expected_version as number,
-                actorId: principal.id,
-                reason: String(input.reason ?? ""),
-                result: String(input.result ?? "") as "APPLIED" | "FAILED",
-                evidence: input.evidence,
-              });
-              eventType = "NETWORK.VLAN_CHANGE_IMPLEMENTATION_RECORDED";
-            } else if (command === "verify") {
-              value = await verifyVlanChange({
-                tx,
-                id: vlanChangeCommand![1]!,
-                expectedVersion: input.expected_version as number,
-                actorId: principal.id,
-                reason: String(input.reason ?? ""),
-                observedVlan: String(input.observed_vlan ?? ""),
-                technicalPassed: input.technical_passed === true,
-                servicePassed: input.service_passed === true,
-                monitoringPassed: input.monitoring_passed === true,
-                evidence: input.evidence,
-              });
-              eventType = "NETWORK.VLAN_CHANGE_VERIFIED";
-            } else {
-              value = await recordVlanRollback({
-                tx,
-                id: vlanChangeCommand![1]!,
-                expectedVersion: input.expected_version as number,
-                actorId: principal.id,
-                reason: String(input.reason ?? ""),
-                trigger: String(input.trigger ?? ""),
-                steps: input.steps,
-                restoredVlan: String(input.restored_vlan ?? ""),
-                verificationPassed: input.verification_passed === true,
-                evidence: input.evidence,
-              });
-              eventType = "NETWORK.VLAN_CHANGE_ROLLBACK_RECORDED";
-            }
-            await appendNetworkVlanChangeEffects({
+  return createHttpServer(
+    config,
+    async () => (await ready()) && ((await authentication.isReady?.()) ?? true),
+    async (req, res, context) => {
+      const dispatch = async () => {
+        if (
+          await handleIdentityProvisioningRoute({
+            req,
+            res,
+            context,
+            config,
+            authentication,
+            authorization,
+            uow,
+          })
+        )
+          return true;
+        if (
+          await handleSlaTargetPurposeRoute({
+            req,
+            res,
+            context,
+            authentication,
+            authorization,
+            uow,
+          })
+        )
+          return true;
+        if (
+          await handleReportingRoute({
+            req,
+            res,
+            context,
+            authentication,
+            authorization,
+            uow,
+          })
+        )
+          return true;
+        if (
+          await handleAssetScoringRoute({
+            req,
+            res,
+            context,
+            config,
+            authentication,
+            authorization,
+            uow,
+          })
+        )
+          return true;
+        if (
+          await handleRecommendationRoute({
+            req,
+            res,
+            context,
+            authentication,
+            authorization,
+            uow,
+          })
+        )
+          return true;
+        if (
+          await handleKnowledgeRecommendationRoute({
+            req,
+            res,
+            context,
+            config,
+            authentication,
+            authorization,
+            uow,
+          })
+        )
+          return true;
+        if (
+          await handleKnowledgeRoute({
+            req,
+            res,
+            context,
+            config,
+            authentication,
+            authorization,
+            uow,
+          })
+        )
+          return true;
+        const warrantyStateMatch =
+          /^\/api\/v1\/assets\/([^/]+)\/warranty-state(?:\?.*)?$/.exec(
+            req.url ?? "",
+          );
+        if (req.method === "GET" && warrantyStateMatch) {
+          const principal = await authenticate(
+            authentication,
+            req.headers.authorization,
+          );
+          const query = new URL(req.url ?? "", "http://localhost").searchParams;
+          const value = await uow.run(principal.tenant_id, (tx) =>
+            queryWarrantyAsset({
               tx,
-              config,
+              assetId: warrantyStateMatch[1]!,
+              asOf: query.get("as_of") ?? new Date().toISOString(),
               principal,
-              context,
-              idempotencyKey: key,
-              eventType,
-              value,
-              reason: String(input.reason ?? eventType),
-            });
-            return { status: vlanChangeCreate ? 201 : 200, body: value };
-          },
-        ),
-      );
-      json(res, result.status, { data: result.body, meta: context });
-      return true;
-    }
-    if (req.method === "POST" && (vlanCheck || networkExceptionResolve)) {
-      const principal = await authenticate(
-        authentication,
-        req.headers.authorization,
-      );
-      const key = req.headers["idempotency-key"];
-      if (typeof key !== "string" || !key.trim())
-        throw new ApplicationError(
-          "VALIDATION_ERROR",
-          "Idempotency-Key is required.",
+              authorization,
+              correlationId: context.correlation_id,
+            }),
+          );
+          json(res, 200, { data: value, meta: context });
+          return true;
+        }
+        const monitoringReliabilityMatch =
+          /^\/api\/v1\/assets\/([^/]+)\/monitoring-reliability(?:\?.*)?$/.exec(
+            req.url ?? "",
+          );
+        if (req.method === "GET" && monitoringReliabilityMatch) {
+          const principal = await authenticate(
+            authentication,
+            req.headers.authorization,
+          );
+          const query = new URL(req.url ?? "", "http://localhost").searchParams;
+          const from = query.get("from");
+          const to = query.get("to");
+          if (!from || !to)
+            throw new ApplicationError(
+              "VALIDATION_ERROR",
+              "from and to are required.",
+            );
+          const value = await uow.run(principal.tenant_id, (tx) =>
+            queryMonitoringAssetReliability({
+              tx,
+              assetId: monitoringReliabilityMatch[1]!,
+              from,
+              to,
+              principal,
+              authorization,
+              correlationId: context.correlation_id,
+            }),
+          );
+          json(res, 200, { data: value, meta: context });
+          return true;
+        }
+        if (
+          await handleServiceReferenceRoute({
+            req,
+            res,
+            context,
+            config,
+            authentication,
+            authorization,
+            uow,
+          })
+        )
+          return true;
+        if (
+          await handleAutomationExecutionRoute({
+            req,
+            res,
+            context,
+            config,
+            authentication,
+            authorization,
+            uow,
+          })
+        )
+          return true;
+        if (
+          await handleAutomationRoute({
+            req,
+            res,
+            context,
+            config,
+            authentication,
+            authorization,
+            uow,
+          })
+        )
+          return true;
+        if (
+          req.method === "GET" &&
+          req.url?.split("?")[0] === "/api/v1/health/capabilities"
+        ) {
+          const principal = await authenticate(
+            authentication,
+            req.headers.authorization,
+          );
+          await authorize(authorization, {
+            principal,
+            action: "operation.read",
+            resource: {
+              type: "operation",
+              id: "capabilities",
+              tenant_id: principal.tenant_id,
+            },
+            scope: {},
+            context: { ...context },
+          });
+          const configured = objectStore !== undefined;
+          const productionReady =
+            config.environment === "production" &&
+            objectStore?.production_verified === true;
+          json(res, 200, {
+            data: {
+              commercial_document_storage: {
+                status: !configured
+                  ? "UNAVAILABLE_NOT_READY"
+                  : productionReady
+                    ? "CONFIGURED"
+                    : "ADAPTER_PRESENT_NOT_PRODUCTION_VERIFIED",
+                adapter_present: configured,
+                test_environment: config.environment === "test",
+                production_ready: productionReady,
+              },
+            },
+            meta: context,
+          } as never);
+          return true;
+        }
+        if (
+          await handleCostProvenanceRoute({
+            req,
+            res,
+            context,
+            authentication,
+            authorization,
+            uow,
+          })
+        )
+          return true;
+        if (
+          await handleAssetLifecycleRoute({
+            req,
+            res,
+            context,
+            config,
+            authentication,
+            authorization,
+            uow,
+          })
+        )
+          return true;
+        if (
+          await handleSearchRoute({
+            req,
+            res,
+            context,
+            authentication,
+            authorization,
+            uow,
+          })
+        )
+          return true;
+        if (
+          await handleSoftwareComplianceRoute({
+            req,
+            res,
+            context,
+            config,
+            authentication,
+            authorization,
+            uow,
+          })
+        )
+          return true;
+        if (
+          await handleSoftwareArtifactRoute({
+            req,
+            res,
+            context,
+            config,
+            authentication,
+            authorization,
+            uow,
+            ...(softwareArtifactAdapters
+              ? { adapters: softwareArtifactAdapters }
+              : {}),
+          })
+        )
+          return true;
+        if (
+          await handleSoftwareDeploymentRoute({
+            req,
+            res,
+            context,
+            config,
+            authentication,
+            authorization,
+            uow,
+          })
+        )
+          return true;
+        if (
+          await handleLicenseRoute({
+            req,
+            res,
+            context,
+            config,
+            authentication,
+            authorization,
+            uow,
+          })
+        )
+          return true;
+        if (
+          await handleContractRoute({
+            req,
+            res,
+            context,
+            config,
+            authentication,
+            authorization,
+            uow,
+            ...(objectStore ? { objectStore } : {}),
+          })
+        )
+          return true;
+        if (
+          await handleGoodsReceiptRoute({
+            req,
+            res,
+            context,
+            config,
+            authentication,
+            authorization,
+            uow,
+          })
+        )
+          return true;
+        if (
+          await handleInvoiceRoute({
+            req,
+            res,
+            context,
+            config,
+            authentication,
+            authorization,
+            uow,
+          })
+        )
+          return true;
+        if (
+          await handlePurchaseOrderRoute({
+            req,
+            res,
+            context,
+            config,
+            authentication,
+            authorization,
+            uow,
+          })
+        )
+          return true;
+        if (
+          await handleProcurementRoute({
+            req,
+            res,
+            context,
+            config,
+            authentication,
+            authorization,
+            uow,
+          })
+        )
+          return true;
+        if (
+          await handleRfqRoute({
+            req,
+            res,
+            context,
+            config,
+            authentication,
+            authorization,
+            uow,
+          })
+        )
+          return true;
+        if (
+          await handleOffboardingRoute({
+            req,
+            res,
+            context,
+            config,
+            authentication,
+            authorization,
+            uow,
+          })
+        )
+          return true;
+        if (req.method !== "GET" && req.method !== "POST") return false;
+        if (req.method === "GET" && req.url === "/api/v1/operations/overview") {
+          const principal = await authenticate(
+            authentication,
+            req.headers.authorization,
+          );
+          const overview = await uow.run(principal.tenant_id, async (tx) => {
+            const [work, incidents, sla, approvals, maintenance, automation] =
+              await Promise.all([
+                tx.query(
+                  "SELECT COUNT(*)::int AS count FROM operations.work_items WHERE tenant_id=$1 AND state NOT IN ('RESOLVED','CLOSED')",
+                  [principal.tenant_id],
+                ),
+                tx.query(
+                  "SELECT COUNT(*)::int AS count FROM incident.incidents WHERE tenant_id=$1 AND state NOT IN ('RESOLVED','CLOSED','CANCELLED')",
+                  [principal.tenant_id],
+                ),
+                tx.query(
+                  "SELECT COUNT(*)::int AS count FROM control.sla_instances WHERE tenant_id=$1 AND state IN ('CRITICAL','BREACHED')",
+                  [principal.tenant_id],
+                ),
+                tx.query(
+                  "SELECT COUNT(*)::int AS count FROM control.approval_requests WHERE tenant_id=$1 AND state='PENDING'",
+                  [principal.tenant_id],
+                ),
+                tx.query(
+                  "SELECT COUNT(*)::int AS count FROM maintenance.orders WHERE tenant_id=$1 AND state NOT IN ('COMPLETED','CANCELLED','FAILED')",
+                  [principal.tenant_id],
+                ),
+                tx.query(
+                  "SELECT COUNT(*)::int AS count FROM automation.executions WHERE tenant_id=$1 AND state IN ('FAILED','WAITING_APPROVAL')",
+                  [principal.tenant_id],
+                ),
+              ]);
+            return {
+              actionable_work: work.rows[0]!.count,
+              open_incidents: incidents.rows[0]!.count,
+              sla_at_risk: sla.rows[0]!.count,
+              pending_approvals: approvals.rows[0]!.count,
+              active_maintenance: maintenance.rows[0]!.count,
+              automation_attention: automation.rows[0]!.count,
+              generated_at: new Date().toISOString(),
+            };
+          });
+          json(res, 200, { data: overview, meta: context });
+          return true;
+        }
+        if (req.method === "GET" && req.url === "/api/v1/network/topology") {
+          const principal = await authenticate(
+            authentication,
+            req.headers.authorization,
+          );
+          await authorize(authorization, {
+            principal,
+            action: "network.topology.read",
+            resource: {
+              type: "network_topology",
+              id: "current",
+              tenant_id: principal.tenant_id,
+            },
+            scope: {},
+            context: { ...context },
+          });
+          const topology = await uow.run(
+            principal.tenant_id,
+            readCurrentTopology,
+          );
+          json(res, 200, { data: topology, meta: context });
+          return true;
+        }
+        if (
+          req.method === "GET" &&
+          (req.url === "/api/v1/network/exceptions" ||
+            req.url?.startsWith("/api/v1/network/exceptions?"))
+        ) {
+          const principal = await authenticate(
+            authentication,
+            req.headers.authorization,
+          );
+          await authorize(authorization, {
+            principal,
+            action: "network.read",
+            resource: {
+              type: "network_exception",
+              id: "collection",
+              tenant_id: principal.tenant_id,
+            },
+            scope: {},
+            context: { ...context },
+          });
+          const query = new URL(req.url ?? "", "http://localhost").searchParams;
+          const exceptions = await uow.run(principal.tenant_id, (tx) =>
+            listNetworkExceptions({
+              tx,
+              ...(query.has("state") ? { state: query.get("state")! } : {}),
+              ...(query.has("type")
+                ? { exceptionType: query.get("type")! }
+                : {}),
+            }),
+          );
+          json(res, 200, { data: exceptions, meta: context });
+          return true;
+        }
+        const timelineMatch = /^\/api\/v1\/tickets\/([^/]+)\/timeline$/.exec(
+          req.url ?? "",
         );
-      const body = await new Promise<string>((resolve) => {
-        let data = "";
-        req.on("data", (chunk) => (data += chunk));
-        req.on("end", () => resolve(data));
-      });
-      let input: Record<string, unknown>;
-      try {
-        input = (body ? JSON.parse(body) : {}) as Record<string, unknown>;
-      } catch {
-        throw new ApplicationError("VALIDATION_ERROR", "Invalid JSON request.");
-      }
-      const action =
-        networkExceptionResolve && input.action === "LINK_TO_ASSET"
-          ? "network.unknown_device.link"
-          : networkExceptionResolve
-            ? "network.exception.resolve"
-            : "network.discovery.run";
-      await authorize(authorization, {
-        principal,
-        action,
-        resource: {
-          type: networkExceptionResolve
-            ? "network_exception"
-            : "network_observation",
-          id: vlanCheck ? vlanCheck[1]! : networkExceptionResolve![1]!,
-          tenant_id: principal.tenant_id,
-        },
-        scope: {},
-        context: { ...context },
-      });
-      const operation = vlanCheck
-        ? "NETWORK.VLAN.CHECK"
-        : "NETWORK.EXCEPTION.RESOLVE";
-      const businessScope = vlanCheck
-        ? vlanCheck[1]!
-        : networkExceptionResolve![1]!;
-      const result = await uow.run(principal.tenant_id, (tx) =>
-        new PostgresIdempotencyStore(tx).execute(
-          {
-            principalId: principal.id,
-            operation,
-            businessScope,
-            key,
-            semanticRequest: input as never,
-            expiresAt: new Date(Date.now() + 86400000),
-          },
-          async () => {
-            if (vlanCheck) {
-              const checked = await compareExpectedVlan({
-                tx,
-                observationId: vlanCheck[1]!,
-                expectedVlan: String(input.expected_vlan ?? ""),
-                queue: networkExceptionQueue,
-              });
-              if (checked.exception)
+        if (req.method === "GET" && timelineMatch) {
+          const principal = await authenticate(
+            authentication,
+            req.headers.authorization,
+          );
+          const result = await uow.run(principal.tenant_id, async (tx) => {
+            return (
+              await tx.query(
+                "SELECT id,event_type,summary,payload,occurred_at FROM operations.timeline_events WHERE tenant_id=$1 AND entity_type='TICKET' AND entity_id=$2 ORDER BY occurred_at DESC",
+                [principal.tenant_id, timelineMatch[1]!],
+              )
+            ).rows;
+          });
+          json(res, 200, { data: result, meta: context });
+          return true;
+        }
+        const retireMatch =
+          /^\/api\/v1\/assets\/([^/]+)\/commands\/retire$/.exec(req.url ?? "");
+        const reserveMatch =
+          /^\/api\/v1\/assets\/([^/]+)\/commands\/reserve$/.exec(req.url ?? "");
+        const assignMatch =
+          /^\/api\/v1\/assets\/([^/]+)\/commands\/assign$/.exec(req.url ?? "");
+        const transferMatch =
+          /^\/api\/v1\/assets\/([^/]+)\/commands\/transfer$/.exec(
+            req.url ?? "",
+          );
+        const requestReturnMatch =
+          /^\/api\/v1\/assets\/([^/]+)\/commands\/request-return$/.exec(
+            req.url ?? "",
+          );
+        const receiveReturnMatch =
+          /^\/api\/v1\/assets\/([^/]+)\/commands\/receive-return$/.exec(
+            req.url ?? "",
+          );
+        const ticketCreateMatch = req.url === "/api/v1/tickets";
+        const ticketCommandMatch =
+          /^\/api\/v1\/tickets\/([^/]+)\/commands\/([^/]+)$/.exec(
+            req.url ?? "",
+          );
+        const workResolveMatch =
+          /^\/api\/v1\/work-items\/([^/]+)\/commands\/resolve$/.exec(
+            req.url ?? "",
+          );
+        const incidentTransitionMatch =
+          /^\/api\/v1\/incidents\/([^/]+)\/commands\/transition$/.exec(
+            req.url ?? "",
+          );
+        const incidentCorrelateMatch =
+          /^\/api\/v1\/incidents\/([^/]+)\/commands\/correlate$/.exec(
+            req.url ?? "",
+          );
+        const incidentCorrelationAttachMatch =
+          /^\/api\/v1\/incidents\/([^/]+)\/commands\/correlation-attach$/.exec(
+            req.url ?? "",
+          );
+        const incidentCorrelationDetachMatch =
+          /^\/api\/v1\/incidents\/([^/]+)\/commands\/correlation-detach$/.exec(
+            req.url ?? "",
+          );
+        const incidentCorrelationRejectMatch =
+          /^\/api\/v1\/incidents\/([^/]+)\/commands\/correlation-reject$/.exec(
+            req.url ?? "",
+          );
+        const incidentCorrelationHistoryMatch =
+          /^\/api\/v1\/incidents\/([^/]+)\/correlations$/.exec(req.url ?? "");
+        const incidentAssetLinkMatch =
+          /^\/api\/v1\/incidents\/([^/]+)\/commands\/asset-link$/.exec(
+            req.url ?? "",
+          );
+        const incidentAssetUnlinkMatch =
+          /^\/api\/v1\/incidents\/([^/]+)\/assets\/([^/]+)\/commands\/unlink$/.exec(
+            req.url ?? "",
+          );
+        const majorMatch =
+          /^\/api\/v1\/incidents\/([^/]+)\/commands\/declare-major$/.exec(
+            req.url ?? "",
+          );
+        const communicationMatch =
+          /^\/api\/v1\/incidents\/([^/]+)\/communications$/.exec(req.url ?? "");
+        const slaTransitionMatch =
+          /^\/api\/v1\/sla-instances\/([^/]+)\/commands\/transition$/.exec(
+            req.url ?? "",
+          );
+        const approvalDecisionMatch =
+          /^\/api\/v1\/approvals\/([^/]+)\/commands\/(approve|reject)$/.exec(
+            req.url ?? "",
+          );
+        const recordTransitionMatch =
+          /^\/api\/v1\/(problems|changes|knowledge)\/([^/]+)\/commands\/transition$/.exec(
+            req.url ?? "",
+          );
+        const recordCreateKind =
+          req.url === "/api/v1/problems"
+            ? "PROBLEM"
+            : req.url === "/api/v1/changes"
+              ? "CHANGE"
+              : req.url === "/api/v1/knowledge"
+                ? "KNOWLEDGE"
+                : null;
+        const maintenanceTransitionMatch =
+          /^\/api\/v1\/maintenance\/([^/]+)\/commands\/transition$/.exec(
+            req.url ?? "",
+          );
+        const maintenanceClassificationMatch =
+          /^\/api\/v1\/maintenance\/([^/]+)\/commands\/classification$/.exec(
+            req.url ?? "",
+          );
+        const isWarrantyCreate = req.url === "/api/v1/warranties";
+        const isMaintenanceCreate = req.url === "/api/v1/maintenance";
+        const discoveryCreate = req.url === "/api/v1/network/discovery-jobs";
+        const discoveryObservation =
+          /^\/api\/v1\/network\/discovery-jobs\/([^/]+)\/observations$/.exec(
+            req.url ?? "",
+          );
+        const discoveryTransition =
+          /^\/api\/v1\/network\/discovery-jobs\/([^/]+)\/commands\/transition$/.exec(
+            req.url ?? "",
+          );
+        const vlanCheck =
+          /^\/api\/v1\/network\/observations\/([^/]+)\/commands\/check-vlan$/.exec(
+            req.url ?? "",
+          );
+        const networkExceptionResolve =
+          /^\/api\/v1\/network\/exceptions\/([^/]+)\/commands\/resolve$/.exec(
+            req.url ?? "",
+          );
+        const vlanChangeCreate = req.url === "/api/v1/network/vlan-changes";
+        const vlanChangeCommand =
+          /^\/api\/v1\/network\/vlan-changes\/([^/]+)\/commands\/(start|record-implementation|verify|rollback)$/.exec(
+            req.url ?? "",
+          );
+        if (req.method === "POST" && (vlanChangeCreate || vlanChangeCommand)) {
+          const principal = await authenticate(
+            authentication,
+            req.headers.authorization,
+          );
+          const key = req.headers["idempotency-key"];
+          if (typeof key !== "string" || !key.trim())
+            throw new ApplicationError(
+              "VALIDATION_ERROR",
+              "Idempotency-Key is required.",
+            );
+          const body = await new Promise<string>((resolve) => {
+            let data = "";
+            req.on("data", (chunk) => (data += chunk));
+            req.on("end", () => resolve(data));
+          });
+          let input: Record<string, unknown>;
+          try {
+            input = (body ? JSON.parse(body) : {}) as Record<string, unknown>;
+          } catch {
+            throw new ApplicationError(
+              "VALIDATION_ERROR",
+              "Invalid JSON request.",
+            );
+          }
+          await authorize(authorization, {
+            principal,
+            action: "network.vlan.change",
+            resource: {
+              type: "network_vlan_change",
+              id: vlanChangeCommand?.[1] ?? String(input.change_id ?? "new"),
+              tenant_id: principal.tenant_id,
+            },
+            scope: {},
+            context: {
+              ...context,
+              high_risk: true,
+              change_required: true,
+              mfa_required: true,
+              reauth_required: true,
+            },
+          });
+          requireStepUpMfa(principal, {
+            requiredAcr: config.networkChangeRequiredAcr,
+            maxAgeSeconds: config.networkChangeMaxAuthAgeSeconds,
+          });
+          const command = vlanChangeCommand?.[2];
+          const operation = vlanChangeCreate
+            ? "NETWORK.VLAN_CHANGE.CREATE"
+            : `NETWORK.VLAN_CHANGE.${command!.replaceAll("-", "_").toUpperCase()}`;
+          const businessScope =
+            vlanChangeCommand?.[1] ?? String(input.change_id ?? "new");
+          const result = await uow.run(principal.tenant_id, (tx) =>
+            new PostgresIdempotencyStore(tx).execute(
+              {
+                principalId: principal.id,
+                operation,
+                businessScope,
+                key,
+                semanticRequest: input as never,
+                expiresAt: new Date(Date.now() + 86400000),
+              },
+              async () => {
+                let value: { id: string; version: number };
+                let eventType: string;
+                if (vlanChangeCreate) {
+                  value = await createVlanChange({
+                    tx,
+                    changeId: String(input.change_id ?? ""),
+                    targetDevice: String(input.target_device ?? ""),
+                    targetPort: String(input.target_port ?? ""),
+                    previousVlan: String(input.previous_vlan ?? ""),
+                    desiredVlan: String(input.desired_vlan ?? ""),
+                    reason: String(input.reason ?? ""),
+                    rollbackPlan: String(input.rollback_plan ?? ""),
+                  });
+                  eventType = "NETWORK.VLAN_CHANGE_CREATED";
+                } else if (command === "start") {
+                  value = await startVlanChange({
+                    tx,
+                    id: vlanChangeCommand![1]!,
+                    expectedVersion: input.expected_version as number,
+                  });
+                  eventType = "NETWORK.VLAN_CHANGE_STARTED";
+                } else if (command === "record-implementation") {
+                  value = await recordVlanImplementation({
+                    tx,
+                    id: vlanChangeCommand![1]!,
+                    expectedVersion: input.expected_version as number,
+                    actorId: principal.id,
+                    reason: String(input.reason ?? ""),
+                    result: String(input.result ?? "") as "APPLIED" | "FAILED",
+                    evidence: input.evidence,
+                  });
+                  eventType = "NETWORK.VLAN_CHANGE_IMPLEMENTATION_RECORDED";
+                } else if (command === "verify") {
+                  value = await verifyVlanChange({
+                    tx,
+                    id: vlanChangeCommand![1]!,
+                    expectedVersion: input.expected_version as number,
+                    actorId: principal.id,
+                    reason: String(input.reason ?? ""),
+                    observedVlan: String(input.observed_vlan ?? ""),
+                    technicalPassed: input.technical_passed === true,
+                    servicePassed: input.service_passed === true,
+                    monitoringPassed: input.monitoring_passed === true,
+                    evidence: input.evidence,
+                  });
+                  eventType = "NETWORK.VLAN_CHANGE_VERIFIED";
+                } else {
+                  value = await recordVlanRollback({
+                    tx,
+                    id: vlanChangeCommand![1]!,
+                    expectedVersion: input.expected_version as number,
+                    actorId: principal.id,
+                    reason: String(input.reason ?? ""),
+                    trigger: String(input.trigger ?? ""),
+                    steps: input.steps,
+                    restoredVlan: String(input.restored_vlan ?? ""),
+                    verificationPassed: input.verification_passed === true,
+                    evidence: input.evidence,
+                  });
+                  eventType = "NETWORK.VLAN_CHANGE_ROLLBACK_RECORDED";
+                }
+                await appendNetworkVlanChangeEffects({
+                  tx,
+                  config,
+                  principal,
+                  context,
+                  idempotencyKey: key,
+                  eventType,
+                  value,
+                  reason: String(input.reason ?? eventType),
+                });
+                return { status: vlanChangeCreate ? 201 : 200, body: value };
+              },
+            ),
+          );
+          json(res, result.status, { data: result.body, meta: context });
+          return true;
+        }
+        if (req.method === "POST" && (vlanCheck || networkExceptionResolve)) {
+          const principal = await authenticate(
+            authentication,
+            req.headers.authorization,
+          );
+          const key = req.headers["idempotency-key"];
+          if (typeof key !== "string" || !key.trim())
+            throw new ApplicationError(
+              "VALIDATION_ERROR",
+              "Idempotency-Key is required.",
+            );
+          const body = await new Promise<string>((resolve) => {
+            let data = "";
+            req.on("data", (chunk) => (data += chunk));
+            req.on("end", () => resolve(data));
+          });
+          let input: Record<string, unknown>;
+          try {
+            input = (body ? JSON.parse(body) : {}) as Record<string, unknown>;
+          } catch {
+            throw new ApplicationError(
+              "VALIDATION_ERROR",
+              "Invalid JSON request.",
+            );
+          }
+          const action =
+            networkExceptionResolve && input.action === "LINK_TO_ASSET"
+              ? "network.unknown_device.link"
+              : networkExceptionResolve
+                ? "network.exception.resolve"
+                : "network.discovery.run";
+          await authorize(authorization, {
+            principal,
+            action,
+            resource: {
+              type: networkExceptionResolve
+                ? "network_exception"
+                : "network_observation",
+              id: vlanCheck ? vlanCheck[1]! : networkExceptionResolve![1]!,
+              tenant_id: principal.tenant_id,
+            },
+            scope: {},
+            context: { ...context },
+          });
+          const operation = vlanCheck
+            ? "NETWORK.VLAN.CHECK"
+            : "NETWORK.EXCEPTION.RESOLVE";
+          const businessScope = vlanCheck
+            ? vlanCheck[1]!
+            : networkExceptionResolve![1]!;
+          const result = await uow.run(principal.tenant_id, (tx) =>
+            new PostgresIdempotencyStore(tx).execute(
+              {
+                principalId: principal.id,
+                operation,
+                businessScope,
+                key,
+                semanticRequest: input as never,
+                expiresAt: new Date(Date.now() + 86400000),
+              },
+              async () => {
+                if (vlanCheck) {
+                  const checked = await compareExpectedVlan({
+                    tx,
+                    observationId: vlanCheck[1]!,
+                    expectedVlan: String(input.expected_vlan ?? ""),
+                    queue: networkExceptionQueue,
+                  });
+                  if (checked.exception)
+                    await appendNetworkExceptionEffects({
+                      tx,
+                      config,
+                      principal,
+                      context,
+                      idempotencyKey: key,
+                      eventType: "NETWORK.VLAN_MISMATCH",
+                      exceptionId: checked.exception.id,
+                      payload: checked.exception,
+                    });
+                  return {
+                    status: checked.exception ? 201 : 200,
+                    body: checked as never,
+                  };
+                }
+                const resolved = await resolveNetworkException({
+                  tx,
+                  exceptionId: networkExceptionResolve![1]!,
+                  expectedVersion: input.expected_version as number,
+                  action: String(input.action ?? ""),
+                  reason: String(input.reason ?? ""),
+                  ...(typeof input.asset_id === "string"
+                    ? { linkedAssetId: input.asset_id }
+                    : {}),
+                  assertAssetExists: (assetId) =>
+                    assertAssetExists({ tx, assetId }),
+                  queue: networkExceptionQueue,
+                });
                 await appendNetworkExceptionEffects({
                   tx,
                   config,
                   principal,
                   context,
                   idempotencyKey: key,
-                  eventType: "NETWORK.VLAN_MISMATCH",
-                  exceptionId: checked.exception.id,
-                  payload: checked.exception,
+                  eventType: "NETWORK.EXCEPTION_RESOLVED",
+                  exceptionId: resolved.id,
+                  version: resolved.version,
+                  before: {
+                    id: resolved.id,
+                    state: "OPEN",
+                    version: input.expected_version,
+                  },
+                  payload: resolved,
                 });
-              return {
-                status: checked.exception ? 201 : 200,
-                body: checked as never,
-              };
-            }
-            const resolved = await resolveNetworkException({
-              tx,
-              exceptionId: networkExceptionResolve![1]!,
-              expectedVersion: input.expected_version as number,
-              action: String(input.action ?? ""),
-              reason: String(input.reason ?? ""),
-              ...(typeof input.asset_id === "string"
-                ? { linkedAssetId: input.asset_id }
-                : {}),
-              assertAssetExists: (assetId) =>
-                assertAssetExists({ tx, assetId }),
-              queue: networkExceptionQueue,
-            });
-            await appendNetworkExceptionEffects({
-              tx,
-              config,
-              principal,
-              context,
-              idempotencyKey: key,
-              eventType: "NETWORK.EXCEPTION_RESOLVED",
-              exceptionId: resolved.id,
-              version: resolved.version,
-              before: {
-                id: resolved.id,
-                state: "OPEN",
-                version: input.expected_version,
+                return { status: 200, body: resolved as never };
               },
-              payload: resolved,
-            });
-            return { status: 200, body: resolved as never };
-          },
-        ),
-      );
-      json(res, result.status, { data: result.body, meta: context });
-      return true;
-    }
-    if (
-      req.method === "POST" &&
-      (discoveryCreate || discoveryObservation || discoveryTransition)
-    ) {
-      const principal = await authenticate(
-        authentication,
-        req.headers.authorization,
-      );
-      const key = req.headers["idempotency-key"];
-      if (typeof key !== "string" || !key.trim())
-        throw new ApplicationError(
-          "VALIDATION_ERROR",
-          "Idempotency-Key is required.",
-        );
-      const body = await new Promise<string>((resolve) => {
-        let data = "";
-        req.on("data", (chunk) => (data += chunk));
-        req.on("end", () => resolve(data));
-      });
-      let input: Record<string, unknown>;
-      try {
-        input = (body ? JSON.parse(body) : {}) as Record<string, unknown>;
-      } catch {
-        throw new ApplicationError("VALIDATION_ERROR", "Invalid JSON request.");
-      }
-      const normalized = discoveryObservation
-        ? normalizeNetworkObservation(input)
-        : null;
-      const jobId =
-        discoveryObservation?.[1] ?? discoveryTransition?.[1] ?? "new";
-      await authorize(authorization, {
-        principal,
-        action: "network.discovery.run",
-        resource: {
-          type: "network_discovery",
-          id: jobId,
-          tenant_id: principal.tenant_id,
-        },
-        scope: {},
-        context: { ...context },
-      });
-      const operation = discoveryCreate
-        ? "NETWORK.DISCOVERY.START"
-        : discoveryObservation
-          ? "NETWORK.DISCOVERY.OBSERVE"
-          : "NETWORK.DISCOVERY.TRANSITION";
-      const result = await uow.run(principal.tenant_id, (tx) =>
-        new PostgresIdempotencyStore(tx).execute(
-          {
-            principalId: principal.id,
-            operation,
-            businessScope: jobId,
-            key,
-            semanticRequest: input as never,
-            expiresAt: new Date(Date.now() + 86400000),
-          },
-          async () => {
-            let value: unknown;
-            if (discoveryCreate) {
-              value = await createDiscoveryJob({
-                tx,
-                sourceType: String(input.source_type ?? ""),
-                ...(input.scope !== undefined ? { scope: input.scope } : {}),
-                ...(typeof input.freshness_threshold_seconds === "number"
-                  ? {
-                      freshnessThresholdSeconds:
-                        input.freshness_threshold_seconds,
-                    }
-                  : {}),
-              });
-            } else if (discoveryObservation) {
-              const recorded = await recordDiscoveryObservation({
-                tx,
-                jobId,
-                observation: normalized!,
-              });
-              const exceptions = recorded.duplicate
-                ? []
-                : await detectObservationExceptions({
-                    tx,
-                    observationId: String(recorded.observation?.id),
-                    queue: networkExceptionQueue,
-                  });
-              value = { ...recorded, exceptions };
-            } else {
-              value = await transitionDiscoveryJob({
-                tx,
-                jobId,
-                targetState: String(input.target_state ?? ""),
-                ...(typeof input.failure_reason === "string"
-                  ? { failureReason: input.failure_reason }
-                  : {}),
-              });
-            }
-            const resultValue = value as unknown as {
-              id?: string;
-              observation?: { id?: string; [key: string]: unknown };
-              duplicate?: boolean;
-              [key: string]: unknown;
-            };
-            const duplicate =
-              discoveryObservation && resultValue.duplicate === true;
-            const payload =
-              discoveryObservation && resultValue.observation
-                ? {
-                    ...resultValue.observation,
-                    duplicate: resultValue.duplicate,
-                  }
-                : resultValue;
-            if (!duplicate) {
-              const eventType = discoveryCreate
-                ? "NETWORK.DISCOVERY_STARTED"
-                : discoveryObservation
-                  ? "NETWORK.DEVICE_DISCOVERED"
-                  : `NETWORK.DISCOVERY_${String(input.target_state)}`;
-              const aggregateId = discoveryCreate
-                ? resultValue.id
-                : discoveryObservation
-                  ? resultValue.observation?.id
-                  : resultValue.id;
-              const now = new Date().toISOString();
-              await new PostgresOutboxWriter(tx).append({
-                event_id: randomUUID(),
-                event_type: eventType,
-                schema_version: 1,
-                occurred_at: now,
-                producer: { service: config.serviceName, instance: "api" },
-                aggregate: {
-                  type: discoveryObservation
-                    ? "NETWORK_OBSERVATION"
-                    : "NETWORK_DISCOVERY_JOB",
-                  id: String(aggregateId),
-                  version: 1,
-                },
-                actor: { type: principal.actor_type, id: principal.id },
-                correlation_id: context.correlation_id,
-                causation_id: context.causation_id,
-                tenant_id: principal.tenant_id,
-                organization_id: principal.tenant_id,
-                idempotency_key: key,
-                payload: payload as never,
-              });
-              await new PostgresAudit(tx).append({
-                id: randomUUID(),
-                tenant_id: principal.tenant_id,
-                event_type: eventType,
-                occurred_at: now,
-                actor: { type: principal.actor_type, id: principal.id },
-                action: { command_type: operation },
-                subject: {
-                  entity_type: discoveryObservation
-                    ? "NETWORK_OBSERVATION"
-                    : "NETWORK_DISCOVERY_JOB",
-                  entity_id: String(aggregateId),
-                },
-                correlation_id: context.correlation_id,
-                causation_id: context.causation_id,
-                reason: {
-                  code: eventType,
-                  text: (input.failure_reason as string) ?? eventType,
-                },
-                before: null,
-                after: payload as never,
-                outcome: { status: "SUCCESS" },
-                classification: "INTERNAL",
-                relations: [],
-                evidence: [],
-              });
-              if (
-                discoveryObservation &&
-                Array.isArray(resultValue.exceptions)
-              ) {
-                for (const exception of resultValue.exceptions as Array<{
-                  id: string;
-                  exception_type: string;
-                  source_observation_id: string;
-                  expected: unknown;
-                  observed: unknown;
-                }>) {
-                  const eventType =
-                    exception.exception_type === "UNKNOWN_DEVICE"
-                      ? "NETWORK.UNKNOWN_DEVICE"
-                      : "NETWORK.IP_CONFLICT";
-                  await appendNetworkExceptionEffects({
-                    tx,
-                    config,
-                    principal,
-                    context,
-                    idempotencyKey: key,
-                    eventType,
-                    exceptionId: exception.id,
-                    payload: exception,
-                  });
-                }
-              }
-            }
-            return {
-              status: discoveryCreate ? 201 : 200,
-              body: payload as never,
-            };
-          },
-        ),
-      );
-      json(res, result.status, { data: result.body, meta: context });
-      return true;
-    }
-    const isAuditStart = req.url === "/api/v1/audits";
-    const observationMatch = /^\/api\/v1\/audits\/([^/]+)\/observations$/.exec(
-      req.url ?? "",
-    );
-    const exceptionResolveMatch =
-      /^\/api\/v1\/audit-exceptions\/([^/]+)\/commands\/resolve$/.exec(
-        req.url ?? "",
-      );
-    if (
-      req.method === "POST" &&
-      (isAuditStart || observationMatch || exceptionResolveMatch)
-    ) {
-      const principal = await authenticate(
-        authentication,
-        req.headers.authorization,
-      );
-      const key = req.headers["idempotency-key"];
-      if (typeof key !== "string" || !key.trim())
-        throw new ApplicationError(
-          "VALIDATION_ERROR",
-          "Idempotency-Key is required.",
-        );
-      const body = await new Promise<string>((resolve) => {
-        let data = "";
-        req.on("data", (chunk) => (data += chunk));
-        req.on("end", () => resolve(data));
-      });
-      let input: Record<string, unknown>;
-      try {
-        input = (body ? JSON.parse(body) : {}) as Record<string, unknown>;
-      } catch {
-        throw new ApplicationError("VALIDATION_ERROR", "Invalid JSON request.");
-      }
-      const permission = isAuditStart
-        ? "audit.start"
-        : observationMatch
-          ? "audit.record_observation"
-          : "audit.exception.resolve";
-      await authorize(authorization, {
-        principal,
-        action: permission,
-        resource: {
-          type: isAuditStart
-            ? "audit"
-            : observationMatch
-              ? "audit"
-              : "audit_exception",
-          id: isAuditStart
-            ? "new"
-            : observationMatch
-              ? observationMatch[1]!
-              : exceptionResolveMatch![1]!,
-          tenant_id: principal.tenant_id,
-        },
-        scope: {},
-        context: { ...context },
-      });
-      const result = await uow.run(principal.tenant_id, (tx) =>
-        new PostgresIdempotencyStore(tx).execute(
-          {
-            principalId: principal.id,
-            operation: isAuditStart
-              ? "AUDIT.START"
-              : observationMatch
-                ? "AUDIT.RECORD_OBSERVATION"
-                : "AUDIT.RESOLVE_EXCEPTION",
-            businessScope: isAuditStart
-              ? "new"
-              : observationMatch
-                ? observationMatch[1]!
-                : exceptionResolveMatch![1]!,
-            key,
-            semanticRequest: input as never,
-            expiresAt: new Date(Date.now() + 86400000),
-          },
-          async () => {
-            const value = (
-              isAuditStart
-                ? await startAudit({ tx, name: input.name as string })
-                : observationMatch
-                  ? await recordObservation({
-                      tx,
-                      auditId: observationMatch[1]!,
-                      assetId: input.asset_id as string,
-                      expected: input.expected,
-                      observed: input.observed,
-                      exceptionType:
-                        (input.exception_type as string) ?? "MISMATCH",
-                    })
-                  : await resolveException({
-                      tx,
-                      exceptionId: exceptionResolveMatch![1]!,
-                      reason: input.reason as string,
-                    })
-            ) as {
-              id?: string;
-              observation_id?: string;
-              [key: string]: unknown;
-            };
-            const eventType = isAuditStart
-              ? "AUDIT.STARTED"
-              : observationMatch
-                ? "AUDIT.OBSERVATION_RECORDED"
-                : "AUDIT.EXCEPTION_RESOLVED";
-            const now = new Date().toISOString();
-            await new PostgresOutboxWriter(tx).append({
-              event_id: randomUUID(),
-              event_type: eventType,
-              schema_version: 1,
-              occurred_at: now,
-              producer: { service: config.serviceName, instance: "api" },
-              aggregate: {
-                type: "AUDIT",
-                id: isAuditStart
-                  ? value.id!
-                  : observationMatch
-                    ? value.observation_id!
-                    : value.id!,
-                version: 1,
-              },
-              actor: { type: principal.actor_type, id: principal.id },
-              correlation_id: context.correlation_id,
-              causation_id: context.causation_id,
-              tenant_id: principal.tenant_id,
-              organization_id: principal.tenant_id,
-              idempotency_key: key,
-              payload: value as never,
-            });
-            await new PostgresAudit(tx).append({
-              id: randomUUID(),
-              tenant_id: principal.tenant_id,
-              event_type: eventType,
-              occurred_at: now,
-              actor: { type: principal.actor_type, id: principal.id },
-              action: { command_type: eventType },
-              subject: {
-                entity_type: "AUDIT",
-                entity_id: isAuditStart
-                  ? value.id!
-                  : observationMatch
-                    ? value.observation_id!
-                    : value.id!,
-              },
-              correlation_id: context.correlation_id,
-              causation_id: context.causation_id,
-              reason: {
-                code: eventType,
-                text: (input.reason as string) ?? eventType,
-              },
-              before: null,
-              after: value as never,
-              outcome: { status: "SUCCESS" },
-              classification: "INTERNAL",
-              relations: [],
-              evidence: [],
-            });
-            return {
-              status: isAuditStart ? 201 : 200,
-              body: value as never,
-            };
-          },
-        ),
-      );
-      json(res, result.status, { data: result.body, meta: context });
-      return true;
-    }
-    if (
-      req.method === "POST" &&
-      (maintenanceTransitionMatch ||
-        maintenanceClassificationMatch ||
-        isWarrantyCreate ||
-        isMaintenanceCreate)
-    ) {
-      const principal = await authenticate(
-        authentication,
-        req.headers.authorization,
-      );
-      const key = req.headers["idempotency-key"];
-      if (typeof key !== "string" || !key.trim())
-        throw new ApplicationError(
-          "VALIDATION_ERROR",
-          "Idempotency-Key is required.",
-        );
-      const body = await new Promise<string>((resolve) => {
-        let data = "";
-        req.on("data", (chunk) => (data += chunk));
-        req.on("end", () => resolve(data));
-      });
-      let input: Record<string, unknown>;
-      try {
-        input = (body ? JSON.parse(body) : {}) as Record<string, unknown>;
-      } catch {
-        throw new ApplicationError("VALIDATION_ERROR", "Invalid JSON request.");
-      }
-      await authorize(authorization, {
-        principal,
-        action: "maintenance.manage",
-        resource: {
-          type: "maintenance",
-          id:
-            maintenanceTransitionMatch?.[1] ??
-            maintenanceClassificationMatch?.[1] ??
-            String(input.asset_id ?? "new"),
-          tenant_id: principal.tenant_id,
-        },
-        scope: {},
-        context: { ...context },
-      });
-      const result = await uow.run(principal.tenant_id, (tx) =>
-        new PostgresIdempotencyStore(tx).execute(
-          {
-            principalId: principal.id,
-            operation: maintenanceTransitionMatch
-              ? "MAINTENANCE.TRANSITION"
-              : maintenanceClassificationMatch
-                ? "MAINTENANCE.CLASSIFICATION_UPDATE"
-                : isWarrantyCreate
-                  ? "WARRANTY.CREATE"
-                  : "MAINTENANCE.CREATE",
-            businessScope:
-              maintenanceTransitionMatch?.[1] ??
-              maintenanceClassificationMatch?.[1] ??
-              String(input.asset_id ?? "new"),
-            key,
-            semanticRequest: input as never,
-            expiresAt: new Date(Date.now() + 86400000),
-          },
-          async () => {
-            if (
-              (maintenanceClassificationMatch || isMaintenanceCreate) &&
-              !maintenanceClassifications
-                .filter((item) => item !== "UNKNOWN")
-                .includes(input.classification as never)
-            )
-              throw new ApplicationError(
-                "VALIDATION_ERROR",
-                "A supported maintenance classification is required.",
-              );
-            const value = maintenanceClassificationMatch
-              ? await updateMaintenanceClassification({
-                  tx,
-                  id: maintenanceClassificationMatch[1]!,
-                  expectedVersion: input.expected_version as number,
-                  classification: input.classification as Exclude<
-                    (typeof maintenanceClassifications)[number],
-                    "UNKNOWN"
-                  >,
-                  reason: input.reason as string,
-                })
-              : maintenanceTransitionMatch
-                ? await transitionMaintenance({
-                    tx,
-                    id: maintenanceTransitionMatch[1]!,
-                    expectedVersion: input.expected_version as number,
-                    targetState: input.target_state as string,
-                    reason: input.reason as string,
-                  })
-                : isWarrantyCreate
-                  ? await createWarranty({
-                      tx,
-                      assetId: input.asset_id as string,
-                      provider: input.provider as string,
-                      contractRef: input.contract_ref as string | undefined,
-                      startsAt: input.starts_at as string,
-                      endsAt: input.ends_at as string,
-                      coverage: input.coverage as string,
-                      validateAsset: async () => {
-                        await assertAssetExists({
-                          tx,
-                          assetId: input.asset_id as string,
-                        });
-                      },
-                    })
-                  : await (async () => {
-                      await assertAssetEligibleForMaintenance({
-                        tx,
-                        assetId: input.asset_id as string,
-                      });
-                      return createMaintenance({
-                        tx,
-                        assetId: input.asset_id as string,
-                        title: input.title as string,
-                        description: input.description as string,
-                        classification: input.classification as Exclude<
-                          (typeof maintenanceClassifications)[number],
-                          "UNKNOWN"
-                        >,
-                        warrantyId: input.warranty_id as string | undefined,
-                      });
-                    })();
-            const output = value as unknown as Record<string, unknown>;
-            const eventType = maintenanceTransitionMatch
-              ? "MAINTENANCE.STATE_CHANGED"
-              : maintenanceClassificationMatch
-                ? "MAINTENANCE.CLASSIFICATION_CHANGED"
-                : isWarrantyCreate
-                  ? "WARRANTY.CREATED"
-                  : "MAINTENANCE.CREATED";
-            const now = new Date().toISOString();
-            if (!(maintenanceClassificationMatch && output.noOp === true))
-              await new PostgresOutboxWriter(tx).append({
-                event_id: randomUUID(),
-                event_type: eventType,
-                schema_version: 1,
-                occurred_at: now,
-                producer: { service: config.serviceName, instance: "api" },
-                aggregate: {
-                  type: isWarrantyCreate ? "WARRANTY" : "MAINTENANCE",
-                  id: value.id,
-                  version: (output.version as number | undefined) ?? 1,
-                },
-                actor: { type: principal.actor_type, id: principal.id },
-                correlation_id: context.correlation_id,
-                causation_id: context.causation_id,
-                tenant_id: principal.tenant_id,
-                organization_id: principal.tenant_id,
-                idempotency_key: key,
-                payload: value,
-              });
-            if (maintenanceClassificationMatch && output.noOp !== true) {
-              await new PostgresAudit(tx).append({
-                id: randomUUID(),
-                tenant_id: principal.tenant_id,
-                event_type: eventType,
-                occurred_at: now,
-                actor: { type: principal.actor_type, id: principal.id },
-                action: { command_type: "MAINTENANCE.CLASSIFICATION_UPDATE" },
-                subject: { entity_type: "MAINTENANCE", entity_id: value.id },
-                correlation_id: context.correlation_id,
-                causation_id: context.causation_id,
-                reason: {
-                  code: "CLASSIFICATION_CORRECTED",
-                  text: String(input.reason ?? ""),
-                },
-                before: {
-                  classification: String(
-                    output.from_classification ?? "UNKNOWN",
-                  ),
-                },
-                after: {
-                  classification: String(
-                    output.classification ?? input.classification,
-                  ),
-                },
-                outcome: { status: "SUCCESS" },
-                classification: "INTERNAL",
-                relations: [],
-                evidence: [],
-              });
-            }
-            return {
-              status:
-                maintenanceTransitionMatch || maintenanceClassificationMatch
-                  ? 200
-                  : 201,
-              body: value as never,
-            };
-          },
-        ),
-      );
-      json(res, result.status, { data: result.body, meta: context });
-      return true;
-    }
-    if (req.method === "POST" && (recordCreateKind || recordTransitionMatch)) {
-      const principal = await authenticate(
-        authentication,
-        req.headers.authorization,
-      );
-      const key = req.headers["idempotency-key"];
-      if (typeof key !== "string" || !key.trim())
-        throw new ApplicationError(
-          "VALIDATION_ERROR",
-          "Idempotency-Key is required.",
-        );
-      const body = await new Promise<string>((resolve) => {
-        let data = "";
-        req.on("data", (chunk) => (data += chunk));
-        req.on("end", () => resolve(data));
-      });
-      let input: Record<string, unknown>;
-      try {
-        input = (body ? JSON.parse(body) : {}) as Record<string, unknown>;
-      } catch {
-        throw new ApplicationError("VALIDATION_ERROR", "Invalid JSON request.");
-      }
-      const kind =
-        recordCreateKind ??
-        (recordTransitionMatch![1] === "problems"
-          ? "PROBLEM"
-          : recordTransitionMatch![1] === "changes"
-            ? "CHANGE"
-            : "KNOWLEDGE");
-      const isTransition = Boolean(recordTransitionMatch);
-      const permission =
-        kind === "PROBLEM"
-          ? "problem.manage"
-          : kind === "CHANGE"
-            ? "change.manage"
-            : "knowledge.manage";
-      await authorize(authorization, {
-        principal,
-        action: permission,
-        resource: {
-          type: kind.toLowerCase(),
-          id: recordTransitionMatch?.[2] ?? String(input.code ?? "new"),
-          tenant_id: principal.tenant_id,
-        },
-        scope: {},
-        context: { ...context },
-      });
-      const result = await uow.run(principal.tenant_id, (tx) =>
-        new PostgresIdempotencyStore(tx).execute(
-          {
-            principalId: principal.id,
-            operation: isTransition ? `${kind}.TRANSITION` : `${kind}.CREATE`,
-            businessScope:
-              recordTransitionMatch?.[2] ?? String(input.code ?? "new"),
-            key,
-            semanticRequest: input as never,
-            expiresAt: new Date(Date.now() + 86400000),
-          },
-          async () => {
-            const value = isTransition
-              ? await transitionRecord({
-                  tx,
-                  kind: kind as "PROBLEM" | "CHANGE" | "KNOWLEDGE",
-                  id: recordTransitionMatch![2]!,
-                  expectedVersion: input.expected_version as number,
-                  targetState: input.target_state as string,
-                  reason: input.reason as string,
-                })
-              : await createProblem({
-                  tx,
-                  kind: kind as "PROBLEM" | "CHANGE" | "KNOWLEDGE",
-                  code: input.code as string,
-                  title: input.title as string,
-                  body: input.body as string | undefined,
-                  risk: input.risk as string | undefined,
-                  impact: input.impact as string | undefined,
-                  implementationPlan: input.implementation_plan as
-                    string | undefined,
-                });
-            const now = new Date().toISOString();
-            const eventType = isTransition
-              ? `${kind}.STATE_CHANGED`
-              : `${kind}.CREATED`;
-            await new PostgresOutboxWriter(tx).append({
-              event_id: randomUUID(),
-              event_type: eventType,
-              schema_version: 1,
-              occurred_at: now,
-              producer: { service: config.serviceName, instance: "api" },
-              aggregate: { type: kind, id: value.id, version: value.version },
-              actor: { type: principal.actor_type, id: principal.id },
-              correlation_id: context.correlation_id,
-              causation_id: context.causation_id,
-              tenant_id: principal.tenant_id,
-              organization_id: principal.tenant_id,
-              idempotency_key: key,
-              payload: value,
-            });
-            await new PostgresAudit(tx).append({
-              id: randomUUID(),
-              tenant_id: principal.tenant_id,
-              event_type: eventType,
-              occurred_at: now,
-              actor: { type: principal.actor_type, id: principal.id },
-              action: { command_type: eventType },
-              subject: { entity_type: kind, entity_id: value.id },
-              correlation_id: context.correlation_id,
-              causation_id: context.causation_id,
-              reason: {
-                code: eventType,
-                text: (input.reason as string) ?? "Record created",
-              },
-              before: null,
-              after: value,
-              outcome: { status: "SUCCESS" },
-              classification: "INTERNAL",
-              relations: [],
-              evidence: [],
-            });
-            return { status: isTransition ? 200 : 201, body: value };
-          },
-        ),
-      );
-      json(res, result.status, { data: result.body, meta: context });
-      return true;
-    }
-    if (
-      req.method === "POST" &&
-      (req.url === "/api/v1/approvals" || approvalDecisionMatch)
-    ) {
-      const principal = await authenticate(
-        authentication,
-        req.headers.authorization,
-      );
-      const key = req.headers["idempotency-key"];
-      if (typeof key !== "string" || !key.trim())
-        throw new ApplicationError(
-          "VALIDATION_ERROR",
-          "Idempotency-Key is required.",
-        );
-      const body = await new Promise<string>((resolve) => {
-        let data = "";
-        req.on("data", (chunk) => (data += chunk));
-        req.on("end", () => resolve(data));
-      });
-      let input: Record<string, unknown>;
-      try {
-        input = (body ? JSON.parse(body) : {}) as Record<string, unknown>;
-      } catch {
-        throw new ApplicationError("VALIDATION_ERROR", "Invalid JSON request.");
-      }
-      const isDecision = Boolean(approvalDecisionMatch);
-      await authorize(authorization, {
-        principal,
-        action: isDecision ? "approval.decide" : "approval.create",
-        resource: {
-          type: "approval",
-          id: approvalDecisionMatch?.[1] ?? String(input.source_id ?? "new"),
-          tenant_id: principal.tenant_id,
-        },
-        scope: {},
-        context: { ...context },
-      });
-      const result = await uow.run(principal.tenant_id, (tx) =>
-        new PostgresIdempotencyStore(tx).execute(
-          {
-            principalId: principal.id,
-            operation: isDecision ? "APPROVAL.DECIDE" : "APPROVAL.CREATE",
-            businessScope:
-              approvalDecisionMatch?.[1] ?? String(input.source_id ?? "new"),
-            key,
-            semanticRequest: input as never,
-            expiresAt: new Date(Date.now() + 86400000),
-          },
-          async () => {
-            const value = isDecision
-              ? await decideApproval({
-                  tx,
-                  requestId: approvalDecisionMatch![1]!,
-                  expectedVersion: input.expected_version as number,
-                  actorId: principal.id,
-                  decision:
-                    approvalDecisionMatch![2] === "approve"
-                      ? "APPROVED"
-                      : "REJECTED",
-                  reason: input.reason as string,
-                })
-              : await createApproval({
-                  tx,
-                  sourceType: input.source_type as string,
-                  sourceId: input.source_id as string,
-                  policyId: input.policy_id as string,
-                  policyVersion: input.policy_version as number,
-                  requesterId: principal.id,
-                  context: input.context,
-                });
-            if (
-              !isDecision &&
-              (input.source_type === "PO_ISSUE" ||
-                input.source_type === "PO_AMENDMENT")
-            )
-              await linkPurchaseOrderApproval({
-                tx,
-                poId: input.source_id as string,
-                requestId: value.id,
-                sourceType: input.source_type,
-              });
-            if (isDecision)
-              await resolveApprovalWorkItem({ tx, approvalId: value.id });
-            const now = new Date().toISOString();
-            const eventType = isDecision
-              ? `APPROVAL.${value.state}`
-              : "APPROVAL.CREATED";
-            await new PostgresOutboxWriter(tx).append({
-              event_id: randomUUID(),
-              event_type: eventType,
-              schema_version: 1,
-              occurred_at: now,
-              producer: { service: config.serviceName, instance: "api" },
-              aggregate: {
-                type: "APPROVAL",
-                id: value.id,
-                version: value.version,
-              },
-              actor: { type: principal.actor_type, id: principal.id },
-              correlation_id: context.correlation_id,
-              causation_id: context.causation_id,
-              tenant_id: principal.tenant_id,
-              organization_id: principal.tenant_id,
-              idempotency_key: key,
-              payload: value,
-            });
-            await new PostgresAudit(tx).append({
-              id: randomUUID(),
-              tenant_id: principal.tenant_id,
-              event_type: eventType,
-              occurred_at: now,
-              actor: { type: principal.actor_type, id: principal.id },
-              action: { command_type: eventType },
-              subject: { entity_type: "APPROVAL", entity_id: value.id },
-              correlation_id: context.correlation_id,
-              causation_id: context.causation_id,
-              reason: {
-                code: eventType,
-                text: (input.reason as string) ?? "Approval created",
-              },
-              before: null,
-              after: value,
-              outcome: { status: "SUCCESS" },
-              classification: "INTERNAL",
-              relations: [],
-              evidence: [],
-            });
-            return { status: isDecision ? 200 : 201, body: value };
-          },
-        ),
-      );
-      if (
-        !isDecision &&
-        result.status === 201 &&
-        [
-          "REPLACEMENT",
-          "ASSET_RETIREMENT",
-          "ASSET_DISPOSAL",
-          "DATA_WIPE",
-        ].includes(String(input.source_type))
-      ) {
-        const approval = result.body as { id: string };
-        let recipients: string[] = [];
-        let routingFailed = false;
-        try {
-          const users = await uow.run(principal.tenant_id, (tx) =>
-            tx.query<{ id: string }>(
-              "SELECT id FROM identity.users WHERE tenant_id=$1 AND employment_status='ACTIVE' AND archived_at IS NULL AND id<>$2 ORDER BY id",
-              [principal.tenant_id, principal.id],
             ),
           );
-          const decisions = await Promise.all(
-            users.rows.map(async (user) => ({
-              userId: user.id,
-              allowed:
-                (
-                  await authorization.evaluate({
-                    principal: {
-                      id: user.id,
-                      tenant_id: principal.tenant_id,
-                      actor_type: "USER",
-                    },
-                    action: "approval.decide",
-                    resource: {
-                      type: "approval",
-                      id: approval.id,
-                      tenant_id: principal.tenant_id,
-                    },
-                    scope: {},
-                    context: {
-                      ...context,
-                      source_type: input.source_type,
-                      source_id: input.source_id,
-                    },
-                  })
-                ).result === "ALLOW",
-            })),
-          );
-          recipients = decisions
-            .filter((decision) => decision.allowed)
-            .map((decision) => decision.userId);
-        } catch {
-          routingFailed = true;
+          json(res, result.status, { data: result.body, meta: context });
+          return true;
         }
-        await uow.run(principal.tenant_id, async (tx) => {
-          if (recipients.length) {
-            for (const recipientId of recipients)
-              await tx.query(
-                "INSERT INTO communication.notifications(id,tenant_id,recipient_user_id,event_type,subject,body,dedupe_key) VALUES($1,$2,$3,'APPROVAL.CREATED','Approval requires review',$4,$5) ON CONFLICT(tenant_id,dedupe_key) DO NOTHING",
-                [
-                  randomUUID(),
-                  principal.tenant_id,
-                  recipientId,
-                  `An authorized reviewer must decide on ${String(input.source_type)} request ${approval.id}.`,
-                  `approval-created:${approval.id}:${recipientId}`,
-                ],
-              );
-            await resolveApprovalWorkItem({ tx, approvalId: approval.id });
-          } else {
-            await upsertApprovalWorkItem({
-              tx,
-              approvalId: approval.id,
-              title: routingFailed
-                ? "Approval notification routing failed; operator review required"
-                : "No authorized approval recipient resolved; route request manually",
-            });
-          }
-        });
-      }
-      json(res, result.status, { data: result.body, meta: context });
-      return true;
-    }
-    if (
-      req.method === "POST" &&
-      (req.url === "/api/v1/sla-instances" || slaTransitionMatch)
-    ) {
-      const principal = await authenticate(
-        authentication,
-        req.headers.authorization,
-      );
-      const key = req.headers["idempotency-key"];
-      if (typeof key !== "string" || !key.trim())
-        throw new ApplicationError(
-          "VALIDATION_ERROR",
-          "Idempotency-Key is required.",
-        );
-      const body = await new Promise<string>((resolve) => {
-        let data = "";
-        req.on("data", (chunk) => (data += chunk));
-        req.on("end", () => resolve(data));
-      });
-      let input: Record<string, unknown>;
-      try {
-        input = (body ? JSON.parse(body) : {}) as Record<string, unknown>;
-      } catch {
-        throw new ApplicationError("VALIDATION_ERROR", "Invalid JSON request.");
-      }
-      const isTransition = Boolean(slaTransitionMatch);
-      await authorize(authorization, {
-        principal,
-        action: "sla.manage",
-        resource: {
-          type: "sla",
-          id: slaTransitionMatch?.[1] ?? String(input.object_id ?? "new"),
-          tenant_id: principal.tenant_id,
-        },
-        scope: {},
-        context: { ...context },
-      });
-      const result = await uow.run(principal.tenant_id, (tx) =>
-        new PostgresIdempotencyStore(tx).execute(
-          {
-            principalId: principal.id,
-            operation: isTransition ? "SLA.TRANSITION" : "SLA.START",
-            businessScope:
-              slaTransitionMatch?.[1] ?? String(input.object_id ?? "new"),
-            key,
-            semanticRequest: input as never,
-            expiresAt: new Date(Date.now() + 86400000),
-          },
-          async () => {
-            const value = isTransition
-              ? await transitionSla({
-                  tx,
-                  instanceId: slaTransitionMatch![1]!,
-                  expectedVersion: input.expected_version as number,
-                  targetState: input.target_state as string,
-                  reason: input.reason as string,
-                })
-              : await startSla({
-                  tx,
-                  objectType: input.object_type as string,
-                  objectId: input.object_id as string,
-                  targetId: input.target_id as string,
-                  now:
-                    typeof input.started_at === "string"
-                      ? input.started_at
-                      : new Date().toISOString(),
-                });
-            const now = new Date().toISOString();
-            const eventType = isTransition
-              ? "SLA.STATE_CHANGED"
-              : "SLA.STARTED";
-            await new PostgresOutboxWriter(tx).append({
-              event_id: randomUUID(),
-              event_type: eventType,
-              schema_version: 1,
-              occurred_at: now,
-              producer: { service: config.serviceName, instance: "api" },
-              aggregate: {
-                type: "SLA_INSTANCE",
-                id: value.id,
-                version: value.version,
-              },
-              actor: { type: principal.actor_type, id: principal.id },
-              correlation_id: context.correlation_id,
-              causation_id: context.causation_id,
-              tenant_id: principal.tenant_id,
-              organization_id: principal.tenant_id,
-              idempotency_key: key,
-              payload: value,
-            });
-            await new PostgresAudit(tx).append({
-              id: randomUUID(),
-              tenant_id: principal.tenant_id,
-              event_type: eventType,
-              occurred_at: now,
-              actor: { type: principal.actor_type, id: principal.id },
-              action: { command_type: eventType },
-              subject: { entity_type: "SLA_INSTANCE", entity_id: value.id },
-              correlation_id: context.correlation_id,
-              causation_id: context.causation_id,
-              reason: {
-                code: eventType,
-                text: (input.reason as string) ?? "SLA started",
-              },
-              before: null,
-              after: value,
-              outcome: { status: "SUCCESS" },
-              classification: "INTERNAL",
-              relations: [],
-              evidence: [],
-            });
-            return { status: isTransition ? 200 : 201, body: value };
-          },
-        ),
-      );
-      json(res, result.status, { data: result.body, meta: context });
-      return true;
-    }
-    if (req.method === "POST" && (majorMatch || communicationMatch)) {
-      const principal = await authenticate(
-        authentication,
-        req.headers.authorization,
-      );
-      const key = req.headers["idempotency-key"];
-      if (typeof key !== "string" || !key.trim())
-        throw new ApplicationError(
-          "VALIDATION_ERROR",
-          "Idempotency-Key is required.",
-        );
-      const body = await new Promise<string>((resolve) => {
-        let data = "";
-        req.on("data", (chunk) => (data += chunk));
-        req.on("end", () => resolve(data));
-      });
-      let input: Record<string, unknown>;
-      try {
-        input = (body ? JSON.parse(body) : {}) as Record<string, unknown>;
-      } catch {
-        throw new ApplicationError("VALIDATION_ERROR", "Invalid JSON request.");
-      }
-      const isMajor = Boolean(majorMatch);
-      await authorize(authorization, {
-        principal,
-        action: isMajor ? "incident.declare_major" : "incident.communicate",
-        resource: {
-          type: "incident",
-          id: (majorMatch ?? communicationMatch)![1]!,
-          tenant_id: principal.tenant_id,
-        },
-        scope: {},
-        context: { ...context },
-      });
-      const result = await uow.run(principal.tenant_id, (tx) =>
-        new PostgresIdempotencyStore(tx).execute(
-          {
-            principalId: principal.id,
-            operation: isMajor
-              ? "INCIDENT.DECLARE_MAJOR"
-              : "INCIDENT.COMMUNICATE",
-            businessScope: (majorMatch ?? communicationMatch)![1]!,
-            key,
-            semanticRequest: input as never,
-            expiresAt: new Date(Date.now() + 86400000),
-          },
-          async () => {
-            const value = isMajor
-              ? await declareMajor({
-                  tx,
-                  incidentId: (majorMatch ?? communicationMatch)![1]!,
-                  expectedVersion: input.expected_version as number,
-                  reason: input.reason as string,
-                  cadence: input.communication_cadence as string,
-                })
-              : await publishCommunication({
-                  tx,
-                  incidentId: communicationMatch![1]!,
-                  audience: input.audience as string,
-                  channel: input.channel as string,
-                  subject: input.subject as string,
-                  body: input.body as string,
-                });
-            const now = new Date().toISOString();
-            const eventType = isMajor
-              ? "INCIDENT.MAJOR_DECLARED"
-              : "INCIDENT.COMMUNICATION.PUBLISHED";
-            const output = value as unknown as Record<string, unknown>;
-            await new PostgresOutboxWriter(tx).append({
-              event_id: randomUUID(),
-              event_type: eventType,
-              schema_version: 1,
-              occurred_at: now,
-              producer: { service: config.serviceName, instance: "api" },
-              aggregate: {
-                type: "INCIDENT",
-                id: (output.id ?? output.incident_id) as string,
-                version: (output.version as number | undefined) ?? 1,
-              },
-              actor: { type: principal.actor_type, id: principal.id },
-              correlation_id: context.correlation_id,
-              causation_id: context.causation_id,
-              tenant_id: principal.tenant_id,
-              organization_id: principal.tenant_id,
-              idempotency_key: key,
-              payload: value,
-            });
-            await new PostgresAudit(tx).append({
-              id: randomUUID(),
-              tenant_id: principal.tenant_id,
-              event_type: eventType,
-              occurred_at: now,
-              actor: { type: principal.actor_type, id: principal.id },
-              action: { command_type: eventType },
-              subject: {
-                entity_type: "INCIDENT",
-                entity_id: (output.id ?? output.incident_id) as string,
-              },
-              correlation_id: context.correlation_id,
-              causation_id: context.causation_id,
-              reason: {
-                code: eventType,
-                text:
-                  (input.reason as string) ??
-                  (input.subject as string) ??
-                  "Major incident communication",
-              },
-              before: null,
-              after: value,
-              outcome: { status: "SUCCESS" },
-              classification: "INTERNAL",
-              relations: [],
-              evidence: [],
-            });
-            return { status: 201, body: value };
-          },
-        ),
-      );
-      json(res, result.status, { data: result.body, meta: context });
-      return true;
-    }
-    if (req.method === "GET" && incidentCorrelationHistoryMatch) {
-      const principal = await authenticate(
-        authentication,
-        req.headers.authorization,
-      );
-      await authorize(authorization, {
-        principal,
-        action: "incident.correlation.read",
-        resource: {
-          type: "incident_correlation",
-          id: incidentCorrelationHistoryMatch[1]!,
-          tenant_id: principal.tenant_id,
-        },
-        scope: {},
-        context: { ...context },
-      });
-      const data = await uow.run(principal.tenant_id, (tx) =>
-        readIncidentCorrelationHistory(tx, incidentCorrelationHistoryMatch[1]!),
-      );
-      json(res, 200, { data, meta: context });
-      return true;
-    }
-    if (
-      req.method === "POST" &&
-      (incidentCorrelationAttachMatch ||
-        incidentCorrelationDetachMatch ||
-        incidentCorrelationRejectMatch)
-    ) {
-      const principal = await authenticate(
-        authentication,
-        req.headers.authorization,
-      );
-      const key = req.headers["idempotency-key"];
-      if (typeof key !== "string" || !key.trim())
-        throw new ApplicationError(
-          "VALIDATION_ERROR",
-          "Idempotency-Key is required.",
-        );
-      const body = await new Promise<string>((resolve) => {
-        let data = "";
-        req.on("data", (chunk) => (data += chunk));
-        req.on("end", () => resolve(data));
-      });
-      let input: Record<string, unknown>;
-      try {
-        input = (body ? JSON.parse(body) : {}) as Record<string, unknown>;
-      } catch {
-        throw new ApplicationError("VALIDATION_ERROR", "Invalid JSON request.");
-      }
-      const incidentId = (incidentCorrelationAttachMatch ??
-        incidentCorrelationDetachMatch ??
-        incidentCorrelationRejectMatch)![1]!;
-      const attach = !!incidentCorrelationAttachMatch;
-      const detach = !!incidentCorrelationDetachMatch;
-      if (
-        !Number.isSafeInteger(input.expected_version) ||
-        typeof input.reason !== "string" ||
-        !input.reason.trim()
-      )
-        throw new ApplicationError(
-          "VALIDATION_ERROR",
-          "expected_version and reason are required.",
-        );
-      if (!detach && typeof input.decision_id !== "string")
-        throw new ApplicationError(
-          "VALIDATION_ERROR",
-          "decision_id is required.",
-        );
-      const action = detach
-        ? "incident.correlation.detach"
-        : "incident.correlation.review";
-      await authorize(authorization, {
-        principal,
-        action,
-        resource: {
-          type: "incident",
-          id: incidentId,
-          tenant_id: principal.tenant_id,
-        },
-        scope: {},
-        context: { ...context },
-      });
-      if (attach) {
-        if (typeof input.root_incident_id !== "string")
-          throw new ApplicationError(
-            "VALIDATION_ERROR",
-            "root_incident_id is required.",
+        if (
+          req.method === "POST" &&
+          (discoveryCreate || discoveryObservation || discoveryTransition)
+        ) {
+          const principal = await authenticate(
+            authentication,
+            req.headers.authorization,
           );
-        await authorize(authorization, {
-          principal,
-          action: "incident.correlation.review",
-          resource: {
-            type: "incident",
-            id: input.root_incident_id,
-            tenant_id: principal.tenant_id,
-          },
-          scope: {},
-          context: { ...context },
-        });
-      }
-      const operation = attach
-        ? "INCIDENT.CORRELATION_ATTACH"
-        : detach
-          ? "INCIDENT.CORRELATION_DETACH"
-          : "INCIDENT.CORRELATION_REJECT";
-      const result = await uow.run(principal.tenant_id, (tx) =>
-        new PostgresIdempotencyStore(tx).execute(
-          {
-            principalId: principal.id,
-            operation,
-            businessScope: incidentId,
-            key,
-            semanticRequest: input as never,
-            expiresAt: new Date(Date.now() + 86400000),
-          },
-          async () => {
-            const reason = input.reason as string;
-            const value = attach
-              ? await attachIncidentToRoot({
-                  tx,
-                  incidentId,
-                  rootIncidentId: input.root_incident_id as string,
-                  decisionId: input.decision_id as string,
-                  expectedVersion: input.expected_version as number,
-                  actorId: principal.id,
-                  reason,
-                  correlationId: context.correlation_id,
-                })
-              : detach
-                ? await detachIncidentFromRoot({
-                    tx,
-                    incidentId,
-                    expectedVersion: input.expected_version as number,
-                    actorId: principal.id,
-                    reason,
-                  })
-                : await rejectIncidentCorrelation({
-                    tx,
-                    incidentId,
-                    decisionId: input.decision_id as string,
-                    expectedVersion: input.expected_version as number,
-                    actorId: principal.id,
-                    reason,
-                    correlationId: context.correlation_id,
-                  });
-            const eventType = attach
-              ? "INCIDENT.LINKED_TO_ROOT"
-              : detach
-                ? "INCIDENT.DETACHED_FROM_ROOT"
-                : "INCIDENT.CORRELATION_REJECTED";
-            const now = new Date().toISOString();
-            const output = value as unknown as Record<string, unknown>;
-            const aggregateVersion =
-              (output.version as number | undefined) ??
-              (input.expected_version as number);
-            await new PostgresOutboxWriter(tx).append({
-              event_id: randomUUID(),
-              event_type: eventType,
-              schema_version: 1,
-              occurred_at: now,
-              producer: { service: config.serviceName, instance: "api" },
-              aggregate: {
-                type: "INCIDENT",
-                id: incidentId,
-                version: aggregateVersion,
+          const key = req.headers["idempotency-key"];
+          if (typeof key !== "string" || !key.trim())
+            throw new ApplicationError(
+              "VALIDATION_ERROR",
+              "Idempotency-Key is required.",
+            );
+          const body = await new Promise<string>((resolve) => {
+            let data = "";
+            req.on("data", (chunk) => (data += chunk));
+            req.on("end", () => resolve(data));
+          });
+          let input: Record<string, unknown>;
+          try {
+            input = (body ? JSON.parse(body) : {}) as Record<string, unknown>;
+          } catch {
+            throw new ApplicationError(
+              "VALIDATION_ERROR",
+              "Invalid JSON request.",
+            );
+          }
+          const normalized = discoveryObservation
+            ? normalizeNetworkObservation(input)
+            : null;
+          const jobId =
+            discoveryObservation?.[1] ?? discoveryTransition?.[1] ?? "new";
+          await authorize(authorization, {
+            principal,
+            action: "network.discovery.run",
+            resource: {
+              type: "network_discovery",
+              id: jobId,
+              tenant_id: principal.tenant_id,
+            },
+            scope: {},
+            context: { ...context },
+          });
+          const operation = discoveryCreate
+            ? "NETWORK.DISCOVERY.START"
+            : discoveryObservation
+              ? "NETWORK.DISCOVERY.OBSERVE"
+              : "NETWORK.DISCOVERY.TRANSITION";
+          const result = await uow.run(principal.tenant_id, (tx) =>
+            new PostgresIdempotencyStore(tx).execute(
+              {
+                principalId: principal.id,
+                operation,
+                businessScope: jobId,
+                key,
+                semanticRequest: input as never,
+                expiresAt: new Date(Date.now() + 86400000),
               },
-              actor: { type: principal.actor_type, id: principal.id },
-              correlation_id: context.correlation_id,
-              causation_id: context.causation_id,
-              tenant_id: principal.tenant_id,
-              organization_id: principal.tenant_id,
-              idempotency_key: key,
-              payload: value as never,
-            });
-            await new PostgresAudit(tx).append({
-              id: randomUUID(),
-              tenant_id: principal.tenant_id,
-              event_type: eventType,
-              occurred_at: now,
-              actor: { type: principal.actor_type, id: principal.id },
-              action: { command_type: operation },
-              subject: { entity_type: "INCIDENT", entity_id: incidentId },
-              correlation_id: context.correlation_id,
-              causation_id: context.causation_id,
-              reason: { code: operation, text: reason },
-              before: (detach
-                ? { root_incident_id: output.root_incident_id }
-                : null) as never,
-              after: value as never,
-              outcome: { status: "SUCCESS" },
-              classification: "INTERNAL",
-              relations: [],
-              evidence: [],
-            });
-            await recordIncidentCorrelationTimelineEvent({
-              tx,
-              incidentId,
-              eventType,
-              summary: attach
-                ? `Manually attached to Root ${String(output.root_incident_id)}`
-                : detach
-                  ? `Detached from Root ${String(output.root_incident_id)}`
-                  : "Correlation recommendation rejected by operator",
-              payload: value,
-              sourceEventId: randomUUID(),
-            });
-            return { status: 200, body: value };
-          },
-        ),
-      );
-      json(res, result.status, { data: result.body, meta: context });
-      return true;
-    }
-    if (
-      req.method === "POST" &&
-      (req.url === "/api/v1/incidents" ||
-        incidentTransitionMatch ||
-        incidentCorrelateMatch ||
-        incidentAssetLinkMatch ||
-        incidentAssetUnlinkMatch)
-    ) {
-      const principal = await authenticate(
-        authentication,
-        req.headers.authorization,
-      );
-      const key = req.headers["idempotency-key"];
-      if (typeof key !== "string" || !key.trim())
-        throw new ApplicationError(
-          "VALIDATION_ERROR",
-          "Idempotency-Key is required.",
-        );
-      const body = await new Promise<string>((resolve) => {
-        let data = "";
-        req.on("data", (chunk) => (data += chunk));
-        req.on("end", () => resolve(data));
-      });
-      let input: Record<string, unknown>;
-      try {
-        input = (body ? JSON.parse(body) : {}) as Record<string, unknown>;
-      } catch {
-        throw new ApplicationError("VALIDATION_ERROR", "Invalid JSON request.");
-      }
-      const isTransition = Boolean(incidentTransitionMatch);
-      const isCorrelation = Boolean(incidentCorrelateMatch);
-      const isAssetLink = Boolean(incidentAssetLinkMatch);
-      const isAssetUnlink = Boolean(incidentAssetUnlinkMatch);
-      const action =
-        isAssetLink || isAssetUnlink
-          ? "incident.asset_link"
-          : isCorrelation
-            ? "incident.correlate"
-            : isTransition
-              ? "incident.update"
-              : "incident.create";
-      await authorize(authorization, {
-        principal,
-        action,
-        resource: {
-          type: "incident",
-          id:
-            incidentTransitionMatch?.[1] ??
-            incidentCorrelateMatch?.[1] ??
-            incidentAssetLinkMatch?.[1] ??
-            incidentAssetUnlinkMatch?.[1] ??
-            String(input.incident_code ?? "new"),
-          tenant_id: principal.tenant_id,
-        },
-        scope: {},
-        context: { ...context },
-      });
-      const result = await uow.run(principal.tenant_id, (tx) =>
-        new PostgresIdempotencyStore(tx).execute(
-          {
-            principalId: principal.id,
-            operation: isCorrelation
-              ? "INCIDENT.CORRELATE"
-              : isAssetLink
-                ? "INCIDENT.ASSET_LINK"
-                : isAssetUnlink
-                  ? "INCIDENT.ASSET_UNLINK"
-                  : isTransition
-                    ? "INCIDENT.TRANSITION"
-                    : "INCIDENT.CREATE",
-            businessScope:
-              incidentTransitionMatch?.[1] ??
-              incidentCorrelateMatch?.[1] ??
-              incidentAssetLinkMatch?.[1] ??
-              incidentAssetUnlinkMatch?.[1] ??
-              String(input.incident_code ?? "new"),
-            key,
-            semanticRequest: input as never,
-            expiresAt: new Date(Date.now() + 86400000),
-          },
-          async () => {
-            const monitoringReference =
-              !isAssetLink &&
-              !isAssetUnlink &&
-              !isCorrelation &&
-              !isTransition &&
-              input.monitoring_event_id
-                ? await resolveMonitoringEventForIncident({
+              async () => {
+                let value: unknown;
+                if (discoveryCreate) {
+                  value = await createDiscoveryJob({
                     tx,
-                    eventId: String(input.monitoring_event_id),
-                  })
-                : null;
-            const value = isAssetLink
-              ? await linkIncidentAsset({
-                  tx,
-                  incidentId: incidentAssetLinkMatch![1]!,
-                  assetId: input.asset_id as string,
-                  reason: input.reason as string,
-                  idempotencyKey: key,
-                  actor: principal,
-                  authorization,
-                  assetExists: async (assetId) => {
-                    await assertAssetExists({ tx, assetId });
-                  },
-                  correlationId: context.correlation_id,
-                })
-              : isAssetUnlink
-                ? await detachIncidentAsset({
+                    sourceType: String(input.source_type ?? ""),
+                    ...(input.scope !== undefined
+                      ? { scope: input.scope }
+                      : {}),
+                    ...(typeof input.freshness_threshold_seconds === "number"
+                      ? {
+                          freshnessThresholdSeconds:
+                            input.freshness_threshold_seconds,
+                        }
+                      : {}),
+                  });
+                } else if (discoveryObservation) {
+                  const recorded = await recordDiscoveryObservation({
                     tx,
-                    incidentId: incidentAssetUnlinkMatch![1]!,
-                    linkId: incidentAssetUnlinkMatch![2]!,
-                    expectedVersion: input.expected_version as number,
-                    reason: input.reason as string,
-                    actor: principal,
-                    authorization,
-                    correlationId: context.correlation_id,
-                  })
-                : isCorrelation
-                  ? await correlateIncident({
-                      tx,
-                      childIncidentId: incidentCorrelateMatch![1]!,
-                      rootIncidentId: input.root_incident_id as string,
-                      relatedEntityType: input.related_entity_type as
-                        "INCIDENT" | "TICKET",
-                      relatedEntityId: input.related_entity_id as string,
-                      reason: input.reason as string,
-                      score: input.correlation_score as number | undefined,
-                    })
-                  : isTransition
-                    ? await transitionIncident({
+                    jobId,
+                    observation: normalized!,
+                  });
+                  const exceptions = recorded.duplicate
+                    ? []
+                    : await detectObservationExceptions({
                         tx,
-                        incidentId: incidentTransitionMatch![1]!,
+                        observationId: String(recorded.observation?.id),
+                        queue: networkExceptionQueue,
+                      });
+                  value = { ...recorded, exceptions };
+                } else {
+                  value = await transitionDiscoveryJob({
+                    tx,
+                    jobId,
+                    targetState: String(input.target_state ?? ""),
+                    ...(typeof input.failure_reason === "string"
+                      ? { failureReason: input.failure_reason }
+                      : {}),
+                  });
+                }
+                const resultValue = value as unknown as {
+                  id?: string;
+                  observation?: { id?: string; [key: string]: unknown };
+                  duplicate?: boolean;
+                  [key: string]: unknown;
+                };
+                const duplicate =
+                  discoveryObservation && resultValue.duplicate === true;
+                const payload =
+                  discoveryObservation && resultValue.observation
+                    ? {
+                        ...resultValue.observation,
+                        duplicate: resultValue.duplicate,
+                      }
+                    : resultValue;
+                if (!duplicate) {
+                  const eventType = discoveryCreate
+                    ? "NETWORK.DISCOVERY_STARTED"
+                    : discoveryObservation
+                      ? "NETWORK.DEVICE_DISCOVERED"
+                      : `NETWORK.DISCOVERY_${String(input.target_state)}`;
+                  const aggregateId = discoveryCreate
+                    ? resultValue.id
+                    : discoveryObservation
+                      ? resultValue.observation?.id
+                      : resultValue.id;
+                  const now = new Date().toISOString();
+                  await new PostgresOutboxWriter(tx).append({
+                    event_id: randomUUID(),
+                    event_type: eventType,
+                    schema_version: 1,
+                    occurred_at: now,
+                    producer: { service: config.serviceName, instance: "api" },
+                    aggregate: {
+                      type: discoveryObservation
+                        ? "NETWORK_OBSERVATION"
+                        : "NETWORK_DISCOVERY_JOB",
+                      id: String(aggregateId),
+                      version: 1,
+                    },
+                    actor: { type: principal.actor_type, id: principal.id },
+                    correlation_id: context.correlation_id,
+                    causation_id: context.causation_id,
+                    tenant_id: principal.tenant_id,
+                    organization_id: principal.tenant_id,
+                    idempotency_key: key,
+                    payload: payload as never,
+                  });
+                  await new PostgresAudit(tx).append({
+                    id: randomUUID(),
+                    tenant_id: principal.tenant_id,
+                    event_type: eventType,
+                    occurred_at: now,
+                    actor: { type: principal.actor_type, id: principal.id },
+                    action: { command_type: operation },
+                    subject: {
+                      entity_type: discoveryObservation
+                        ? "NETWORK_OBSERVATION"
+                        : "NETWORK_DISCOVERY_JOB",
+                      entity_id: String(aggregateId),
+                    },
+                    correlation_id: context.correlation_id,
+                    causation_id: context.causation_id,
+                    reason: {
+                      code: eventType,
+                      text: (input.failure_reason as string) ?? eventType,
+                    },
+                    before: null,
+                    after: payload as never,
+                    outcome: { status: "SUCCESS" },
+                    classification: "INTERNAL",
+                    relations: [],
+                    evidence: [],
+                  });
+                  if (
+                    discoveryObservation &&
+                    Array.isArray(resultValue.exceptions)
+                  ) {
+                    for (const exception of resultValue.exceptions as Array<{
+                      id: string;
+                      exception_type: string;
+                      source_observation_id: string;
+                      expected: unknown;
+                      observed: unknown;
+                    }>) {
+                      const eventType =
+                        exception.exception_type === "UNKNOWN_DEVICE"
+                          ? "NETWORK.UNKNOWN_DEVICE"
+                          : "NETWORK.IP_CONFLICT";
+                      await appendNetworkExceptionEffects({
+                        tx,
+                        config,
+                        principal,
+                        context,
+                        idempotencyKey: key,
+                        eventType,
+                        exceptionId: exception.id,
+                        payload: exception,
+                      });
+                    }
+                  }
+                }
+                return {
+                  status: discoveryCreate ? 201 : 200,
+                  body: payload as never,
+                };
+              },
+            ),
+          );
+          json(res, result.status, { data: result.body, meta: context });
+          return true;
+        }
+        const isAuditStart = req.url === "/api/v1/audits";
+        const observationMatch =
+          /^\/api\/v1\/audits\/([^/]+)\/observations$/.exec(req.url ?? "");
+        const exceptionResolveMatch =
+          /^\/api\/v1\/audit-exceptions\/([^/]+)\/commands\/resolve$/.exec(
+            req.url ?? "",
+          );
+        if (
+          req.method === "POST" &&
+          (isAuditStart || observationMatch || exceptionResolveMatch)
+        ) {
+          const principal = await authenticate(
+            authentication,
+            req.headers.authorization,
+          );
+          const key = req.headers["idempotency-key"];
+          if (typeof key !== "string" || !key.trim())
+            throw new ApplicationError(
+              "VALIDATION_ERROR",
+              "Idempotency-Key is required.",
+            );
+          const body = await new Promise<string>((resolve) => {
+            let data = "";
+            req.on("data", (chunk) => (data += chunk));
+            req.on("end", () => resolve(data));
+          });
+          let input: Record<string, unknown>;
+          try {
+            input = (body ? JSON.parse(body) : {}) as Record<string, unknown>;
+          } catch {
+            throw new ApplicationError(
+              "VALIDATION_ERROR",
+              "Invalid JSON request.",
+            );
+          }
+          const permission = isAuditStart
+            ? "audit.start"
+            : observationMatch
+              ? "audit.record_observation"
+              : "audit.exception.resolve";
+          await authorize(authorization, {
+            principal,
+            action: permission,
+            resource: {
+              type: isAuditStart
+                ? "audit"
+                : observationMatch
+                  ? "audit"
+                  : "audit_exception",
+              id: isAuditStart
+                ? "new"
+                : observationMatch
+                  ? observationMatch[1]!
+                  : exceptionResolveMatch![1]!,
+              tenant_id: principal.tenant_id,
+            },
+            scope: {},
+            context: { ...context },
+          });
+          const result = await uow.run(principal.tenant_id, (tx) =>
+            new PostgresIdempotencyStore(tx).execute(
+              {
+                principalId: principal.id,
+                operation: isAuditStart
+                  ? "AUDIT.START"
+                  : observationMatch
+                    ? "AUDIT.RECORD_OBSERVATION"
+                    : "AUDIT.RESOLVE_EXCEPTION",
+                businessScope: isAuditStart
+                  ? "new"
+                  : observationMatch
+                    ? observationMatch[1]!
+                    : exceptionResolveMatch![1]!,
+                key,
+                semanticRequest: input as never,
+                expiresAt: new Date(Date.now() + 86400000),
+              },
+              async () => {
+                const value = (
+                  isAuditStart
+                    ? await startAudit({ tx, name: input.name as string })
+                    : observationMatch
+                      ? await recordObservation({
+                          tx,
+                          auditId: observationMatch[1]!,
+                          assetId: input.asset_id as string,
+                          expected: input.expected,
+                          observed: input.observed,
+                          exceptionType:
+                            (input.exception_type as string) ?? "MISMATCH",
+                        })
+                      : await resolveException({
+                          tx,
+                          exceptionId: exceptionResolveMatch![1]!,
+                          reason: input.reason as string,
+                        })
+                ) as {
+                  id?: string;
+                  observation_id?: string;
+                  [key: string]: unknown;
+                };
+                const eventType = isAuditStart
+                  ? "AUDIT.STARTED"
+                  : observationMatch
+                    ? "AUDIT.OBSERVATION_RECORDED"
+                    : "AUDIT.EXCEPTION_RESOLVED";
+                const now = new Date().toISOString();
+                await new PostgresOutboxWriter(tx).append({
+                  event_id: randomUUID(),
+                  event_type: eventType,
+                  schema_version: 1,
+                  occurred_at: now,
+                  producer: { service: config.serviceName, instance: "api" },
+                  aggregate: {
+                    type: "AUDIT",
+                    id: isAuditStart
+                      ? value.id!
+                      : observationMatch
+                        ? value.observation_id!
+                        : value.id!,
+                    version: 1,
+                  },
+                  actor: { type: principal.actor_type, id: principal.id },
+                  correlation_id: context.correlation_id,
+                  causation_id: context.causation_id,
+                  tenant_id: principal.tenant_id,
+                  organization_id: principal.tenant_id,
+                  idempotency_key: key,
+                  payload: value as never,
+                });
+                await new PostgresAudit(tx).append({
+                  id: randomUUID(),
+                  tenant_id: principal.tenant_id,
+                  event_type: eventType,
+                  occurred_at: now,
+                  actor: { type: principal.actor_type, id: principal.id },
+                  action: { command_type: eventType },
+                  subject: {
+                    entity_type: "AUDIT",
+                    entity_id: isAuditStart
+                      ? value.id!
+                      : observationMatch
+                        ? value.observation_id!
+                        : value.id!,
+                  },
+                  correlation_id: context.correlation_id,
+                  causation_id: context.causation_id,
+                  reason: {
+                    code: eventType,
+                    text: (input.reason as string) ?? eventType,
+                  },
+                  before: null,
+                  after: value as never,
+                  outcome: { status: "SUCCESS" },
+                  classification: "INTERNAL",
+                  relations: [],
+                  evidence: [],
+                });
+                return {
+                  status: isAuditStart ? 201 : 200,
+                  body: value as never,
+                };
+              },
+            ),
+          );
+          json(res, result.status, { data: result.body, meta: context });
+          return true;
+        }
+        if (
+          req.method === "POST" &&
+          (maintenanceTransitionMatch ||
+            maintenanceClassificationMatch ||
+            isWarrantyCreate ||
+            isMaintenanceCreate)
+        ) {
+          const principal = await authenticate(
+            authentication,
+            req.headers.authorization,
+          );
+          const key = req.headers["idempotency-key"];
+          if (typeof key !== "string" || !key.trim())
+            throw new ApplicationError(
+              "VALIDATION_ERROR",
+              "Idempotency-Key is required.",
+            );
+          const body = await new Promise<string>((resolve) => {
+            let data = "";
+            req.on("data", (chunk) => (data += chunk));
+            req.on("end", () => resolve(data));
+          });
+          let input: Record<string, unknown>;
+          try {
+            input = (body ? JSON.parse(body) : {}) as Record<string, unknown>;
+          } catch {
+            throw new ApplicationError(
+              "VALIDATION_ERROR",
+              "Invalid JSON request.",
+            );
+          }
+          await authorize(authorization, {
+            principal,
+            action: "maintenance.manage",
+            resource: {
+              type: "maintenance",
+              id:
+                maintenanceTransitionMatch?.[1] ??
+                maintenanceClassificationMatch?.[1] ??
+                String(input.asset_id ?? "new"),
+              tenant_id: principal.tenant_id,
+            },
+            scope: {},
+            context: { ...context },
+          });
+          const result = await uow.run(principal.tenant_id, (tx) =>
+            new PostgresIdempotencyStore(tx).execute(
+              {
+                principalId: principal.id,
+                operation: maintenanceTransitionMatch
+                  ? "MAINTENANCE.TRANSITION"
+                  : maintenanceClassificationMatch
+                    ? "MAINTENANCE.CLASSIFICATION_UPDATE"
+                    : isWarrantyCreate
+                      ? "WARRANTY.CREATE"
+                      : "MAINTENANCE.CREATE",
+                businessScope:
+                  maintenanceTransitionMatch?.[1] ??
+                  maintenanceClassificationMatch?.[1] ??
+                  String(input.asset_id ?? "new"),
+                key,
+                semanticRequest: input as never,
+                expiresAt: new Date(Date.now() + 86400000),
+              },
+              async () => {
+                if (
+                  (maintenanceClassificationMatch || isMaintenanceCreate) &&
+                  !maintenanceClassifications
+                    .filter((item) => item !== "UNKNOWN")
+                    .includes(input.classification as never)
+                )
+                  throw new ApplicationError(
+                    "VALIDATION_ERROR",
+                    "A supported maintenance classification is required.",
+                  );
+                const value = maintenanceClassificationMatch
+                  ? await updateMaintenanceClassification({
+                      tx,
+                      id: maintenanceClassificationMatch[1]!,
+                      expectedVersion: input.expected_version as number,
+                      classification: input.classification as Exclude<
+                        (typeof maintenanceClassifications)[number],
+                        "UNKNOWN"
+                      >,
+                      reason: input.reason as string,
+                    })
+                  : maintenanceTransitionMatch
+                    ? await transitionMaintenance({
+                        tx,
+                        id: maintenanceTransitionMatch[1]!,
                         expectedVersion: input.expected_version as number,
                         targetState: input.target_state as string,
                         reason: input.reason as string,
-                        verification: input.verification as string | undefined,
-                        resolutionSummary: input.resolution_summary as
-                          string | undefined,
-                        postChecks: input.post_checks as string | undefined,
                       })
-                    : await createIncident({
-                        tx,
-                        incidentCode: input.incident_code as string,
-                        title: input.title as string,
-                        source: input.source as string,
-                        monitoringEventId: input.monitoring_event_id as
-                          string | undefined,
-                        priority: input.priority as string,
-                        serviceId: input.service_id as string | undefined,
-                      });
-            const automaticAssetLink = monitoringReference?.asset_id
-              ? await recordMonitoringIncidentAssetLink({
+                    : isWarrantyCreate
+                      ? await createWarranty({
+                          tx,
+                          assetId: input.asset_id as string,
+                          provider: input.provider as string,
+                          contractRef: input.contract_ref as string | undefined,
+                          startsAt: input.starts_at as string,
+                          endsAt: input.ends_at as string,
+                          coverage: input.coverage as string,
+                          validateAsset: async () => {
+                            await assertAssetExists({
+                              tx,
+                              assetId: input.asset_id as string,
+                            });
+                          },
+                        })
+                      : await (async () => {
+                          await assertAssetEligibleForMaintenance({
+                            tx,
+                            assetId: input.asset_id as string,
+                          });
+                          return createMaintenance({
+                            tx,
+                            assetId: input.asset_id as string,
+                            title: input.title as string,
+                            description: input.description as string,
+                            classification: input.classification as Exclude<
+                              (typeof maintenanceClassifications)[number],
+                              "UNKNOWN"
+                            >,
+                            warrantyId: input.warranty_id as string | undefined,
+                          });
+                        })();
+                const output = value as unknown as Record<string, unknown>;
+                const eventType = maintenanceTransitionMatch
+                  ? "MAINTENANCE.STATE_CHANGED"
+                  : maintenanceClassificationMatch
+                    ? "MAINTENANCE.CLASSIFICATION_CHANGED"
+                    : isWarrantyCreate
+                      ? "WARRANTY.CREATED"
+                      : "MAINTENANCE.CREATED";
+                const now = new Date().toISOString();
+                if (!(maintenanceClassificationMatch && output.noOp === true))
+                  await new PostgresOutboxWriter(tx).append({
+                    event_id: randomUUID(),
+                    event_type: eventType,
+                    schema_version: 1,
+                    occurred_at: now,
+                    producer: { service: config.serviceName, instance: "api" },
+                    aggregate: {
+                      type: isWarrantyCreate ? "WARRANTY" : "MAINTENANCE",
+                      id: value.id,
+                      version: (output.version as number | undefined) ?? 1,
+                    },
+                    actor: { type: principal.actor_type, id: principal.id },
+                    correlation_id: context.correlation_id,
+                    causation_id: context.causation_id,
+                    tenant_id: principal.tenant_id,
+                    organization_id: principal.tenant_id,
+                    idempotency_key: key,
+                    payload: value,
+                  });
+                if (maintenanceClassificationMatch && output.noOp !== true) {
+                  await new PostgresAudit(tx).append({
+                    id: randomUUID(),
+                    tenant_id: principal.tenant_id,
+                    event_type: eventType,
+                    occurred_at: now,
+                    actor: { type: principal.actor_type, id: principal.id },
+                    action: {
+                      command_type: "MAINTENANCE.CLASSIFICATION_UPDATE",
+                    },
+                    subject: {
+                      entity_type: "MAINTENANCE",
+                      entity_id: value.id,
+                    },
+                    correlation_id: context.correlation_id,
+                    causation_id: context.causation_id,
+                    reason: {
+                      code: "CLASSIFICATION_CORRECTED",
+                      text: String(input.reason ?? ""),
+                    },
+                    before: {
+                      classification: String(
+                        output.from_classification ?? "UNKNOWN",
+                      ),
+                    },
+                    after: {
+                      classification: String(
+                        output.classification ?? input.classification,
+                      ),
+                    },
+                    outcome: { status: "SUCCESS" },
+                    classification: "INTERNAL",
+                    relations: [],
+                    evidence: [],
+                  });
+                }
+                return {
+                  status:
+                    maintenanceTransitionMatch || maintenanceClassificationMatch
+                      ? 200
+                      : 201,
+                  body: value as never,
+                };
+              },
+            ),
+          );
+          json(res, result.status, { data: result.body, meta: context });
+          return true;
+        }
+        if (
+          req.method === "POST" &&
+          (recordCreateKind || recordTransitionMatch)
+        ) {
+          const principal = await authenticate(
+            authentication,
+            req.headers.authorization,
+          );
+          const key = req.headers["idempotency-key"];
+          if (typeof key !== "string" || !key.trim())
+            throw new ApplicationError(
+              "VALIDATION_ERROR",
+              "Idempotency-Key is required.",
+            );
+          const body = await new Promise<string>((resolve) => {
+            let data = "";
+            req.on("data", (chunk) => (data += chunk));
+            req.on("end", () => resolve(data));
+          });
+          let input: Record<string, unknown>;
+          try {
+            input = (body ? JSON.parse(body) : {}) as Record<string, unknown>;
+          } catch {
+            throw new ApplicationError(
+              "VALIDATION_ERROR",
+              "Invalid JSON request.",
+            );
+          }
+          const kind =
+            recordCreateKind ??
+            (recordTransitionMatch![1] === "problems"
+              ? "PROBLEM"
+              : recordTransitionMatch![1] === "changes"
+                ? "CHANGE"
+                : "KNOWLEDGE");
+          const isTransition = Boolean(recordTransitionMatch);
+          const permission =
+            kind === "PROBLEM"
+              ? "problem.manage"
+              : kind === "CHANGE"
+                ? "change.manage"
+                : "knowledge.manage";
+          await authorize(authorization, {
+            principal,
+            action: permission,
+            resource: {
+              type: kind.toLowerCase(),
+              id: recordTransitionMatch?.[2] ?? String(input.code ?? "new"),
+              tenant_id: principal.tenant_id,
+            },
+            scope: {},
+            context: { ...context },
+          });
+          const result = await uow.run(principal.tenant_id, (tx) =>
+            new PostgresIdempotencyStore(tx).execute(
+              {
+                principalId: principal.id,
+                operation: isTransition
+                  ? `${kind}.TRANSITION`
+                  : `${kind}.CREATE`,
+                businessScope:
+                  recordTransitionMatch?.[2] ?? String(input.code ?? "new"),
+                key,
+                semanticRequest: input as never,
+                expiresAt: new Date(Date.now() + 86400000),
+              },
+              async () => {
+                const value = isTransition
+                  ? await transitionRecord({
+                      tx,
+                      kind: kind as "PROBLEM" | "CHANGE" | "KNOWLEDGE",
+                      id: recordTransitionMatch![2]!,
+                      expectedVersion: input.expected_version as number,
+                      targetState: input.target_state as string,
+                      reason: input.reason as string,
+                    })
+                  : await createProblem({
+                      tx,
+                      kind: kind as "PROBLEM" | "CHANGE" | "KNOWLEDGE",
+                      code: input.code as string,
+                      title: input.title as string,
+                      body: input.body as string | undefined,
+                      risk: input.risk as string | undefined,
+                      impact: input.impact as string | undefined,
+                      implementationPlan: input.implementation_plan as
+                        string | undefined,
+                    });
+                const now = new Date().toISOString();
+                const eventType = isTransition
+                  ? `${kind}.STATE_CHANGED`
+                  : `${kind}.CREATED`;
+                await new PostgresOutboxWriter(tx).append({
+                  event_id: randomUUID(),
+                  event_type: eventType,
+                  schema_version: 1,
+                  occurred_at: now,
+                  producer: { service: config.serviceName, instance: "api" },
+                  aggregate: {
+                    type: kind,
+                    id: value.id,
+                    version: value.version,
+                  },
+                  actor: { type: principal.actor_type, id: principal.id },
+                  correlation_id: context.correlation_id,
+                  causation_id: context.causation_id,
+                  tenant_id: principal.tenant_id,
+                  organization_id: principal.tenant_id,
+                  idempotency_key: key,
+                  payload: value,
+                });
+                await new PostgresAudit(tx).append({
+                  id: randomUUID(),
+                  tenant_id: principal.tenant_id,
+                  event_type: eventType,
+                  occurred_at: now,
+                  actor: { type: principal.actor_type, id: principal.id },
+                  action: { command_type: eventType },
+                  subject: { entity_type: kind, entity_id: value.id },
+                  correlation_id: context.correlation_id,
+                  causation_id: context.causation_id,
+                  reason: {
+                    code: eventType,
+                    text: (input.reason as string) ?? "Record created",
+                  },
+                  before: null,
+                  after: value,
+                  outcome: { status: "SUCCESS" },
+                  classification: "INTERNAL",
+                  relations: [],
+                  evidence: [],
+                });
+                return { status: isTransition ? 200 : 201, body: value };
+              },
+            ),
+          );
+          json(res, result.status, { data: result.body, meta: context });
+          return true;
+        }
+        if (
+          req.method === "POST" &&
+          (req.url === "/api/v1/approvals" || approvalDecisionMatch)
+        ) {
+          const principal = await authenticate(
+            authentication,
+            req.headers.authorization,
+          );
+          const key = req.headers["idempotency-key"];
+          if (typeof key !== "string" || !key.trim())
+            throw new ApplicationError(
+              "VALIDATION_ERROR",
+              "Idempotency-Key is required.",
+            );
+          const body = await new Promise<string>((resolve) => {
+            let data = "";
+            req.on("data", (chunk) => (data += chunk));
+            req.on("end", () => resolve(data));
+          });
+          let input: Record<string, unknown>;
+          try {
+            input = (body ? JSON.parse(body) : {}) as Record<string, unknown>;
+          } catch {
+            throw new ApplicationError(
+              "VALIDATION_ERROR",
+              "Invalid JSON request.",
+            );
+          }
+          const isDecision = Boolean(approvalDecisionMatch);
+          await authorize(authorization, {
+            principal,
+            action: isDecision ? "approval.decide" : "approval.create",
+            resource: {
+              type: "approval",
+              id:
+                approvalDecisionMatch?.[1] ?? String(input.source_id ?? "new"),
+              tenant_id: principal.tenant_id,
+            },
+            scope: {},
+            context: { ...context },
+          });
+          const result = await uow.run(principal.tenant_id, (tx) =>
+            new PostgresIdempotencyStore(tx).execute(
+              {
+                principalId: principal.id,
+                operation: isDecision ? "APPROVAL.DECIDE" : "APPROVAL.CREATE",
+                businessScope:
+                  approvalDecisionMatch?.[1] ??
+                  String(input.source_id ?? "new"),
+                key,
+                semanticRequest: input as never,
+                expiresAt: new Date(Date.now() + 86400000),
+              },
+              async () => {
+                const value = isDecision
+                  ? await decideApproval({
+                      tx,
+                      requestId: approvalDecisionMatch![1]!,
+                      expectedVersion: input.expected_version as number,
+                      actorId: principal.id,
+                      decision:
+                        approvalDecisionMatch![2] === "approve"
+                          ? "APPROVED"
+                          : "REJECTED",
+                      reason: input.reason as string,
+                    })
+                  : await createApproval({
+                      tx,
+                      sourceType: input.source_type as string,
+                      sourceId: input.source_id as string,
+                      policyId: input.policy_id as string,
+                      policyVersion: input.policy_version as number,
+                      requesterId: principal.id,
+                      context: input.context,
+                    });
+                if (
+                  !isDecision &&
+                  (input.source_type === "PO_ISSUE" ||
+                    input.source_type === "PO_AMENDMENT")
+                )
+                  await linkPurchaseOrderApproval({
+                    tx,
+                    poId: input.source_id as string,
+                    requestId: value.id,
+                    sourceType: input.source_type,
+                  });
+                if (isDecision)
+                  await resolveApprovalWorkItem({ tx, approvalId: value.id });
+                const now = new Date().toISOString();
+                const eventType = isDecision
+                  ? `APPROVAL.${value.state}`
+                  : "APPROVAL.CREATED";
+                await new PostgresOutboxWriter(tx).append({
+                  event_id: randomUUID(),
+                  event_type: eventType,
+                  schema_version: 1,
+                  occurred_at: now,
+                  producer: { service: config.serviceName, instance: "api" },
+                  aggregate: {
+                    type: "APPROVAL",
+                    id: value.id,
+                    version: value.version,
+                  },
+                  actor: { type: principal.actor_type, id: principal.id },
+                  correlation_id: context.correlation_id,
+                  causation_id: context.causation_id,
+                  tenant_id: principal.tenant_id,
+                  organization_id: principal.tenant_id,
+                  idempotency_key: key,
+                  payload: value,
+                });
+                await new PostgresAudit(tx).append({
+                  id: randomUUID(),
+                  tenant_id: principal.tenant_id,
+                  event_type: eventType,
+                  occurred_at: now,
+                  actor: { type: principal.actor_type, id: principal.id },
+                  action: { command_type: eventType },
+                  subject: { entity_type: "APPROVAL", entity_id: value.id },
+                  correlation_id: context.correlation_id,
+                  causation_id: context.causation_id,
+                  reason: {
+                    code: eventType,
+                    text: (input.reason as string) ?? "Approval created",
+                  },
+                  before: null,
+                  after: value,
+                  outcome: { status: "SUCCESS" },
+                  classification: "INTERNAL",
+                  relations: [],
+                  evidence: [],
+                });
+                return { status: isDecision ? 200 : 201, body: value };
+              },
+            ),
+          );
+          if (
+            !isDecision &&
+            result.status === 201 &&
+            [
+              "REPLACEMENT",
+              "ASSET_RETIREMENT",
+              "ASSET_DISPOSAL",
+              "DATA_WIPE",
+            ].includes(String(input.source_type))
+          ) {
+            const approval = result.body as { id: string };
+            let recipients: string[] = [];
+            let routingFailed = false;
+            try {
+              const users = await uow.run(principal.tenant_id, (tx) =>
+                tx.query<{ id: string }>(
+                  "SELECT id FROM identity.users WHERE tenant_id=$1 AND employment_status='ACTIVE' AND archived_at IS NULL AND id<>$2 ORDER BY id",
+                  [principal.tenant_id, principal.id],
+                ),
+              );
+              const decisions = await Promise.all(
+                users.rows.map(async (user) => ({
+                  userId: user.id,
+                  allowed:
+                    (
+                      await authorization.evaluate({
+                        principal: {
+                          id: user.id,
+                          tenant_id: principal.tenant_id,
+                          actor_type: "USER",
+                        },
+                        action: "approval.decide",
+                        resource: {
+                          type: "approval",
+                          id: approval.id,
+                          tenant_id: principal.tenant_id,
+                        },
+                        scope: {},
+                        context: {
+                          ...context,
+                          source_type: input.source_type,
+                          source_id: input.source_id,
+                        },
+                      })
+                    ).result === "ALLOW",
+                })),
+              );
+              recipients = decisions
+                .filter((decision) => decision.allowed)
+                .map((decision) => decision.userId);
+            } catch {
+              routingFailed = true;
+            }
+            await uow.run(principal.tenant_id, async (tx) => {
+              if (recipients.length) {
+                for (const recipientId of recipients)
+                  await tx.query(
+                    "INSERT INTO communication.notifications(id,tenant_id,recipient_user_id,event_type,subject,body,dedupe_key) VALUES($1,$2,$3,'APPROVAL.CREATED','Approval requires review',$4,$5) ON CONFLICT(tenant_id,dedupe_key) DO NOTHING",
+                    [
+                      randomUUID(),
+                      principal.tenant_id,
+                      recipientId,
+                      `An authorized reviewer must decide on ${String(input.source_type)} request ${approval.id}.`,
+                      `approval-created:${approval.id}:${recipientId}`,
+                    ],
+                  );
+                await resolveApprovalWorkItem({ tx, approvalId: approval.id });
+              } else {
+                await upsertApprovalWorkItem({
                   tx,
-                  incidentId: String((value as { id: string }).id),
-                  assetId: monitoringReference.asset_id,
-                  monitoringEventId: monitoringReference.event_id,
+                  approvalId: approval.id,
+                  title: routingFailed
+                    ? "Approval notification routing failed; operator review required"
+                    : "No authorized approval recipient resolved; route request manually",
+                });
+              }
+            });
+          }
+          json(res, result.status, { data: result.body, meta: context });
+          return true;
+        }
+        if (
+          req.method === "POST" &&
+          (req.url === "/api/v1/sla-instances" || slaTransitionMatch)
+        ) {
+          const principal = await authenticate(
+            authentication,
+            req.headers.authorization,
+          );
+          const key = req.headers["idempotency-key"];
+          if (typeof key !== "string" || !key.trim())
+            throw new ApplicationError(
+              "VALIDATION_ERROR",
+              "Idempotency-Key is required.",
+            );
+          const body = await new Promise<string>((resolve) => {
+            let data = "";
+            req.on("data", (chunk) => (data += chunk));
+            req.on("end", () => resolve(data));
+          });
+          let input: Record<string, unknown>;
+          try {
+            input = (body ? JSON.parse(body) : {}) as Record<string, unknown>;
+          } catch {
+            throw new ApplicationError(
+              "VALIDATION_ERROR",
+              "Invalid JSON request.",
+            );
+          }
+          const isTransition = Boolean(slaTransitionMatch);
+          await authorize(authorization, {
+            principal,
+            action: "sla.manage",
+            resource: {
+              type: "sla",
+              id: slaTransitionMatch?.[1] ?? String(input.object_id ?? "new"),
+              tenant_id: principal.tenant_id,
+            },
+            scope: {},
+            context: { ...context },
+          });
+          const result = await uow.run(principal.tenant_id, (tx) =>
+            new PostgresIdempotencyStore(tx).execute(
+              {
+                principalId: principal.id,
+                operation: isTransition ? "SLA.TRANSITION" : "SLA.START",
+                businessScope:
+                  slaTransitionMatch?.[1] ?? String(input.object_id ?? "new"),
+                key,
+                semanticRequest: input as never,
+                expiresAt: new Date(Date.now() + 86400000),
+              },
+              async () => {
+                const value = isTransition
+                  ? await transitionSla({
+                      tx,
+                      instanceId: slaTransitionMatch![1]!,
+                      expectedVersion: input.expected_version as number,
+                      targetState: input.target_state as string,
+                      reason: input.reason as string,
+                    })
+                  : await startSla({
+                      tx,
+                      objectType: input.object_type as string,
+                      objectId: input.object_id as string,
+                      targetId: input.target_id as string,
+                      now:
+                        typeof input.started_at === "string"
+                          ? input.started_at
+                          : new Date().toISOString(),
+                    });
+                const now = new Date().toISOString();
+                const eventType = isTransition
+                  ? "SLA.STATE_CHANGED"
+                  : "SLA.STARTED";
+                await new PostgresOutboxWriter(tx).append({
+                  event_id: randomUUID(),
+                  event_type: eventType,
+                  schema_version: 1,
+                  occurred_at: now,
+                  producer: { service: config.serviceName, instance: "api" },
+                  aggregate: {
+                    type: "SLA_INSTANCE",
+                    id: value.id,
+                    version: value.version,
+                  },
+                  actor: { type: principal.actor_type, id: principal.id },
+                  correlation_id: context.correlation_id,
+                  causation_id: context.causation_id,
+                  tenant_id: principal.tenant_id,
+                  organization_id: principal.tenant_id,
+                  idempotency_key: key,
+                  payload: value,
+                });
+                await new PostgresAudit(tx).append({
+                  id: randomUUID(),
+                  tenant_id: principal.tenant_id,
+                  event_type: eventType,
+                  occurred_at: now,
+                  actor: { type: principal.actor_type, id: principal.id },
+                  action: { command_type: eventType },
+                  subject: { entity_type: "SLA_INSTANCE", entity_id: value.id },
+                  correlation_id: context.correlation_id,
+                  causation_id: context.causation_id,
+                  reason: {
+                    code: eventType,
+                    text: (input.reason as string) ?? "SLA started",
+                  },
+                  before: null,
+                  after: value,
+                  outcome: { status: "SUCCESS" },
+                  classification: "INTERNAL",
+                  relations: [],
+                  evidence: [],
+                });
+                return { status: isTransition ? 200 : 201, body: value };
+              },
+            ),
+          );
+          json(res, result.status, { data: result.body, meta: context });
+          return true;
+        }
+        if (req.method === "POST" && (majorMatch || communicationMatch)) {
+          const principal = await authenticate(
+            authentication,
+            req.headers.authorization,
+          );
+          const key = req.headers["idempotency-key"];
+          if (typeof key !== "string" || !key.trim())
+            throw new ApplicationError(
+              "VALIDATION_ERROR",
+              "Idempotency-Key is required.",
+            );
+          const body = await new Promise<string>((resolve) => {
+            let data = "";
+            req.on("data", (chunk) => (data += chunk));
+            req.on("end", () => resolve(data));
+          });
+          let input: Record<string, unknown>;
+          try {
+            input = (body ? JSON.parse(body) : {}) as Record<string, unknown>;
+          } catch {
+            throw new ApplicationError(
+              "VALIDATION_ERROR",
+              "Invalid JSON request.",
+            );
+          }
+          const isMajor = Boolean(majorMatch);
+          await authorize(authorization, {
+            principal,
+            action: isMajor ? "incident.declare_major" : "incident.communicate",
+            resource: {
+              type: "incident",
+              id: (majorMatch ?? communicationMatch)![1]!,
+              tenant_id: principal.tenant_id,
+            },
+            scope: {},
+            context: { ...context },
+          });
+          const result = await uow.run(principal.tenant_id, (tx) =>
+            new PostgresIdempotencyStore(tx).execute(
+              {
+                principalId: principal.id,
+                operation: isMajor
+                  ? "INCIDENT.DECLARE_MAJOR"
+                  : "INCIDENT.COMMUNICATE",
+                businessScope: (majorMatch ?? communicationMatch)![1]!,
+                key,
+                semanticRequest: input as never,
+                expiresAt: new Date(Date.now() + 86400000),
+              },
+              async () => {
+                const value = isMajor
+                  ? await declareMajor({
+                      tx,
+                      incidentId: (majorMatch ?? communicationMatch)![1]!,
+                      expectedVersion: input.expected_version as number,
+                      reason: input.reason as string,
+                      cadence: input.communication_cadence as string,
+                    })
+                  : await publishCommunication({
+                      tx,
+                      incidentId: communicationMatch![1]!,
+                      audience: input.audience as string,
+                      channel: input.channel as string,
+                      subject: input.subject as string,
+                      body: input.body as string,
+                    });
+                const now = new Date().toISOString();
+                const eventType = isMajor
+                  ? "INCIDENT.MAJOR_DECLARED"
+                  : "INCIDENT.COMMUNICATION.PUBLISHED";
+                const output = value as unknown as Record<string, unknown>;
+                await new PostgresOutboxWriter(tx).append({
+                  event_id: randomUUID(),
+                  event_type: eventType,
+                  schema_version: 1,
+                  occurred_at: now,
+                  producer: { service: config.serviceName, instance: "api" },
+                  aggregate: {
+                    type: "INCIDENT",
+                    id: (output.id ?? output.incident_id) as string,
+                    version: (output.version as number | undefined) ?? 1,
+                  },
+                  actor: { type: principal.actor_type, id: principal.id },
+                  correlation_id: context.correlation_id,
+                  causation_id: context.causation_id,
+                  tenant_id: principal.tenant_id,
+                  organization_id: principal.tenant_id,
+                  idempotency_key: key,
+                  payload: value,
+                });
+                await new PostgresAudit(tx).append({
+                  id: randomUUID(),
+                  tenant_id: principal.tenant_id,
+                  event_type: eventType,
+                  occurred_at: now,
+                  actor: { type: principal.actor_type, id: principal.id },
+                  action: { command_type: eventType },
+                  subject: {
+                    entity_type: "INCIDENT",
+                    entity_id: (output.id ?? output.incident_id) as string,
+                  },
+                  correlation_id: context.correlation_id,
+                  causation_id: context.causation_id,
+                  reason: {
+                    code: eventType,
+                    text:
+                      (input.reason as string) ??
+                      (input.subject as string) ??
+                      "Major incident communication",
+                  },
+                  before: null,
+                  after: value,
+                  outcome: { status: "SUCCESS" },
+                  classification: "INTERNAL",
+                  relations: [],
+                  evidence: [],
+                });
+                return { status: 201, body: value };
+              },
+            ),
+          );
+          json(res, result.status, { data: result.body, meta: context });
+          return true;
+        }
+        if (req.method === "GET" && incidentCorrelationHistoryMatch) {
+          const principal = await authenticate(
+            authentication,
+            req.headers.authorization,
+          );
+          await authorize(authorization, {
+            principal,
+            action: "incident.correlation.read",
+            resource: {
+              type: "incident_correlation",
+              id: incidentCorrelationHistoryMatch[1]!,
+              tenant_id: principal.tenant_id,
+            },
+            scope: {},
+            context: { ...context },
+          });
+          const data = await uow.run(principal.tenant_id, (tx) =>
+            readIncidentCorrelationHistory(
+              tx,
+              incidentCorrelationHistoryMatch[1]!,
+            ),
+          );
+          json(res, 200, { data, meta: context });
+          return true;
+        }
+        if (
+          req.method === "POST" &&
+          (incidentCorrelationAttachMatch ||
+            incidentCorrelationDetachMatch ||
+            incidentCorrelationRejectMatch)
+        ) {
+          const principal = await authenticate(
+            authentication,
+            req.headers.authorization,
+          );
+          const key = req.headers["idempotency-key"];
+          if (typeof key !== "string" || !key.trim())
+            throw new ApplicationError(
+              "VALIDATION_ERROR",
+              "Idempotency-Key is required.",
+            );
+          const body = await new Promise<string>((resolve) => {
+            let data = "";
+            req.on("data", (chunk) => (data += chunk));
+            req.on("end", () => resolve(data));
+          });
+          let input: Record<string, unknown>;
+          try {
+            input = (body ? JSON.parse(body) : {}) as Record<string, unknown>;
+          } catch {
+            throw new ApplicationError(
+              "VALIDATION_ERROR",
+              "Invalid JSON request.",
+            );
+          }
+          const incidentId = (incidentCorrelationAttachMatch ??
+            incidentCorrelationDetachMatch ??
+            incidentCorrelationRejectMatch)![1]!;
+          const attach = !!incidentCorrelationAttachMatch;
+          const detach = !!incidentCorrelationDetachMatch;
+          if (
+            !Number.isSafeInteger(input.expected_version) ||
+            typeof input.reason !== "string" ||
+            !input.reason.trim()
+          )
+            throw new ApplicationError(
+              "VALIDATION_ERROR",
+              "expected_version and reason are required.",
+            );
+          if (!detach && typeof input.decision_id !== "string")
+            throw new ApplicationError(
+              "VALIDATION_ERROR",
+              "decision_id is required.",
+            );
+          const action = detach
+            ? "incident.correlation.detach"
+            : "incident.correlation.review";
+          await authorize(authorization, {
+            principal,
+            action,
+            resource: {
+              type: "incident",
+              id: incidentId,
+              tenant_id: principal.tenant_id,
+            },
+            scope: {},
+            context: { ...context },
+          });
+          if (attach) {
+            if (typeof input.root_incident_id !== "string")
+              throw new ApplicationError(
+                "VALIDATION_ERROR",
+                "root_incident_id is required.",
+              );
+            await authorize(authorization, {
+              principal,
+              action: "incident.correlation.review",
+              resource: {
+                type: "incident",
+                id: input.root_incident_id,
+                tenant_id: principal.tenant_id,
+              },
+              scope: {},
+              context: { ...context },
+            });
+          }
+          const operation = attach
+            ? "INCIDENT.CORRELATION_ATTACH"
+            : detach
+              ? "INCIDENT.CORRELATION_DETACH"
+              : "INCIDENT.CORRELATION_REJECT";
+          const result = await uow.run(principal.tenant_id, (tx) =>
+            new PostgresIdempotencyStore(tx).execute(
+              {
+                principalId: principal.id,
+                operation,
+                businessScope: incidentId,
+                key,
+                semanticRequest: input as never,
+                expiresAt: new Date(Date.now() + 86400000),
+              },
+              async () => {
+                const reason = input.reason as string;
+                const value = attach
+                  ? await attachIncidentToRoot({
+                      tx,
+                      incidentId,
+                      rootIncidentId: input.root_incident_id as string,
+                      decisionId: input.decision_id as string,
+                      expectedVersion: input.expected_version as number,
+                      actorId: principal.id,
+                      reason,
+                      correlationId: context.correlation_id,
+                    })
+                  : detach
+                    ? await detachIncidentFromRoot({
+                        tx,
+                        incidentId,
+                        expectedVersion: input.expected_version as number,
+                        actorId: principal.id,
+                        reason,
+                      })
+                    : await rejectIncidentCorrelation({
+                        tx,
+                        incidentId,
+                        decisionId: input.decision_id as string,
+                        expectedVersion: input.expected_version as number,
+                        actorId: principal.id,
+                        reason,
+                        correlationId: context.correlation_id,
+                      });
+                const eventType = attach
+                  ? "INCIDENT.LINKED_TO_ROOT"
+                  : detach
+                    ? "INCIDENT.DETACHED_FROM_ROOT"
+                    : "INCIDENT.CORRELATION_REJECTED";
+                const now = new Date().toISOString();
+                const output = value as unknown as Record<string, unknown>;
+                const aggregateVersion =
+                  (output.version as number | undefined) ??
+                  (input.expected_version as number);
+                await new PostgresOutboxWriter(tx).append({
+                  event_id: randomUUID(),
+                  event_type: eventType,
+                  schema_version: 1,
+                  occurred_at: now,
+                  producer: { service: config.serviceName, instance: "api" },
+                  aggregate: {
+                    type: "INCIDENT",
+                    id: incidentId,
+                    version: aggregateVersion,
+                  },
+                  actor: { type: principal.actor_type, id: principal.id },
+                  correlation_id: context.correlation_id,
+                  causation_id: context.causation_id,
+                  tenant_id: principal.tenant_id,
+                  organization_id: principal.tenant_id,
+                  idempotency_key: key,
+                  payload: value as never,
+                });
+                await new PostgresAudit(tx).append({
+                  id: randomUUID(),
+                  tenant_id: principal.tenant_id,
+                  event_type: eventType,
+                  occurred_at: now,
+                  actor: { type: principal.actor_type, id: principal.id },
+                  action: { command_type: operation },
+                  subject: { entity_type: "INCIDENT", entity_id: incidentId },
+                  correlation_id: context.correlation_id,
+                  causation_id: context.causation_id,
+                  reason: { code: operation, text: reason },
+                  before: (detach
+                    ? { root_incident_id: output.root_incident_id }
+                    : null) as never,
+                  after: value as never,
+                  outcome: { status: "SUCCESS" },
+                  classification: "INTERNAL",
+                  relations: [],
+                  evidence: [],
+                });
+                await recordIncidentCorrelationTimelineEvent({
+                  tx,
+                  incidentId,
+                  eventType,
+                  summary: attach
+                    ? `Manually attached to Root ${String(output.root_incident_id)}`
+                    : detach
+                      ? `Detached from Root ${String(output.root_incident_id)}`
+                      : "Correlation recommendation rejected by operator",
+                  payload: value,
+                  sourceEventId: randomUUID(),
+                });
+                return { status: 200, body: value };
+              },
+            ),
+          );
+          json(res, result.status, { data: result.body, meta: context });
+          return true;
+        }
+        if (
+          req.method === "POST" &&
+          (req.url === "/api/v1/incidents" ||
+            incidentTransitionMatch ||
+            incidentCorrelateMatch ||
+            incidentAssetLinkMatch ||
+            incidentAssetUnlinkMatch)
+        ) {
+          const principal = await authenticate(
+            authentication,
+            req.headers.authorization,
+          );
+          const key = req.headers["idempotency-key"];
+          if (typeof key !== "string" || !key.trim())
+            throw new ApplicationError(
+              "VALIDATION_ERROR",
+              "Idempotency-Key is required.",
+            );
+          const body = await new Promise<string>((resolve) => {
+            let data = "";
+            req.on("data", (chunk) => (data += chunk));
+            req.on("end", () => resolve(data));
+          });
+          let input: Record<string, unknown>;
+          try {
+            input = (body ? JSON.parse(body) : {}) as Record<string, unknown>;
+          } catch {
+            throw new ApplicationError(
+              "VALIDATION_ERROR",
+              "Invalid JSON request.",
+            );
+          }
+          const isTransition = Boolean(incidentTransitionMatch);
+          const isCorrelation = Boolean(incidentCorrelateMatch);
+          const isAssetLink = Boolean(incidentAssetLinkMatch);
+          const isAssetUnlink = Boolean(incidentAssetUnlinkMatch);
+          const action =
+            isAssetLink || isAssetUnlink
+              ? "incident.asset_link"
+              : isCorrelation
+                ? "incident.correlate"
+                : isTransition
+                  ? "incident.update"
+                  : "incident.create";
+          await authorize(authorization, {
+            principal,
+            action,
+            resource: {
+              type: "incident",
+              id:
+                incidentTransitionMatch?.[1] ??
+                incidentCorrelateMatch?.[1] ??
+                incidentAssetLinkMatch?.[1] ??
+                incidentAssetUnlinkMatch?.[1] ??
+                String(input.incident_code ?? "new"),
+              tenant_id: principal.tenant_id,
+            },
+            scope: {},
+            context: { ...context },
+          });
+          const result = await uow.run(principal.tenant_id, (tx) =>
+            new PostgresIdempotencyStore(tx).execute(
+              {
+                principalId: principal.id,
+                operation: isCorrelation
+                  ? "INCIDENT.CORRELATE"
+                  : isAssetLink
+                    ? "INCIDENT.ASSET_LINK"
+                    : isAssetUnlink
+                      ? "INCIDENT.ASSET_UNLINK"
+                      : isTransition
+                        ? "INCIDENT.TRANSITION"
+                        : "INCIDENT.CREATE",
+                businessScope:
+                  incidentTransitionMatch?.[1] ??
+                  incidentCorrelateMatch?.[1] ??
+                  incidentAssetLinkMatch?.[1] ??
+                  incidentAssetUnlinkMatch?.[1] ??
+                  String(input.incident_code ?? "new"),
+                key,
+                semanticRequest: input as never,
+                expiresAt: new Date(Date.now() + 86400000),
+              },
+              async () => {
+                const monitoringReference =
+                  !isAssetLink &&
+                  !isAssetUnlink &&
+                  !isCorrelation &&
+                  !isTransition &&
+                  input.monitoring_event_id
+                    ? await resolveMonitoringEventForIncident({
+                        tx,
+                        eventId: String(input.monitoring_event_id),
+                      })
+                    : null;
+                const value = isAssetLink
+                  ? await linkIncidentAsset({
+                      tx,
+                      incidentId: incidentAssetLinkMatch![1]!,
+                      assetId: input.asset_id as string,
+                      reason: input.reason as string,
+                      idempotencyKey: key,
+                      actor: principal,
+                      authorization,
+                      assetExists: async (assetId) => {
+                        await assertAssetExists({ tx, assetId });
+                      },
+                      correlationId: context.correlation_id,
+                    })
+                  : isAssetUnlink
+                    ? await detachIncidentAsset({
+                        tx,
+                        incidentId: incidentAssetUnlinkMatch![1]!,
+                        linkId: incidentAssetUnlinkMatch![2]!,
+                        expectedVersion: input.expected_version as number,
+                        reason: input.reason as string,
+                        actor: principal,
+                        authorization,
+                        correlationId: context.correlation_id,
+                      })
+                    : isCorrelation
+                      ? await correlateIncident({
+                          tx,
+                          childIncidentId: incidentCorrelateMatch![1]!,
+                          rootIncidentId: input.root_incident_id as string,
+                          relatedEntityType: input.related_entity_type as
+                            "INCIDENT" | "TICKET",
+                          relatedEntityId: input.related_entity_id as string,
+                          reason: input.reason as string,
+                          score: input.correlation_score as number | undefined,
+                        })
+                      : isTransition
+                        ? await transitionIncident({
+                            tx,
+                            incidentId: incidentTransitionMatch![1]!,
+                            expectedVersion: input.expected_version as number,
+                            targetState: input.target_state as string,
+                            reason: input.reason as string,
+                            verification: input.verification as
+                              string | undefined,
+                            resolutionSummary: input.resolution_summary as
+                              string | undefined,
+                            postChecks: input.post_checks as string | undefined,
+                          })
+                        : await createIncident({
+                            tx,
+                            incidentCode: input.incident_code as string,
+                            title: input.title as string,
+                            source: input.source as string,
+                            monitoringEventId: input.monitoring_event_id as
+                              string | undefined,
+                            priority: input.priority as string,
+                            serviceId: input.service_id as string | undefined,
+                          });
+                const automaticAssetLink = monitoringReference?.asset_id
+                  ? await recordMonitoringIncidentAssetLink({
+                      tx,
+                      incidentId: String((value as { id: string }).id),
+                      assetId: monitoringReference.asset_id,
+                      monitoringEventId: monitoringReference.event_id,
+                      actorType: principal.actor_type,
+                      actorId: principal.id,
+                      correlationId: context.correlation_id,
+                    })
+                  : null;
+                if (
+                  monitoringReference?.asset_id &&
+                  input.asset_id &&
+                  String(input.asset_id) !== monitoringReference.asset_id
+                )
+                  throw new ApplicationError(
+                    "BUSINESS_RULE_VIOLATION",
+                    "Explicit Asset does not match the canonical Monitoring event Asset.",
+                  );
+                const explicitAssetLink =
+                  !monitoringReference?.asset_id &&
+                  input.asset_id &&
+                  !isAssetLink &&
+                  !isAssetUnlink &&
+                  !isCorrelation &&
+                  !isTransition
+                    ? await recordExplicitIncidentAssetLink({
+                        tx,
+                        incidentId: String((value as { id: string }).id),
+                        assetId: String(input.asset_id),
+                        sourceReference: String(
+                          input.asset_source_reference ?? key,
+                        ),
+                        actorType: principal.actor_type,
+                        actorId: principal.id,
+                        actor: principal,
+                        authorization,
+                        reason: String(
+                          input.asset_link_reason ??
+                            "Explicit Asset selected during Incident intake",
+                        ),
+                        correlationId: context.correlation_id,
+                        assetExists: async (assetId) => {
+                          await assertAssetExists({ tx, assetId });
+                        },
+                      })
+                    : null;
+                const now = new Date().toISOString();
+                const output = value as unknown as Record<string, unknown>;
+                const assetLinkNoOp =
+                  (isAssetLink && output.created === false) ||
+                  (isAssetUnlink && output.detached === false);
+                const eventType = isAssetLink
+                  ? "INCIDENT.ASSET_LINKED"
+                  : isAssetUnlink
+                    ? "INCIDENT.ASSET_UNLINKED"
+                    : isCorrelation
+                      ? "INCIDENT.CORRELATED"
+                      : isTransition
+                        ? "INCIDENT.STATE_CHANGED"
+                        : "INCIDENT.CREATED";
+                if (!assetLinkNoOp)
+                  await new PostgresOutboxWriter(tx).append({
+                    event_id: randomUUID(),
+                    event_type: eventType,
+                    schema_version: 1,
+                    occurred_at: now,
+                    producer: { service: config.serviceName, instance: "api" },
+                    aggregate: {
+                      type: "INCIDENT",
+                      id: (output.id ?? output.root_incident_id) as string,
+                      version: (output.version as number | undefined) ?? 1,
+                    },
+                    actor: { type: principal.actor_type, id: principal.id },
+                    correlation_id: context.correlation_id,
+                    causation_id: context.causation_id,
+                    tenant_id: principal.tenant_id,
+                    organization_id: principal.tenant_id,
+                    idempotency_key: key,
+                    payload: value,
+                  });
+                if (!assetLinkNoOp)
+                  await new PostgresAudit(tx).append({
+                    id: randomUUID(),
+                    tenant_id: principal.tenant_id,
+                    event_type: eventType,
+                    occurred_at: now,
+                    actor: { type: principal.actor_type, id: principal.id },
+                    action: { command_type: eventType },
+                    subject: {
+                      entity_type: "INCIDENT",
+                      entity_id: (output.id ??
+                        output.root_incident_id) as string,
+                    },
+                    correlation_id: context.correlation_id,
+                    causation_id: context.causation_id,
+                    reason: {
+                      code: eventType,
+                      text: (input.reason as string) ?? "Incident created",
+                    },
+                    before: null,
+                    after: value,
+                    outcome: { status: "SUCCESS" },
+                    classification: "INTERNAL",
+                    relations: [],
+                    evidence: [],
+                  });
+                if (!assetLinkNoOp && (isAssetLink || isAssetUnlink))
+                  await recordIncidentCorrelationTimelineEvent({
+                    tx,
+                    incidentId:
+                      incidentAssetLinkMatch?.[1] ??
+                      incidentAssetUnlinkMatch![1]!,
+                    eventType,
+                    summary: isAssetLink
+                      ? `Asset ${String((value as { asset_id: string }).asset_id)} linked as affected`
+                      : `Asset ${String((value as { asset_id: string }).asset_id)} detached from affected assets`,
+                    payload: value as never,
+                    sourceEventId: randomUUID(),
+                  });
+                if (automaticAssetLink?.created) {
+                  await new PostgresOutboxWriter(tx).append({
+                    event_id: randomUUID(),
+                    event_type: "INCIDENT.ASSET_LINKED",
+                    schema_version: 1,
+                    occurred_at: now,
+                    producer: { service: config.serviceName, instance: "api" },
+                    aggregate: {
+                      type: "INCIDENT",
+                      id: String((value as { id: string }).id),
+                      version: 1,
+                    },
+                    actor: { type: principal.actor_type, id: principal.id },
+                    correlation_id: context.correlation_id,
+                    causation_id: context.causation_id,
+                    tenant_id: principal.tenant_id,
+                    organization_id: principal.tenant_id,
+                    idempotency_key: `${key}:asset-link:${automaticAssetLink.id}`,
+                    payload: {
+                      incident_id: String((value as { id: string }).id),
+                      asset_id: monitoringReference!.asset_id,
+                      link_id: automaticAssetLink.id,
+                      source_type: "MONITORING_EVENT",
+                      source_reference: monitoringReference!.event_id,
+                    },
+                  });
+                  await new PostgresAudit(tx).append({
+                    id: randomUUID(),
+                    tenant_id: principal.tenant_id,
+                    event_type: "INCIDENT.ASSET_LINKED",
+                    occurred_at: now,
+                    actor: { type: principal.actor_type, id: principal.id },
+                    action: {
+                      command_type: "INCIDENT.ASSET_LINK_FROM_MONITORING",
+                    },
+                    subject: {
+                      entity_type: "INCIDENT",
+                      entity_id: String((value as { id: string }).id),
+                    },
+                    correlation_id: context.correlation_id,
+                    causation_id: context.causation_id,
+                    reason: {
+                      code: "MONITORING_ASSET_REFERENCE",
+                      text: "Linked only from the validated same-tenant Monitoring event Asset reference.",
+                    },
+                    before: null,
+                    after: {
+                      asset_id: monitoringReference!.asset_id,
+                      link_id: automaticAssetLink.id,
+                    },
+                    outcome: { status: "SUCCESS" },
+                    classification: "INTERNAL",
+                    relations: [
+                      {
+                        entity_type: "ASSET",
+                        entity_id: monitoringReference!.asset_id!,
+                        relation: "AFFECTED_ASSET",
+                      },
+                    ],
+                    evidence: [
+                      {
+                        type: "MONITORING_EVENT",
+                        id: monitoringReference!.event_id,
+                        checksum: "",
+                        relation: "SOURCE",
+                      },
+                    ],
+                  });
+                }
+                if (explicitAssetLink?.created) {
+                  await new PostgresOutboxWriter(tx).append({
+                    event_id: randomUUID(),
+                    event_type: "INCIDENT.ASSET_LINKED",
+                    schema_version: 1,
+                    occurred_at: now,
+                    producer: { service: config.serviceName, instance: "api" },
+                    aggregate: {
+                      type: "INCIDENT",
+                      id: String((value as { id: string }).id),
+                      version: 1,
+                    },
+                    actor: { type: principal.actor_type, id: principal.id },
+                    correlation_id: context.correlation_id,
+                    causation_id: context.causation_id,
+                    tenant_id: principal.tenant_id,
+                    organization_id: principal.tenant_id,
+                    idempotency_key: `${key}:asset-link:${explicitAssetLink.id}`,
+                    payload: {
+                      incident_id: String((value as { id: string }).id),
+                      asset_id: String(input.asset_id),
+                      link_id: explicitAssetLink.id,
+                      source_type: "EXPLICIT_TICKET_OR_INTAKE_ASSET",
+                    },
+                  });
+                  await new PostgresAudit(tx).append({
+                    id: randomUUID(),
+                    tenant_id: principal.tenant_id,
+                    event_type: "INCIDENT.ASSET_LINKED",
+                    occurred_at: now,
+                    actor: { type: principal.actor_type, id: principal.id },
+                    action: { command_type: "INCIDENT.ASSET_LINK_FROM_INTAKE" },
+                    subject: {
+                      entity_type: "INCIDENT",
+                      entity_id: String((value as { id: string }).id),
+                    },
+                    correlation_id: context.correlation_id,
+                    causation_id: context.causation_id,
+                    reason: {
+                      code: "EXPLICIT_INTAKE_ASSET",
+                      text: String(
+                        input.asset_link_reason ??
+                          "Explicit Asset selected during Incident intake",
+                      ),
+                    },
+                    before: null,
+                    after: {
+                      asset_id: String(input.asset_id),
+                      link_id: explicitAssetLink.id,
+                    },
+                    outcome: { status: "SUCCESS" },
+                    classification: "INTERNAL",
+                    relations: [],
+                    evidence: [],
+                  });
+                }
+                return {
+                  status:
+                    isTransition ||
+                    isCorrelation ||
+                    isAssetUnlink ||
+                    (isAssetLink &&
+                      (value as { created?: boolean }).created === false)
+                      ? 200
+                      : 201,
+                  body: value,
+                };
+              },
+            ),
+          );
+          json(res, result.status, { data: result.body, meta: context });
+          return true;
+        }
+        if (req.method === "POST" && req.url === "/api/v1/agents/enroll") {
+          const principal = await authenticate(
+            authentication,
+            req.headers.authorization,
+          );
+          const body = await new Promise<string>((resolve) => {
+            let data = "";
+            req.on("data", (chunk) => (data += chunk));
+            req.on("end", () => resolve(data));
+          });
+          let input: Record<string, unknown>;
+          try {
+            input = (body ? JSON.parse(body) : {}) as Record<string, unknown>;
+          } catch {
+            throw new ApplicationError(
+              "VALIDATION_ERROR",
+              "Invalid JSON request.",
+            );
+          }
+          if (
+            typeof input.asset_id !== "string" ||
+            typeof input.agent_version !== "string"
+          )
+            throw new ApplicationError(
+              "VALIDATION_ERROR",
+              "asset_id and agent_version are required.",
+            );
+          await authorize(authorization, {
+            principal,
+            action: "agent.enroll",
+            resource: {
+              type: "agent",
+              id: input.asset_id,
+              tenant_id: principal.tenant_id,
+            },
+            scope: {},
+            context: { ...context },
+          });
+          const result = await uow.run(principal.tenant_id, async (tx) => {
+            const enrollment = await issueEnrollmentToken({
+              tx,
+              assetId: input.asset_id as string,
+              agentVersion: input.agent_version as string,
+              expiresAt: new Date(Date.now() + 86400000).toISOString(),
+            });
+            const now = new Date().toISOString();
+            await new PostgresOutboxWriter(tx).append({
+              event_id: randomUUID(),
+              event_type: "AGENT.ENROLLED",
+              schema_version: 1,
+              occurred_at: now,
+              producer: { service: config.serviceName, instance: "api" },
+              aggregate: { type: "AGENT", id: enrollment.id, version: 1 },
+              actor: { type: principal.actor_type, id: principal.id },
+              correlation_id: context.correlation_id,
+              causation_id: context.causation_id,
+              tenant_id: principal.tenant_id,
+              organization_id: principal.tenant_id,
+              idempotency_key: randomUUID(),
+              payload: {
+                agent_id: enrollment.id,
+                asset_id: enrollment.asset_id,
+                agent_version: enrollment.agent_version,
+                enrolled_at: now,
+              },
+            });
+            return enrollment;
+          });
+          json(res, 201, { data: result, meta: context });
+          return true;
+        }
+        if (req.method === "POST" && req.url === "/api/v1/monitoring/events") {
+          const principal = await authenticate(
+            authentication,
+            req.headers.authorization,
+          );
+          const key = req.headers["idempotency-key"];
+          if (typeof key !== "string" || !key.trim())
+            throw new ApplicationError(
+              "VALIDATION_ERROR",
+              "Idempotency-Key is required.",
+            );
+          const body = await new Promise<string>((resolve) => {
+            let data = "";
+            req.on("data", (chunk) => (data += chunk));
+            req.on("end", () => resolve(data));
+          });
+          let input: Record<string, unknown>;
+          try {
+            input = (body ? JSON.parse(body) : {}) as Record<string, unknown>;
+          } catch {
+            throw new ApplicationError(
+              "VALIDATION_ERROR",
+              "Invalid JSON request.",
+            );
+          }
+          const event = normalizeMonitoringEvent(input);
+          await authorize(authorization, {
+            principal,
+            action: "monitoring.event.write",
+            resource: {
+              type: "monitoring_event",
+              id: event.provider_event_id,
+              tenant_id: principal.tenant_id,
+            },
+            scope: {},
+            context: { ...context },
+          });
+          const result = await uow.run(principal.tenant_id, (tx) =>
+            new PostgresIdempotencyStore(tx).execute(
+              {
+                principalId: principal.id,
+                operation: "MONITORING.EVENT.WRITE",
+                businessScope: `${event.source}:${event.provider_event_id}`,
+                key,
+                semanticRequest: input as never,
+                expiresAt: new Date(Date.now() + 86400000),
+              },
+              async () => {
+                if (event.asset_id)
+                  await assertAssetExists({ tx, assetId: event.asset_id });
+                const inserted = await tx.query(
+                  "INSERT INTO monitoring.events(id,tenant_id,source,provider_event_id,source_correlation_key,asset_id,asset_reference_validated,service_id,metric,observed_value,threshold,severity,observed_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) ON CONFLICT (tenant_id,source,provider_event_id) DO NOTHING RETURNING id,source,provider_event_id,source_correlation_key,asset_id,asset_reference_validated,service_id,metric,observed_value,threshold,severity,observed_at",
+                  [
+                    randomUUID(),
+                    principal.tenant_id,
+                    event.source,
+                    event.provider_event_id,
+                    event.source_correlation_key,
+                    event.asset_id,
+                    Boolean(event.asset_id),
+                    event.service_id,
+                    event.metric,
+                    event.observed_value,
+                    event.threshold,
+                    event.severity,
+                    event.observed_at,
+                  ],
+                );
+                const observation =
+                  inserted.rows[0] ??
+                  (
+                    await tx.query(
+                      "SELECT id,source,provider_event_id,source_correlation_key,asset_id,asset_reference_validated,service_id,metric,observed_value,threshold,severity,observed_at FROM monitoring.events WHERE tenant_id=$1 AND source=$2 AND provider_event_id=$3",
+                      [
+                        principal.tenant_id,
+                        event.source,
+                        event.provider_event_id,
+                      ],
+                    )
+                  ).rows[0];
+                if (!observation)
+                  throw new ApplicationError(
+                    "BUSINESS_RULE_VIOLATION",
+                    "Monitoring event could not be persisted.",
+                  );
+                const eventType =
+                  event.severity === "RECOVERED"
+                    ? "MONITORING.RECOVERED"
+                    : "MONITORING.CRITICAL";
+                const now = new Date().toISOString();
+                await new PostgresOutboxWriter(tx).append({
+                  event_id: randomUUID(),
+                  event_type: eventType,
+                  schema_version: 1,
+                  occurred_at: now,
+                  producer: { service: config.serviceName, instance: "api" },
+                  aggregate: {
+                    type: "MONITORING_EVENT",
+                    id: observation.id,
+                    version: 1,
+                  },
+                  actor: { type: principal.actor_type, id: principal.id },
+                  correlation_id: context.correlation_id,
+                  causation_id: context.causation_id,
+                  tenant_id: principal.tenant_id,
+                  organization_id: principal.tenant_id,
+                  idempotency_key: key,
+                  payload: { monitoring_event_id: observation.id },
+                });
+                await new PostgresAudit(tx).append({
+                  id: randomUUID(),
+                  tenant_id: principal.tenant_id,
+                  event_type: eventType,
+                  occurred_at: now,
+                  actor: { type: principal.actor_type, id: principal.id },
+                  action: { command_type: "MONITORING.EVENT.WRITE" },
+                  subject: {
+                    entity_type: "MONITORING_EVENT",
+                    entity_id: observation.id,
+                  },
+                  correlation_id: context.correlation_id,
+                  causation_id: context.causation_id,
+                  reason: { code: "MONITORING_INGESTED", text: event.source },
+                  before: null,
+                  after: { monitoring_event_id: observation.id },
+                  outcome: { status: "SUCCESS" },
+                  classification: "INTERNAL",
+                  relations: [],
+                  evidence: [],
+                });
+                return { status: 201, body: observation };
+              },
+            ),
+          );
+          json(res, result.status, { data: result.body, meta: context });
+          return true;
+        }
+        if (req.method === "POST" && workResolveMatch) {
+          const principal = await authenticate(
+            authentication,
+            req.headers.authorization,
+          );
+          const key = req.headers["idempotency-key"];
+          if (typeof key !== "string" || !key.trim())
+            throw new ApplicationError(
+              "VALIDATION_ERROR",
+              "Idempotency-Key is required.",
+            );
+          const body = await new Promise<string>((resolve) => {
+            let data = "";
+            req.on("data", (c) => (data += c));
+            req.on("end", () => resolve(data));
+          });
+          let input: Record<string, unknown>;
+          try {
+            input = (body ? JSON.parse(body) : {}) as Record<string, unknown>;
+          } catch {
+            throw new ApplicationError(
+              "VALIDATION_ERROR",
+              "Invalid JSON request.",
+            );
+          }
+          if (
+            !Number.isSafeInteger(input.expected_version) ||
+            typeof input.reason !== "string"
+          )
+            throw new ApplicationError(
+              "VALIDATION_ERROR",
+              "expected_version and reason are required.",
+            );
+          await authorize(authorization, {
+            principal,
+            action: "work_item.resolve",
+            resource: {
+              type: "work_item",
+              id: workResolveMatch[1]!,
+              tenant_id: principal.tenant_id,
+            },
+            scope: {},
+            context: { ...context },
+          });
+          const result = await uow.run(principal.tenant_id, (tx) =>
+            new PostgresIdempotencyStore(tx).execute(
+              {
+                principalId: principal.id,
+                operation: "WORK_ITEM.RESOLVE",
+                businessScope: workResolveMatch[1]!,
+                key,
+                semanticRequest: input as never,
+                expiresAt: new Date(Date.now() + 86400000),
+              },
+              async () => {
+                const item = await resolveWorkItem({
+                  tx,
+                  workItemId: workResolveMatch[1]!,
+                  expectedVersion: input.expected_version as number,
+                  reason: input.reason as string,
+                });
+                const now = new Date().toISOString();
+                await new PostgresOutboxWriter(tx).append({
+                  event_id: randomUUID(),
+                  event_type: "WORK_ITEM.RESOLVED",
+                  schema_version: 1,
+                  occurred_at: now,
+                  producer: { service: config.serviceName, instance: "api" },
+                  aggregate: {
+                    type: "WORK_ITEM",
+                    id: item.id,
+                    version: item.version,
+                  },
+                  actor: { type: principal.actor_type, id: principal.id },
+                  correlation_id: context.correlation_id,
+                  causation_id: context.causation_id,
+                  tenant_id: principal.tenant_id,
+                  organization_id: principal.tenant_id,
+                  idempotency_key: key,
+                  payload: item,
+                });
+                await new PostgresAudit(tx).append({
+                  id: randomUUID(),
+                  tenant_id: principal.tenant_id,
+                  event_type: "WORK_ITEM.RESOLVED",
+                  occurred_at: now,
+                  actor: { type: principal.actor_type, id: principal.id },
+                  action: { command_type: "WORK_ITEM.RESOLVE" },
+                  subject: { entity_type: "WORK_ITEM", entity_id: item.id },
+                  correlation_id: context.correlation_id,
+                  causation_id: context.causation_id,
+                  reason: {
+                    code: "WORK_ITEM_RESOLVED",
+                    text: input.reason as string,
+                  },
+                  before: { version: input.expected_version as number },
+                  after: item,
+                  outcome: { status: "SUCCESS" },
+                  classification: "INTERNAL",
+                  relations: [],
+                  evidence: [],
+                });
+                return { status: 200, body: item };
+              },
+            ),
+          );
+          json(res, result.status, { data: result.body, meta: context });
+          return true;
+        }
+        if (
+          req.method === "POST" &&
+          (ticketCreateMatch || ticketCommandMatch)
+        ) {
+          const principal = await authenticate(
+            authentication,
+            req.headers.authorization,
+          );
+          const key = req.headers["idempotency-key"];
+          if (typeof key !== "string" || !key.trim())
+            throw new ApplicationError(
+              "VALIDATION_ERROR",
+              "Idempotency-Key is required.",
+            );
+          const body = await new Promise<string>((resolve) => {
+            let data = "";
+            req.on("data", (c) => (data += c));
+            req.on("end", () => resolve(data));
+          });
+          let input: Record<string, unknown>;
+          try {
+            input = (body ? JSON.parse(body) : {}) as Record<string, unknown>;
+          } catch {
+            throw new ApplicationError(
+              "VALIDATION_ERROR",
+              "Invalid JSON request.",
+            );
+          }
+          let ticketSourceContext:
+            | { type: "KNOWLEDGE_RECOMMENDATION"; referenceId: string }
+            | undefined;
+          if (input.source_context !== undefined) {
+            const source = input.source_context;
+            if (
+              !source ||
+              typeof source !== "object" ||
+              Array.isArray(source) ||
+              (source as Record<string, unknown>).type !==
+                "KNOWLEDGE_RECOMMENDATION" ||
+              typeof (source as Record<string, unknown>).reference_id !==
+                "string" ||
+              Object.keys(source).some(
+                (field) => !["type", "reference_id"].includes(field),
+              )
+            )
+              throw new ApplicationError(
+                "VALIDATION_ERROR",
+                "source_context is invalid.",
+              );
+            ticketSourceContext = {
+              type: "KNOWLEDGE_RECOMMENDATION",
+              referenceId: (source as { reference_id: string }).reference_id,
+            };
+          }
+          const action = ticketCreateMatch
+            ? "ticket.create"
+            : ticketCommandMatch![2] === "resolve"
+              ? "ticket.resolve"
+              : ticketCommandMatch![2] === "reopen"
+                ? "ticket.reopen"
+                : ticketCommandMatch![2] === "assign"
+                  ? "ticket.assign"
+                  : ticketCommandMatch![2] === "enrich"
+                    ? "ticket.update"
+                    : "ticket.update";
+          const scopeId = ticketCreateMatch
+            ? principal.id
+            : ticketCommandMatch![1]!;
+          await authorize(authorization, {
+            principal,
+            action,
+            resource: {
+              type: "ticket",
+              id: scopeId,
+              tenant_id: principal.tenant_id,
+            },
+            scope: {},
+            context: { ...context },
+          });
+          const result = await uow.run(principal.tenant_id, (tx) =>
+            new PostgresIdempotencyStore(tx).execute(
+              {
+                principalId: principal.id,
+                operation: ticketCreateMatch
+                  ? "TICKET.CREATE"
+                  : `TICKET.${ticketCommandMatch![2]!.toUpperCase()}`,
+                businessScope: scopeId,
+                key,
+                semanticRequest: input as never,
+                expiresAt: new Date(Date.now() + 86400000),
+              },
+              async () => {
+                const value = ticketCreateMatch
+                  ? await createTicket({
+                      tx,
+                      ticketCode: input.ticket_code as string,
+                      title: input.title as string,
+                      description: input.description as string,
+                      requesterUserId: input.requester_user_id as string,
+                      priority: input.priority as string,
+                      sourceChannel: input.source_channel as string,
+                      ...(ticketSourceContext
+                        ? { sourceContext: ticketSourceContext }
+                        : {}),
+                    })
+                  : ticketCommandMatch![2] === "enrich"
+                    ? await enrichTicket({
+                        tx,
+                        ticketId: ticketCommandMatch![1]!,
+                        expectedVersion: input.expected_version as number,
+                        ...(typeof input.asset_id === "string"
+                          ? { assetId: input.asset_id }
+                          : {}),
+                        reason: input.reason as string,
+                      })
+                    : await transitionTicket({
+                        tx,
+                        ticketId: ticketCommandMatch![1]!,
+                        expectedVersion: input.expected_version as number,
+                        targetState:
+                          ticketCommandMatch![2] === "assign"
+                            ? "ASSIGNED"
+                            : ticketCommandMatch![2] === "start"
+                              ? "IN_PROGRESS"
+                              : ticketCommandMatch![2] === "request-info"
+                                ? "WAITING_USER"
+                                : ticketCommandMatch![2] === "resolve"
+                                  ? "RESOLVED"
+                                  : ticketCommandMatch![2] === "reopen"
+                                    ? "REOPENED"
+                                    : ticketCommandMatch![2]!.toUpperCase(),
+                        reason: input.reason as string,
+                        actorType: principal.actor_type,
+                        actorId: principal.id,
+                        correlationId: context.correlation_id,
+                        ...(typeof input.assignee_user_id === "string"
+                          ? { assigneeUserId: input.assignee_user_id }
+                          : {}),
+                        ...(typeof input.resolution_code === "string"
+                          ? { resolutionCode: input.resolution_code }
+                          : {}),
+                      });
+                let workItem:
+                  Awaited<ReturnType<typeof createTicketWorkItem>> | undefined;
+                if (ticketCreateMatch) {
+                  workItem = await createTicketWorkItem({
+                    tx,
+                    ticketId: value.id,
+                    title: input.title as string,
+                    priority: input.priority as string,
+                  });
+                  const createdAt = new Date().toISOString();
+                  await new PostgresOutboxWriter(tx).append({
+                    event_id: randomUUID(),
+                    event_type: "WORK_ITEM.CREATED",
+                    schema_version: 1,
+                    occurred_at: createdAt,
+                    producer: { service: config.serviceName, instance: "api" },
+                    aggregate: {
+                      type: "WORK_ITEM",
+                      id: workItem.id,
+                      version: workItem.version,
+                    },
+                    actor: { type: principal.actor_type, id: principal.id },
+                    correlation_id: context.correlation_id,
+                    causation_id: context.causation_id,
+                    tenant_id: principal.tenant_id,
+                    organization_id: principal.tenant_id,
+                    idempotency_key: key,
+                    payload: workItem,
+                  });
+                  await tx.query(
+                    "INSERT INTO operations.timeline_events(id,tenant_id,entity_type,entity_id,event_type,summary,payload,source_event_id) VALUES($1,$2,'TICKET',$3,'TICKET.CREATED',$4,$5,$6)",
+                    [
+                      randomUUID(),
+                      principal.tenant_id,
+                      value.id,
+                      `Ticket ${input.ticket_code as string} created`,
+                      JSON.stringify(value),
+                      randomUUID(),
+                    ],
+                  );
+                  await tx.query(
+                    "INSERT INTO communication.notifications(id,tenant_id,recipient_user_id,event_type,subject,body,dedupe_key) VALUES($1,$2,$3,'TICKET.CREATED',$4,$5,$6) ON CONFLICT DO NOTHING",
+                    [
+                      randomUUID(),
+                      principal.tenant_id,
+                      input.requester_user_id as string,
+                      "Ticket created",
+                      `Ticket ${input.ticket_code as string} was created.`,
+                      `ticket-created:${value.id}`,
+                    ],
+                  );
+                  await refreshSearchEntity(tx, "TICKET", value.id);
+                }
+                const eventType = ticketCreateMatch
+                  ? "TICKET.CREATED"
+                  : ticketCommandMatch![2] === "enrich"
+                    ? "TICKET.ENRICHED"
+                    : ticketCommandMatch![2] === "resolve"
+                      ? "TICKET.RESOLVED"
+                      : ticketCommandMatch![2] === "reopen"
+                        ? "TICKET.REOPENED"
+                        : "TICKET.STATE_CHANGED";
+                const now = new Date().toISOString();
+                await new PostgresOutboxWriter(tx).append({
+                  event_id: randomUUID(),
+                  event_type: eventType,
+                  schema_version: 1,
+                  occurred_at: now,
+                  producer: { service: config.serviceName, instance: "api" },
+                  aggregate: {
+                    type: "TICKET",
+                    id: value.id,
+                    version: value.version,
+                  },
+                  actor: { type: principal.actor_type, id: principal.id },
+                  correlation_id: context.correlation_id,
+                  causation_id: context.causation_id,
+                  tenant_id: principal.tenant_id,
+                  organization_id: principal.tenant_id,
+                  idempotency_key: key,
+                  payload: value,
+                });
+                await new PostgresAudit(tx).append({
+                  id: randomUUID(),
+                  tenant_id: principal.tenant_id,
+                  event_type: eventType,
+                  occurred_at: now,
+                  actor: { type: principal.actor_type, id: principal.id },
+                  action: {
+                    command_type: ticketCreateMatch
+                      ? "TICKET.CREATE"
+                      : `TICKET.${ticketCommandMatch![2]!.toUpperCase()}`,
+                  },
+                  subject: { entity_type: "TICKET", entity_id: value.id },
+                  correlation_id: context.correlation_id,
+                  causation_id: context.causation_id,
+                  reason: {
+                    code: eventType,
+                    text: (input.reason as string) ?? "Ticket created",
+                  },
+                  before: null,
+                  after: value,
+                  outcome: { status: "SUCCESS" },
+                  classification: "INTERNAL",
+                  relations: [],
+                  evidence: [],
+                });
+                return { status: 201, body: value };
+              },
+            ),
+          );
+          json(res, result.status, { data: result.body, meta: context });
+          return true;
+        }
+        if (
+          req.method === "POST" &&
+          (requestReturnMatch || receiveReturnMatch)
+        ) {
+          const match = requestReturnMatch ?? receiveReturnMatch!;
+          const principal = await authenticate(
+            authentication,
+            req.headers.authorization,
+          );
+          const key = req.headers["idempotency-key"];
+          if (typeof key !== "string" || !key.trim())
+            throw new ApplicationError(
+              "VALIDATION_ERROR",
+              "Idempotency-Key is required.",
+            );
+          const body = await new Promise<string>((resolve) => {
+            let data = "";
+            req.on("data", (c) => (data += c));
+            req.on("end", () => resolve(data));
+          });
+          let input: Record<string, unknown>;
+          try {
+            input = (body ? JSON.parse(body) : {}) as Record<string, unknown>;
+          } catch {
+            throw new ApplicationError(
+              "VALIDATION_ERROR",
+              "Invalid JSON request.",
+            );
+          }
+          const request = Boolean(requestReturnMatch);
+          const action = request
+            ? "asset.request_return"
+            : "asset.receive_return";
+          await authorize(authorization, {
+            principal,
+            action,
+            resource: {
+              type: "asset",
+              id: match[1]!,
+              tenant_id: principal.tenant_id,
+            },
+            scope: {},
+            context: { ...context },
+          });
+          const required = request
+            ? Number.isSafeInteger(input.expected_version) &&
+              typeof input.due_at === "string" &&
+              typeof input.reason === "string"
+            : Number.isSafeInteger(input.expected_version) &&
+              typeof input.return_request_id === "string" &&
+              typeof input.received_location_id === "string" &&
+              typeof input.condition_grade === "string" &&
+              typeof input.notes === "string";
+          if (!required)
+            throw new ApplicationError(
+              "VALIDATION_ERROR",
+              request
+                ? "expected_version, due_at and reason are required."
+                : "expected_version, return_request_id, received_location_id, condition_grade and notes are required.",
+            );
+          const result = await uow.run(principal.tenant_id, (tx) =>
+            new PostgresIdempotencyStore(tx).execute(
+              {
+                principalId: principal.id,
+                operation: request
+                  ? "ASSET.REQUEST_RETURN"
+                  : "ASSET.RECEIVE_RETURN",
+                businessScope: match[1]!,
+                key,
+                semanticRequest: input as never,
+                expiresAt: new Date(Date.now() + 86400000),
+              },
+              async () => {
+                const value = request
+                  ? await requestReturn({
+                      tx,
+                      assetId: match[1]!,
+                      expectedVersion: input.expected_version as number,
+                      dueAt: input.due_at as string,
+                      reason: input.reason as string,
+                    })
+                  : await receiveReturn({
+                      tx,
+                      assetId: match[1]!,
+                      expectedVersion: input.expected_version as number,
+                      returnRequestId: input.return_request_id as string,
+                      receivedLocationId: input.received_location_id as string,
+                      conditionGrade: input.condition_grade as string,
+                      notes: input.notes as string,
+                    });
+                const eventType = request
+                  ? "ASSET.RETURN_REQUESTED"
+                  : "ASSET.RETURNED";
+                const now = new Date().toISOString();
+                await new PostgresOutboxWriter(tx).append({
+                  event_id: randomUUID(),
+                  event_type: eventType,
+                  schema_version: 1,
+                  occurred_at: now,
+                  producer: { service: config.serviceName, instance: "api" },
+                  aggregate: {
+                    type: "ASSET",
+                    id: value.asset_id,
+                    version: value.version,
+                  },
+                  actor: { type: principal.actor_type, id: principal.id },
+                  correlation_id: context.correlation_id,
+                  causation_id: context.causation_id,
+                  tenant_id: principal.tenant_id,
+                  organization_id: principal.tenant_id,
+                  idempotency_key: key,
+                  payload: value,
+                });
+                await new PostgresAudit(tx).append({
+                  id: randomUUID(),
+                  tenant_id: principal.tenant_id,
+                  event_type: eventType,
+                  occurred_at: now,
+                  actor: { type: principal.actor_type, id: principal.id },
+                  action: {
+                    command_type: request
+                      ? "ASSET.REQUEST_RETURN"
+                      : "ASSET.RECEIVE_RETURN",
+                  },
+                  subject: { entity_type: "ASSET", entity_id: value.asset_id },
+                  correlation_id: context.correlation_id,
+                  causation_id: context.causation_id,
+                  reason: {
+                    code: eventType,
+                    text: request
+                      ? (input.reason as string)
+                      : (input.notes as string),
+                  },
+                  before: { version: input.expected_version as number },
+                  after: value,
+                  outcome: { status: "SUCCESS" },
+                  classification: "INTERNAL",
+                  relations: [],
+                  evidence: [],
+                });
+                return { status: 201, body: value };
+              },
+            ),
+          );
+          json(res, result.status, { data: result.body, meta: context });
+          return true;
+        }
+        if (req.method === "POST" && transferMatch) {
+          const principal = await authenticate(
+            authentication,
+            req.headers.authorization,
+          );
+          const key = req.headers["idempotency-key"];
+          if (typeof key !== "string" || !key.trim())
+            throw new ApplicationError(
+              "VALIDATION_ERROR",
+              "Idempotency-Key is required.",
+            );
+          const body = await new Promise<string>((resolve) => {
+            let data = "";
+            req.on("data", (c) => (data += c));
+            req.on("end", () => resolve(data));
+          });
+          let input: Record<string, unknown>;
+          try {
+            input = (body ? JSON.parse(body) : {}) as Record<string, unknown>;
+          } catch {
+            throw new ApplicationError(
+              "VALIDATION_ERROR",
+              "Invalid JSON request.",
+            );
+          }
+          if (
+            !Number.isSafeInteger(input.expected_version) ||
+            typeof input.to_location_id !== "string" ||
+            typeof input.to_user_id !== "string" ||
+            typeof input.reason !== "string"
+          )
+            throw new ApplicationError(
+              "VALIDATION_ERROR",
+              "expected_version, to_location_id, to_user_id and reason are required.",
+            );
+          await authorize(authorization, {
+            principal,
+            action: "asset.transfer",
+            resource: {
+              type: "asset",
+              id: transferMatch[1]!,
+              tenant_id: principal.tenant_id,
+            },
+            scope: {},
+            context: { ...context },
+          });
+          const result = await uow.run(principal.tenant_id, (tx) =>
+            new PostgresIdempotencyStore(tx).execute(
+              {
+                principalId: principal.id,
+                operation: "ASSET.TRANSFER",
+                businessScope: transferMatch[1]!,
+                key,
+                semanticRequest: input as never,
+                expiresAt: new Date(Date.now() + 86400000),
+              },
+              async () => {
+                const movement = await transferAsset({
+                  tx,
+                  assetId: transferMatch[1]!,
+                  expectedVersion: input.expected_version as number,
+                  toLocationId: input.to_location_id as string,
+                  toUserId: input.to_user_id as string,
+                  reason: input.reason as string,
                   actorType: principal.actor_type,
                   actorId: principal.id,
                   correlationId: context.correlation_id,
-                })
-              : null;
+                });
+                const now = new Date().toISOString();
+                await new PostgresOutboxWriter(tx).append({
+                  event_id: randomUUID(),
+                  event_type: "ASSET.TRANSFERRED",
+                  schema_version: 1,
+                  occurred_at: now,
+                  producer: { service: config.serviceName, instance: "api" },
+                  aggregate: {
+                    type: "ASSET",
+                    id: movement.asset_id,
+                    version: movement.version,
+                  },
+                  actor: { type: principal.actor_type, id: principal.id },
+                  correlation_id: context.correlation_id,
+                  causation_id: context.causation_id,
+                  tenant_id: principal.tenant_id,
+                  organization_id: principal.tenant_id,
+                  idempotency_key: key,
+                  payload: movement,
+                });
+                await new PostgresAudit(tx).append({
+                  id: randomUUID(),
+                  tenant_id: principal.tenant_id,
+                  event_type: "ASSET.TRANSFERRED",
+                  occurred_at: now,
+                  actor: { type: principal.actor_type, id: principal.id },
+                  action: { command_type: "ASSET.TRANSFER" },
+                  subject: {
+                    entity_type: "ASSET",
+                    entity_id: movement.asset_id,
+                  },
+                  correlation_id: context.correlation_id,
+                  causation_id: context.causation_id,
+                  reason: {
+                    code: "ASSET_TRANSFERRED",
+                    text: input.reason as string,
+                  },
+                  before: { version: input.expected_version as number },
+                  after: movement,
+                  outcome: { status: "SUCCESS" },
+                  classification: "INTERNAL",
+                  relations: [],
+                  evidence: [],
+                });
+                return { status: 201, body: movement };
+              },
+            ),
+          );
+          json(res, result.status, { data: result.body, meta: context });
+          return true;
+        }
+        if (req.method === "POST" && assignMatch) {
+          const principal = await authenticate(
+            authentication,
+            req.headers.authorization,
+          );
+          const key = req.headers["idempotency-key"];
+          if (typeof key !== "string" || !key.trim())
+            throw new ApplicationError(
+              "VALIDATION_ERROR",
+              "Idempotency-Key is required.",
+            );
+          const body = await new Promise<string>((resolve) => {
+            let data = "";
+            req.on("data", (c) => (data += c));
+            req.on("end", () => resolve(data));
+          });
+          let input: Record<string, unknown>;
+          try {
+            input = (body ? JSON.parse(body) : {}) as Record<string, unknown>;
+          } catch {
+            throw new ApplicationError(
+              "VALIDATION_ERROR",
+              "Invalid JSON request.",
+            );
+          }
+          if (
+            !Number.isSafeInteger(input.expected_version) ||
+            typeof input.user_id !== "string" ||
+            typeof input.reason !== "string"
+          )
+            throw new ApplicationError(
+              "VALIDATION_ERROR",
+              "expected_version, user_id and reason are required.",
+            );
+          await authorize(authorization, {
+            principal,
+            action: "asset.assign",
+            resource: {
+              type: "asset",
+              id: assignMatch[1]!,
+              tenant_id: principal.tenant_id,
+            },
+            scope: {},
+            context: { ...context },
+          });
+          const result = await uow.run(principal.tenant_id, (tx) =>
+            new PostgresIdempotencyStore(tx).execute(
+              {
+                principalId: principal.id,
+                operation: "ASSET.ASSIGN",
+                businessScope: assignMatch[1]!,
+                key,
+                semanticRequest: input as never,
+                expiresAt: new Date(Date.now() + 86400000),
+              },
+              async () => {
+                const assignment = await assignAsset({
+                  tx,
+                  assetId: assignMatch[1]!,
+                  expectedVersion: input.expected_version as number,
+                  userId: input.user_id as string,
+                  reason: input.reason as string,
+                  actorType: principal.actor_type,
+                  actorId: principal.id,
+                  correlationId: context.correlation_id,
+                });
+                const now = new Date().toISOString();
+                await new PostgresOutboxWriter(tx).append({
+                  event_id: randomUUID(),
+                  event_type: "ASSET.ASSIGNED",
+                  schema_version: 1,
+                  occurred_at: now,
+                  producer: { service: config.serviceName, instance: "api" },
+                  aggregate: {
+                    type: "ASSET",
+                    id: assignment.asset_id,
+                    version: assignment.version,
+                  },
+                  actor: { type: principal.actor_type, id: principal.id },
+                  correlation_id: context.correlation_id,
+                  causation_id: context.causation_id,
+                  tenant_id: principal.tenant_id,
+                  organization_id: principal.tenant_id,
+                  idempotency_key: key,
+                  payload: assignment,
+                });
+                await new PostgresAudit(tx).append({
+                  id: randomUUID(),
+                  tenant_id: principal.tenant_id,
+                  event_type: "ASSET.ASSIGNED",
+                  occurred_at: now,
+                  actor: { type: principal.actor_type, id: principal.id },
+                  action: { command_type: "ASSET.ASSIGN" },
+                  subject: {
+                    entity_type: "ASSET",
+                    entity_id: assignment.asset_id,
+                  },
+                  correlation_id: context.correlation_id,
+                  causation_id: context.causation_id,
+                  reason: {
+                    code: "ASSET_ASSIGNED",
+                    text: input.reason as string,
+                  },
+                  before: { version: input.expected_version as number },
+                  after: assignment,
+                  outcome: { status: "SUCCESS" },
+                  classification: "INTERNAL",
+                  relations: [],
+                  evidence: [],
+                });
+                return { status: 201, body: assignment };
+              },
+            ),
+          );
+          json(res, result.status, { data: result.body, meta: context });
+          return true;
+        }
+        if (req.method === "POST" && reserveMatch) {
+          const principal = await authenticate(
+            authentication,
+            req.headers.authorization,
+          );
+          const key = req.headers["idempotency-key"];
+          if (typeof key !== "string" || !key.trim())
+            throw new ApplicationError(
+              "VALIDATION_ERROR",
+              "Idempotency-Key is required.",
+            );
+          const body = await new Promise<string>((resolve) => {
+            let data = "";
+            req.on("data", (chunk) => (data += chunk));
+            req.on("end", () => resolve(data));
+          });
+          let input: Record<string, unknown>;
+          try {
+            input = (body ? JSON.parse(body) : {}) as Record<string, unknown>;
+          } catch {
+            throw new ApplicationError(
+              "VALIDATION_ERROR",
+              "Invalid JSON request.",
+            );
+          }
+          if (
+            !Number.isSafeInteger(input.expected_version) ||
+            typeof input.requested_for !== "string" ||
+            typeof input.reason !== "string" ||
+            typeof input.expires_at !== "string"
+          )
+            throw new ApplicationError(
+              "VALIDATION_ERROR",
+              "expected_version, requested_for, reason and expires_at are required.",
+            );
+          await authorize(authorization, {
+            principal,
+            action: "asset.reserve",
+            resource: {
+              type: "asset",
+              id: reserveMatch[1]!,
+              tenant_id: principal.tenant_id,
+            },
+            scope: {},
+            context: { ...context },
+          });
+          const result = await uow.run(principal.tenant_id, (tx) =>
+            new PostgresIdempotencyStore(tx).execute(
+              {
+                principalId: principal.id,
+                operation: "ASSET.RESERVE",
+                businessScope: reserveMatch[1]!,
+                key,
+                semanticRequest: input as never,
+                expiresAt: new Date(Date.now() + 86400000),
+              },
+              async () => {
+                const reservation = await reserveAsset({
+                  tx,
+                  assetId: reserveMatch[1]!,
+                  expectedVersion: input.expected_version as number,
+                  requestedFor: input.requested_for as string,
+                  reason: input.reason as string,
+                  expiresAt: input.expires_at as string,
+                  actorType: principal.actor_type,
+                  actorId: principal.id,
+                  correlationId: context.correlation_id,
+                });
+                const now = new Date().toISOString();
+                await new PostgresOutboxWriter(tx).append({
+                  event_id: randomUUID(),
+                  event_type: "ASSET.RESERVED",
+                  schema_version: 1,
+                  occurred_at: now,
+                  producer: { service: config.serviceName, instance: "api" },
+                  aggregate: {
+                    type: "ASSET",
+                    id: reservation.asset_id,
+                    version: reservation.version,
+                  },
+                  actor: { type: principal.actor_type, id: principal.id },
+                  correlation_id: context.correlation_id,
+                  causation_id: context.causation_id,
+                  tenant_id: principal.tenant_id,
+                  organization_id: principal.tenant_id,
+                  idempotency_key: key,
+                  payload: reservation,
+                });
+                await new PostgresAudit(tx).append({
+                  id: randomUUID(),
+                  tenant_id: principal.tenant_id,
+                  event_type: "ASSET.RESERVED",
+                  occurred_at: now,
+                  actor: { type: principal.actor_type, id: principal.id },
+                  action: { command_type: "ASSET.RESERVE" },
+                  subject: {
+                    entity_type: "ASSET",
+                    entity_id: reservation.asset_id,
+                  },
+                  correlation_id: context.correlation_id,
+                  causation_id: context.causation_id,
+                  reason: {
+                    code: "ASSET_RESERVED",
+                    text: input.reason as string,
+                  },
+                  before: { version: input.expected_version as number },
+                  after: reservation,
+                  outcome: { status: "SUCCESS" },
+                  classification: "INTERNAL",
+                  relations: [],
+                  evidence: [],
+                });
+                return { status: 201, body: reservation };
+              },
+            ),
+          );
+          json(res, result.status, { data: result.body, meta: context });
+          return true;
+        }
+        if (req.method === "POST" && retireMatch) {
+          const principal = await authenticate(
+            authentication,
+            req.headers.authorization,
+          );
+          const key = req.headers["idempotency-key"];
+          if (typeof key !== "string" || !key.trim())
+            throw new ApplicationError(
+              "VALIDATION_ERROR",
+              "Idempotency-Key is required.",
+            );
+          const body = await new Promise<string>((resolve) => {
+            let data = "";
+            req.on("data", (c) => (data += c));
+            req.on("end", () => resolve(data));
+          });
+          let input: Record<string, unknown>;
+          try {
+            input = (body ? JSON.parse(body) : {}) as Record<string, unknown>;
+          } catch {
+            throw new ApplicationError(
+              "VALIDATION_ERROR",
+              "Invalid JSON request.",
+            );
+          }
+          const expected = input.expected_version;
+          if (
+            !Number.isSafeInteger(expected) ||
+            typeof input.reason !== "string"
+          )
+            throw new ApplicationError(
+              "VALIDATION_ERROR",
+              "expected_version and reason are required.",
+            );
+          await authorize(authorization, {
+            principal,
+            action: "asset.retire",
+            resource: {
+              type: "asset",
+              id: retireMatch[1]!,
+              tenant_id: principal.tenant_id,
+            },
+            scope: {},
+            context: { ...context },
+          });
+          const result = await uow.run(principal.tenant_id, (tx) =>
+            new PostgresIdempotencyStore(tx).execute(
+              {
+                principalId: principal.id,
+                operation: "ASSET.RETIRE",
+                businessScope: retireMatch[1]!,
+                key,
+                semanticRequest: {
+                  expected_version: expected as number,
+                  reason: input.reason as string,
+                },
+                expiresAt: new Date(Date.now() + 86400000),
+              },
+              async () => {
+                const changed = await transitionLifecycle({
+                  tx,
+                  assetId: retireMatch[1]!,
+                  expectedVersion: expected as number,
+                  targetState: "RETIRED",
+                  actorType: principal.actor_type,
+                  actorId: principal.id,
+                  reason: input.reason as string,
+                  correlationId: context.correlation_id,
+                  commandType: "ASSET.RETIRE",
+                });
+                const now = new Date().toISOString();
+                await new PostgresOutboxWriter(tx).append({
+                  event_id: randomUUID(),
+                  event_type: "ASSET.RETIRED",
+                  schema_version: 1,
+                  occurred_at: now,
+                  producer: { service: config.serviceName, instance: "api" },
+                  aggregate: {
+                    type: "ASSET",
+                    id: changed.id,
+                    version: changed.version,
+                  },
+                  actor: { type: principal.actor_type, id: principal.id },
+                  correlation_id: context.correlation_id,
+                  causation_id: context.causation_id,
+                  tenant_id: principal.tenant_id,
+                  organization_id: principal.tenant_id,
+                  idempotency_key: key,
+                  payload: changed,
+                });
+                await new PostgresAudit(tx).append({
+                  id: randomUUID(),
+                  tenant_id: principal.tenant_id,
+                  event_type: "ASSET.RETIRED",
+                  occurred_at: now,
+                  actor: { type: principal.actor_type, id: principal.id },
+                  action: { command_type: "ASSET.RETIRE" },
+                  subject: { entity_type: "ASSET", entity_id: changed.id },
+                  correlation_id: context.correlation_id,
+                  causation_id: context.causation_id,
+                  reason: {
+                    code: "ASSET_RETIRED",
+                    text: input.reason as string,
+                  },
+                  before: {
+                    lifecycle_state: changed.from_state,
+                    version: expected as number,
+                  },
+                  after: changed,
+                  outcome: { status: "SUCCESS" },
+                  classification: "INTERNAL",
+                  relations: [],
+                  evidence: [],
+                });
+                return { status: 200, body: changed };
+              },
+            ),
+          );
+          json(res, result.status, { data: result.body, meta: context });
+          return true;
+        }
+        if (req.url === "/api/v1/me") {
+          const principal = await authenticate(
+            authentication,
+            req.headers.authorization,
+          );
+          json(res, 200, { data: principal, meta: context });
+          return true;
+        }
+        if (req.method === "POST" && req.url === "/api/v1/auth/logout") {
+          const principal = await authenticate(
+            authentication,
+            req.headers.authorization,
+          );
+          const body = await new Promise<string>((resolve) => {
+            let data = "";
+            req.on("data", (c) => (data += c));
+            req.on("end", () => resolve(data));
+          });
+          let input: { session_id?: string; expected_version?: number };
+          try {
+            input = JSON.parse(body) as typeof input;
+          } catch {
+            throw new ApplicationError(
+              "VALIDATION_ERROR",
+              "Invalid JSON request.",
+            );
+          }
+          if (!input.session_id || !Number.isInteger(input.expected_version))
+            throw new ApplicationError(
+              "VALIDATION_ERROR",
+              "session_id and expected_version are required.",
+            );
+          const idempotencyKey = req.headers["idempotency-key"];
+          if (typeof idempotencyKey !== "string" || !idempotencyKey.trim())
+            throw new ApplicationError(
+              "VALIDATION_ERROR",
+              "Idempotency-Key is required.",
+            );
+          await authorize(authorization, {
+            principal,
+            action: "session.revoke",
+            resource: {
+              type: "session",
+              id: input.session_id,
+              tenant_id: principal.tenant_id,
+            },
+            scope: {},
+            context: { ...context },
+          });
+          const result = await uow.run(principal.tenant_id, async (tx) =>
+            new PostgresIdempotencyStore(tx).execute(
+              {
+                principalId: principal.id,
+                operation: "AUTH.REVOKE_SESSION",
+                businessScope: input.session_id!,
+                key: idempotencyKey,
+                semanticRequest: {
+                  session_id: input.session_id!,
+                  expected_version: input.expected_version!,
+                },
+                expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+              },
+              async () => {
+                await revokeSession(
+                  tx,
+                  input.session_id!,
+                  input.expected_version!,
+                );
+                const now = new Date().toISOString();
+                await new PostgresOutboxWriter(tx).append({
+                  event_id: randomUUID(),
+                  event_type: "AUTH.SESSION_REVOKED",
+                  schema_version: 1,
+                  occurred_at: now,
+                  producer: { service: config.serviceName, instance: "api" },
+                  aggregate: {
+                    type: "SESSION",
+                    id: input.session_id!,
+                    version: input.expected_version! + 1,
+                  },
+                  actor: { type: principal.actor_type, id: principal.id },
+                  correlation_id: context.correlation_id,
+                  causation_id: context.causation_id,
+                  tenant_id: principal.tenant_id,
+                  organization_id: principal.tenant_id,
+                  idempotency_key: idempotencyKey,
+                  payload: {
+                    session_id: input.session_id!,
+                    user_id: principal.id,
+                  },
+                });
+                await new PostgresAudit(tx).append({
+                  id: randomUUID(),
+                  tenant_id: principal.tenant_id,
+                  event_type: "AUTH.SESSION_REVOKED",
+                  occurred_at: now,
+                  actor: { type: principal.actor_type, id: principal.id },
+                  action: { command_type: "AUTH.REVOKE_SESSION" },
+                  subject: {
+                    entity_type: "SESSION",
+                    entity_id: input.session_id!,
+                  },
+                  correlation_id: context.correlation_id,
+                  causation_id: context.causation_id,
+                  reason: {
+                    code: "USER_LOGOUT",
+                    text: "Session revoked by authenticated principal",
+                  },
+                  before: { version: input.expected_version!, revoked: false },
+                  after: {
+                    version: input.expected_version! + 1,
+                    revoked: true,
+                  },
+                  outcome: { status: "SUCCESS" },
+                  classification: "SECURITY",
+                  relations: [],
+                  evidence: [],
+                });
+                return { status: 200, body: { revoked: true } };
+              },
+            ),
+          );
+          json(res, result.status, { data: result.body, meta: context });
+          return true;
+        }
+        if (req.method === "POST" && req.url === "/api/v1/assets") {
+          const principal = await authenticate(
+            authentication,
+            req.headers.authorization,
+          );
+          const key = req.headers["idempotency-key"];
+          if (typeof key !== "string" || !key.trim())
+            throw new ApplicationError(
+              "VALIDATION_ERROR",
+              "Idempotency-Key is required.",
+            );
+          const body = await new Promise<string>((resolve) => {
+            let data = "";
+            req.on("data", (c) => (data += c));
+            req.on("end", () => resolve(data));
+          });
+          let input: Record<string, unknown>;
+          try {
+            input = JSON.parse(body) as Record<string, unknown>;
+          } catch {
+            throw new ApplicationError(
+              "VALIDATION_ERROR",
+              "Invalid JSON request.",
+            );
+          }
+          await authorize(authorization, {
+            principal,
+            action: "asset.create",
+            resource: {
+              type: "asset",
+              id: String(input.asset_code ?? "asset"),
+              tenant_id: principal.tenant_id,
+            },
+            scope: {},
+            context: { ...context },
+          });
+          const result = await uow.run(principal.tenant_id, (tx) =>
+            new PostgresIdempotencyStore(tx).execute(
+              {
+                principalId: principal.id,
+                operation: "ASSET.CREATE",
+                businessScope: String(input.asset_code ?? "asset"),
+                key,
+                semanticRequest: input as never,
+                expiresAt: new Date(Date.now() + 86400000),
+              },
+              async () => {
+                const asset = await createAsset({
+                  tx,
+                  assetCode: String(input.asset_code ?? ""),
+                  modelId: String(input.model_id ?? ""),
+                  ...(typeof input.asset_tag === "string"
+                    ? { assetTag: input.asset_tag }
+                    : {}),
+                  ...(typeof input.serial_number === "string"
+                    ? { serialNumber: input.serial_number }
+                    : {}),
+                  ...(typeof input.location_id === "string"
+                    ? { locationId: input.location_id }
+                    : {}),
+                });
+                const now = new Date().toISOString();
+                await new PostgresOutboxWriter(tx).append({
+                  event_id: randomUUID(),
+                  event_type: "ASSET.CREATED",
+                  schema_version: 1,
+                  occurred_at: now,
+                  producer: { service: config.serviceName, instance: "api" },
+                  aggregate: { type: "ASSET", id: asset.id, version: 1 },
+                  actor: { type: principal.actor_type, id: principal.id },
+                  correlation_id: context.correlation_id,
+                  causation_id: context.causation_id,
+                  tenant_id: principal.tenant_id,
+                  organization_id: principal.tenant_id,
+                  idempotency_key: key,
+                  payload: asset,
+                });
+                await new PostgresAudit(tx).append({
+                  id: randomUUID(),
+                  tenant_id: principal.tenant_id,
+                  event_type: "ASSET.CREATED",
+                  occurred_at: now,
+                  actor: { type: principal.actor_type, id: principal.id },
+                  action: { command_type: "ASSET.CREATE" },
+                  subject: { entity_type: "ASSET", entity_id: asset.id },
+                  correlation_id: context.correlation_id,
+                  causation_id: context.causation_id,
+                  reason: {
+                    code: "ASSET_REGISTERED",
+                    text: "Asset registered",
+                  },
+                  before: null,
+                  after: asset,
+                  outcome: { status: "SUCCESS" },
+                  classification: "INTERNAL",
+                  relations: [],
+                  evidence: [],
+                });
+                return { status: 201, body: asset };
+              },
+            ),
+          );
+          json(res, result.status, { data: result.body, meta: context });
+          return true;
+        }
+        if (
+          req.method === "POST" &&
+          (req.url === "/api/v1/temporary-grants" ||
+            /^\/api\/v1\/temporary-grants\/[^/]+\/commands\/revoke$/.test(
+              req.url ?? "",
+            ))
+        ) {
+          const principal = await authenticate(
+            authentication,
+            req.headers.authorization,
+          );
+          const idempotencyKey = req.headers["idempotency-key"];
+          if (typeof idempotencyKey !== "string" || !idempotencyKey.trim())
+            throw new ApplicationError(
+              "VALIDATION_ERROR",
+              "Idempotency-Key is required.",
+            );
+          const body = await new Promise<string>((resolve) => {
+            let data = "";
+            req.on("data", (c) => (data += c));
+            req.on("end", () => resolve(data));
+          });
+          let input: Record<string, unknown> = {};
+          try {
+            input = (body ? JSON.parse(body) : {}) as Record<string, unknown>;
+          } catch {
+            throw new ApplicationError(
+              "VALIDATION_ERROR",
+              "Invalid JSON request.",
+            );
+          }
+          const revokeMatch =
+            /^\/api\/v1\/temporary-grants\/([^/]+)\/commands\/revoke$/.exec(
+              req.url ?? "",
+            );
+          if (revokeMatch) {
+            const expectedVersion =
+              typeof input.expected_version === "number"
+                ? input.expected_version
+                : undefined;
             if (
-              monitoringReference?.asset_id &&
-              input.asset_id &&
-              String(input.asset_id) !== monitoringReference.asset_id
+              expectedVersion === undefined ||
+              !Number.isSafeInteger(expectedVersion)
             )
               throw new ApplicationError(
-                "BUSINESS_RULE_VIOLATION",
-                "Explicit Asset does not match the canonical Monitoring event Asset.",
+                "VALIDATION_ERROR",
+                "expected_version is required.",
               );
-            const explicitAssetLink =
-              !monitoringReference?.asset_id &&
-              input.asset_id &&
-              !isAssetLink &&
-              !isAssetUnlink &&
-              !isCorrelation &&
-              !isTransition
-                ? await recordExplicitIncidentAssetLink({
-                    tx,
-                    incidentId: String((value as { id: string }).id),
-                    assetId: String(input.asset_id),
-                    sourceReference: String(
-                      input.asset_source_reference ?? key,
-                    ),
-                    actorType: principal.actor_type,
-                    actorId: principal.id,
-                    actor: principal,
-                    authorization,
-                    reason: String(
-                      input.asset_link_reason ??
-                        "Explicit Asset selected during Incident intake",
-                    ),
-                    correlationId: context.correlation_id,
-                    assetExists: async (assetId) => {
-                      await assertAssetExists({ tx, assetId });
+            await authorize(authorization, {
+              principal,
+              action: "rbac.manage",
+              resource: {
+                type: "temporary_grant",
+                id: revokeMatch[1]!,
+                tenant_id: principal.tenant_id,
+              },
+              scope: {},
+              context: { ...context },
+            });
+            const result = await uow.run(principal.tenant_id, (tx) =>
+              new PostgresIdempotencyStore(tx).execute(
+                {
+                  principalId: principal.id,
+                  operation: "PRIVILEGE.REVOKE_TEMPORARY",
+                  businessScope: revokeMatch[1]!,
+                  key: idempotencyKey,
+                  semanticRequest: {
+                    grant_id: revokeMatch[1]!,
+                    expected_version: expectedVersion,
+                  },
+                  expiresAt: new Date(Date.now() + 86400000),
+                },
+                async () => {
+                  await revokeTemporary(tx, revokeMatch[1]!, expectedVersion);
+                  const now = new Date().toISOString();
+                  await new PostgresOutboxWriter(tx).append({
+                    event_id: randomUUID(),
+                    event_type: "RBAC.TEMPORARY_GRANT_REVOKED",
+                    schema_version: 1,
+                    occurred_at: now,
+                    producer: { service: config.serviceName, instance: "api" },
+                    aggregate: {
+                      type: "TEMPORARY_GRANT",
+                      id: revokeMatch[1]!,
+                      version: expectedVersion + 1,
                     },
-                  })
-                : null;
-            const now = new Date().toISOString();
-            const output = value as unknown as Record<string, unknown>;
-            const assetLinkNoOp =
-              (isAssetLink && output.created === false) ||
-              (isAssetUnlink && output.detached === false);
-            const eventType = isAssetLink
-              ? "INCIDENT.ASSET_LINKED"
-              : isAssetUnlink
-                ? "INCIDENT.ASSET_UNLINKED"
-                : isCorrelation
-                  ? "INCIDENT.CORRELATED"
-                  : isTransition
-                    ? "INCIDENT.STATE_CHANGED"
-                    : "INCIDENT.CREATED";
-            if (!assetLinkNoOp)
-              await new PostgresOutboxWriter(tx).append({
-                event_id: randomUUID(),
-                event_type: eventType,
-                schema_version: 1,
-                occurred_at: now,
-                producer: { service: config.serviceName, instance: "api" },
-                aggregate: {
-                  type: "INCIDENT",
-                  id: (output.id ?? output.root_incident_id) as string,
-                  version: (output.version as number | undefined) ?? 1,
+                    actor: { type: principal.actor_type, id: principal.id },
+                    correlation_id: context.correlation_id,
+                    causation_id: context.causation_id,
+                    tenant_id: principal.tenant_id,
+                    organization_id: principal.tenant_id,
+                    idempotency_key: idempotencyKey,
+                    payload: { grant_id: revokeMatch[1]!, reason: "REVOKED" },
+                  });
+                  await new PostgresAudit(tx).append({
+                    id: randomUUID(),
+                    tenant_id: principal.tenant_id,
+                    event_type: "RBAC.TEMPORARY_GRANT_REVOKED",
+                    occurred_at: now,
+                    actor: { type: principal.actor_type, id: principal.id },
+                    action: { command_type: "PRIVILEGE.REVOKE_TEMPORARY" },
+                    subject: {
+                      entity_type: "TEMPORARY_GRANT",
+                      entity_id: revokeMatch[1]!,
+                    },
+                    correlation_id: context.correlation_id,
+                    causation_id: context.causation_id,
+                    reason: {
+                      code: "PRIVILEGE_REVOKED",
+                      text: "Temporary grant revoked",
+                    },
+                    before: { version: expectedVersion, revoked: false },
+                    after: { version: expectedVersion + 1, revoked: true },
+                    outcome: { status: "SUCCESS" },
+                    classification: "SECURITY",
+                    relations: [],
+                    evidence: [],
+                  });
+                  return {
+                    status: 200,
+                    body: { grant_id: revokeMatch[1]!, revoked: true },
+                  };
                 },
-                actor: { type: principal.actor_type, id: principal.id },
-                correlation_id: context.correlation_id,
-                causation_id: context.causation_id,
-                tenant_id: principal.tenant_id,
-                organization_id: principal.tenant_id,
-                idempotency_key: key,
-                payload: value,
-              });
-            if (!assetLinkNoOp)
-              await new PostgresAudit(tx).append({
-                id: randomUUID(),
-                tenant_id: principal.tenant_id,
-                event_type: eventType,
-                occurred_at: now,
-                actor: { type: principal.actor_type, id: principal.id },
-                action: { command_type: eventType },
-                subject: {
-                  entity_type: "INCIDENT",
-                  entity_id: (output.id ?? output.root_incident_id) as string,
-                },
-                correlation_id: context.correlation_id,
-                causation_id: context.causation_id,
-                reason: {
-                  code: eventType,
-                  text: (input.reason as string) ?? "Incident created",
-                },
-                before: null,
-                after: value,
-                outcome: { status: "SUCCESS" },
-                classification: "INTERNAL",
-                relations: [],
-                evidence: [],
-              });
-            if (!assetLinkNoOp && (isAssetLink || isAssetUnlink))
-              await recordIncidentCorrelationTimelineEvent({
-                tx,
-                incidentId:
-                  incidentAssetLinkMatch?.[1] ?? incidentAssetUnlinkMatch![1]!,
-                eventType,
-                summary: isAssetLink
-                  ? `Asset ${String((value as { asset_id: string }).asset_id)} linked as affected`
-                  : `Asset ${String((value as { asset_id: string }).asset_id)} detached from affected assets`,
-                payload: value as never,
-                sourceEventId: randomUUID(),
-              });
-            if (automaticAssetLink?.created) {
-              await new PostgresOutboxWriter(tx).append({
-                event_id: randomUUID(),
-                event_type: "INCIDENT.ASSET_LINKED",
-                schema_version: 1,
-                occurred_at: now,
-                producer: { service: config.serviceName, instance: "api" },
-                aggregate: {
-                  type: "INCIDENT",
-                  id: String((value as { id: string }).id),
-                  version: 1,
-                },
-                actor: { type: principal.actor_type, id: principal.id },
-                correlation_id: context.correlation_id,
-                causation_id: context.causation_id,
-                tenant_id: principal.tenant_id,
-                organization_id: principal.tenant_id,
-                idempotency_key: `${key}:asset-link:${automaticAssetLink.id}`,
-                payload: {
-                  incident_id: String((value as { id: string }).id),
-                  asset_id: monitoringReference!.asset_id,
-                  link_id: automaticAssetLink.id,
-                  source_type: "MONITORING_EVENT",
-                  source_reference: monitoringReference!.event_id,
-                },
-              });
-              await new PostgresAudit(tx).append({
-                id: randomUUID(),
-                tenant_id: principal.tenant_id,
-                event_type: "INCIDENT.ASSET_LINKED",
-                occurred_at: now,
-                actor: { type: principal.actor_type, id: principal.id },
-                action: { command_type: "INCIDENT.ASSET_LINK_FROM_MONITORING" },
-                subject: {
-                  entity_type: "INCIDENT",
-                  entity_id: String((value as { id: string }).id),
-                },
-                correlation_id: context.correlation_id,
-                causation_id: context.causation_id,
-                reason: {
-                  code: "MONITORING_ASSET_REFERENCE",
-                  text: "Linked only from the validated same-tenant Monitoring event Asset reference.",
-                },
-                before: null,
-                after: {
-                  asset_id: monitoringReference!.asset_id,
-                  link_id: automaticAssetLink.id,
-                },
-                outcome: { status: "SUCCESS" },
-                classification: "INTERNAL",
-                relations: [
-                  {
-                    entity_type: "ASSET",
-                    entity_id: monitoringReference!.asset_id!,
-                    relation: "AFFECTED_ASSET",
-                  },
-                ],
-                evidence: [
-                  {
-                    type: "MONITORING_EVENT",
-                    id: monitoringReference!.event_id,
-                    checksum: "",
-                    relation: "SOURCE",
-                  },
-                ],
-              });
-            }
-            if (explicitAssetLink?.created) {
-              await new PostgresOutboxWriter(tx).append({
-                event_id: randomUUID(),
-                event_type: "INCIDENT.ASSET_LINKED",
-                schema_version: 1,
-                occurred_at: now,
-                producer: { service: config.serviceName, instance: "api" },
-                aggregate: {
-                  type: "INCIDENT",
-                  id: String((value as { id: string }).id),
-                  version: 1,
-                },
-                actor: { type: principal.actor_type, id: principal.id },
-                correlation_id: context.correlation_id,
-                causation_id: context.causation_id,
-                tenant_id: principal.tenant_id,
-                organization_id: principal.tenant_id,
-                idempotency_key: `${key}:asset-link:${explicitAssetLink.id}`,
-                payload: {
-                  incident_id: String((value as { id: string }).id),
-                  asset_id: String(input.asset_id),
-                  link_id: explicitAssetLink.id,
-                  source_type: "EXPLICIT_TICKET_OR_INTAKE_ASSET",
-                },
-              });
-              await new PostgresAudit(tx).append({
-                id: randomUUID(),
-                tenant_id: principal.tenant_id,
-                event_type: "INCIDENT.ASSET_LINKED",
-                occurred_at: now,
-                actor: { type: principal.actor_type, id: principal.id },
-                action: { command_type: "INCIDENT.ASSET_LINK_FROM_INTAKE" },
-                subject: {
-                  entity_type: "INCIDENT",
-                  entity_id: String((value as { id: string }).id),
-                },
-                correlation_id: context.correlation_id,
-                causation_id: context.causation_id,
-                reason: {
-                  code: "EXPLICIT_INTAKE_ASSET",
-                  text: String(
-                    input.asset_link_reason ??
-                      "Explicit Asset selected during Incident intake",
-                  ),
-                },
-                before: null,
-                after: {
-                  asset_id: String(input.asset_id),
-                  link_id: explicitAssetLink.id,
-                },
-                outcome: { status: "SUCCESS" },
-                classification: "INTERNAL",
-                relations: [],
-                evidence: [],
-              });
-            }
-            return {
-              status:
-                isTransition ||
-                isCorrelation ||
-                isAssetUnlink ||
-                (isAssetLink &&
-                  (value as { created?: boolean }).created === false)
-                  ? 200
-                  : 201,
-              body: value,
-            };
-          },
-        ),
-      );
-      json(res, result.status, { data: result.body, meta: context });
-      return true;
-    }
-    if (req.method === "POST" && req.url === "/api/v1/agents/enroll") {
-      const principal = await authenticate(
-        authentication,
-        req.headers.authorization,
-      );
-      const body = await new Promise<string>((resolve) => {
-        let data = "";
-        req.on("data", (chunk) => (data += chunk));
-        req.on("end", () => resolve(data));
-      });
-      let input: Record<string, unknown>;
-      try {
-        input = (body ? JSON.parse(body) : {}) as Record<string, unknown>;
-      } catch {
-        throw new ApplicationError("VALIDATION_ERROR", "Invalid JSON request.");
-      }
-      if (
-        typeof input.asset_id !== "string" ||
-        typeof input.agent_version !== "string"
-      )
-        throw new ApplicationError(
-          "VALIDATION_ERROR",
-          "asset_id and agent_version are required.",
-        );
-      await authorize(authorization, {
-        principal,
-        action: "agent.enroll",
-        resource: {
-          type: "agent",
-          id: input.asset_id,
-          tenant_id: principal.tenant_id,
-        },
-        scope: {},
-        context: { ...context },
-      });
-      const result = await uow.run(principal.tenant_id, async (tx) => {
-        const enrollment = await issueEnrollmentToken({
-          tx,
-          assetId: input.asset_id as string,
-          agentVersion: input.agent_version as string,
-          expiresAt: new Date(Date.now() + 86400000).toISOString(),
-        });
-        const now = new Date().toISOString();
-        await new PostgresOutboxWriter(tx).append({
-          event_id: randomUUID(),
-          event_type: "AGENT.ENROLLED",
-          schema_version: 1,
-          occurred_at: now,
-          producer: { service: config.serviceName, instance: "api" },
-          aggregate: { type: "AGENT", id: enrollment.id, version: 1 },
-          actor: { type: principal.actor_type, id: principal.id },
-          correlation_id: context.correlation_id,
-          causation_id: context.causation_id,
-          tenant_id: principal.tenant_id,
-          organization_id: principal.tenant_id,
-          idempotency_key: randomUUID(),
-          payload: {
-            agent_id: enrollment.id,
-            asset_id: enrollment.asset_id,
-            agent_version: enrollment.agent_version,
-            enrolled_at: now,
-          },
-        });
-        return enrollment;
-      });
-      json(res, 201, { data: result, meta: context });
-      return true;
-    }
-    if (req.method === "POST" && req.url === "/api/v1/monitoring/events") {
-      const principal = await authenticate(
-        authentication,
-        req.headers.authorization,
-      );
-      const key = req.headers["idempotency-key"];
-      if (typeof key !== "string" || !key.trim())
-        throw new ApplicationError(
-          "VALIDATION_ERROR",
-          "Idempotency-Key is required.",
-        );
-      const body = await new Promise<string>((resolve) => {
-        let data = "";
-        req.on("data", (chunk) => (data += chunk));
-        req.on("end", () => resolve(data));
-      });
-      let input: Record<string, unknown>;
-      try {
-        input = (body ? JSON.parse(body) : {}) as Record<string, unknown>;
-      } catch {
-        throw new ApplicationError("VALIDATION_ERROR", "Invalid JSON request.");
-      }
-      const event = normalizeMonitoringEvent(input);
-      await authorize(authorization, {
-        principal,
-        action: "monitoring.event.write",
-        resource: {
-          type: "monitoring_event",
-          id: event.provider_event_id,
-          tenant_id: principal.tenant_id,
-        },
-        scope: {},
-        context: { ...context },
-      });
-      const result = await uow.run(principal.tenant_id, (tx) =>
-        new PostgresIdempotencyStore(tx).execute(
-          {
-            principalId: principal.id,
-            operation: "MONITORING.EVENT.WRITE",
-            businessScope: `${event.source}:${event.provider_event_id}`,
-            key,
-            semanticRequest: input as never,
-            expiresAt: new Date(Date.now() + 86400000),
-          },
-          async () => {
-            if (event.asset_id)
-              await assertAssetExists({ tx, assetId: event.asset_id });
-            const inserted = await tx.query(
-              "INSERT INTO monitoring.events(id,tenant_id,source,provider_event_id,source_correlation_key,asset_id,asset_reference_validated,service_id,metric,observed_value,threshold,severity,observed_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) ON CONFLICT (tenant_id,source,provider_event_id) DO NOTHING RETURNING id,source,provider_event_id,source_correlation_key,asset_id,asset_reference_validated,service_id,metric,observed_value,threshold,severity,observed_at",
-              [
-                randomUUID(),
-                principal.tenant_id,
-                event.source,
-                event.provider_event_id,
-                event.source_correlation_key,
-                event.asset_id,
-                Boolean(event.asset_id),
-                event.service_id,
-                event.metric,
-                event.observed_value,
-                event.threshold,
-                event.severity,
-                event.observed_at,
-              ],
+              ),
             );
-            const observation =
-              inserted.rows[0] ??
-              (
-                await tx.query(
-                  "SELECT id,source,provider_event_id,source_correlation_key,asset_id,asset_reference_validated,service_id,metric,observed_value,threshold,severity,observed_at FROM monitoring.events WHERE tenant_id=$1 AND source=$2 AND provider_event_id=$3",
-                  [principal.tenant_id, event.source, event.provider_event_id],
-                )
-              ).rows[0];
-            if (!observation)
+            json(res, result.status, { data: result.body, meta: context });
+            return true;
+          }
+          for (const key of [
+            "principal_id",
+            "permission_id",
+            "scope_type",
+            "scope_id",
+            "valid_from",
+            "valid_until",
+            "reason",
+          ])
+            if (
+              typeof input[key] !== "string" ||
+              !(input[key] as string).trim()
+            )
               throw new ApplicationError(
-                "BUSINESS_RULE_VIOLATION",
-                "Monitoring event could not be persisted.",
+                "VALIDATION_ERROR",
+                `${key} is required.`,
               );
-            const eventType =
-              event.severity === "RECOVERED"
-                ? "MONITORING.RECOVERED"
-                : "MONITORING.CRITICAL";
-            const now = new Date().toISOString();
-            await new PostgresOutboxWriter(tx).append({
-              event_id: randomUUID(),
-              event_type: eventType,
-              schema_version: 1,
-              occurred_at: now,
-              producer: { service: config.serviceName, instance: "api" },
-              aggregate: {
-                type: "MONITORING_EVENT",
-                id: observation.id,
-                version: 1,
-              },
-              actor: { type: principal.actor_type, id: principal.id },
-              correlation_id: context.correlation_id,
-              causation_id: context.causation_id,
+          await authorize(authorization, {
+            principal,
+            action: "rbac.manage",
+            resource: {
+              type: "rbac",
+              id: String(input.principal_id),
               tenant_id: principal.tenant_id,
-              organization_id: principal.tenant_id,
-              idempotency_key: key,
-              payload: { monitoring_event_id: observation.id },
-            });
-            await new PostgresAudit(tx).append({
-              id: randomUUID(),
-              tenant_id: principal.tenant_id,
-              event_type: eventType,
-              occurred_at: now,
-              actor: { type: principal.actor_type, id: principal.id },
-              action: { command_type: "MONITORING.EVENT.WRITE" },
-              subject: {
-                entity_type: "MONITORING_EVENT",
-                entity_id: observation.id,
+            },
+            scope: {},
+            context: { ...context },
+          });
+          const result = await uow.run(principal.tenant_id, (tx) =>
+            new PostgresIdempotencyStore(tx).execute(
+              {
+                principalId: principal.id,
+                operation: "PRIVILEGE.GRANT_TEMPORARY",
+                businessScope: String(input.principal_id),
+                key: idempotencyKey,
+                semanticRequest: input as never,
+                expiresAt: new Date(Date.now() + 86400000),
               },
-              correlation_id: context.correlation_id,
-              causation_id: context.causation_id,
-              reason: { code: "MONITORING_INGESTED", text: event.source },
-              before: null,
-              after: { monitoring_event_id: observation.id },
-              outcome: { status: "SUCCESS" },
-              classification: "INTERNAL",
-              relations: [],
-              evidence: [],
-            });
-            return { status: 201, body: observation };
-          },
-        ),
-      );
-      json(res, result.status, { data: result.body, meta: context });
-      return true;
-    }
-    if (req.method === "POST" && workResolveMatch) {
-      const principal = await authenticate(
-        authentication,
-        req.headers.authorization,
-      );
-      const key = req.headers["idempotency-key"];
-      if (typeof key !== "string" || !key.trim())
-        throw new ApplicationError(
-          "VALIDATION_ERROR",
-          "Idempotency-Key is required.",
-        );
-      const body = await new Promise<string>((resolve) => {
-        let data = "";
-        req.on("data", (c) => (data += c));
-        req.on("end", () => resolve(data));
-      });
-      let input: Record<string, unknown>;
-      try {
-        input = (body ? JSON.parse(body) : {}) as Record<string, unknown>;
-      } catch {
-        throw new ApplicationError("VALIDATION_ERROR", "Invalid JSON request.");
-      }
-      if (
-        !Number.isSafeInteger(input.expected_version) ||
-        typeof input.reason !== "string"
-      )
-        throw new ApplicationError(
-          "VALIDATION_ERROR",
-          "expected_version and reason are required.",
-        );
-      await authorize(authorization, {
-        principal,
-        action: "work_item.resolve",
-        resource: {
-          type: "work_item",
-          id: workResolveMatch[1]!,
-          tenant_id: principal.tenant_id,
-        },
-        scope: {},
-        context: { ...context },
-      });
-      const result = await uow.run(principal.tenant_id, (tx) =>
-        new PostgresIdempotencyStore(tx).execute(
-          {
-            principalId: principal.id,
-            operation: "WORK_ITEM.RESOLVE",
-            businessScope: workResolveMatch[1]!,
-            key,
-            semanticRequest: input as never,
-            expiresAt: new Date(Date.now() + 86400000),
-          },
-          async () => {
-            const item = await resolveWorkItem({
-              tx,
-              workItemId: workResolveMatch[1]!,
-              expectedVersion: input.expected_version as number,
-              reason: input.reason as string,
-            });
-            const now = new Date().toISOString();
-            await new PostgresOutboxWriter(tx).append({
-              event_id: randomUUID(),
-              event_type: "WORK_ITEM.RESOLVED",
-              schema_version: 1,
-              occurred_at: now,
-              producer: { service: config.serviceName, instance: "api" },
-              aggregate: {
-                type: "WORK_ITEM",
-                id: item.id,
-                version: item.version,
+              async () => {
+                const grant = await grantTemporary({
+                  tx,
+                  principalId: String(input.principal_id),
+                  permissionId: String(input.permission_id),
+                  scopeType: String(input.scope_type),
+                  scopeId: String(input.scope_id),
+                  validFrom: new Date(String(input.valid_from)),
+                  validUntil: new Date(String(input.valid_until)),
+                  reason: String(input.reason),
+                });
+                const now = new Date().toISOString();
+                await new PostgresOutboxWriter(tx).append({
+                  event_id: randomUUID(),
+                  event_type: "RBAC.TEMPORARY_GRANT_CREATED",
+                  schema_version: 1,
+                  occurred_at: now,
+                  producer: { service: config.serviceName, instance: "api" },
+                  aggregate: {
+                    type: "TEMPORARY_GRANT",
+                    id: grant.id,
+                    version: grant.version,
+                  },
+                  actor: { type: principal.actor_type, id: principal.id },
+                  correlation_id: context.correlation_id,
+                  causation_id: context.causation_id,
+                  tenant_id: principal.tenant_id,
+                  organization_id: principal.tenant_id,
+                  idempotency_key: idempotencyKey,
+                  payload: {
+                    grant_id: grant.id,
+                    principal_id: String(input.principal_id),
+                    permission_id: String(input.permission_id),
+                    scope_type: String(input.scope_type),
+                    scope_id: String(input.scope_id),
+                    valid_until: String(input.valid_until),
+                  },
+                });
+                await new PostgresAudit(tx).append({
+                  id: randomUUID(),
+                  tenant_id: principal.tenant_id,
+                  event_type: "RBAC.TEMPORARY_GRANT_CREATED",
+                  occurred_at: now,
+                  actor: { type: principal.actor_type, id: principal.id },
+                  action: { command_type: "PRIVILEGE.GRANT_TEMPORARY" },
+                  subject: {
+                    entity_type: "TEMPORARY_GRANT",
+                    entity_id: grant.id,
+                  },
+                  correlation_id: context.correlation_id,
+                  causation_id: context.causation_id,
+                  reason: {
+                    code: "PRIVILEGE_GRANTED",
+                    text: String(input.reason),
+                  },
+                  before: null,
+                  after: {
+                    grant_id: grant.id,
+                    version: grant.version,
+                    scope_type: String(input.scope_type),
+                    scope_id: String(input.scope_id),
+                  },
+                  outcome: { status: "SUCCESS" },
+                  classification: "SECURITY",
+                  relations: [],
+                  evidence: [],
+                });
+                return { status: 201, body: grant };
               },
-              actor: { type: principal.actor_type, id: principal.id },
-              correlation_id: context.correlation_id,
-              causation_id: context.causation_id,
-              tenant_id: principal.tenant_id,
-              organization_id: principal.tenant_id,
-              idempotency_key: key,
-              payload: item,
-            });
-            await new PostgresAudit(tx).append({
-              id: randomUUID(),
-              tenant_id: principal.tenant_id,
-              event_type: "WORK_ITEM.RESOLVED",
-              occurred_at: now,
-              actor: { type: principal.actor_type, id: principal.id },
-              action: { command_type: "WORK_ITEM.RESOLVE" },
-              subject: { entity_type: "WORK_ITEM", entity_id: item.id },
-              correlation_id: context.correlation_id,
-              causation_id: context.causation_id,
-              reason: {
-                code: "WORK_ITEM_RESOLVED",
-                text: input.reason as string,
-              },
-              before: { version: input.expected_version as number },
-              after: item,
-              outcome: { status: "SUCCESS" },
-              classification: "INTERNAL",
-              relations: [],
-              evidence: [],
-            });
-            return { status: 200, body: item };
-          },
-        ),
-      );
-      json(res, result.status, { data: result.body, meta: context });
-      return true;
-    }
-    if (req.method === "POST" && (ticketCreateMatch || ticketCommandMatch)) {
-      const principal = await authenticate(
-        authentication,
-        req.headers.authorization,
-      );
-      const key = req.headers["idempotency-key"];
-      if (typeof key !== "string" || !key.trim())
-        throw new ApplicationError(
-          "VALIDATION_ERROR",
-          "Idempotency-Key is required.",
-        );
-      const body = await new Promise<string>((resolve) => {
-        let data = "";
-        req.on("data", (c) => (data += c));
-        req.on("end", () => resolve(data));
-      });
-      let input: Record<string, unknown>;
-      try {
-        input = (body ? JSON.parse(body) : {}) as Record<string, unknown>;
-      } catch {
-        throw new ApplicationError("VALIDATION_ERROR", "Invalid JSON request.");
-      }
-      let ticketSourceContext:
-        { type: "KNOWLEDGE_RECOMMENDATION"; referenceId: string } | undefined;
-      if (input.source_context !== undefined) {
-        const source = input.source_context;
+            ),
+          );
+          json(res, result.status, { data: result.body, meta: context });
+          return true;
+        }
         if (
-          !source ||
-          typeof source !== "object" ||
-          Array.isArray(source) ||
-          (source as Record<string, unknown>).type !==
-            "KNOWLEDGE_RECOMMENDATION" ||
-          typeof (source as Record<string, unknown>).reference_id !==
-            "string" ||
-          Object.keys(source).some(
-            (field) => !["type", "reference_id"].includes(field),
+          req.method === "POST" &&
+          (req.url === "/api/v1/authorization/evaluate" ||
+            req.url === "/api/v1/authorization/evaluate-batch")
+        ) {
+          const principal = await authenticate(
+            authentication,
+            req.headers.authorization,
+          );
+          const body = await new Promise<string>((resolve) => {
+            let data = "";
+            req.on("data", (c) => (data += c));
+            req.on("end", () => resolve(data));
+          });
+          let input: {
+            action?: string;
+            resource_type?: string;
+            resource_id?: string;
+            scope?: Record<string, string>;
+          };
+          try {
+            input = JSON.parse(body) as typeof input;
+          } catch {
+            throw new ApplicationError(
+              "VALIDATION_ERROR",
+              "Invalid JSON request.",
+            );
+          }
+          if (req.url.endsWith("-batch")) {
+            const list = input as unknown as Array<typeof input>;
+            if (!Array.isArray(list) || list.length < 1 || list.length > 50)
+              throw new ApplicationError(
+                "VALIDATION_ERROR",
+                "Batch must contain between 1 and 50 evaluations.",
+              );
+            const decisions = await uow.run(principal.tenant_id, async (tx) =>
+              Promise.all(
+                list.map((item) => {
+                  if (!item.action || !item.resource_type || !item.resource_id)
+                    throw new ApplicationError(
+                      "VALIDATION_ERROR",
+                      "Each evaluation requires action, resource_type and resource_id.",
+                    );
+                  return evaluateAuthorization(tx, {
+                    principalId: principal.id,
+                    tenantId: principal.tenant_id,
+                    action: item.action,
+                    resourceType: item.resource_type,
+                    resourceId: item.resource_id,
+                    scope: item.scope ?? {},
+                  });
+                }),
+              ),
+            );
+            json(res, 200, { data: decisions, meta: context });
+            return true;
+          }
+          if (!input.action || !input.resource_type || !input.resource_id)
+            throw new ApplicationError(
+              "VALIDATION_ERROR",
+              "action, resource_type and resource_id are required.",
+            );
+          await authorize(authorization, {
+            principal,
+            action: "authorization.evaluate",
+            resource: {
+              type: "authorization",
+              id: input.resource_id,
+              tenant_id: principal.tenant_id,
+            },
+            scope: {},
+            context: { ...context },
+          });
+          const decision = await uow.run(principal.tenant_id, (tx) =>
+            evaluateAuthorization(tx, {
+              principalId: principal.id,
+              tenantId: principal.tenant_id,
+              action: input.action!,
+              resourceType: input.resource_type!,
+              resourceId: input.resource_id!,
+              scope: input.scope ?? {},
+            }),
+          );
+          json(res, 200, { data: decision, meta: context });
+          return true;
+        }
+        const match = /^\/api\/v1\/operations\/([^/?]+)$/.exec(req.url ?? "");
+        if (!match) return false;
+        const principal = await authenticate(
+            authentication,
+            req.headers.authorization,
+          ),
+          id = match[1]!;
+        if (
+          !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+            id,
           )
         )
           throw new ApplicationError(
             "VALIDATION_ERROR",
-            "source_context is invalid.",
-          );
-        ticketSourceContext = {
-          type: "KNOWLEDGE_RECOMMENDATION",
-          referenceId: (source as { reference_id: string }).reference_id,
-        };
-      }
-      const action = ticketCreateMatch
-        ? "ticket.create"
-        : ticketCommandMatch![2] === "resolve"
-          ? "ticket.resolve"
-          : ticketCommandMatch![2] === "reopen"
-            ? "ticket.reopen"
-            : ticketCommandMatch![2] === "assign"
-              ? "ticket.assign"
-              : ticketCommandMatch![2] === "enrich"
-                ? "ticket.update"
-                : "ticket.update";
-      const scopeId = ticketCreateMatch
-        ? principal.id
-        : ticketCommandMatch![1]!;
-      await authorize(authorization, {
-        principal,
-        action,
-        resource: {
-          type: "ticket",
-          id: scopeId,
-          tenant_id: principal.tenant_id,
-        },
-        scope: {},
-        context: { ...context },
-      });
-      const result = await uow.run(principal.tenant_id, (tx) =>
-        new PostgresIdempotencyStore(tx).execute(
-          {
-            principalId: principal.id,
-            operation: ticketCreateMatch
-              ? "TICKET.CREATE"
-              : `TICKET.${ticketCommandMatch![2]!.toUpperCase()}`,
-            businessScope: scopeId,
-            key,
-            semanticRequest: input as never,
-            expiresAt: new Date(Date.now() + 86400000),
-          },
-          async () => {
-            const value = ticketCreateMatch
-              ? await createTicket({
-                  tx,
-                  ticketCode: input.ticket_code as string,
-                  title: input.title as string,
-                  description: input.description as string,
-                  requesterUserId: input.requester_user_id as string,
-                  priority: input.priority as string,
-                  sourceChannel: input.source_channel as string,
-                  ...(ticketSourceContext
-                    ? { sourceContext: ticketSourceContext }
-                    : {}),
-                })
-              : ticketCommandMatch![2] === "enrich"
-                ? await enrichTicket({
-                    tx,
-                    ticketId: ticketCommandMatch![1]!,
-                    expectedVersion: input.expected_version as number,
-                    ...(typeof input.asset_id === "string"
-                      ? { assetId: input.asset_id }
-                      : {}),
-                    reason: input.reason as string,
-                  })
-                : await transitionTicket({
-                    tx,
-                    ticketId: ticketCommandMatch![1]!,
-                    expectedVersion: input.expected_version as number,
-                    targetState:
-                      ticketCommandMatch![2] === "assign"
-                        ? "ASSIGNED"
-                        : ticketCommandMatch![2] === "start"
-                          ? "IN_PROGRESS"
-                          : ticketCommandMatch![2] === "request-info"
-                            ? "WAITING_USER"
-                            : ticketCommandMatch![2] === "resolve"
-                              ? "RESOLVED"
-                              : ticketCommandMatch![2] === "reopen"
-                                ? "REOPENED"
-                                : ticketCommandMatch![2]!.toUpperCase(),
-                    reason: input.reason as string,
-                    actorType: principal.actor_type,
-                    actorId: principal.id,
-                    correlationId: context.correlation_id,
-                    ...(typeof input.assignee_user_id === "string"
-                      ? { assigneeUserId: input.assignee_user_id }
-                      : {}),
-                    ...(typeof input.resolution_code === "string"
-                      ? { resolutionCode: input.resolution_code }
-                      : {}),
-                  });
-            let workItem:
-              Awaited<ReturnType<typeof createTicketWorkItem>> | undefined;
-            if (ticketCreateMatch) {
-              workItem = await createTicketWorkItem({
-                tx,
-                ticketId: value.id,
-                title: input.title as string,
-                priority: input.priority as string,
-              });
-              const createdAt = new Date().toISOString();
-              await new PostgresOutboxWriter(tx).append({
-                event_id: randomUUID(),
-                event_type: "WORK_ITEM.CREATED",
-                schema_version: 1,
-                occurred_at: createdAt,
-                producer: { service: config.serviceName, instance: "api" },
-                aggregate: {
-                  type: "WORK_ITEM",
-                  id: workItem.id,
-                  version: workItem.version,
-                },
-                actor: { type: principal.actor_type, id: principal.id },
-                correlation_id: context.correlation_id,
-                causation_id: context.causation_id,
-                tenant_id: principal.tenant_id,
-                organization_id: principal.tenant_id,
-                idempotency_key: key,
-                payload: workItem,
-              });
-              await tx.query(
-                "INSERT INTO operations.timeline_events(id,tenant_id,entity_type,entity_id,event_type,summary,payload,source_event_id) VALUES($1,$2,'TICKET',$3,'TICKET.CREATED',$4,$5,$6)",
-                [
-                  randomUUID(),
-                  principal.tenant_id,
-                  value.id,
-                  `Ticket ${input.ticket_code as string} created`,
-                  JSON.stringify(value),
-                  randomUUID(),
-                ],
-              );
-              await tx.query(
-                "INSERT INTO communication.notifications(id,tenant_id,recipient_user_id,event_type,subject,body,dedupe_key) VALUES($1,$2,$3,'TICKET.CREATED',$4,$5,$6) ON CONFLICT DO NOTHING",
-                [
-                  randomUUID(),
-                  principal.tenant_id,
-                  input.requester_user_id as string,
-                  "Ticket created",
-                  `Ticket ${input.ticket_code as string} was created.`,
-                  `ticket-created:${value.id}`,
-                ],
-              );
-              await refreshSearchEntity(tx, "TICKET", value.id);
-            }
-            const eventType = ticketCreateMatch
-              ? "TICKET.CREATED"
-              : ticketCommandMatch![2] === "enrich"
-                ? "TICKET.ENRICHED"
-                : ticketCommandMatch![2] === "resolve"
-                  ? "TICKET.RESOLVED"
-                  : ticketCommandMatch![2] === "reopen"
-                    ? "TICKET.REOPENED"
-                    : "TICKET.STATE_CHANGED";
-            const now = new Date().toISOString();
-            await new PostgresOutboxWriter(tx).append({
-              event_id: randomUUID(),
-              event_type: eventType,
-              schema_version: 1,
-              occurred_at: now,
-              producer: { service: config.serviceName, instance: "api" },
-              aggregate: {
-                type: "TICKET",
-                id: value.id,
-                version: value.version,
-              },
-              actor: { type: principal.actor_type, id: principal.id },
-              correlation_id: context.correlation_id,
-              causation_id: context.causation_id,
-              tenant_id: principal.tenant_id,
-              organization_id: principal.tenant_id,
-              idempotency_key: key,
-              payload: value,
-            });
-            await new PostgresAudit(tx).append({
-              id: randomUUID(),
-              tenant_id: principal.tenant_id,
-              event_type: eventType,
-              occurred_at: now,
-              actor: { type: principal.actor_type, id: principal.id },
-              action: {
-                command_type: ticketCreateMatch
-                  ? "TICKET.CREATE"
-                  : `TICKET.${ticketCommandMatch![2]!.toUpperCase()}`,
-              },
-              subject: { entity_type: "TICKET", entity_id: value.id },
-              correlation_id: context.correlation_id,
-              causation_id: context.causation_id,
-              reason: {
-                code: eventType,
-                text: (input.reason as string) ?? "Ticket created",
-              },
-              before: null,
-              after: value,
-              outcome: { status: "SUCCESS" },
-              classification: "INTERNAL",
-              relations: [],
-              evidence: [],
-            });
-            return { status: 201, body: value };
-          },
-        ),
-      );
-      json(res, result.status, { data: result.body, meta: context });
-      return true;
-    }
-    if (req.method === "POST" && (requestReturnMatch || receiveReturnMatch)) {
-      const match = requestReturnMatch ?? receiveReturnMatch!;
-      const principal = await authenticate(
-        authentication,
-        req.headers.authorization,
-      );
-      const key = req.headers["idempotency-key"];
-      if (typeof key !== "string" || !key.trim())
-        throw new ApplicationError(
-          "VALIDATION_ERROR",
-          "Idempotency-Key is required.",
-        );
-      const body = await new Promise<string>((resolve) => {
-        let data = "";
-        req.on("data", (c) => (data += c));
-        req.on("end", () => resolve(data));
-      });
-      let input: Record<string, unknown>;
-      try {
-        input = (body ? JSON.parse(body) : {}) as Record<string, unknown>;
-      } catch {
-        throw new ApplicationError("VALIDATION_ERROR", "Invalid JSON request.");
-      }
-      const request = Boolean(requestReturnMatch);
-      const action = request ? "asset.request_return" : "asset.receive_return";
-      await authorize(authorization, {
-        principal,
-        action,
-        resource: {
-          type: "asset",
-          id: match[1]!,
-          tenant_id: principal.tenant_id,
-        },
-        scope: {},
-        context: { ...context },
-      });
-      const required = request
-        ? Number.isSafeInteger(input.expected_version) &&
-          typeof input.due_at === "string" &&
-          typeof input.reason === "string"
-        : Number.isSafeInteger(input.expected_version) &&
-          typeof input.return_request_id === "string" &&
-          typeof input.received_location_id === "string" &&
-          typeof input.condition_grade === "string" &&
-          typeof input.notes === "string";
-      if (!required)
-        throw new ApplicationError(
-          "VALIDATION_ERROR",
-          request
-            ? "expected_version, due_at and reason are required."
-            : "expected_version, return_request_id, received_location_id, condition_grade and notes are required.",
-        );
-      const result = await uow.run(principal.tenant_id, (tx) =>
-        new PostgresIdempotencyStore(tx).execute(
-          {
-            principalId: principal.id,
-            operation: request
-              ? "ASSET.REQUEST_RETURN"
-              : "ASSET.RECEIVE_RETURN",
-            businessScope: match[1]!,
-            key,
-            semanticRequest: input as never,
-            expiresAt: new Date(Date.now() + 86400000),
-          },
-          async () => {
-            const value = request
-              ? await requestReturn({
-                  tx,
-                  assetId: match[1]!,
-                  expectedVersion: input.expected_version as number,
-                  dueAt: input.due_at as string,
-                  reason: input.reason as string,
-                })
-              : await receiveReturn({
-                  tx,
-                  assetId: match[1]!,
-                  expectedVersion: input.expected_version as number,
-                  returnRequestId: input.return_request_id as string,
-                  receivedLocationId: input.received_location_id as string,
-                  conditionGrade: input.condition_grade as string,
-                  notes: input.notes as string,
-                });
-            const eventType = request
-              ? "ASSET.RETURN_REQUESTED"
-              : "ASSET.RETURNED";
-            const now = new Date().toISOString();
-            await new PostgresOutboxWriter(tx).append({
-              event_id: randomUUID(),
-              event_type: eventType,
-              schema_version: 1,
-              occurred_at: now,
-              producer: { service: config.serviceName, instance: "api" },
-              aggregate: {
-                type: "ASSET",
-                id: value.asset_id,
-                version: value.version,
-              },
-              actor: { type: principal.actor_type, id: principal.id },
-              correlation_id: context.correlation_id,
-              causation_id: context.causation_id,
-              tenant_id: principal.tenant_id,
-              organization_id: principal.tenant_id,
-              idempotency_key: key,
-              payload: value,
-            });
-            await new PostgresAudit(tx).append({
-              id: randomUUID(),
-              tenant_id: principal.tenant_id,
-              event_type: eventType,
-              occurred_at: now,
-              actor: { type: principal.actor_type, id: principal.id },
-              action: {
-                command_type: request
-                  ? "ASSET.REQUEST_RETURN"
-                  : "ASSET.RECEIVE_RETURN",
-              },
-              subject: { entity_type: "ASSET", entity_id: value.asset_id },
-              correlation_id: context.correlation_id,
-              causation_id: context.causation_id,
-              reason: {
-                code: eventType,
-                text: request
-                  ? (input.reason as string)
-                  : (input.notes as string),
-              },
-              before: { version: input.expected_version as number },
-              after: value,
-              outcome: { status: "SUCCESS" },
-              classification: "INTERNAL",
-              relations: [],
-              evidence: [],
-            });
-            return { status: 201, body: value };
-          },
-        ),
-      );
-      json(res, result.status, { data: result.body, meta: context });
-      return true;
-    }
-    if (req.method === "POST" && transferMatch) {
-      const principal = await authenticate(
-        authentication,
-        req.headers.authorization,
-      );
-      const key = req.headers["idempotency-key"];
-      if (typeof key !== "string" || !key.trim())
-        throw new ApplicationError(
-          "VALIDATION_ERROR",
-          "Idempotency-Key is required.",
-        );
-      const body = await new Promise<string>((resolve) => {
-        let data = "";
-        req.on("data", (c) => (data += c));
-        req.on("end", () => resolve(data));
-      });
-      let input: Record<string, unknown>;
-      try {
-        input = (body ? JSON.parse(body) : {}) as Record<string, unknown>;
-      } catch {
-        throw new ApplicationError("VALIDATION_ERROR", "Invalid JSON request.");
-      }
-      if (
-        !Number.isSafeInteger(input.expected_version) ||
-        typeof input.to_location_id !== "string" ||
-        typeof input.to_user_id !== "string" ||
-        typeof input.reason !== "string"
-      )
-        throw new ApplicationError(
-          "VALIDATION_ERROR",
-          "expected_version, to_location_id, to_user_id and reason are required.",
-        );
-      await authorize(authorization, {
-        principal,
-        action: "asset.transfer",
-        resource: {
-          type: "asset",
-          id: transferMatch[1]!,
-          tenant_id: principal.tenant_id,
-        },
-        scope: {},
-        context: { ...context },
-      });
-      const result = await uow.run(principal.tenant_id, (tx) =>
-        new PostgresIdempotencyStore(tx).execute(
-          {
-            principalId: principal.id,
-            operation: "ASSET.TRANSFER",
-            businessScope: transferMatch[1]!,
-            key,
-            semanticRequest: input as never,
-            expiresAt: new Date(Date.now() + 86400000),
-          },
-          async () => {
-            const movement = await transferAsset({
-              tx,
-              assetId: transferMatch[1]!,
-              expectedVersion: input.expected_version as number,
-              toLocationId: input.to_location_id as string,
-              toUserId: input.to_user_id as string,
-              reason: input.reason as string,
-              actorType: principal.actor_type,
-              actorId: principal.id,
-              correlationId: context.correlation_id,
-            });
-            const now = new Date().toISOString();
-            await new PostgresOutboxWriter(tx).append({
-              event_id: randomUUID(),
-              event_type: "ASSET.TRANSFERRED",
-              schema_version: 1,
-              occurred_at: now,
-              producer: { service: config.serviceName, instance: "api" },
-              aggregate: {
-                type: "ASSET",
-                id: movement.asset_id,
-                version: movement.version,
-              },
-              actor: { type: principal.actor_type, id: principal.id },
-              correlation_id: context.correlation_id,
-              causation_id: context.causation_id,
-              tenant_id: principal.tenant_id,
-              organization_id: principal.tenant_id,
-              idempotency_key: key,
-              payload: movement,
-            });
-            await new PostgresAudit(tx).append({
-              id: randomUUID(),
-              tenant_id: principal.tenant_id,
-              event_type: "ASSET.TRANSFERRED",
-              occurred_at: now,
-              actor: { type: principal.actor_type, id: principal.id },
-              action: { command_type: "ASSET.TRANSFER" },
-              subject: { entity_type: "ASSET", entity_id: movement.asset_id },
-              correlation_id: context.correlation_id,
-              causation_id: context.causation_id,
-              reason: {
-                code: "ASSET_TRANSFERRED",
-                text: input.reason as string,
-              },
-              before: { version: input.expected_version as number },
-              after: movement,
-              outcome: { status: "SUCCESS" },
-              classification: "INTERNAL",
-              relations: [],
-              evidence: [],
-            });
-            return { status: 201, body: movement };
-          },
-        ),
-      );
-      json(res, result.status, { data: result.body, meta: context });
-      return true;
-    }
-    if (req.method === "POST" && assignMatch) {
-      const principal = await authenticate(
-        authentication,
-        req.headers.authorization,
-      );
-      const key = req.headers["idempotency-key"];
-      if (typeof key !== "string" || !key.trim())
-        throw new ApplicationError(
-          "VALIDATION_ERROR",
-          "Idempotency-Key is required.",
-        );
-      const body = await new Promise<string>((resolve) => {
-        let data = "";
-        req.on("data", (c) => (data += c));
-        req.on("end", () => resolve(data));
-      });
-      let input: Record<string, unknown>;
-      try {
-        input = (body ? JSON.parse(body) : {}) as Record<string, unknown>;
-      } catch {
-        throw new ApplicationError("VALIDATION_ERROR", "Invalid JSON request.");
-      }
-      if (
-        !Number.isSafeInteger(input.expected_version) ||
-        typeof input.user_id !== "string" ||
-        typeof input.reason !== "string"
-      )
-        throw new ApplicationError(
-          "VALIDATION_ERROR",
-          "expected_version, user_id and reason are required.",
-        );
-      await authorize(authorization, {
-        principal,
-        action: "asset.assign",
-        resource: {
-          type: "asset",
-          id: assignMatch[1]!,
-          tenant_id: principal.tenant_id,
-        },
-        scope: {},
-        context: { ...context },
-      });
-      const result = await uow.run(principal.tenant_id, (tx) =>
-        new PostgresIdempotencyStore(tx).execute(
-          {
-            principalId: principal.id,
-            operation: "ASSET.ASSIGN",
-            businessScope: assignMatch[1]!,
-            key,
-            semanticRequest: input as never,
-            expiresAt: new Date(Date.now() + 86400000),
-          },
-          async () => {
-            const assignment = await assignAsset({
-              tx,
-              assetId: assignMatch[1]!,
-              expectedVersion: input.expected_version as number,
-              userId: input.user_id as string,
-              reason: input.reason as string,
-              actorType: principal.actor_type,
-              actorId: principal.id,
-              correlationId: context.correlation_id,
-            });
-            const now = new Date().toISOString();
-            await new PostgresOutboxWriter(tx).append({
-              event_id: randomUUID(),
-              event_type: "ASSET.ASSIGNED",
-              schema_version: 1,
-              occurred_at: now,
-              producer: { service: config.serviceName, instance: "api" },
-              aggregate: {
-                type: "ASSET",
-                id: assignment.asset_id,
-                version: assignment.version,
-              },
-              actor: { type: principal.actor_type, id: principal.id },
-              correlation_id: context.correlation_id,
-              causation_id: context.causation_id,
-              tenant_id: principal.tenant_id,
-              organization_id: principal.tenant_id,
-              idempotency_key: key,
-              payload: assignment,
-            });
-            await new PostgresAudit(tx).append({
-              id: randomUUID(),
-              tenant_id: principal.tenant_id,
-              event_type: "ASSET.ASSIGNED",
-              occurred_at: now,
-              actor: { type: principal.actor_type, id: principal.id },
-              action: { command_type: "ASSET.ASSIGN" },
-              subject: { entity_type: "ASSET", entity_id: assignment.asset_id },
-              correlation_id: context.correlation_id,
-              causation_id: context.causation_id,
-              reason: { code: "ASSET_ASSIGNED", text: input.reason as string },
-              before: { version: input.expected_version as number },
-              after: assignment,
-              outcome: { status: "SUCCESS" },
-              classification: "INTERNAL",
-              relations: [],
-              evidence: [],
-            });
-            return { status: 201, body: assignment };
-          },
-        ),
-      );
-      json(res, result.status, { data: result.body, meta: context });
-      return true;
-    }
-    if (req.method === "POST" && reserveMatch) {
-      const principal = await authenticate(
-        authentication,
-        req.headers.authorization,
-      );
-      const key = req.headers["idempotency-key"];
-      if (typeof key !== "string" || !key.trim())
-        throw new ApplicationError(
-          "VALIDATION_ERROR",
-          "Idempotency-Key is required.",
-        );
-      const body = await new Promise<string>((resolve) => {
-        let data = "";
-        req.on("data", (chunk) => (data += chunk));
-        req.on("end", () => resolve(data));
-      });
-      let input: Record<string, unknown>;
-      try {
-        input = (body ? JSON.parse(body) : {}) as Record<string, unknown>;
-      } catch {
-        throw new ApplicationError("VALIDATION_ERROR", "Invalid JSON request.");
-      }
-      if (
-        !Number.isSafeInteger(input.expected_version) ||
-        typeof input.requested_for !== "string" ||
-        typeof input.reason !== "string" ||
-        typeof input.expires_at !== "string"
-      )
-        throw new ApplicationError(
-          "VALIDATION_ERROR",
-          "expected_version, requested_for, reason and expires_at are required.",
-        );
-      await authorize(authorization, {
-        principal,
-        action: "asset.reserve",
-        resource: {
-          type: "asset",
-          id: reserveMatch[1]!,
-          tenant_id: principal.tenant_id,
-        },
-        scope: {},
-        context: { ...context },
-      });
-      const result = await uow.run(principal.tenant_id, (tx) =>
-        new PostgresIdempotencyStore(tx).execute(
-          {
-            principalId: principal.id,
-            operation: "ASSET.RESERVE",
-            businessScope: reserveMatch[1]!,
-            key,
-            semanticRequest: input as never,
-            expiresAt: new Date(Date.now() + 86400000),
-          },
-          async () => {
-            const reservation = await reserveAsset({
-              tx,
-              assetId: reserveMatch[1]!,
-              expectedVersion: input.expected_version as number,
-              requestedFor: input.requested_for as string,
-              reason: input.reason as string,
-              expiresAt: input.expires_at as string,
-              actorType: principal.actor_type,
-              actorId: principal.id,
-              correlationId: context.correlation_id,
-            });
-            const now = new Date().toISOString();
-            await new PostgresOutboxWriter(tx).append({
-              event_id: randomUUID(),
-              event_type: "ASSET.RESERVED",
-              schema_version: 1,
-              occurred_at: now,
-              producer: { service: config.serviceName, instance: "api" },
-              aggregate: {
-                type: "ASSET",
-                id: reservation.asset_id,
-                version: reservation.version,
-              },
-              actor: { type: principal.actor_type, id: principal.id },
-              correlation_id: context.correlation_id,
-              causation_id: context.causation_id,
-              tenant_id: principal.tenant_id,
-              organization_id: principal.tenant_id,
-              idempotency_key: key,
-              payload: reservation,
-            });
-            await new PostgresAudit(tx).append({
-              id: randomUUID(),
-              tenant_id: principal.tenant_id,
-              event_type: "ASSET.RESERVED",
-              occurred_at: now,
-              actor: { type: principal.actor_type, id: principal.id },
-              action: { command_type: "ASSET.RESERVE" },
-              subject: {
-                entity_type: "ASSET",
-                entity_id: reservation.asset_id,
-              },
-              correlation_id: context.correlation_id,
-              causation_id: context.causation_id,
-              reason: { code: "ASSET_RESERVED", text: input.reason as string },
-              before: { version: input.expected_version as number },
-              after: reservation,
-              outcome: { status: "SUCCESS" },
-              classification: "INTERNAL",
-              relations: [],
-              evidence: [],
-            });
-            return { status: 201, body: reservation };
-          },
-        ),
-      );
-      json(res, result.status, { data: result.body, meta: context });
-      return true;
-    }
-    if (req.method === "POST" && retireMatch) {
-      const principal = await authenticate(
-        authentication,
-        req.headers.authorization,
-      );
-      const key = req.headers["idempotency-key"];
-      if (typeof key !== "string" || !key.trim())
-        throw new ApplicationError(
-          "VALIDATION_ERROR",
-          "Idempotency-Key is required.",
-        );
-      const body = await new Promise<string>((resolve) => {
-        let data = "";
-        req.on("data", (c) => (data += c));
-        req.on("end", () => resolve(data));
-      });
-      let input: Record<string, unknown>;
-      try {
-        input = (body ? JSON.parse(body) : {}) as Record<string, unknown>;
-      } catch {
-        throw new ApplicationError("VALIDATION_ERROR", "Invalid JSON request.");
-      }
-      const expected = input.expected_version;
-      if (!Number.isSafeInteger(expected) || typeof input.reason !== "string")
-        throw new ApplicationError(
-          "VALIDATION_ERROR",
-          "expected_version and reason are required.",
-        );
-      await authorize(authorization, {
-        principal,
-        action: "asset.retire",
-        resource: {
-          type: "asset",
-          id: retireMatch[1]!,
-          tenant_id: principal.tenant_id,
-        },
-        scope: {},
-        context: { ...context },
-      });
-      const result = await uow.run(principal.tenant_id, (tx) =>
-        new PostgresIdempotencyStore(tx).execute(
-          {
-            principalId: principal.id,
-            operation: "ASSET.RETIRE",
-            businessScope: retireMatch[1]!,
-            key,
-            semanticRequest: {
-              expected_version: expected as number,
-              reason: input.reason as string,
-            },
-            expiresAt: new Date(Date.now() + 86400000),
-          },
-          async () => {
-            const changed = await transitionLifecycle({
-              tx,
-              assetId: retireMatch[1]!,
-              expectedVersion: expected as number,
-              targetState: "RETIRED",
-              actorType: principal.actor_type,
-              actorId: principal.id,
-              reason: input.reason as string,
-              correlationId: context.correlation_id,
-              commandType: "ASSET.RETIRE",
-            });
-            const now = new Date().toISOString();
-            await new PostgresOutboxWriter(tx).append({
-              event_id: randomUUID(),
-              event_type: "ASSET.RETIRED",
-              schema_version: 1,
-              occurred_at: now,
-              producer: { service: config.serviceName, instance: "api" },
-              aggregate: {
-                type: "ASSET",
-                id: changed.id,
-                version: changed.version,
-              },
-              actor: { type: principal.actor_type, id: principal.id },
-              correlation_id: context.correlation_id,
-              causation_id: context.causation_id,
-              tenant_id: principal.tenant_id,
-              organization_id: principal.tenant_id,
-              idempotency_key: key,
-              payload: changed,
-            });
-            await new PostgresAudit(tx).append({
-              id: randomUUID(),
-              tenant_id: principal.tenant_id,
-              event_type: "ASSET.RETIRED",
-              occurred_at: now,
-              actor: { type: principal.actor_type, id: principal.id },
-              action: { command_type: "ASSET.RETIRE" },
-              subject: { entity_type: "ASSET", entity_id: changed.id },
-              correlation_id: context.correlation_id,
-              causation_id: context.causation_id,
-              reason: { code: "ASSET_RETIRED", text: input.reason as string },
-              before: {
-                lifecycle_state: changed.from_state,
-                version: expected as number,
-              },
-              after: changed,
-              outcome: { status: "SUCCESS" },
-              classification: "INTERNAL",
-              relations: [],
-              evidence: [],
-            });
-            return { status: 200, body: changed };
-          },
-        ),
-      );
-      json(res, result.status, { data: result.body, meta: context });
-      return true;
-    }
-    if (req.url === "/api/v1/me") {
-      const principal = await authenticate(
-        authentication,
-        req.headers.authorization,
-      );
-      json(res, 200, { data: principal, meta: context });
-      return true;
-    }
-    if (req.method === "POST" && req.url === "/api/v1/auth/logout") {
-      const principal = await authenticate(
-        authentication,
-        req.headers.authorization,
-      );
-      const body = await new Promise<string>((resolve) => {
-        let data = "";
-        req.on("data", (c) => (data += c));
-        req.on("end", () => resolve(data));
-      });
-      let input: { session_id?: string; expected_version?: number };
-      try {
-        input = JSON.parse(body) as typeof input;
-      } catch {
-        throw new ApplicationError("VALIDATION_ERROR", "Invalid JSON request.");
-      }
-      if (!input.session_id || !Number.isInteger(input.expected_version))
-        throw new ApplicationError(
-          "VALIDATION_ERROR",
-          "session_id and expected_version are required.",
-        );
-      const idempotencyKey = req.headers["idempotency-key"];
-      if (typeof idempotencyKey !== "string" || !idempotencyKey.trim())
-        throw new ApplicationError(
-          "VALIDATION_ERROR",
-          "Idempotency-Key is required.",
-        );
-      await authorize(authorization, {
-        principal,
-        action: "session.revoke",
-        resource: {
-          type: "session",
-          id: input.session_id,
-          tenant_id: principal.tenant_id,
-        },
-        scope: {},
-        context: { ...context },
-      });
-      const result = await uow.run(principal.tenant_id, async (tx) =>
-        new PostgresIdempotencyStore(tx).execute(
-          {
-            principalId: principal.id,
-            operation: "AUTH.REVOKE_SESSION",
-            businessScope: input.session_id!,
-            key: idempotencyKey,
-            semanticRequest: {
-              session_id: input.session_id!,
-              expected_version: input.expected_version!,
-            },
-            expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
-          },
-          async () => {
-            await revokeSession(tx, input.session_id!, input.expected_version!);
-            const now = new Date().toISOString();
-            await new PostgresOutboxWriter(tx).append({
-              event_id: randomUUID(),
-              event_type: "AUTH.SESSION_REVOKED",
-              schema_version: 1,
-              occurred_at: now,
-              producer: { service: config.serviceName, instance: "api" },
-              aggregate: {
-                type: "SESSION",
-                id: input.session_id!,
-                version: input.expected_version! + 1,
-              },
-              actor: { type: principal.actor_type, id: principal.id },
-              correlation_id: context.correlation_id,
-              causation_id: context.causation_id,
-              tenant_id: principal.tenant_id,
-              organization_id: principal.tenant_id,
-              idempotency_key: idempotencyKey,
-              payload: { session_id: input.session_id!, user_id: principal.id },
-            });
-            await new PostgresAudit(tx).append({
-              id: randomUUID(),
-              tenant_id: principal.tenant_id,
-              event_type: "AUTH.SESSION_REVOKED",
-              occurred_at: now,
-              actor: { type: principal.actor_type, id: principal.id },
-              action: { command_type: "AUTH.REVOKE_SESSION" },
-              subject: { entity_type: "SESSION", entity_id: input.session_id! },
-              correlation_id: context.correlation_id,
-              causation_id: context.causation_id,
-              reason: {
-                code: "USER_LOGOUT",
-                text: "Session revoked by authenticated principal",
-              },
-              before: { version: input.expected_version!, revoked: false },
-              after: { version: input.expected_version! + 1, revoked: true },
-              outcome: { status: "SUCCESS" },
-              classification: "SECURITY",
-              relations: [],
-              evidence: [],
-            });
-            return { status: 200, body: { revoked: true } };
-          },
-        ),
-      );
-      json(res, result.status, { data: result.body, meta: context });
-      return true;
-    }
-    if (req.method === "POST" && req.url === "/api/v1/assets") {
-      const principal = await authenticate(
-        authentication,
-        req.headers.authorization,
-      );
-      const key = req.headers["idempotency-key"];
-      if (typeof key !== "string" || !key.trim())
-        throw new ApplicationError(
-          "VALIDATION_ERROR",
-          "Idempotency-Key is required.",
-        );
-      const body = await new Promise<string>((resolve) => {
-        let data = "";
-        req.on("data", (c) => (data += c));
-        req.on("end", () => resolve(data));
-      });
-      let input: Record<string, unknown>;
-      try {
-        input = JSON.parse(body) as Record<string, unknown>;
-      } catch {
-        throw new ApplicationError("VALIDATION_ERROR", "Invalid JSON request.");
-      }
-      await authorize(authorization, {
-        principal,
-        action: "asset.create",
-        resource: {
-          type: "asset",
-          id: String(input.asset_code ?? "asset"),
-          tenant_id: principal.tenant_id,
-        },
-        scope: {},
-        context: { ...context },
-      });
-      const result = await uow.run(principal.tenant_id, (tx) =>
-        new PostgresIdempotencyStore(tx).execute(
-          {
-            principalId: principal.id,
-            operation: "ASSET.CREATE",
-            businessScope: String(input.asset_code ?? "asset"),
-            key,
-            semanticRequest: input as never,
-            expiresAt: new Date(Date.now() + 86400000),
-          },
-          async () => {
-            const asset = await createAsset({
-              tx,
-              assetCode: String(input.asset_code ?? ""),
-              modelId: String(input.model_id ?? ""),
-              ...(typeof input.asset_tag === "string"
-                ? { assetTag: input.asset_tag }
-                : {}),
-              ...(typeof input.serial_number === "string"
-                ? { serialNumber: input.serial_number }
-                : {}),
-              ...(typeof input.location_id === "string"
-                ? { locationId: input.location_id }
-                : {}),
-            });
-            const now = new Date().toISOString();
-            await new PostgresOutboxWriter(tx).append({
-              event_id: randomUUID(),
-              event_type: "ASSET.CREATED",
-              schema_version: 1,
-              occurred_at: now,
-              producer: { service: config.serviceName, instance: "api" },
-              aggregate: { type: "ASSET", id: asset.id, version: 1 },
-              actor: { type: principal.actor_type, id: principal.id },
-              correlation_id: context.correlation_id,
-              causation_id: context.causation_id,
-              tenant_id: principal.tenant_id,
-              organization_id: principal.tenant_id,
-              idempotency_key: key,
-              payload: asset,
-            });
-            await new PostgresAudit(tx).append({
-              id: randomUUID(),
-              tenant_id: principal.tenant_id,
-              event_type: "ASSET.CREATED",
-              occurred_at: now,
-              actor: { type: principal.actor_type, id: principal.id },
-              action: { command_type: "ASSET.CREATE" },
-              subject: { entity_type: "ASSET", entity_id: asset.id },
-              correlation_id: context.correlation_id,
-              causation_id: context.causation_id,
-              reason: { code: "ASSET_REGISTERED", text: "Asset registered" },
-              before: null,
-              after: asset,
-              outcome: { status: "SUCCESS" },
-              classification: "INTERNAL",
-              relations: [],
-              evidence: [],
-            });
-            return { status: 201, body: asset };
-          },
-        ),
-      );
-      json(res, result.status, { data: result.body, meta: context });
-      return true;
-    }
-    if (
-      req.method === "POST" &&
-      (req.url === "/api/v1/temporary-grants" ||
-        /^\/api\/v1\/temporary-grants\/[^/]+\/commands\/revoke$/.test(
-          req.url ?? "",
-        ))
-    ) {
-      const principal = await authenticate(
-        authentication,
-        req.headers.authorization,
-      );
-      const idempotencyKey = req.headers["idempotency-key"];
-      if (typeof idempotencyKey !== "string" || !idempotencyKey.trim())
-        throw new ApplicationError(
-          "VALIDATION_ERROR",
-          "Idempotency-Key is required.",
-        );
-      const body = await new Promise<string>((resolve) => {
-        let data = "";
-        req.on("data", (c) => (data += c));
-        req.on("end", () => resolve(data));
-      });
-      let input: Record<string, unknown> = {};
-      try {
-        input = (body ? JSON.parse(body) : {}) as Record<string, unknown>;
-      } catch {
-        throw new ApplicationError("VALIDATION_ERROR", "Invalid JSON request.");
-      }
-      const revokeMatch =
-        /^\/api\/v1\/temporary-grants\/([^/]+)\/commands\/revoke$/.exec(
-          req.url ?? "",
-        );
-      if (revokeMatch) {
-        const expectedVersion =
-          typeof input.expected_version === "number"
-            ? input.expected_version
-            : undefined;
-        if (
-          expectedVersion === undefined ||
-          !Number.isSafeInteger(expectedVersion)
-        )
-          throw new ApplicationError(
-            "VALIDATION_ERROR",
-            "expected_version is required.",
+            "Invalid operation ID.",
           );
         await authorize(authorization, {
           principal,
-          action: "rbac.manage",
-          resource: {
-            type: "temporary_grant",
-            id: revokeMatch[1]!,
-            tenant_id: principal.tenant_id,
-          },
+          action: "operation.read",
+          resource: { type: "operation", id, tenant_id: principal.tenant_id },
           scope: {},
           context: { ...context },
         });
-        const result = await uow.run(principal.tenant_id, (tx) =>
-          new PostgresIdempotencyStore(tx).execute(
-            {
-              principalId: principal.id,
-              operation: "PRIVILEGE.REVOKE_TEMPORARY",
-              businessScope: revokeMatch[1]!,
-              key: idempotencyKey,
-              semanticRequest: {
-                grant_id: revokeMatch[1]!,
-                expected_version: expectedVersion,
-              },
-              expiresAt: new Date(Date.now() + 86400000),
-            },
-            async () => {
-              await revokeTemporary(tx, revokeMatch[1]!, expectedVersion);
-              const now = new Date().toISOString();
-              await new PostgresOutboxWriter(tx).append({
-                event_id: randomUUID(),
-                event_type: "RBAC.TEMPORARY_GRANT_REVOKED",
-                schema_version: 1,
-                occurred_at: now,
-                producer: { service: config.serviceName, instance: "api" },
-                aggregate: {
-                  type: "TEMPORARY_GRANT",
-                  id: revokeMatch[1]!,
-                  version: expectedVersion + 1,
-                },
-                actor: { type: principal.actor_type, id: principal.id },
-                correlation_id: context.correlation_id,
-                causation_id: context.causation_id,
-                tenant_id: principal.tenant_id,
-                organization_id: principal.tenant_id,
-                idempotency_key: idempotencyKey,
-                payload: { grant_id: revokeMatch[1]!, reason: "REVOKED" },
-              });
-              await new PostgresAudit(tx).append({
-                id: randomUUID(),
-                tenant_id: principal.tenant_id,
-                event_type: "RBAC.TEMPORARY_GRANT_REVOKED",
-                occurred_at: now,
-                actor: { type: principal.actor_type, id: principal.id },
-                action: { command_type: "PRIVILEGE.REVOKE_TEMPORARY" },
-                subject: {
-                  entity_type: "TEMPORARY_GRANT",
-                  entity_id: revokeMatch[1]!,
-                },
-                correlation_id: context.correlation_id,
-                causation_id: context.causation_id,
-                reason: {
-                  code: "PRIVILEGE_REVOKED",
-                  text: "Temporary grant revoked",
-                },
-                before: { version: expectedVersion, revoked: false },
-                after: { version: expectedVersion + 1, revoked: true },
-                outcome: { status: "SUCCESS" },
-                classification: "SECURITY",
-                relations: [],
-                evidence: [],
-              });
-              return {
-                status: 200,
-                body: { grant_id: revokeMatch[1]!, revoked: true },
-              };
-            },
-          ),
+        const operation = await uow.run(principal.tenant_id, (tx) =>
+          new OperationRegistry(tx).find(id),
         );
-        json(res, result.status, { data: result.body, meta: context });
+        if (!operation)
+          throw new ApplicationError("NOT_FOUND", "Operation not found.");
+        json(res, 200, { data: operation, meta: context });
         return true;
-      }
-      for (const key of [
-        "principal_id",
-        "permission_id",
-        "scope_type",
-        "scope_id",
-        "valid_from",
-        "valid_until",
-        "reason",
-      ])
-        if (typeof input[key] !== "string" || !(input[key] as string).trim())
-          throw new ApplicationError("VALIDATION_ERROR", `${key} is required.`);
-      await authorize(authorization, {
-        principal,
-        action: "rbac.manage",
-        resource: {
-          type: "rbac",
-          id: String(input.principal_id),
-          tenant_id: principal.tenant_id,
-        },
-        scope: {},
-        context: { ...context },
-      });
-      const result = await uow.run(principal.tenant_id, (tx) =>
-        new PostgresIdempotencyStore(tx).execute(
-          {
-            principalId: principal.id,
-            operation: "PRIVILEGE.GRANT_TEMPORARY",
-            businessScope: String(input.principal_id),
-            key: idempotencyKey,
-            semanticRequest: input as never,
-            expiresAt: new Date(Date.now() + 86400000),
-          },
-          async () => {
-            const grant = await grantTemporary({
-              tx,
-              principalId: String(input.principal_id),
-              permissionId: String(input.permission_id),
-              scopeType: String(input.scope_type),
-              scopeId: String(input.scope_id),
-              validFrom: new Date(String(input.valid_from)),
-              validUntil: new Date(String(input.valid_until)),
-              reason: String(input.reason),
-            });
-            const now = new Date().toISOString();
-            await new PostgresOutboxWriter(tx).append({
-              event_id: randomUUID(),
-              event_type: "RBAC.TEMPORARY_GRANT_CREATED",
-              schema_version: 1,
-              occurred_at: now,
-              producer: { service: config.serviceName, instance: "api" },
-              aggregate: {
-                type: "TEMPORARY_GRANT",
-                id: grant.id,
-                version: grant.version,
-              },
-              actor: { type: principal.actor_type, id: principal.id },
-              correlation_id: context.correlation_id,
-              causation_id: context.causation_id,
-              tenant_id: principal.tenant_id,
-              organization_id: principal.tenant_id,
-              idempotency_key: idempotencyKey,
-              payload: {
-                grant_id: grant.id,
-                principal_id: String(input.principal_id),
-                permission_id: String(input.permission_id),
-                scope_type: String(input.scope_type),
-                scope_id: String(input.scope_id),
-                valid_until: String(input.valid_until),
-              },
-            });
-            await new PostgresAudit(tx).append({
-              id: randomUUID(),
-              tenant_id: principal.tenant_id,
-              event_type: "RBAC.TEMPORARY_GRANT_CREATED",
-              occurred_at: now,
-              actor: { type: principal.actor_type, id: principal.id },
-              action: { command_type: "PRIVILEGE.GRANT_TEMPORARY" },
-              subject: { entity_type: "TEMPORARY_GRANT", entity_id: grant.id },
-              correlation_id: context.correlation_id,
-              causation_id: context.causation_id,
-              reason: { code: "PRIVILEGE_GRANTED", text: String(input.reason) },
-              before: null,
-              after: {
-                grant_id: grant.id,
-                version: grant.version,
-                scope_type: String(input.scope_type),
-                scope_id: String(input.scope_id),
-              },
-              outcome: { status: "SUCCESS" },
-              classification: "SECURITY",
-              relations: [],
-              evidence: [],
-            });
-            return { status: 201, body: grant };
-          },
-        ),
-      );
-      json(res, result.status, { data: result.body, meta: context });
-      return true;
-    }
-    if (
-      req.method === "POST" &&
-      (req.url === "/api/v1/authorization/evaluate" ||
-        req.url === "/api/v1/authorization/evaluate-batch")
-    ) {
-      const principal = await authenticate(
-        authentication,
-        req.headers.authorization,
-      );
-      const body = await new Promise<string>((resolve) => {
-        let data = "";
-        req.on("data", (c) => (data += c));
-        req.on("end", () => resolve(data));
-      });
-      let input: {
-        action?: string;
-        resource_type?: string;
-        resource_id?: string;
-        scope?: Record<string, string>;
       };
-      try {
-        input = JSON.parse(body) as typeof input;
-      } catch {
-        throw new ApplicationError("VALIDATION_ERROR", "Invalid JSON request.");
-      }
-      if (req.url.endsWith("-batch")) {
-        const list = input as unknown as Array<typeof input>;
-        if (!Array.isArray(list) || list.length < 1 || list.length > 50)
-          throw new ApplicationError(
-            "VALIDATION_ERROR",
-            "Batch must contain between 1 and 50 evaluations.",
-          );
-        const decisions = await uow.run(principal.tenant_id, async (tx) =>
-          Promise.all(
-            list.map((item) => {
-              if (!item.action || !item.resource_type || !item.resource_id)
-                throw new ApplicationError(
-                  "VALIDATION_ERROR",
-                  "Each evaluation requires action, resource_type and resource_id.",
-                );
-              return evaluateAuthorization(tx, {
-                principalId: principal.id,
-                tenantId: principal.tenant_id,
-                action: item.action,
-                resourceType: item.resource_type,
-                resourceId: item.resource_id,
-                scope: item.scope ?? {},
-              });
-            }),
-          ),
-        );
-        json(res, 200, { data: decisions, meta: context });
-        return true;
-      }
-      if (!input.action || !input.resource_type || !input.resource_id)
-        throw new ApplicationError(
-          "VALIDATION_ERROR",
-          "action, resource_type and resource_id are required.",
-        );
-      await authorize(authorization, {
-        principal,
-        action: "authorization.evaluate",
-        resource: {
-          type: "authorization",
-          id: input.resource_id,
-          tenant_id: principal.tenant_id,
-        },
-        scope: {},
-        context: { ...context },
-      });
-      const decision = await uow.run(principal.tenant_id, (tx) =>
-        evaluateAuthorization(tx, {
-          principalId: principal.id,
-          tenantId: principal.tenant_id,
-          action: input.action!,
-          resourceType: input.resource_type!,
-          resourceId: input.resource_id!,
-          scope: input.scope ?? {},
-        }),
-      );
-      json(res, 200, { data: decision, meta: context });
-      return true;
-    }
-    const match = /^\/api\/v1\/operations\/([^/?]+)$/.exec(req.url ?? "");
-    if (!match) return false;
-    const principal = await authenticate(
-        authentication,
-        req.headers.authorization,
-      ),
-      id = match[1]!;
-    if (
-      !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-        id,
+      if (
+        !authentication.tenantContextRequired ||
+        !req.url?.startsWith("/api/v1/")
       )
-    )
-      throw new ApplicationError("VALIDATION_ERROR", "Invalid operation ID.");
-    await authorize(authorization, {
-      principal,
-      action: "operation.read",
-      resource: { type: "operation", id, tenant_id: principal.tenant_id },
-      scope: {},
-      context: { ...context },
-    });
-    const operation = await uow.run(principal.tenant_id, (tx) =>
-      new OperationRegistry(tx).find(id),
-    );
-    if (!operation)
-      throw new ApplicationError("NOT_FOUND", "Operation not found.");
-    json(res, 200, { data: operation, meta: context });
-    return true;
-  });
+        return dispatch();
+      const tenantValues: string[] = [];
+      for (let i = 0; i < req.rawHeaders.length; i += 2)
+        if (req.rawHeaders[i]!.toLowerCase() === "x-tenant-id")
+          tenantValues.push(req.rawHeaders[i + 1]!);
+      return withAuthenticatedRequest({
+        port: authentication,
+        authorization: req.headers.authorization,
+        tenantSelector: {
+          values: tenantValues,
+          requestId: context.request_id,
+          correlationId: context.correlation_id,
+          causationId: context.causation_id,
+        },
+        work: dispatch,
+      });
+    },
+  );
 }

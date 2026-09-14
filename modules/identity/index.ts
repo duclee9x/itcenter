@@ -10,6 +10,7 @@ export {
 } from "./application/permissions.js";
 export { seedPermissions } from "./infrastructure/seed-permissions.js";
 export { evaluateAuthorization } from "./application/authorization.js";
+export { bootstrapInitialAdministrator } from "./infrastructure/bootstrap-administrator.js";
 export type {
   AuthorizationInput,
   AuthorizationDecision,

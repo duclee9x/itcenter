@@ -159,6 +159,21 @@ export const permissions: readonly Permission[] = [
   { code: "operation.read", resource_type: "operation", action: "read" },
   { code: "user.read", resource_type: "user", action: "read" },
   {
+    code: "identity.external_identity.manage",
+    resource_type: "external_identity",
+    action: "manage",
+  },
+  {
+    code: "identity.tenant_membership.manage",
+    resource_type: "tenant_membership",
+    action: "manage",
+  },
+  {
+    code: "identity.emergency_identity.manage",
+    resource_type: "emergency_identity",
+    action: "manage",
+  },
+  {
     code: "identity.offboard",
     resource_type: "offboarding_case",
     action: "manage",

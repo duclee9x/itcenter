@@ -2731,3 +2731,15 @@ authorized operations with actor, tenant, reason, idempotency, concurrency
 and audit controls. `recommendation.read`, `metric.read`, service identity or
 any other permission does not bypass tenant membership. See the normative
 [RELEASE-001-R2 contract](release/items/RELEASE-001-R2_EXPLICIT_TENANT_CONTEXT_MEMBERSHIP_FOUNDATION.md).
+
+RELEASE-001 registers the narrow `identity.external_identity.manage` and
+`identity.tenant_membership.manage` permissions. Their grants do not follow
+from OIDC claims or membership itself. Identity commands require local RBAC
+after OIDC identity and requested tenant membership have been resolved.
+System principals continue to use domain-specific scoped grants; the Reporting
+principal is limited to its tenant-local `granted_capabilities`.
+Emergency identity classification requires the additional narrow
+`identity.emergency_identity.manage` permission and is restricted to human
+links. It does not grant any application permission. Tenant-scoped unlink
+cannot revoke a link with active memberships in another tenant; those
+memberships must first be revoked through their owning tenant contexts.

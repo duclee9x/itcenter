@@ -9,8 +9,8 @@
 - Release decision: `BLOCKED_FOR_RC` until the items in
   [RELEASE_BACKLOG.md](RELEASE_BACKLOG.md) are verified.
 - Release-readiness assessment: commit `3a0cda2`.
-- Current release item: RELEASE-001, `NOT_STARTED / READY`; R1 and R2 are
-  `CODE_COMPLETE`, and the runtime adapter remains outstanding.
+- Current release item: RELEASE-001, `CODE_COMPLETE`; automated acceptance
+  passes, while real OIDC provider/staging verification remains open.
 - Unrelated user change in `AGENTS.md` is preserved and must remain outside
   release-planning commits unless a later explicit scope requires a separate
   relevant edit.
@@ -19,12 +19,11 @@
 
 RELEASE-001-R1 — Production Authentication Contract and RELEASE-001-R2 —
 Explicit Tenant Context & Membership Foundation are persisted and
-`CODE_COMPLETE`. They fix provider-neutral OIDC 1.0/RFC 9068 access-token
-validation, required `X-Tenant-ID` selection, tenant-independent IdentityLink,
-tenant-local User membership, local RBAC, fail-closed behavior and
-bootstrap/emergency-access boundaries. RELEASE-001 is `READY / NOT_STARTED`;
-its runtime adapter has not been implemented. Do not automatically switch to
-RELEASE-002.
+`CODE_COMPLETE`. RELEASE-001 runtime is `CODE_COMPLETE` with full automated
+verification. Real IdP configuration and staging acceptance remain required
+before `VERIFIED`; RR-01 therefore remains release-blocking. Do not start
+RELEASE-002 automatically. RELEASE-002 through RELEASE-005 remain available
+in the backlog, but no next item is selected here.
 
 ## Release order
 

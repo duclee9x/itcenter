@@ -3033,3 +3033,19 @@ All API routes require authentication by default and are classified as PUBLIC, P
 See the normative [RELEASE-001-R1 contract](release/items/RELEASE-001-R1_PRODUCTION_AUTHENTICATION_CONTRACT.md) for principal, IdentityLink/TenantMembership, bootstrap, emergency access, audit, errors and acceptance rules. RELEASE-007 remains responsible for TLS ingress configuration, trusted proxy policy and rate limiting.
 
 The concrete tenant selector, exact header validation, route classification, HTTP error precedence, and tenant-local User membership binding are normative in [RELEASE-001-R2](release/items/RELEASE-001-R2_EXPLICIT_TENANT_CONTEXT_MEMBERSHIP_FOUNDATION.md). No path/query/token/default selector competes with `X-Tenant-ID`; proxy-supplied authenticated-tenant headers are not trusted. R2 additionally fixes public `GET /api/v1/health/live` and `/api/v1/health/ready`; capabilities is a protected tenant-scoped route. See R2 for the exact canonical tenant ID grammar and duplicate-header rejection rule.
+
+Runtime Identity command routes are `POST /api/v1/identity/links`,
+`POST /api/v1/identity/tenant-memberships`, and
+`POST /api/v1/identity/tenant-memberships/{membership_id}/revoke`. They
+require the corresponding narrow Identity management permission, tenant
+context, a reason and `Idempotency-Key`; revoke also requires
+`expected_version`. Initial administrator bootstrap is an internal trusted
+control-plane operation and has no public HTTP route.
+The runtime also provides
+`POST /api/v1/identity/links/{identity_link_id}/revoke` as
+`IDENTITY.UNLINK_EXTERNAL`, with `identity.external_identity.manage`, a reason,
+`Idempotency-Key` and `expected_version`. It will not globally revoke a link
+that still has an active membership in another tenant. Emergency human link
+creation additionally requires `identity.emergency_identity.manage` and an
+explicit `emergency_identity: true`; emergency authentication requires the
+signed `amr=mfa` assertion and is separately audited.

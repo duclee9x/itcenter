@@ -3723,3 +3723,15 @@ delete the membership or rewrite earlier audit. Routine header selection and
 successful API requests are not per-request compliance events unless another
 existing policy requires them. Safe denial telemetry uses bounded reason
 codes and must not reveal cross-tenant identity existence.
+
+RELEASE-001 link, membership grant/revoke and bootstrap operations append
+canonical audit records in the same database transaction as the mutation.
+Evidence includes command, actor, tenant, reason, correlation/idempotency
+reference and resulting IdentityLink/membership references. Raw access tokens,
+authorization codes, refresh tokens and external subject claims are excluded.
+Emergency IdentityLinks require a separate provisioning permission and signed
+MFA assurance (`amr` containing `mfa`). Each successful emergency
+authentication appends restricted `IDENTITY.EMERGENCY_IDENTITY_USED` evidence
+with the local principal, tenant, IdentityLink reference and request
+correlation. Failure to persist this audit evidence fails authentication
+closed. Routine standard-user API authentication remains unaudited per request.

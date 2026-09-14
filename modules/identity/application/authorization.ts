@@ -6,7 +6,8 @@ export interface AuthorizationInput {
     | "SYSTEM_AUTOMATION"
     | "SYSTEM_CORRELATION"
     | "SYSTEM_ASSET_SCORING"
-    | "SYSTEM_RECOMMENDATION";
+    | "SYSTEM_RECOMMENDATION"
+    | "SYSTEM_REPORTING";
   tenantId: string;
   action: string;
   resourceType: string;
@@ -31,6 +32,23 @@ export async function evaluateAuthorization(
   const at = input.at ?? new Date();
   if (input.tenantId !== tx.tenantId)
     return { result: "DENY", reason: "Tenant scope does not match" };
+  if (input.principalType === "SYSTEM_REPORTING") {
+    const result = await tx.query<{ allowed: boolean }>(
+      `SELECT active AND $3=ANY(granted_capabilities) AS allowed
+       FROM identity.reporting_principals
+       WHERE tenant_id=$1 AND id=$2 AND principal_type='SYSTEM_REPORTING'`,
+      [input.tenantId, input.principalId, input.action],
+    );
+    return result.rows[0]?.allowed
+      ? {
+          result: "ALLOW",
+          reason: "Explicit tenant-scoped reporting capability",
+        }
+      : {
+          result: "DENY",
+          reason: "No active reporting capability covers this target",
+        };
+  }
   if (
     input.principalType === "SYSTEM_AUTOMATION" ||
     input.principalType === "SYSTEM_CORRELATION" ||

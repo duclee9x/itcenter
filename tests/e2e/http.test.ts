@@ -31,10 +31,16 @@ const uow: UnitOfWork = {
 };
 test("API health, correlation, unavailable readiness and unauthenticated data routes", async () => {
   let ready = false;
+  const testAuthentication = {
+    ...unavailableAuthentication,
+    async isReady() {
+      return true;
+    },
+  };
   const server = apiServer(
       config,
       async () => ready,
-      unavailableAuthentication,
+      testAuthentication,
       denyAll,
       uow,
     ),

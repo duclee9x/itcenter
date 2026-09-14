@@ -309,21 +309,29 @@ test("controlled VLAN changes require approved implementation and record verific
     );
     assert.equal(unapprovedStart.status, 422);
 
-    const evidence = await db.pool.query(
-      "SELECT phase FROM network.vlan_change_evidence WHERE tenant_id='tenant-a' ORDER BY created_at,id",
+    const evidence = await db.pool.query<{
+      change_id: string;
+      phase: string;
+      count: string;
+    }>(
+      `SELECT change.change_id,evidence.phase,count(*)::text AS count
+       FROM network.vlan_change_evidence evidence
+       JOIN network.vlan_changes change
+         ON change.tenant_id=evidence.tenant_id AND change.id=evidence.vlan_change_id
+       WHERE evidence.tenant_id='tenant-a'
+       GROUP BY change.change_id,evidence.phase
+       ORDER BY array_position($1::uuid[],change.change_id),evidence.phase`,
+      [changes],
     );
-    assert.deepEqual(
-      evidence.rows.map((row) => row.phase),
-      [
-        "IMPLEMENTATION",
-        "VERIFICATION",
-        "ROLLBACK",
-        "IMPLEMENTATION",
-        "VERIFICATION",
-        "IMPLEMENTATION",
-        "ROLLBACK",
-      ],
-    );
+    assert.deepEqual(evidence.rows, [
+      { change_id: changes[0], phase: "IMPLEMENTATION", count: "1" },
+      { change_id: changes[0], phase: "ROLLBACK", count: "1" },
+      { change_id: changes[0], phase: "VERIFICATION", count: "1" },
+      { change_id: changes[1], phase: "IMPLEMENTATION", count: "1" },
+      { change_id: changes[1], phase: "VERIFICATION", count: "1" },
+      { change_id: changes[2], phase: "IMPLEMENTATION", count: "1" },
+      { change_id: changes[2], phase: "ROLLBACK", count: "1" },
+    ]);
     const effects = await db.pool.query(
       "SELECT event_type FROM platform.outbox_events WHERE tenant_id='tenant-a' AND aggregate_type='NETWORK_VLAN_CHANGE' ORDER BY created_at,event_id",
     );

@@ -2249,3 +2249,23 @@ For this API path, IdP/JWKS outage does not invoke the generic “fallback polic
 `IdentityLink` may adapt `identity.external_identities` only when its provider reference deterministically identifies the exact validated issuer. Do not infer issuer from display name, email, username or an ambiguous provider ID. Existing rows without deterministic issuer provenance remain unlinked for API authentication. Platform tenant membership, service identity mapping, explicit link/unlink commands, and bootstrap/emergency identity rules are governed by the RELEASE-001-R1 contract.
 
 Production OIDC configuration and JWKS trust are mandatory before auth readiness. Use a 30-second default token clock tolerance with a 60-second hard ceiling and a recommended maximum access-token lifetime of 10 minutes. Token and identity requirements are specified in [the RELEASE-001-R1 contract](../release/items/RELEASE-001-R1_PRODUCTION_AUTHENTICATION_CONTRACT.md); the sole required tenant selector and tenant-local membership binding are specified in [RELEASE-001-R2](../release/items/RELEASE-001-R2_EXPLICIT_TENANT_CONTEXT_MEMBERSHIP_FOUNDATION.md). Every protected tenant API request requires exactly one `X-Tenant-ID`; it selects requested context but proves no membership or permission. Resolve active local membership to the tenant-local User, then apply User lifecycle and local RBAC. Token tenant/org/group claims are non-authoritative. Public health routes are explicitly allow-listed; capabilities is protected.
+
+### RELEASE-001 runtime binding
+
+Production API wiring uses `OidcApiAuthentication` at the authentication boundary. It validates RFC 9068 `at+jwt` tokens with RS256 through the maintained `jose` library and uses discovery/JWKS only from the configured issuer. A SERVICE identity is resolved only for the RFC 9068 client-credentials subject form where `sub` identifies the client application (`sub == client_id`); other subjects resolve only as HUMAN by exact `sub`. The separate principal-type keys prevent `client_id` alone, which is shared by interactive clients, from granting service identity.
+
+The runtime schema is `identity.identity_links` plus `identity.tenant_memberships`; tenant-local `identity.users` and legacy `identity.external_identities` remain intact. No legacy external-identity rows are auto-migrated because `provider_id` does not necessarily prove the exact configured issuer. Every tenant-scoped `/api/v1/*` route is authenticated before dispatch, requires exactly one raw `X-Tenant-ID`, resolves active membership to its tenant-local user/service principal, then retains route/resource authorization. Only `/api/v1/health/live` and `/api/v1/health/ready` remain public; capabilities is protected by local `operation.read`.
+
+Operator provisioning uses protected `IDENTITY.LINK_EXTERNAL`, `IDENTITY.GRANT_TENANT_MEMBERSHIP` and `IDENTITY.REVOKE_TENANT_MEMBERSHIP` command routes. Initial administrator bootstrap is an Identity infrastructure function with no HTTP route. Link/membership writes use local RBAC, durable idempotency, database uniqueness/versioning and the canonical AuditPort. No default password, JIT user creation or token-claim role synchronization is implemented.
+
+Runtime additionally supports explicit `IDENTITY.UNLINK_EXTERNAL` by revoking
+an IdentityLink with expected-version, reason, idempotency and audit. A
+tenant-scoped operator cannot revoke an identity that still has active
+memberships in another tenant; operators must revoke each membership through
+its owning tenant context before the final IdentityLink revocation. Emergency
+human links are explicitly marked
+`identity_class=EMERGENCY`, require the separate
+`identity.emergency_identity.manage` permission, require a verified `amr`
+claim containing `mfa`, and append a restricted `IDENTITY.EMERGENCY_IDENTITY_USED`
+audit record for each successful emergency authentication. No raw token or
+claims payload is audited.

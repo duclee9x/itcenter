@@ -3,9 +3,9 @@
 | Field              | Value                                                                                                                                                                                                |
 | ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Priority           | P0                                                                                                                                                                                                   |
-| Status             | `NOT_STARTED`                                                                                                                                                                                        |
-| Readiness          | `READY`                                                                                                                                                                                              |
-| Blocker            | None — RELEASE-001-R1 and R2 contracts are `CODE_COMPLETE`; runtime adapter remains unimplemented.                                                                                                   |
+| Status             | `CODE_COMPLETE`                                                                                                                                                                                      |
+| Readiness          | `N/A`                                                                                                                                                                                                |
+| Blocker            | Automated acceptance passes; real OIDC provider configuration and staging validation are required before `VERIFIED`.                                                                                 |
 | Planning contracts | [R1 — Production Authentication](RELEASE-001-R1_PRODUCTION_AUTHENTICATION_CONTRACT.md); [R2 — Explicit Tenant Context & Membership](RELEASE-001-R2_EXPLICIT_TENANT_CONTEXT_MEMBERSHIP_FOUNDATION.md) |
 
 ## Purpose
@@ -33,8 +33,8 @@ scope and context, with tenant boundary checked before resource scope.
   TASK-000.
 - `packages/auth/src/index.ts` provides `AuthenticationPort` and
   `AuthorizationPort`; `unavailableAuthentication` and `denyAll` fail closed.
-- `apps/api/src/main.ts` wires those fail-closed implementations into the
-  executable API.
+- `apps/api/src/main.ts` initializes configured OIDC trust and composes the
+  production authentication/authorization adapters before serving traffic.
 - Permission policy requires tenant-first scope evaluation, permission and
   scope checks, revocation-aware caching, and no implicit wildcard/admin
   authority.
@@ -53,22 +53,24 @@ no JIT, vendor-role grants, password fallback, wildcard system identity or
 default administrator. Token validation, error behavior, bootstrap,
 emergency access, audit and acceptance are specified in R1.
 
-RELEASE-001 is `READY / NOT_STARTED`. R1 and R2 close the authentication and
-tenant-context specification gaps; the runtime adapter is still absent, so
-the production release blocker RR-01 remains open until
-RELEASE-001 runtime implementation and staging verification are complete.
+R1 and R2 close the authentication and tenant-context specification gaps.
+Runtime implementation uses the combined contracts and is `CODE_COMPLETE`;
+automated acceptance passes. No staging identity provider has been configured
+or validated by this repository change, so the item remains unverified and
+RR-01 remains release-blocking.
 
-## Runtime outcome (under the completed R1 contract)
+## Runtime outcome (under the completed R1/R2 contracts)
 
-The production API must use real verified identities and the existing
+The production API uses verified identities and the existing
 AuthorizationPort/canonical grant model. Invalid or unavailable identity or
 authorization configuration remains denied. Production has no test adapter,
 trusted client role header, default administrator, wildcard grant or
-tenantless user principal. Authentication/configuration and permission
-failures are audited according to existing security audit policy without
-recording raw credentials.
+tenantless user principal. Identity provisioning, membership changes,
+bootstrap, and emergency identity use are audited; routine authentication and
+authorization outcomes use safe low-cardinality telemetry. Raw credentials
+are never recorded.
 
-## Verification expected after contract approval
+## Verification expected before `VERIFIED`
 
 - Valid identity produces a canonical, tenant-bound principal.
 - Signature/issuer/audience/expiry, local user and tenant-membership state, and identity

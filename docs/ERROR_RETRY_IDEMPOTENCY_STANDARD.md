@@ -2942,3 +2942,19 @@ R2 does not add runtime retry behavior or alter OIDC validation.
 Identity link/unlink/replacement and bootstrap writes use durable idempotency and optimistic concurrency. A repeated key with the same semantic request returns the prior outcome; the same key with different content conflicts. Unique `(issuer, subject)` constraint and transaction serialization prevent two competing local-user mappings. A concurrent/stale identity or membership change must fail safely and be re-evaluated before a later request. No process-local lock is sufficient.
 
 Do not blindly retry external token validation on every failure. Only bounded discovery/JWKS refresh for an unknown `kid` is permitted; if it does not establish a trusted key, reject. Provider outage, failed local identity lookup or authorization failure never falls back to mock, local-password, anonymous, default-tenant or default-admin access. Public route handling uses an explicit allow-list; unclassified routes remain protected.
+
+RELEASE-001 Identity provisioning commands use the shared durable idempotency
+ledger in the same tenant transaction as their IdentityLink or membership
+write and audit append. Database uniqueness serializes competing external
+identity and active-membership mappings. Membership revoke additionally uses
+an expected version; stale revocation fails with a conflict and preserves the
+current state.
+
+`IDENTITY.UNLINK_EXTERNAL` uses the same durable idempotency ledger and an
+expected IdentityLink version. Its transaction locks the link and refuses
+tenant-scoped revocation while active memberships exist in other tenants;
+operators must first revoke those memberships through their owning tenant
+contexts, then retry link revocation in an authorized tenant.
+Concurrent bootstrap is serialized by a database transaction advisory lock
+and permanent singleton marker. Emergency identity authentication fails
+closed if its required audit append cannot commit.

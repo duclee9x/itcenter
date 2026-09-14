@@ -2,7 +2,7 @@
 
 **Assessment date:** 2026-09-14
 
-**Repository HEAD:** `af42b52` — `Complete TASK-097 Phase 5 integration gate`
+**Roadmap baseline reviewed:** `af42b52` — `Complete TASK-097 Phase 5 integration gate`
 
 **Roadmap state:** Phase 5 `PASSED`; TASK-097 `CODE_COMPLETE / VERIFIED`; no later roadmap task is authorized or inferred.
 
@@ -19,9 +19,9 @@ tenant isolation, database recovery, safe migration, and deployment controls
 remain required for any production release.
 
 The repository is not ready to produce and promote a production Release
-Candidate. The decisive blockers are: the executable API has no production
-authentication/authorization adapters and therefore denies access; worker
-readiness is intentionally false until required adapters are installed; no
+Candidate. The decisive blockers are: the API authentication adapter is
+implemented but has not been configured and validated against a real staging
+OIDC provider; worker readiness is intentionally false until required adapters are installed; no
 staging/production image and promotion path is present; no production-like
 migration compatibility rehearsal exists; no production backup/restore drill
 or RPO/RTO is evidenced; and TLS/rate limiting are not supplied by a checked-in
@@ -39,23 +39,26 @@ procedure.
 The registry and dependency graph contain no unfinished roadmap task that
 should be started next. Phase 5 gate passed. No TASK-098 exists or is created
 by this assessment, and Phase 6 is not opened. Future features must enter a
-newly approved backlog/roadmap. This reconciliation makes no runtime changes.
+newly approved backlog/roadmap. The later RELEASE-001 implementation fulfills
+that already approved remediation item; it creates no product task, feature,
+or Phase 6 work.
 
-## Release planning update — RELEASE-001-R1/R2
+## Release implementation update — RELEASE-001
 
-The subsequent planning commits completed RELEASE-001-R1 and RELEASE-001-R2
-as normative security contracts. RELEASE-001 is now `NOT_STARTED / READY`; the
-production API adapter is still absent. This resolves its
-planning/specification blockers, not RR-01: RR-01 remains a
-`RELEASE_BLOCKER` until runtime adapter and staging acceptance evidence pass.
-The global decision therefore remains `BLOCKED_FOR_RC`. The contracts require
+RELEASE-001-R1 and RELEASE-001-R2 are normative contracts, and
+RELEASE-001 runtime is now `CODE_COMPLETE`. Automated tests verify the
+provider-neutral OIDC adapter, tenant selector, membership binding and local
+RBAC. This resolves the implementation gap, not RR-01: a real staging issuer,
+identity provisioning and staging acceptance evidence remain required before
+`VERIFIED`. The global decision therefore remains `BLOCKED_FOR_RC`. The contracts require
 one configured trusted OIDC issuer, RFC 9068 JWT access tokens, canonical
 `(issuer, sub)` provisioning, exactly one required `X-Tenant-ID` on protected
 tenant-scoped requests, an active membership bound to the selected
 tenant-local User, local RBAC and fail-closed startup. See the
 [R1](items/RELEASE-001-R1_PRODUCTION_AUTHENTICATION_CONTRACT.md) and
 [R2](items/RELEASE-001-R2_EXPLICIT_TENANT_CONTEXT_MEMBERSHIP_FOUNDATION.md)
-items for complete acceptance contracts.
+and [the implementation report](items/RELEASE-001_IMPLEMENTATION_REPORT.md)
+record the contract and automated implementation evidence.
 
 ## Evidence and verification baseline
 
@@ -71,22 +74,28 @@ records a successful uninterrupted verification run:
 | `npm run test:migration` |                                                                                  PASS |
 | `git diff --check`       |                                                                                  PASS |
 
-This assessment reran `npm run test:migration` against the existing local
-PostgreSQL test mechanism: **6/6 passed**. That demonstrates the tested fresh
-bootstrap, rerun, checksum rejection, and listed legacy migrations. It is not
-a production-like upgrade, locking-duration, N-1 compatibility, backup, or
-restore rehearsal. The full suite was not rerun because this change is
-documentation-only and the Phase 5 baseline is unchanged.
+After RELEASE-001 implementation, the uninterrupted repository suite passed
+208/208: 80 unit/architecture, 2 contract, 6 migration, 59 integration, and 61
+E2E tests. Typecheck, lint, format, migration verification, and diff checks
+were rerun for the implementation. The real provider/staging validation
+remains outstanding.
 
-The exact commit reviewed is `af42b52`. At assessment start, the only working
-tree change was the unrelated user edit to `AGENTS.md`; it remains outside
-these release documents and outside their commit.
+The release item reran the complete suite and migration verification against
+the existing local PostgreSQL test mechanism. This demonstrates the tested
+fresh bootstrap, rerun, checksum rejection, and listed legacy migrations. It
+is not a production-like upgrade, locking-duration, N-1 compatibility,
+backup, or restore rehearsal.
+
+The original readiness assessment reviewed `af42b52`; at that assessment's
+start, the only working tree change was the unrelated user edit to
+`AGENTS.md`. The RELEASE-001 implementation and its verification are recorded
+in [the implementation report](items/RELEASE-001_IMPLEMENTATION_REPORT.md).
 
 ## Findings summary
 
 | ID    | Type                     | Severity | Finding                                                                                                                                    | Release-blocking                                                          |
 | ----- | ------------------------ | -------- | ------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------- |
-| RR-01 | RELEASE_BLOCKER          | Critical | Executable API authentication and authorization are fail-closed; production identity adapters are absent.                                  | Yes                                                                       |
+| RR-01 | RELEASE_BLOCKER          | Critical | RELEASE-001 is implemented, but no real OIDC provider configuration or staging acceptance evidence is recorded.                            | Yes                                                                       |
 | RR-02 | OPERATIONAL_GAP          | High     | Worker readiness is fixed false until delivery/runtime adapters are wired; no deployable worker readiness contract is demonstrated.        | Yes                                                                       |
 | RR-03 | PRODUCTION_CONFIGURATION | High     | TASK-091 Agent authentication adapter is absent; Agent execution must remain disabled until real enrolled-Agent credentials are validated. | Yes when Agent execution is in launch scope; assumed in this assessment   |
 | RR-04 | OPERATIONAL_GAP          | High     | No production build/image, immutable promotion, staging deployment, or rollback procedure is present.                                      | Yes                                                                       |
@@ -114,9 +123,9 @@ TLS `verify-full`, and reject debug authentication bypass, debug logging, and
 unsafe migration settings. Keep those protections enabled. Before RC, the
 deployment must additionally supply and validate:
 
-- a real OIDC/OAuth2 user identity verifier and canonical IdentityLink,
-  explicit `X-Tenant-ID`-selected membership to a tenant-local User, plus a
-  real authorization policy adapter;
+- a configured real OIDC/OAuth2 issuer/audience, explicitly provisioned
+  IdentityLink and `X-Tenant-ID`-selected tenant-local membership/RBAC, plus
+  staging evidence for the RELEASE-001 adapter;
 - for TASK-091, a mutually authenticated enrolled-Agent identity adapter
   (mTLS or workload identity under the existing contract), credential
   issuance, rotation and revocation;

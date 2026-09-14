@@ -8,6 +8,9 @@ export interface Config {
   serviceName: string;
   networkChangeRequiredAcr: string;
   networkChangeMaxAuthAgeSeconds: number;
+  authMode: "oidc" | "unavailable";
+  oidcIssuer?: string;
+  oidcAudience?: string;
 }
 export function loadConfig(
   env: NodeJS.ProcessEnv,
@@ -21,7 +24,11 @@ export function loadConfig(
       env.NETWORK_CHANGE_REQUIRED_ACR ?? "urn:itcenter:acr:mfa",
     networkChangeMaxAuthAgeSeconds = Number(
       env.NETWORK_CHANGE_MAX_AUTH_AGE_SECONDS ?? 300,
-    );
+    ),
+    authMode =
+      env.AUTH_MODE ?? (environment === "production" ? "" : "unavailable"),
+    oidcIssuer = env.OIDC_ISSUER,
+    oidcAudience = env.OIDC_AUDIENCE;
   if (!["local", "test", "staging", "production"].includes(environment))
     throw new Error("Invalid APP_ENV");
   if (!Number.isInteger(port) || port < 1 || port > 65535)
@@ -52,6 +59,32 @@ export function loadConfig(
       !databaseSecretRef.startsWith("file:"))
   )
     throw new Error("Unsafe production configuration");
+  if (environment === "production" && !env.AUTH_MODE)
+    throw new Error("Production requires AUTH_MODE=oidc");
+  if (!(authMode === "oidc" || authMode === "unavailable"))
+    throw new Error("Invalid AUTH_MODE");
+  if (environment === "production" && authMode !== "oidc")
+    throw new Error("Production requires AUTH_MODE=oidc");
+  if (authMode === "oidc") {
+    let issuer: URL;
+    try {
+      issuer = new URL(oidcIssuer ?? "");
+    } catch {
+      throw new Error("OIDC_ISSUER must be a valid HTTPS issuer URL");
+    }
+    if (
+      issuer.protocol !== "https:" ||
+      issuer.username ||
+      issuer.password ||
+      issuer.search ||
+      issuer.hash ||
+      !oidcAudience?.trim() ||
+      oidcAudience.length > 256
+    )
+      throw new Error("OIDC_ISSUER and OIDC_AUDIENCE are required and valid");
+  } else if (oidcIssuer !== undefined || oidcAudience !== undefined) {
+    throw new Error("OIDC settings require AUTH_MODE=oidc");
+  }
   return {
     environment: environment as Config["environment"],
     host: env.HOST ?? "127.0.0.1",
@@ -61,6 +94,9 @@ export function loadConfig(
     serviceName,
     networkChangeRequiredAcr,
     networkChangeMaxAuthAgeSeconds,
+    authMode: authMode as Config["authMode"],
+    ...(oidcIssuer ? { oidcIssuer } : {}),
+    ...(oidcAudience ? { oidcAudience } : {}),
   };
 }
 export interface SecretProvider {

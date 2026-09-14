@@ -601,6 +601,7 @@ test("TASK-076 links a received Asset to immutable PO cost and deduplicates even
     assert.equal(Number(licenseCost.data.summary[0]!.committed_amount), 12000);
     const objectStoreCapability = await fetch(
       `${base}/api/v1/health/capabilities`,
+      { headers: { authorization: "Bearer test", "X-Tenant-ID": tenant } },
     );
     assert.equal(objectStoreCapability.status, 200);
     const capability = (await objectStoreCapability.json()) as {
@@ -652,6 +653,7 @@ test("TASK-076 links a received Asset to immutable PO cost and deduplicates even
       const fakeBase = await listen(fakeApi);
       const fakeCapabilityResponse = await fetch(
         `${fakeBase}/api/v1/health/capabilities`,
+        { headers: { authorization: "Bearer test", "X-Tenant-ID": tenant } },
       );
       const fakeCapability = (await fakeCapabilityResponse.json()) as {
         data: {

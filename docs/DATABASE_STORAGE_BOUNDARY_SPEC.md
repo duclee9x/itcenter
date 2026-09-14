@@ -3254,3 +3254,17 @@ the model only; migrations belong to RELEASE-001 implementation. Tenant
 selection at request time is `X-Tenant-ID`, validated in application code and
 then checked against persisted membership; storing the header itself is not
 required.
+
+RELEASE-001 runtime adds Identity-owned `identity.identity_links` and
+`identity.tenant_memberships`. IdentityLink is scoped to a trusted issuer and
+external principal namespace but contains no tenant grant. TenantMembership
+binds a link to one tenant-local User or explicitly typed tenant-scoped
+SystemPrincipal. Uniqueness and type-matched foreign keys are database
+enforced; revocation retains the membership and audit lineage. No legacy
+email/name/provider-heuristic migration is performed.
+The runtime IdentityLink also has constrained `identity_class` values
+`STANDARD` and `EMERGENCY`; `EMERGENCY` is valid only for a HUMAN identity.
+Identity unlink sets the canonical link to REVOKED with an expected version
+and retains all memberships/audit. A tenant-scoped unlink is rejected while
+another tenant still has an active membership on that link. No migration
+creates an emergency classification or IdentityLink from legacy rows.

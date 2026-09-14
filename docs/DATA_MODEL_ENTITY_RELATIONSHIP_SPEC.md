@@ -5034,3 +5034,15 @@ identity/membership backfill may use email, username, display name, tenant
 claims or ambiguous provider labels; only deterministic issuer/subject/
 tenant/local-User evidence may migrate. R2 is a data contract and adds no
 runtime schema migration.
+
+RELEASE-001 runtime persists `identity.identity_links` with distinct HUMAN
+`(issuer, subject)` and SERVICE `(issuer, client_id)` identities, and
+`identity.tenant_memberships` with ACTIVE/REVOKED status. Each active tenant
+binding resolves to exactly one tenant-local User or explicitly registered
+SystemPrincipal. The link principal type is constrained against membership
+principal type. Legacy rows remain unprovisioned unless an operator performs
+explicit governed linking.
+IdentityLink also carries a constrained `identity_class` of `STANDARD` or
+`EMERGENCY`; the database permits EMERGENCY only for HUMAN identities. This
+classification grants no membership or permission. A tenant-scoped unlink
+revokes a link only when it has no active membership in another tenant.

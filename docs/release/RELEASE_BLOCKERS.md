@@ -4,17 +4,17 @@ Each finding has exactly one primary classification from the release
 reconciliation taxonomy. A conditional blocker is blocking when its capability
 is included in the approved release scope.
 
-## RR-01 — Executable API has no production identity adapters
+## RR-01 — Production OIDC provider and staging acceptance are not verified
 
 - **Type:** `RELEASE_BLOCKER`
 - **Severity:** Critical
 - **Affected capability:** API authentication, authorization, all protected user APIs
-- **Production impact:** `apps/api/src/main.ts` wires `unavailableAuthentication` and `denyAll`. The executable API cannot authenticate users or authorize requests. The abstract OIDC-compatible ports and validators in Identity are contracts, not a production provider integration. A release would either be unusable or require an unsafe bypass.
-- **Required action:** Implement RELEASE-001 against the approved [RELEASE-001-R1 contract](items/RELEASE-001-R1_PRODUCTION_AUTHENTICATION_CONTRACT.md) and [RELEASE-001-R2 contract](items/RELEASE-001-R2_EXPLICIT_TENANT_CONTEXT_MEMBERSHIP_FOUNDATION.md): provider-neutral OIDC issuer, RFC 9068 access tokens, exactly one required `X-Tenant-ID` on protected tenant APIs, explicit IdentityLink and ACTIVE TenantMembership to the tenant-local User, and local RBAC. Preserve fail-closed behavior when configuration or trust material is missing or invalid.
-- **Verification:** In staging, exercise the R1 token, issuer, audience, signing-key rotation and clock-tolerance suite; verify R2 missing/malformed/duplicate header errors, mapped identity plus selected-tenant membership and local permission; deny provisioning/tenant/permission negative cases, prove local User/membership/permission revocation takes effect, and confirm IdP role/tenant claims grant nothing. RR-01 remains open until adapter implementation and staging evidence pass.
+- **Production impact:** RELEASE-001 runtime is `CODE_COMPLETE` and automated PostgreSQL tests pass, but no production OIDC issuer/audience, IdentityLink provisioning, or local authorization grants have been supplied and validated in staging. Runtime intentionally fails startup or denies access without valid trust configuration; the API is therefore not yet usable for production users.
+- **Required action:** Configure the approved provider-neutral OIDC profile using a real staging IdP, provision test identities and tenant-local memberships/RBAC through governed operations, and retain fail-closed behavior for missing or invalid configuration.
+- **Verification:** In staging, exercise R1 token, issuer, audience, key rotation and clock-tolerance cases; verify R2 missing/malformed/duplicate header errors, selected-tenant membership and local permission; deny provisioning/tenant/permission negative cases; prove User/membership/permission revocation takes effect; and confirm IdP role/tenant claims grant nothing. RR-01 remains open until staging evidence is recorded.
 - **Owner/domain:** Identity / Platform API
 - **Release-blocking:** Yes
-- **Evidence:** `apps/api/src/main.ts`; `packages/auth/src/index.ts`; `modules/identity/application/authentication.ts`; `modules/identity/application/oidc.ts`; [R1](items/RELEASE-001-R1_PRODUCTION_AUTHENTICATION_CONTRACT.md); [R2](items/RELEASE-001-R2_EXPLICIT_TENANT_CONTEXT_MEMBERSHIP_FOUNDATION.md); `docs/adr/0001-task000-bootstrap.md`.
+- **Evidence:** [RELEASE-001 implementation report](items/RELEASE-001_IMPLEMENTATION_REPORT.md); `apps/api/src/main.ts`; `modules/identity/infrastructure/oidc-authentication.ts`; [R1](items/RELEASE-001-R1_PRODUCTION_AUTHENTICATION_CONTRACT.md); [R2](items/RELEASE-001-R2_EXPLICIT_TENANT_CONTEXT_MEMBERSHIP_FOUNDATION.md). Automated implementation evidence does not replace provider/staging verification.
 
 ## RR-02 — Worker readiness is not deployable
 

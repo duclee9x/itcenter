@@ -53,7 +53,15 @@ test("empty DB applies all migrations; rerun is idempotent and changed migration
       "SELECT schemaname,tablename FROM pg_tables WHERE schemaname IN ('identity','platform','audit')",
     );
     // TASK-090-R1, TASK-092, TASK-094-R2 and TASK-095 add scoped system principal storage.
-    assert.equal(tables.rowCount, 27);
+    assert.equal(tables.rowCount, 30);
+    const identityProvisioningTables = await db.pool.query(
+      `SELECT tablename FROM pg_tables WHERE schemaname='identity'
+        AND tablename IN ('identity_links','tenant_memberships','initial_admin_bootstrap') ORDER BY tablename`,
+    );
+    assert.deepEqual(
+      identityProvisioningTables.rows.map((row) => row.tablename),
+      ["identity_links", "initial_admin_bootstrap", "tenant_memberships"],
+    );
     const domainSchemas = await db.pool.query(
       "SELECT schema_name FROM information_schema.schemata WHERE schema_name = ANY($1::text[])",
       [

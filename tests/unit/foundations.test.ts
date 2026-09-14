@@ -42,6 +42,9 @@ test("configuration validates ports, environment, log level and secret refs", ()
   const production = loadConfig({
     APP_ENV: "production",
     DATABASE_SECRET_REF: "file:/run/secrets/database",
+    AUTH_MODE: "oidc",
+    OIDC_ISSUER: "https://issuer.example/",
+    OIDC_AUDIENCE: "itcenter-api",
   });
   assert.throws(() =>
     databaseUrl(production, {
@@ -58,9 +61,14 @@ test("canonical error classes map HTTP status; unknown exceptions are sanitized"
     VALIDATION_ERROR: 400,
     AUTHENTICATION_REQUIRED: 401,
     PERMISSION_DENIED: 403,
+    TENANT_CONTEXT_REQUIRED: 400,
+    INVALID_TENANT_CONTEXT: 400,
+    IDENTITY_NOT_PROVISIONED: 403,
+    TENANT_MEMBERSHIP_DENIED: 403,
     NOT_FOUND: 404,
     VERSION_CONFLICT: 409,
     IDEMPOTENCY_KEY_CONFLICT: 409,
+    IDENTITY_LINK_CONFLICT: 409,
     BUSINESS_RULE_VIOLATION: 422,
     DEPENDENCY_UNAVAILABLE: 503,
     INTERNAL_ERROR: 500,
