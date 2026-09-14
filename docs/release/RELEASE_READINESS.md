@@ -41,17 +41,21 @@ should be started next. Phase 5 gate passed. No TASK-098 exists or is created
 by this assessment, and Phase 6 is not opened. Future features must enter a
 newly approved backlog/roadmap. This reconciliation makes no runtime changes.
 
-## Release planning update — RELEASE-001-R1
+## Release planning update — RELEASE-001-R1/R2
 
-The subsequent planning commit completed RELEASE-001-R1 as a normative
-security contract. RELEASE-001 is now `NOT_STARTED / READY`; the production
-API adapter is still absent. This resolves its planning/specification blocker,
-not RR-01: RR-01 remains a `RELEASE_BLOCKER` until the runtime adapter and
-staging acceptance evidence pass. The global decision therefore remains
-`BLOCKED_FOR_RC`. The contract requires one configured trusted OIDC issuer,
-RFC 9068 JWT access tokens, canonical `(issuer, sub)` provisioning, explicit
-local tenant membership, local RBAC and fail-closed startup. See the R1 item
-for the complete acceptance contract.
+The subsequent planning commits completed RELEASE-001-R1 and RELEASE-001-R2
+as normative security contracts. RELEASE-001 is now `NOT_STARTED / READY`; the
+production API adapter is still absent. This resolves its
+planning/specification blockers, not RR-01: RR-01 remains a
+`RELEASE_BLOCKER` until runtime adapter and staging acceptance evidence pass.
+The global decision therefore remains `BLOCKED_FOR_RC`. The contracts require
+one configured trusted OIDC issuer, RFC 9068 JWT access tokens, canonical
+`(issuer, sub)` provisioning, exactly one required `X-Tenant-ID` on protected
+tenant-scoped requests, an active membership bound to the selected
+tenant-local User, local RBAC and fail-closed startup. See the
+[R1](items/RELEASE-001-R1_PRODUCTION_AUTHENTICATION_CONTRACT.md) and
+[R2](items/RELEASE-001-R2_EXPLICIT_TENANT_CONTEXT_MEMBERSHIP_FOUNDATION.md)
+items for complete acceptance contracts.
 
 ## Evidence and verification baseline
 
@@ -110,8 +114,9 @@ TLS `verify-full`, and reject debug authentication bypass, debug logging, and
 unsafe migration settings. Keep those protections enabled. Before RC, the
 deployment must additionally supply and validate:
 
-- a real OIDC/OAuth2 user identity verifier and canonical user/tenant mapping,
-  plus a real authorization policy adapter;
+- a real OIDC/OAuth2 user identity verifier and canonical IdentityLink,
+  explicit `X-Tenant-ID`-selected membership to a tenant-local User, plus a
+  real authorization policy adapter;
 - for TASK-091, a mutually authenticated enrolled-Agent identity adapter
   (mTLS or workload identity under the existing contract), credential
   issuance, rotation and revocation;

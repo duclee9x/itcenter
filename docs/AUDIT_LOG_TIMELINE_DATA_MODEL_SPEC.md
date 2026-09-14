@@ -3709,3 +3709,17 @@ A successful actor DISMISSED interaction appends an audit record referencing the
 Use the canonical AuditPort/security event standards for security-significant Identity operations, including external identity link/unlink/replacement, initial administrator bootstrap success or failure, emergency identity use, and privileged external-service mapping changes. Evidence binds tenant and local subject where known, issuer identifier, safe external-subject reference, actor, operation, reason, correlation, outcome and time. Audit the old/new mapping reference as permitted by existing data classification; never store raw access/refresh token, authorization code, client secret, private key or complete claims payload.
 
 Routine successful API authentication does not create a compliance audit event per request unless another existing audit policy requires it. Safe operational metrics/logs may record reason categories and request/correlation IDs but must not contain credentials or unbounded raw subject/email labels. Authentication denial does not disclose another tenant's identity mapping. Audit records are append-only; link correction is a new governed event, not an in-place audit rewrite.
+
+### RELEASE-001-R2 — membership security evidence
+
+IdentityLink provisioning and TenantMembership grant, revocation or correction
+are distinct security-significant Identity operations. Audit binds the
+IdentityLink reference, selected tenant, tenant-local User/SystemPrincipal,
+actor, reason, correlation, idempotency/operation reference, prior and new
+membership status, and time according to the existing classification policy.
+Do not store raw tokens or copy arbitrary token claims. Membership revocation
+is append-only audit evidence plus canonical status/version change; do not
+delete the membership or rewrite earlier audit. Routine header selection and
+successful API requests are not per-request compliance events unless another
+existing policy requires them. Safe denial telemetry uses bounded reason
+codes and must not reveal cross-tenant identity existence.

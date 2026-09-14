@@ -55,12 +55,18 @@ or use explicitly disposable staging fixtures.
       or refresh tokens), RS256 signature/JWKS rotation, exact issuer/audience,
       `exp`/`nbf`, 30-second default and 60-second maximum clock tolerance,
       and the recommended 10-minute maximum token lifetime.
-- [ ] Verify explicit IdentityLink provisioning by `(issuer, sub)`, active
-      canonical user status, explicit requested tenant plus active local
-      TenantMembership, and local RBAC/resource authorization. Prove email or
+- [ ] Verify explicit IdentityLink provisioning by `(issuer, sub)`, exactly
+      one required `X-Tenant-ID` on protected tenant APIs, ACTIVE membership
+      binding to the correct tenant-local User, active canonical user status,
+      and local RBAC/resource authorization. Prove email or
       IdP role/group/tenant claims cannot grant or transfer platform access;
       verify local permission/membership revocation while a token remains
       cryptographically valid.
+- [ ] Verify missing `X-Tenant-ID` returns `400 TENANT_CONTEXT_REQUIRED`,
+      malformed/duplicate values return `400 INVALID_TENANT_CONTEXT`, and an
+      authenticated request without membership returns a safe 403 without
+      revealing tenant existence. Confirm public live/ready health requests
+      ignore the header and capabilities is protected.
 - [ ] Verify OIDC configuration failure keeps startup/readiness fail-closed;
       unknown `kid` performs only bounded trusted-JWKS refresh; unavailable
       JWKS without a valid cached key fails closed; no mock, anonymous,
@@ -121,6 +127,10 @@ production tests are allowed.
       without a code change.
 - [ ] Rate limiting, body/header limits, TLS and trusted proxy behavior pass
       staging tests. Forwarded headers from untrusted clients are ignored.
+- [ ] Reverse proxy preserves exactly one client `X-Tenant-ID`; application
+      independently rejects duplicate/conflicting values. Cross-origin
+      browser deployments allow this header only through RELEASE-007's
+      reviewed CORS policy.
 - [ ] API errors contain no SQL, stack trace, token or provider-secret data.
 - [ ] Cross-tenant negative tests cover user, Agent, Reporting, Recommendation,
       scoring and financial aggregate paths enabled by the release.

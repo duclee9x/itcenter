@@ -2920,6 +2920,25 @@ TASK-096 serializes projection identity with a transaction-scoped advisory lock 
 
 Bearer access-token validation is fail-closed. Missing/malformed/invalid, wrong issuer/audience, invalid signature, disallowed algorithm, wrong token type, expired/not-yet-valid or untrusted-key credentials map to safe 401 authentication semantics. A valid external identity without IdentityLink, inactive local user, missing active TenantMembership, insufficient local permission or source/resource denial maps to safe 403 semantics. Issuer/JWKS infrastructure unavailability with no valid cached key maps to sanitized dependency-unavailable/503 behavior; it must never become an anonymous principal or successful empty authorization result.
 
+### RELEASE-001-R2 — tenant context validation errors
+
+Authentication has precedence over tenant selector validation: an invalid or
+missing credential returns 401 even if `X-Tenant-ID` is absent. After a valid
+external identity is resolved, a missing selector returns `400
+TENANT_CONTEXT_REQUIRED`; empty, whitespace-only, malformed or duplicated
+values return `400 INVALID_TENANT_CONTEXT`. Do not pick one duplicate or
+normalize malformed input. A syntactically valid selector with no ACTIVE
+membership returns a safe 403, identical for unknown tenant and existing
+tenant without access. Do not turn database/query failures into “no
+membership”; authorization-source failure fails closed using the canonical
+safe service/dependency error and never constructs a default principal.
+
+IdentityLink and membership grant/revoke operations use durable
+idempotency/concurrency: same key and same semantic request replays its prior
+result, same key with different content conflicts, and uniqueness/transaction
+constraints serialize competing bindings. Retain revoked membership history.
+R2 does not add runtime retry behavior or alter OIDC validation.
+
 Identity link/unlink/replacement and bootstrap writes use durable idempotency and optimistic concurrency. A repeated key with the same semantic request returns the prior outcome; the same key with different content conflicts. Unique `(issuer, subject)` constraint and transaction serialization prevent two competing local-user mappings. A concurrent/stale identity or membership change must fail safely and be re-evaluated before a later request. No process-local lock is sufficient.
 
 Do not blindly retry external token validation on every failure. Only bounded discovery/JWKS refresh for an unknown `kid` is permitted; if it does not establish a trusted key, reject. Provider outage, failed local identity lookup or authorization failure never falls back to mock, local-password, anonymous, default-tenant or default-admin access. Public route handling uses an explicit allow-list; unclassified routes remain protected.

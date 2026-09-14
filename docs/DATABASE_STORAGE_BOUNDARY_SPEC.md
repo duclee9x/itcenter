@@ -3232,3 +3232,25 @@ IdentityLink, platform TenantMembership, local role bindings and external servic
 For v1, an existing `external_identities` row is reusable for API login only if `provider_id` has a deterministic trusted mapping to the exact configured OIDC issuer. Do not backfill issuer values from provider names, email, username or display name. Ambiguous legacy identities remain unlinked and cannot authenticate to the API until an authorized explicit link operation. Membership and permission removal must be represented in canonical local state and take effect independently of still-valid external access tokens.
 
 Identity-link, membership and external service identity writes use the Identity-owned transaction, constraint, audit and idempotency standards. Initial-administrator bootstrap uses a durable singleton completion marker committed atomically with the first explicit IdentityLink and local grant under the canonical no-active-`rbac.manage`-administrator condition. Provider/JWKS configuration and private signing/verification material are operator-managed secrets/configuration, not domain rows. R1 defines storage semantics only and adds no migration or production auth adapter.
+
+### RELEASE-001-R2 — IdentityLink and TenantMembership storage refinement
+
+The current `identity.users` rows remain tenant-local. The canonical external
+IdentityLink is tenant-independent and has principal-type-separated uniqueness
+for human `(issuer, subject, HUMAN)` and service `(issuer, client_id, SERVICE)`
+identities. `identity.tenant_memberships` binds an IdentityLink to one tenant
+and its local User/SystemPrincipal. For a human binding, enforce tenant/User
+consistency with a composite foreign key or equivalent database invariant.
+Enforce at most one ACTIVE principal binding per external identity and tenant;
+retain revoked membership rows and their audit references. Membership does
+not replace User lifecycle or RBAC.
+
+Existing `identity.external_identities` is tenant/user-bound and is reusable
+only when issuer, subject, principal type, tenant and local User are all
+deterministic and conflict-free. No email/name matching or guessed issuer
+backfill is allowed, and ambiguous rows remain unprovisioned. Do not dual-write
+legacy and canonical identity records as competing authorities. R2 specifies
+the model only; migrations belong to RELEASE-001 implementation. Tenant
+selection at request time is `X-Tenant-ID`, validated in application code and
+then checked against persisted membership; storing the header itself is not
+required.

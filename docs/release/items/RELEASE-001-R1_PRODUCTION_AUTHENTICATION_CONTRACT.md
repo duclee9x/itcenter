@@ -126,9 +126,10 @@ deterministic):
 
 ```text
 IdentityLink:
+  id
   issuer
   subject
-  local_user_id
+  principal_type: HUMAN | SERVICE
   status
   provenance
   created_at
@@ -137,8 +138,10 @@ IdentityLink:
   updated_at
 ```
 
-Enforce one canonical local mapping for `(issuer, subject)` in the deployment
-trust scope. Do not guess a link for a legacy row from `provider_id`, email,
+Enforce one canonical external identity for `(issuer, subject, principal_type)`
+in the deployment trust scope. Tenant-local User binding is performed through
+TenantMembership as refined by R2; IdentityLink itself is not a tenant-local
+User record. Do not guess a link for a legacy row from `provider_id`, email,
 username or display name unless a separately verified deterministic issuer
 mapping exists. Otherwise the identity remains unprovisioned until explicitly
 linked.
@@ -150,13 +153,18 @@ JIT account creation for API access. The general Identity workflow's optional
 JIT path may only be enabled by a separate governed provisioning contract;
 it cannot override this API rule.
 
-The platform owns tenant membership. The request pipeline resolves:
+The platform owns tenant membership. R1 left the concrete request selector
+and tenant-local membership binding shape to the focused R2 contract; see
+[RELEASE-001-R2 — Explicit Tenant Context & Membership Foundation](RELEASE-001-R2_EXPLICIT_TENANT_CONTEXT_MEMBERSHIP_FOUNDATION.md).
+For the API v1 runtime, that contract fixes `X-Tenant-ID` as the only
+required selector and binds the external IdentityLink through an ACTIVE
+membership to the tenant-local User. The request pipeline resolves:
 
 ```text
 validated external identity
 → canonical local user
-→ explicitly requested tenant context
-→ active local TenantMembership
+→ requested tenant from exactly one `X-Tenant-ID`
+→ active local TenantMembership bound to a tenant-local User
 → local effective permissions
 → resource authorization
 ```
@@ -164,7 +172,7 @@ validated external identity
 An IdP `tenant_id`, organization or group claim is not proof of platform
 membership. A tenant claim may be auxiliary provisioning input only under a
 future explicit mapping contract. Multi-tenant users must select the requested
-tenant through the existing canonical API routing/context mechanism; the
+tenant through `X-Tenant-ID`; the
 middleware must not silently choose one. Each request principal is bound to
 exactly that tenant. Membership in one tenant gives no access to another.
 

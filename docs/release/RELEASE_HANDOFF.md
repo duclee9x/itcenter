@@ -9,7 +9,7 @@
 - Release decision: `BLOCKED_FOR_RC` until the items in
   [RELEASE_BACKLOG.md](RELEASE_BACKLOG.md) are verified.
 - Release-readiness assessment: commit `3a0cda2`.
-- Current release item: RELEASE-001, `NOT_STARTED / READY`; R1 is
+- Current release item: RELEASE-001, `NOT_STARTED / READY`; R1 and R2 are
   `CODE_COMPLETE`, and the runtime adapter remains outstanding.
 - Unrelated user change in `AGENTS.md` is preserved and must remain outside
   release-planning commits unless a later explicit scope requires a separate
@@ -17,12 +17,14 @@
 
 ## Next action
 
-RELEASE-001-R1 — Production Authentication Contract is persisted and
-`CODE_COMPLETE`. It fixes provider-neutral OIDC 1.0, the RFC 9068 JWT access
-token profile, local IdentityLink and tenant-membership resolution, local
-RBAC, fail-closed behavior, bootstrap/emergency access boundaries and
-acceptance tests. RELEASE-001 is now `READY / NOT_STARTED`. Its runtime
-adapter has not been implemented. Do not automatically switch to RELEASE-002.
+RELEASE-001-R1 — Production Authentication Contract and RELEASE-001-R2 —
+Explicit Tenant Context & Membership Foundation are persisted and
+`CODE_COMPLETE`. They fix provider-neutral OIDC 1.0/RFC 9068 access-token
+validation, required `X-Tenant-ID` selection, tenant-independent IdentityLink,
+tenant-local User membership, local RBAC, fail-closed behavior and
+bootstrap/emergency-access boundaries. RELEASE-001 is `READY / NOT_STARTED`;
+its runtime adapter has not been implemented. Do not automatically switch to
+RELEASE-002.
 
 ## Release order
 

@@ -4950,7 +4950,7 @@ identity.identity_links:
   id: uuid
   issuer: exact validated OIDC issuer
   subject: exact OIDC sub
-  local_user_id: uuid
+  principal_type: HUMAN | SERVICE
   status: ACTIVE | REVOKED
   provenance: explicit provisioning/bootstrap reference
   created_at:
@@ -4959,24 +4959,26 @@ identity.identity_links:
   updated_at:
 ```
 
-Enforce unique `(issuer, subject)` within the deployment trust scope and a foreign key to the canonical local User. One external subject resolves to one local user. Link and unlink/replacement are explicit authorized Identity commands with reason, actor, correlation, durable idempotency, optimistic concurrency and immutable audit. A legacy external identity without deterministic issuer provenance is not an API IdentityLink.
+Enforce unique `(issuer, subject, principal_type)` within the deployment trust scope. IdentityLink represents external identity, not a tenant-local User; R2's TenantMembership supplies the tenant-specific principal binding. Link and unlink/replacement are explicit authorized Identity commands with reason, actor, correlation, durable idempotency, optimistic concurrency and immutable audit. A legacy external identity without deterministic issuer provenance is not an API IdentityLink.
 
 Tenant membership is separate from both the global external identity and role assignment:
 
 ```yaml
 identity.tenant_memberships:
   id: uuid
+  identity_link_id: uuid
   tenant_id: uuid
-  local_user_id: uuid
-  status: ACTIVE | INACTIVE
-  valid_from:
-  valid_until:
+  local_user_id: uuid # tenant-local human principal
+  status: ACTIVE | REVOKED
+  granted_at:
+  revoked_at:
+  provenance:
   version:
   created_at:
   updated_at:
 ```
 
-Enforce unique membership identity `(tenant_id, local_user_id)` for the canonical row/history model. Only an active, currently valid membership may bind a request principal to the explicitly requested tenant. Membership does not itself grant a permission; local role bindings and permission policies remain separate. User/tenant access revocation is checked locally, not delegated to token claims.
+Enforce one unambiguous ACTIVE mapping for `(identity_link_id, tenant_id)` and a tenant-composite reference from `(tenant_id, local_user_id)` to the tenant-local User. Revoked rows are retained. Only ACTIVE membership may bind a request principal to the explicitly requested tenant. Membership does not itself grant a permission; local role bindings and permission policies remain separate. User/tenant access revocation is checked locally, not delegated to token claims. The same IdentityLink may bind to different local Users in different tenants.
 
 Client credentials resolve through a separate external service identity mapping:
 
@@ -5001,5 +5003,34 @@ durable singleton completion marker in canonical Identity storage. Creation of
 that marker, the initial explicit IdentityLink and local admin grant is one
 serialized transaction. Bootstrap is allowed only when no active local human
 has canonical `rbac.manage` in an active tenant and no completion marker
-exists. The marker prevents replay permanently; runtime implementation must
-not infer bootstrap eligibility from a request header or an IdP claim.
+exists. Under R2, the same transaction also creates/confirms the explicit
+ACTIVE TenantMembership binding the IdentityLink to the selected tenant-local
+User. The marker prevents replay permanently; runtime implementation must not
+infer bootstrap eligibility from a request header or an IdP claim.
+
+### RELEASE-001-R2 — tenant-independent IdentityLink and tenant-local membership
+
+The conceptual IdentityLink/TenantMembership model in R1 is refined for the
+existing tenant-scoped `identity.users` model. `IdentityLink` represents the
+external identity in deployment trust scope and is not itself tenant-owned.
+`TenantMembership` binds that identity to exactly one tenant-local User (or,
+for a service, to its canonical tenant-scoped SystemPrincipal). A single human
+IdentityLink can bind to different local Users in multiple tenants; do not
+globally merge Users.
+
+For human identities, enforce exact `(issuer, subject, principal_type=HUMAN)`
+uniqueness and an unambiguous ACTIVE membership for `(identity_link_id,
+tenant_id)`. A tenant-composite FK must ensure the membership tenant matches
+the bound User's `tenant_id`. Membership states are only `ACTIVE` and
+`REVOKED`; revocation preserves the row/audit lineage. ACTIVE membership is
+separate from User lifecycle and does not grant RBAC permissions. R1 service
+identity remains a separate `(issuer, client_id, SERVICE)` namespace with an
+explicit tenant-scoped SystemPrincipal binding.
+
+The sole v1 request tenant selector is `X-Tenant-ID`, as specified by
+[RELEASE-001-R2](release/items/RELEASE-001-R2_EXPLICIT_TENANT_CONTEXT_MEMBERSHIP_FOUNDATION.md).
+The selector is not an identity relation or authorization grant. No legacy
+identity/membership backfill may use email, username, display name, tenant
+claims or ambiguous provider labels; only deterministic issuer/subject/
+tenant/local-User evidence may migrate. R2 is a data contract and adds no
+runtime schema migration.

@@ -29,20 +29,20 @@ flowchart TD
 
 ## Direct dependency table
 
-| Release item     | Depends on                                                                                | Reason                                                                                                           |
-| ---------------- | ----------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| RELEASE-001      | None                                                                                      | Foundational API security adapter. R1 resolved its contract gap; runtime implementation and verification remain. |
-| RELEASE-002      | None                                                                                      | Agent-channel authentication can be designed/configured independently while retaining fail-closed execution.     |
-| RELEASE-003      | None                                                                                      | Worker health/readiness behavior is independent of release packaging.                                            |
-| RELEASE-004      | None                                                                                      | Establishes immutable artifact and deployment lifecycle.                                                         |
-| RELEASE-005      | None                                                                                      | Establishes and proves backup/restore before migrations or promotion.                                            |
-| RELEASE-006      | RELEASE-004, RELEASE-005                                                                  | Rehearsal must use the immutable release artifact and proven recovery path.                                      |
-| RELEASE-007      | RELEASE-004                                                                               | Edge security validation must match the deployable release topology.                                             |
-| RELEASE-GATE-001 | RELEASE-001, RELEASE-002, RELEASE-003, RELEASE-004, RELEASE-005, RELEASE-006, RELEASE-007 | Re-run the complete RC gate after all P0 evidence is verified.                                                   |
+| Release item     | Depends on                                                                                | Reason                                                                                                               |
+| ---------------- | ----------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| RELEASE-001      | None                                                                                      | Foundational API security adapter. R1/R2 resolved its contract gaps; runtime implementation and verification remain. |
+| RELEASE-002      | None                                                                                      | Agent-channel authentication can be designed/configured independently while retaining fail-closed execution.         |
+| RELEASE-003      | None                                                                                      | Worker health/readiness behavior is independent of release packaging.                                                |
+| RELEASE-004      | None                                                                                      | Establishes immutable artifact and deployment lifecycle.                                                             |
+| RELEASE-005      | None                                                                                      | Establishes and proves backup/restore before migrations or promotion.                                                |
+| RELEASE-006      | RELEASE-004, RELEASE-005                                                                  | Rehearsal must use the immutable release artifact and proven recovery path.                                          |
+| RELEASE-007      | RELEASE-004                                                                               | Edge security validation must match the deployable release topology.                                                 |
+| RELEASE-GATE-001 | RELEASE-001, RELEASE-002, RELEASE-003, RELEASE-004, RELEASE-005, RELEASE-006, RELEASE-007 | Re-run the complete RC gate after all P0 evidence is verified.                                                       |
 
 ## Derived readiness
 
-Derived readiness after RELEASE-001-R1:
+Derived readiness after RELEASE-001-R2:
 
 - **READY:** RELEASE-001, RELEASE-002, RELEASE-003, RELEASE-004, RELEASE-005.
 - **BLOCKED:** None.

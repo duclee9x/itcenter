@@ -2712,3 +2712,22 @@ Do not convert access-token `roles`, `groups`, `tenant_id`, organization or othe
 System/client tokens require an explicit issuer + subject/client registration to a canonical tenant-scoped SystemPrincipal. The resulting principal receives only its pre-existing explicit local grants. It cannot impersonate a human or obtain wildcard, cross-tenant or administrator access from token claims.
 
 Initial administrator bootstrap is a trusted control-plane operation for a specified issuer/subject, local user, tenant and local admin role. It is allowed only if no active local human currently has canonical `rbac.manage` in any active tenant and a durable singleton completion marker is absent. Both conditions are checked and the marker, IdentityLink and initial local grant are written atomically; the marker makes bootstrap one-time even if the initial administrator is later removed. It is not a public route, default password or cross-tenant grant. Emergency access uses an explicitly mapped external OIDC identity with IdP-side strong MFA and audited, narrow local scope. RELEASE-001 v1 does not add local-password break-glass.
+
+### RELEASE-001-R2 — tenant selection and membership authorization
+
+For every protected tenant-scoped request, `X-Tenant-ID` is the one required
+requested-context selector. It grants no access. Authentication resolves the
+external IdentityLink first; the selected tenant must then resolve to one
+ACTIVE TenantMembership bound to the tenant-local User/SystemPrincipal before
+local RBAC and resource-scope evaluation. No sole-membership/default/token
+claim fallback is allowed. Missing selector is a 400; malformed or duplicate
+selector is a 400; no active membership is a safe 403 that does not disclose
+whether the tenant exists. Token tenant/org/group claims do not create
+membership or permissions. Revocation of one membership takes effect on the
+next authorization evaluation and does not revoke other tenant bindings.
+
+Provisioning/link and membership grant/revoke are separate Identity-owned,
+authorized operations with actor, tenant, reason, idempotency, concurrency
+and audit controls. `recommendation.read`, `metric.read`, service identity or
+any other permission does not bypass tenant membership. See the normative
+[RELEASE-001-R2 contract](release/items/RELEASE-001-R2_EXPLICIT_TENANT_CONTEXT_MEMBERSHIP_FOUNDATION.md).

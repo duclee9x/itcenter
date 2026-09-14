@@ -1,12 +1,12 @@
 # RELEASE-001 — Production API Authentication & Authorization Adapter
 
-| Field          | Value                                                                                                       |
-| -------------- | ----------------------------------------------------------------------------------------------------------- |
-| Priority       | P0                                                                                                          |
-| Status         | `NOT_STARTED`                                                                                               |
-| Readiness      | `READY`                                                                                                     |
-| Blocker        | None — RELEASE-001-R1 contract is complete; runtime adapter remains unimplemented.                          |
-| Planning child | [RELEASE-001-R1 — Production Authentication Contract](RELEASE-001-R1_PRODUCTION_AUTHENTICATION_CONTRACT.md) |
+| Field              | Value                                                                                                                                                                                                |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Priority           | P0                                                                                                                                                                                                   |
+| Status             | `NOT_STARTED`                                                                                                                                                                                        |
+| Readiness          | `READY`                                                                                                                                                                                              |
+| Blocker            | None — RELEASE-001-R1 and R2 contracts are `CODE_COMPLETE`; runtime adapter remains unimplemented.                                                                                                   |
+| Planning contracts | [R1 — Production Authentication](RELEASE-001-R1_PRODUCTION_AUTHENTICATION_CONTRACT.md); [R2 — Explicit Tenant Context & Membership](RELEASE-001-R2_EXPLICIT_TENANT_CONTEXT_MEMBERSHIP_FOUNDATION.md) |
 
 ## Purpose
 
@@ -42,18 +42,20 @@ scope and context, with tenant boundary checked before resource scope.
 ## Normative contract
 
 The production mechanism and principal-resolution decisions are now
-normative in [RELEASE-001-R1](RELEASE-001-R1_PRODUCTION_AUTHENTICATION_CONTRACT.md)
+normative in [RELEASE-001-R1](RELEASE-001-R1_PRODUCTION_AUTHENTICATION_CONTRACT.md),
+[RELEASE-001-R2](RELEASE-001-R2_EXPLICIT_TENANT_CONTEXT_MEMBERSHIP_FOUNDATION.md)
 and the Identity/API/RBAC/storage/audit standards. In summary: one configured
 provider-neutral OIDC 1.0 issuer; RFC 9068 JWT access tokens only as Bearer
 credentials; Authorization Code + PKCE for interactive login; exact
-issuer/subject IdentityLink; explicit local tenant membership and local RBAC;
+issuer/subject IdentityLink; required `X-Tenant-ID` resolved through an
+explicit active binding to the tenant-local User; local RBAC;
 no JIT, vendor-role grants, password fallback, wildcard system identity or
 default administrator. Token validation, error behavior, bootstrap,
 emergency access, audit and acceptance are specified in R1.
 
-RELEASE-001 is `READY / NOT_STARTED`. Readiness means the security contract
-gap is closed and the runtime item may be started. The runtime adapter is
-still absent, so the production release blocker RR-01 remains open until
+RELEASE-001 is `READY / NOT_STARTED`. R1 and R2 close the authentication and
+tenant-context specification gaps; the runtime adapter is still absent, so
+the production release blocker RR-01 remains open until
 RELEASE-001 runtime implementation and staging verification are complete.
 
 ## Runtime outcome (under the completed R1 contract)
