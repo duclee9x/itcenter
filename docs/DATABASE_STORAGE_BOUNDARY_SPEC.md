@@ -3215,3 +3215,10 @@ over family/source/source-generation/profile and interaction idempotency; it
 does not create cross-domain foreign-table ownership or duplicate source
 payloads. Owner-domain read adapters, not arbitrary cross-schema SQL, supply
 source state and current eligibility.
+
+TASK-096-R2 creates no tables or migrations. Incident correlation read
+composition executes inside the Incident owner boundary; candidate/current
+assessment composition executes inside Asset. Both reads are tenant-filtered
+and authorization-aware. Recommendation consumers call these application
+ports and must not query `incident.correlation_*`, `asset.replacement_plans`
+or scoring tables directly.

@@ -22,6 +22,11 @@ export {
   type ReplacementCandidateRecommendationResult,
 } from "./application/replacement-candidate.js";
 export {
+  queryReplacementCandidateRecommendationSource,
+  type ReplacementCandidateRecommendationSourceItem,
+  type ReplacementCandidateRecommendationSourceResult,
+} from "./application/replacement-recommendation-source.js";
+export {
   listScoringAssetIds,
   expireAssetRiskProjections,
   readAssetAssessments,

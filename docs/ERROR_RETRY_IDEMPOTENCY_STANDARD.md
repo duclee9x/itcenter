@@ -2904,3 +2904,12 @@ Dismissal racing a source update remains bound to the old generation. Source
 query failure is distinct from `AVAILABLE_EMPTY`, and a terminal source is
 rechecked before presentation. Do not retry a source-domain business command
 from a recommendation projection.
+
+TASK-096-R2 source-query identity comes from immutable canonical source
+generations: Incident decision ID/evaluation identity, or Replacement
+Candidate ID/version plus its bound Assessment ID. Query ordering is stable
+(`created_at`/ID for Incident decisions; `updated_at`/ID for candidates) and
+bounded pagination uses that owner-domain order. Read queries do not create
+source side effects. A failed SQL read is rolled back to a local savepoint so
+the caller may safely report `SOURCE_UNAVAILABLE` without converting the
+failed transaction into an apparent empty result.

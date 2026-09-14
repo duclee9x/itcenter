@@ -4931,3 +4931,10 @@ copy source payloads. Interactions (`VIEWED`, `DISMISSED`, `OPENED_SOURCE`)
 are actor-scoped and bind the revision/source generation. Dismissal does not
 mutate recommendation validity or source state. Initial reconciliation does
 not fabricate historical presentation evidence.
+
+TASK-096-R2 adds no Recommendation persistence. Incident correlation decisions
+and Asset replacement candidates/assessments remain owned by their source
+domains; source adapters are tenant-scoped read contracts. Incident generation
+uses the immutable correlation decision ID and its stable evaluation identity.
+Replacement generation is the canonical candidate ID/version paired with its
+exact assessment ID. These source identities are not Recommendation revisions.

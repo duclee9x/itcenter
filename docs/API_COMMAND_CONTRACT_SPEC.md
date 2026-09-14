@@ -3003,3 +3003,14 @@ descriptors, never arbitrary persisted URLs. The actor must pass both
 `recommendation.read` and the owning source's current read/presentation
 authorization. No unauthorized source identity or explanation metadata is
 returned.
+
+The source-domain contracts consumed by that API include the internal
+Incident `IncidentCorrelationRecommendationSource` and Asset
+`ReplacementCandidateRecommendationSource` queries. Each accepts a tenant,
+caller authorization context and optional canonical entity filter, uses
+bounded stable pagination, and returns `AVAILABLE`, `AVAILABLE_EMPTY` or
+`SOURCE_UNAVAILABLE`. Incident results carry immutable decision/evaluation
+identity and only current eligible REVIEW evidence. Asset results carry the
+active review candidate and its exact current assessment reference/version.
+These are domain-owned read contracts, not public recommendation endpoints or
+Recommendation persistence. Neither query invokes a source command.

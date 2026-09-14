@@ -32,12 +32,13 @@ import {
   calculateRisk,
   replacementProfile,
   riskProfile,
+  SCORING_ELIGIBLE_LIFECYCLE_STATES,
   warrantyContribution,
   type Evidence,
 } from "../domain/scoring.js";
 
 export type ScoringActor = Principal & { actor_type: string };
-const eligibleLifecycle = new Set(["ASSIGNED", "IN_USE", "REPAIR"]);
+const eligibleLifecycle = new Set<string>(SCORING_ELIGIBLE_LIFECYCLE_STATES);
 const sha256 = (value: unknown) =>
   createHash("sha256").update(JSON.stringify(value)).digest("hex");
 const windowStart = (asOf: string, days: number) =>

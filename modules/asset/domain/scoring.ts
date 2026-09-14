@@ -14,6 +14,12 @@ export type Evidence = {
   missing_reason?: string;
 };
 
+export const SCORING_ELIGIBLE_LIFECYCLE_STATES = [
+  "ASSIGNED",
+  "IN_USE",
+  "REPAIR",
+] as const;
+
 const healthPoints: Record<string, number | null> = {
   HEALTHY: 0,
   WARNING: 20,

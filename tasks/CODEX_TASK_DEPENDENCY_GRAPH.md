@@ -269,6 +269,7 @@ flowchart TD
   TASK_094["TASK-094<br/>Risk + Replacement Scoring"]
   TASK_095["TASK-095<br/>Advanced Reporting + Governed KPI + Analytics"]
   TASK_096_R1["TASK-096-R1<br/>Explainable Recommendation Layer Contract"]
+  TASK_096_R2["TASK-096-R2<br/>Recommendation Source Read Adapters Foundation"]
   TASK_096["TASK-096<br/>Explainable Recommendation Layer"]
   TASK_097["TASK-097<br/>Phase 5 System Integration + Intelligence Gate"]
   TASK_039["TASK-039<br/>Safe Automation + Operations Overview + Phase 2 Gate"]
@@ -308,7 +309,13 @@ flowchart TD
   TASK_093 --> TASK_096_R1
   TASK_094 --> TASK_096_R1
   TASK_095 --> TASK_096_R1
+  TASK_059 --> TASK_096_R2
+  TASK_092 --> TASK_096_R2
+  TASK_093 --> TASK_096_R2
+  TASK_094 --> TASK_096_R2
+  TASK_096_R1 --> TASK_096_R2
   TASK_096_R1 --> TASK_096
+  TASK_096_R2 --> TASK_096
   TASK_090 --> TASK_096
   TASK_092 --> TASK_096
   TASK_093 --> TASK_096

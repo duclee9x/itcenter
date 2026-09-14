@@ -40,16 +40,11 @@ The existing query primitives were inspected:
   exported read-only query binding active candidate review state to its current
   TASK-094 assessment.
 
-The TASK-096 contract records the exact potential implementation-time
-`SCOPE_DEPENDENCY`: add minimal read adapters in the owning Incident,
-Problem/Knowledge and Asset domains as required. The Incident adapter must
-enumerate current review decisions with stable generation and eligibility;
-the Asset adapter must read active candidates with current assessment band,
-freshness and human review state. TASK-096 must not bypass these boundaries
-with cross-domain SQL. TASK-093's session/eligibility ports are reusable but
-need a compact family adapter. The parent remains `READY / NOT_STARTED` as
-directed; implementation must stop if the adapters cannot be provided within
-TASK-096 scope.
+TASK-096-R2 subsequently implemented the Incident current-review and Asset
+candidate/current-assessment read adapters inside their owning domains.
+TASK-093 already supplies the canonical session read and article eligibility
+queries used for later Knowledge presentation composition. These dependencies
+are now available without Recommendation persistence or cross-domain SQL.
 
 ## Reconciled specifications
 

@@ -3125,9 +3125,11 @@ TASK-096 is `READY / NOT_STARTED`; TASK-097 remains waiting for TASK-096.
 
 The normative specification is
 `tasks/TASK-096_EXPLAINABLE_RECOMMENDATION_LAYER.md`; R1 is
-`CODE_COMPLETE` and specification-only. Potential implementation-time
-`SCOPE_DEPENDENCY` items are the missing minimal Incident review-feed and
-Asset candidate/current-assessment read adapters; Knowledge requires a compact
-adapter composed from TASK-093 session and eligibility queries. No direct
-cross-domain SQL is allowed. TASK-096 is `READY / NOT_STARTED`; TASK-097
-remains `WAITING_DEPENDENCY / NOT_STARTED` until TASK-096 completes.
+`CODE_COMPLETE` and specification-only. TASK-096-R2 (`CODE_COMPLETE`)
+supplies the Incident-owned current correlation
+review source and Asset-owned active replacement-candidate/current-assessment
+source. The Knowledge family continues to compose TASK-093 session and
+presentation-eligibility ports. No Recommendation persistence or runtime
+aggregation was added. Parent TASK-096 is `READY / NOT_STARTED`; TASK-097
+remains `WAITING_DEPENDENCY / NOT_STARTED`. No direct cross-domain SQL is
+allowed.

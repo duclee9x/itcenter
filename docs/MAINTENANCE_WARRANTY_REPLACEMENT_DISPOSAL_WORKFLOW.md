@@ -2290,3 +2290,13 @@ candidate read authorization. TASK-059 owns candidate lifecycle and human
 disposition. TASK-096 creates no candidate, Work Item, approval, Procurement
 request, PO or Asset lifecycle transition. Critical-risk review remains the
 TASK-094 Work Queue path and is not duplicated in Recommendation Layer.
+
+TASK-096-R2 adds an Asset-owned, read-only `ReplacementCandidateRecommendationSource`.
+It returns only a human-reviewable `UNDER_REVIEW` candidate whose bound
+`recommendation_assessment_id` is still the Asset scoring-latest assessment,
+whose Asset remains scoring-eligible, and whose current assessment is fresh
+with band `PLAN` or `PRIORITY`. Candidate and assessment versions/IDs form the
+stable source generation; the adapter does not join an unrelated assessment,
+refresh scoring, change candidate state or issue a replacement action. Reads
+require Asset and scoring read authorization. Source failures remain distinct
+from successful empty results.

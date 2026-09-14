@@ -2692,3 +2692,11 @@ for replacement review. `recommendation.interact` grants only actor-scoped
 Incident review/attach, Knowledge mutation, Asset/TASK-059 disposition,
 approval, Work Queue mutation or Automation execution. All checks are
 tenant/resource scoped; denial fails closed without revealing source metadata.
+
+TASK-096-R2 source reads use the existing narrow capabilities: Incident
+correlation feed access requires `incident.correlation.read` and each returned
+Incident/Root is checked with `incident.read`; replacement-source access
+requires `asset.read` plus `asset.scoring.read`, including resource-scoped
+checks for each Asset. No correlation mutation or `replacement.create_candidate`
+permission is granted by these read adapters. Unauthorized records are
+omitted without returning their source identifiers or explanations.

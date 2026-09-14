@@ -30,6 +30,11 @@ export {
   readIncidentCorrelationHistory,
 } from "./application/advanced-correlation.js";
 export {
+  queryIncidentCorrelationRecommendationSource,
+  type IncidentCorrelationRecommendationSourceItem,
+  type IncidentCorrelationRecommendationSourceResult,
+} from "./application/recommendation-source.js";
+export {
   correlationProfile,
   decideCorrelation,
   hasUnambiguousSharedSwitchIdentity,

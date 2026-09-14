@@ -10,7 +10,7 @@ status: READY
 readiness: READY
 implementation_status: NOT_STARTED
 owner_domain: recommendation
-depends_on: TASK-090, TASK-092, TASK-093, TASK-094, TASK-095, TASK-096-R1
+depends_on: TASK-090, TASK-092, TASK-093, TASK-094, TASK-095, TASK-096-R1, TASK-096-R2
 contract: TASK-096-R1
 ```
 
@@ -85,19 +85,15 @@ Repository inspection for R1 found:
   non-stale TASK-094 assessment. Existing API route persistence access is not
   an application boundary for TASK-096.
 
-These are recorded as potential TASK-096 implementation
-`SCOPE_DEPENDENCY` items: implement minimal, tenant-scoped, authorization-aware
-read adapters in the owning Incident, Knowledge/Problem and Asset domains
-before wiring the aggregator. The adapter for Incident must enumerate only
-canonical review decisions with their candidate/evidence summaries and stable
-generation/eligibility state. The Asset adapter must return active candidate,
-human review state, linked current assessment and freshness without exposing
-unnecessary Asset/Procurement details. Do not bypass these dependencies with
-direct SQL from the Recommendation module. The Knowledge adapter must not
-weaken TASK-093's presentation-time eligibility checks. This potential runtime
-dependency does not change R1 completion or the parent task's contract
-readiness; implementation must stop if the owner-domain contracts cannot be
-provided within the authorized scope.
+TASK-096-R2 completed the two runtime source dependencies with minimal
+owner-domain application queries: Incident now enumerates current eligible
+review decisions; Asset reads active human-review candidates bound to their
+current valid assessment. Both are tenant-scoped, authorization-aware and
+read-only, and preserve stable source generation. Knowledge does not require a
+new persistence/query foundation: TASK-093's `readRecommendationSession`,
+`queryKnowledgeRecommendationEligibility` and canonical session/item history
+remain the source for later presentation composition. TASK-096 consumes these
+ports and must not bypass them with cross-domain SQL.
 
 ## 3. Canonical projection and revision model
 

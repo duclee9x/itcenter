@@ -1884,3 +1884,15 @@ authorization. It does not rescore, present already-applied `AUTO_LINK` or
 `NO_LINK` decisions, or attach/detach Incidents. Review navigation invokes the
 existing TASK-092 workflow; Recommendation Layer interaction is not a
 correlation disposition.
+
+TASK-096-R2 provides a read-only Incident-owned correlation recommendation
+source. It selects the latest immutable decision for each Incident and returns
+only unresolved `REVIEW_REQUIRED` decisions whose subject remains eligible,
+whose current review has not attached/rejected the decision, and whose
+candidate Root remains linkable and unsuppressed. The source preserves the
+decision ID/evaluation identity, profile, confidence, reason code and
+structured candidate evidence. `AUTO_LINK`, `NO_LINK`, superseded decisions,
+resolved reviews, terminal subjects/Roots and unauthorized Incident references
+are excluded. Query failure returns `SOURCE_UNAVAILABLE`, not an empty feed.
+The adapter does not score, attach, detach or write TASK-096 recommendation
+state.
