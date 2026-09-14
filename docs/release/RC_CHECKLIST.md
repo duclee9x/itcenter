@@ -50,8 +50,21 @@ or use explicitly disposable staging fixtures.
       access.
 - [ ] Provision verified PostgreSQL TLS, separate least-privilege migration
       and runtime roles, secret-manager mounts and credential rotation path.
-- [ ] Configure real OIDC/OAuth2 user authentication and authorization. Verify
-      issuer, audience, expiry, signature, user/tenant mapping and permissions.
+- [ ] Configure the RELEASE-001-R1 provider-neutral OIDC issuer and API
+      audience. Verify only RFC 9068 JWT access tokens are accepted (never ID
+      or refresh tokens), RS256 signature/JWKS rotation, exact issuer/audience,
+      `exp`/`nbf`, 30-second default and 60-second maximum clock tolerance,
+      and the recommended 10-minute maximum token lifetime.
+- [ ] Verify explicit IdentityLink provisioning by `(issuer, sub)`, active
+      canonical user status, explicit requested tenant plus active local
+      TenantMembership, and local RBAC/resource authorization. Prove email or
+      IdP role/group/tenant claims cannot grant or transfer platform access;
+      verify local permission/membership revocation while a token remains
+      cryptographically valid.
+- [ ] Verify OIDC configuration failure keeps startup/readiness fail-closed;
+      unknown `kid` performs only bounded trusted-JWKS refresh; unavailable
+      JWKS without a valid cached key fails closed; no mock, anonymous,
+      default-admin or local-password fallback is enabled.
 - [ ] If TASK-091 is enabled, provision real enrolled-Agent mTLS/workload
       identity. Exercise rotation/revocation and negative identities. Never use
       fake/test authentication in staging or production.

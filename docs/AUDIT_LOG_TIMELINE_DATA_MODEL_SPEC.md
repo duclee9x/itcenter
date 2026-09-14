@@ -3703,3 +3703,9 @@ records; recommendation projection events do not duplicate them. Routine feed
 reads need not create compliance audit records.
 
 A successful actor DISMISSED interaction appends an audit record referencing the recommendation and exact revision. VIEWED/OPENED_SOURCE and projection refresh remain Recommendation-owned derived evidence; source audit is not copied into Recommendation storage.
+
+# 216. RELEASE-001-R1 — Authentication and Identity-Link Audit
+
+Use the canonical AuditPort/security event standards for security-significant Identity operations, including external identity link/unlink/replacement, initial administrator bootstrap success or failure, emergency identity use, and privileged external-service mapping changes. Evidence binds tenant and local subject where known, issuer identifier, safe external-subject reference, actor, operation, reason, correlation, outcome and time. Audit the old/new mapping reference as permitted by existing data classification; never store raw access/refresh token, authorization code, client secret, private key or complete claims payload.
+
+Routine successful API authentication does not create a compliance audit event per request unless another existing audit policy requires it. Safe operational metrics/logs may record reason categories and request/correlation IDs but must not contain credentials or unbounded raw subject/email labels. Authentication denial does not disclose another tenant's identity mapping. Audit records are append-only; link correction is a new governed event, not an in-place audit rewrite.

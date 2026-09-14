@@ -3224,3 +3224,11 @@ ports and must not query `incident.correlation_*`, `asset.replacement_plans`
 or scoring tables directly.
 
 TASK-096 stores only derived recommendation identity, current projection, immutable revisions, actor interactions and reconciliation watermarks in the Recommendation schema. Projection workers call Incident, Problem/Knowledge and Asset source application boundaries; Recommendation persistence is not cross-domain source-of-truth.
+
+# 176. RELEASE-001-R1 — Identity Authentication Storage
+
+IdentityLink, platform TenantMembership, local role bindings and external service-identity registrations are canonical Identity relational data. These records are separate from external access tokens: persist only stable issuer/subject references and minimum verification/provenance metadata. Never store raw access/refresh tokens, authorization codes, client secrets, private keys or complete token claims in OLTP, audit, outbox or logs.
+
+For v1, an existing `external_identities` row is reusable for API login only if `provider_id` has a deterministic trusted mapping to the exact configured OIDC issuer. Do not backfill issuer values from provider names, email, username or display name. Ambiguous legacy identities remain unlinked and cannot authenticate to the API until an authorized explicit link operation. Membership and permission removal must be represented in canonical local state and take effect independently of still-valid external access tokens.
+
+Identity-link, membership and external service identity writes use the Identity-owned transaction, constraint, audit and idempotency standards. Initial-administrator bootstrap uses a durable singleton completion marker committed atomically with the first explicit IdentityLink and local grant under the canonical no-active-`rbac.manage`-administrator condition. Provider/JWKS configuration and private signing/verification material are operator-managed secrets/configuration, not domain rows. R1 defines storage semantics only and adds no migration or production auth adapter.

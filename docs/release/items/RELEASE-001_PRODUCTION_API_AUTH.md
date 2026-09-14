@@ -4,8 +4,8 @@
 | -------------- | ----------------------------------------------------------------------------------------------------------- |
 | Priority       | P0                                                                                                          |
 | Status         | `NOT_STARTED`                                                                                               |
-| Readiness      | `BLOCKED`                                                                                                   |
-| Blocker        | `SECURITY_DECISION / SPEC_GAP`                                                                              |
+| Readiness      | `READY`                                                                                                     |
+| Blocker        | None — RELEASE-001-R1 contract is complete; runtime adapter remains unimplemented.                          |
 | Planning child | [RELEASE-001-R1 — Production Authentication Contract](RELEASE-001-R1_PRODUCTION_AUTHENTICATION_CONTRACT.md) |
 
 ## Purpose
@@ -39,22 +39,24 @@ scope and context, with tenant boundary checked before resource scope.
   scope checks, revocation-aware caching, and no implicit wildcard/admin
   authority.
 
-## Normative gap
+## Normative contract
 
-The existing specifications give acceptable mechanism options and security
-invariants, but they do not choose a production provider or settle how a
-verified provider identity becomes the credential/principal used by every
-API request. The code contains both a bearer-token authentication port and an
-OIDC login/session application flow, but no persisted contract connects them
-for deployment. The expected tenant input and authoritative user/tenant
-mapping source are not selected. The production authorization adapter and
-bootstrap/admin path are also not provisioned or bound to one complete
-deployment contract.
+The production mechanism and principal-resolution decisions are now
+normative in [RELEASE-001-R1](RELEASE-001-R1_PRODUCTION_AUTHENTICATION_CONTRACT.md)
+and the Identity/API/RBAC/storage/audit standards. In summary: one configured
+provider-neutral OIDC 1.0 issuer; RFC 9068 JWT access tokens only as Bearer
+credentials; Authorization Code + PKCE for interactive login; exact
+issuer/subject IdentityLink; explicit local tenant membership and local RBAC;
+no JIT, vendor-role grants, password fallback, wildcard system identity or
+default administrator. Token validation, error behavior, bootstrap,
+emergency access, audit and acceptance are specified in R1.
 
-Therefore this item is **not ready for implementation**. See R1 for decisions
-required before runtime work.
+RELEASE-001 is `READY / NOT_STARTED`. Readiness means the security contract
+gap is closed and the runtime item may be started. The runtime adapter is
+still absent, so the production release blocker RR-01 remains open until
+RELEASE-001 runtime implementation and staging verification are complete.
 
-## Eventual outcome (after R1 is resolved)
+## Runtime outcome (under the completed R1 contract)
 
 The production API must use real verified identities and the existing
 AuthorizationPort/canonical grant model. Invalid or unavailable identity or
@@ -67,12 +69,14 @@ recording raw credentials.
 ## Verification expected after contract approval
 
 - Valid identity produces a canonical, tenant-bound principal.
-- Signature/issuer/audience/expiry, revocation/session state and identity
+- Signature/issuer/audience/expiry, local user and tenant-membership state, and identity
   mapping are checked according to the approved mechanism.
 - Missing provider configuration fails closed at the approved startup/request
   boundary.
-- Unauthorized, forbidden, expired, revoked, wrong-tenant and insufficient-
-  scope cases fail with canonical sanitized errors.
+- Unauthorized, forbidden, expired, locally revoked user/membership/permission,
+  wrong-tenant and insufficient-scope cases fail with canonical sanitized
+  errors. No instant JWT revocation is claimed unless a separately configured
+  provider mechanism is implemented and verified.
 - No user-controlled role/tenant claim or default admin path grants access.
 - Audit and secret/configuration behavior meet the approved contract.
 - Integration and E2E tests exercise the real adapter boundary in a

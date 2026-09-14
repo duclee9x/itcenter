@@ -2702,3 +2702,13 @@ permission is granted by these read adapters. Unauthorized records are
 omitted without returning their source identifiers or explanations.
 
 TASK-096 feed/detail/history requires `recommendation.read`; interaction requires `recommendation.interact`. Each source adapter rechecks narrow Incident, Knowledge/session/audience or Asset/scoring read permissions. The scoped `SYSTEM_RECOMMENDATION` worker also requires explicit tenant grants for reconciliation and source reads; wildcard and tenantless principals are invalid.
+
+# 112. RELEASE-001-R1 — OIDC Principal and Local Authorization
+
+OIDC authenticates an external identity; platform authorization remains canonical local RBAC. A validated user is resolved by exact issuer + subject to a local IdentityLink, then checked against current User state and an active platform TenantMembership for the explicitly requested tenant. Missing link, inactive principal, missing membership, missing permission or resource denial is denied; a valid token alone grants no application permissions.
+
+Do not convert access-token `roles`, `groups`, `tenant_id`, organization or other vendor claims directly into local roles, memberships or permissions. External group-to-role synchronization may run only through its separately versioned Identity provisioning contract and creates explicit local role bindings; request authorization uses those local bindings and policies. Role, membership, scope and user-state revocation must be observed on the next protected request, or through a bounded cache with explicit version invalidation. No indefinite permission cache is allowed.
+
+System/client tokens require an explicit issuer + subject/client registration to a canonical tenant-scoped SystemPrincipal. The resulting principal receives only its pre-existing explicit local grants. It cannot impersonate a human or obtain wildcard, cross-tenant or administrator access from token claims.
+
+Initial administrator bootstrap is a trusted control-plane operation for a specified issuer/subject, local user, tenant and local admin role. It is allowed only if no active local human currently has canonical `rbac.manage` in any active tenant and a durable singleton completion marker is absent. Both conditions are checked and the marker, IdentityLink and initial local grant are written atomically; the marker makes bootstrap one-time even if the initial administrator is later removed. It is not a public route, default password or cross-tenant grant. Emergency access uses an explicitly mapped external OIDC identity with IdP-side strong MFA and audited, narrow local scope. RELEASE-001 v1 does not add local-password break-glass.

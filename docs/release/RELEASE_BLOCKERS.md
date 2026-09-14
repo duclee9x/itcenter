@@ -10,8 +10,8 @@ is included in the approved release scope.
 - **Severity:** Critical
 - **Affected capability:** API authentication, authorization, all protected user APIs
 - **Production impact:** `apps/api/src/main.ts` wires `unavailableAuthentication` and `denyAll`. The executable API cannot authenticate users or authorize requests. The abstract OIDC-compatible ports and validators in Identity are contracts, not a production provider integration. A release would either be unusable or require an unsafe bypass.
-- **Required action:** Integrate the approved OIDC/OAuth2 verifier and canonical user/tenant mapping, and a production authorization policy adapter. Preserve fail-closed behavior when missing or invalid.
-- **Verification:** In staging, verify valid issuer/audience/signature/expiry and user-to-tenant mapping; deny missing, invalid, expired, wrong-tenant, revoked and insufficient-permission requests. Confirm no client-supplied role or tenant header grants access.
+- **Required action:** Implement RELEASE-001 against the now-approved [RELEASE-001-R1 contract](items/RELEASE-001-R1_PRODUCTION_AUTHENTICATION_CONTRACT.md): provider-neutral OIDC issuer, RFC 9068 access tokens, canonical IdentityLink/TenantMembership and local RBAC. Preserve fail-closed behavior when configuration or trust material is missing or invalid.
+- **Verification:** In staging, exercise the R1 token, issuer, audience, signing-key rotation and clock-tolerance acceptance suite; verify mapped identity plus explicit tenant membership and local permission; deny token/provisioning/tenant/permission negative cases, prove local user/membership/permission revocation takes effect, and confirm IdP role/tenant claims grant nothing. RR-01 remains open until adapter implementation and staging evidence pass.
 - **Owner/domain:** Identity / Platform API
 - **Release-blocking:** Yes
 - **Evidence:** `apps/api/src/main.ts`; `packages/auth/src/index.ts`; `modules/identity/application/authentication.ts`; `modules/identity/application/oidc.ts`; `docs/adr/0001-task000-bootstrap.md`.

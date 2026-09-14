@@ -4940,3 +4940,66 @@ Replacement generation is the canonical candidate ID/version paired with its
 exact assessment ID. These source identities are not Recommendation revisions.
 
 TASK-096 owns tenant-scoped `recommendation.recommendations`, immutable `recommendation_revisions`, actor/revision-bound append-only `recommendation_interactions`, and per-family `source_watermarks`. The projection references source identities and minimal evidence only; canonical Incident, Knowledge, Asset and candidate facts remain owner-domain data.
+
+# 98. RELEASE-001-R1 — Canonical External Identity and Tenant Membership
+
+Production API identity resolution uses canonical Identity-owned relational records. `IdentityLink` may adapt `identity.external_identities` when its provider reference is an exact deterministic issuer mapping; otherwise it is an explicit canonical link record. It must not use email, username or display name as identity key.
+
+```yaml
+identity.identity_links:
+  id: uuid
+  issuer: exact validated OIDC issuer
+  subject: exact OIDC sub
+  local_user_id: uuid
+  status: ACTIVE | REVOKED
+  provenance: explicit provisioning/bootstrap reference
+  created_at:
+  created_by:
+  verified_at:
+  updated_at:
+```
+
+Enforce unique `(issuer, subject)` within the deployment trust scope and a foreign key to the canonical local User. One external subject resolves to one local user. Link and unlink/replacement are explicit authorized Identity commands with reason, actor, correlation, durable idempotency, optimistic concurrency and immutable audit. A legacy external identity without deterministic issuer provenance is not an API IdentityLink.
+
+Tenant membership is separate from both the global external identity and role assignment:
+
+```yaml
+identity.tenant_memberships:
+  id: uuid
+  tenant_id: uuid
+  local_user_id: uuid
+  status: ACTIVE | INACTIVE
+  valid_from:
+  valid_until:
+  version:
+  created_at:
+  updated_at:
+```
+
+Enforce unique membership identity `(tenant_id, local_user_id)` for the canonical row/history model. Only an active, currently valid membership may bind a request principal to the explicitly requested tenant. Membership does not itself grant a permission; local role bindings and permission policies remain separate. User/tenant access revocation is checked locally, not delegated to token claims.
+
+Client credentials resolve through a separate external service identity mapping:
+
+```yaml
+identity.external_service_identities:
+  id: uuid
+  issuer:
+  client_id:
+  system_principal_id:
+  tenant_id:
+  status:
+  valid_from:
+  valid_until:
+  created_at:
+  revoked_at:
+```
+
+The external identity is unique in issuer trust scope and maps only to an existing tenant-scoped SystemPrincipal. It does not copy or grant the principal's capabilities. No wildcard or tenantless mapping is valid. Token payloads, secrets, refresh tokens and private keys are never stored in these tables. This is a data contract only; RELEASE-001 R1 adds no runtime table or migration.
+
+The trusted initial-administrator control-plane operation also uses a
+durable singleton completion marker in canonical Identity storage. Creation of
+that marker, the initial explicit IdentityLink and local admin grant is one
+serialized transaction. Bootstrap is allowed only when no active local human
+has canonical `rbac.manage` in an active tenant and no completion marker
+exists. The marker prevents replay permanently; runtime implementation must
+not infer bootstrap eligibility from a request header or an IdP claim.

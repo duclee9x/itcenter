@@ -2237,3 +2237,15 @@ one same-tenant Asset Return clearance deterministically identifies the
 Offboarding recovery record, migration preserves `MISSING` there; otherwise it
 preserves a migration evidence record marked for reconciliation and creates
 no guessed Offboarding relationship.
+
+## RELEASE-001-R1 — Production API OIDC Authentication
+
+For the production API, the generic mechanism alternatives in §§14–18 are narrowed by this release contract: v1 trusts one operator-configured OIDC 1.0 issuer and accepts only RFC 9068 JWT access tokens in `Authorization: Bearer` over HTTPS. OIDC Authorization Code with PKCE is the interactive login flow; Implicit Flow, local username/password login and platform session IDs as API credentials are not accepted. SAML, LDAP, AD federation, other issuers and other API credential types are not API authentication alternatives in this v1 scope.
+
+The generic login decision table does not grant v1 API access to an unknown user through JIT. A valid external identity must resolve by exact `(issuer, subject)` to an active canonical IdentityLink and local user, then to an active platform-owned TenantMembership for the explicitly requested tenant. Missing link is a 403 `IDENTITY_NOT_PROVISIONED`; there is no auto-create or default tenant. The existing optional JIT workflow may only be enabled by a separate governed provisioning contract; it cannot override this API rule.
+
+For this API path, IdP/JWKS outage does not invoke the generic “fallback policy” in §17: with no valid bounded cached key, authentication fails closed with safe dependency-unavailable behavior. OIDC claims are never directly mapped to local permissions. Existing group-to-role synchronization remains an explicit, versioned provisioning workflow; it is not per-request token-role authorization.
+
+`IdentityLink` may adapt `identity.external_identities` only when its provider reference deterministically identifies the exact validated issuer. Do not infer issuer from display name, email, username or an ambiguous provider ID. Existing rows without deterministic issuer provenance remain unlinked for API authentication. Platform tenant membership, service identity mapping, explicit link/unlink commands, and bootstrap/emergency identity rules are governed by the RELEASE-001-R1 contract.
+
+Production OIDC configuration and JWKS trust are mandatory before auth readiness. Use a 30-second default token clock tolerance with a 60-second hard ceiling and a recommended maximum access-token lifetime of 10 minutes. These values and the full API request pipeline are specified in [the RELEASE-001-R1 contract](../release/items/RELEASE-001-R1_PRODUCTION_AUTHENTICATION_CONTRACT.md).

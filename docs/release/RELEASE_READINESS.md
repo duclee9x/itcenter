@@ -41,6 +41,18 @@ should be started next. Phase 5 gate passed. No TASK-098 exists or is created
 by this assessment, and Phase 6 is not opened. Future features must enter a
 newly approved backlog/roadmap. This reconciliation makes no runtime changes.
 
+## Release planning update — RELEASE-001-R1
+
+The subsequent planning commit completed RELEASE-001-R1 as a normative
+security contract. RELEASE-001 is now `NOT_STARTED / READY`; the production
+API adapter is still absent. This resolves its planning/specification blocker,
+not RR-01: RR-01 remains a `RELEASE_BLOCKER` until the runtime adapter and
+staging acceptance evidence pass. The global decision therefore remains
+`BLOCKED_FOR_RC`. The contract requires one configured trusted OIDC issuer,
+RFC 9068 JWT access tokens, canonical `(issuer, sub)` provisioning, explicit
+local tenant membership, local RBAC and fail-closed startup. See the R1 item
+for the complete acceptance contract.
+
 ## Evidence and verification baseline
 
 The Phase 5 gate report, [TASK-097_IMPLEMENTATION_REPORT.md](../../tasks/TASK-097_IMPLEMENTATION_REPORT.md),

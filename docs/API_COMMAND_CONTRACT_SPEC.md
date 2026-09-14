@@ -882,6 +882,7 @@ Canonical:
 ```text
 VALIDATION_ERROR
 AUTHENTICATION_REQUIRED
+IDENTITY_NOT_PROVISIONED
 PERMISSION_DENIED
 NOT_FOUND
 VERSION_CONFLICT
@@ -914,7 +915,7 @@ INTERNAL_ERROR
 | 204 | Successful no body |
 | 400 | Invalid request/schema |
 | 401 | Authentication required |
-| 403 | Permission denied |
+| 403 | Valid identity but not provisioned (`IDENTITY_NOT_PROVISIONED`), inactive principal or tenant membership, permission denied, or resource-scope denial |
 | 404 | Resource not found |
 | 409 | Version/idempotency/conflict |
 | 422 | Business rule violation |
@@ -3016,3 +3017,17 @@ These are domain-owned read contracts, not public recommendation endpoints or
 Recommendation persistence. Neither query invokes a source command.
 
 TASK-096 exposes `GET /api/v1/recommendations`, detail/revision reads and `POST /api/v1/recommendations/{id}/commands/interact`. Filters are allow-listed family/context/state values. Interactions accept only VIEWED, DISMISSED or OPENED_SOURCE with an idempotency key and current revision; no generic accept/source mutation endpoint exists. Family availability is returned independently as AVAILABLE, AVAILABLE_EMPTY or SOURCE_UNAVAILABLE.
+
+### RELEASE-001-R1 production API authentication
+
+Production API authentication uses one configured trusted OIDC 1.0 issuer over OAuth 2.0 and HTTPS. The API accepts only `Authorization: Bearer <RFC 9068 JWT access token>`; it rejects ID tokens, refresh tokens, authorization codes, unsigned JWTs, arbitrary platform session IDs and identity from untrusted headers. Provider discovery/JWKS comes only from the configured HTTPS issuer; the token cannot choose its issuer or key URL. The API audience is explicit and mandatory. Interactive login uses Authorization Code + PKCE; no Implicit Flow or browser client secret is permitted. Opaque access-token introspection is outside this v1 profile.
+
+The production validator checks the RFC 9068 required claims (`iss`, `sub`, `aud`, `exp`, `iat`, `jti`, `client_id`), signature, exact issuer, configured audience, RS256 only, `kid` against trusted JWKS, `nbf` where present, and access-token type/profile. `alg=none`, unexpected algorithm, unknown/untrusted key, wrong issuer/audience and invalid/expired tokens are rejected. Unknown `kid` may cause one bounded trusted-JWKS refresh. An unavailable issuer/JWKS with no valid cached key fails closed with safe `503 DEPENDENCY_UNAVAILABLE`; invalid credentials receive 401. Default clock tolerance is 30 seconds and may not exceed 60 seconds. Recommended IdP access token maximum lifetime is 10 minutes; the API does not accept or issue refresh tokens.
+
+After token validation, resolve exact `(issuer, subject)` through canonical IdentityLink, check local user state, bind the explicitly requested tenant, require active platform TenantMembership, and use local RBAC/effective permissions before resource authorization. An unlinked but valid external identity receives 403 `IDENTITY_NOT_PROVISIONED`; missing/inactive tenant membership or insufficient permission receives 403. IdP role/group claims do not directly authorize platform actions. No tenant is inferred from an untrusted request header or token claim. Domains receive a canonical tenant-bound principal and never parse the raw token.
+
+Human and client-credentials identities remain distinct. A valid OAuth service token must resolve through an explicit `(issuer, client_id)` registration to an existing tenant-scoped SystemPrincipal and its local capabilities; authentication alone grants no system permission. No wildcard, tenantless or default administrator identity exists.
+
+All API routes require authentication by default. A server-owned allow-list may expose only liveness, readiness and applicable OIDC login/callback routes. Missing/invalid production OIDC config prevents serving protected traffic and keeps auth readiness false; no test/mock/bypass adapter is permitted in production. Public health responses contain no sensitive diagnostics.
+
+See the normative [RELEASE-001-R1 contract](release/items/RELEASE-001-R1_PRODUCTION_AUTHENTICATION_CONTRACT.md) for principal, IdentityLink/TenantMembership, bootstrap, emergency access, audit, errors and acceptance rules. RELEASE-007 remains responsible for TLS ingress configuration, trusted proxy policy and rate limiting.

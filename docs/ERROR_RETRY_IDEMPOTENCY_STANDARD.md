@@ -2915,3 +2915,11 @@ the caller may safely report `SOURCE_UNAVAILABLE` without converting the
 failed transaction into an apparent empty result.
 
 TASK-096 serializes projection identity with a transaction-scoped advisory lock and durable uniqueness on tenant/family/source and source generation. Same-generation reconciliation creates no duplicate revision. Interaction idempotency binds actor, key, recommendation revision and request hash; a key reused with different content conflicts. Source-family failure leaves revision history intact and is exposed as SOURCE_UNAVAILABLE.
+
+# 169. RELEASE-001-R1 — Authentication Failure and Identity-Link Safety
+
+Bearer access-token validation is fail-closed. Missing/malformed/invalid, wrong issuer/audience, invalid signature, disallowed algorithm, wrong token type, expired/not-yet-valid or untrusted-key credentials map to safe 401 authentication semantics. A valid external identity without IdentityLink, inactive local user, missing active TenantMembership, insufficient local permission or source/resource denial maps to safe 403 semantics. Issuer/JWKS infrastructure unavailability with no valid cached key maps to sanitized dependency-unavailable/503 behavior; it must never become an anonymous principal or successful empty authorization result.
+
+Identity link/unlink/replacement and bootstrap writes use durable idempotency and optimistic concurrency. A repeated key with the same semantic request returns the prior outcome; the same key with different content conflicts. Unique `(issuer, subject)` constraint and transaction serialization prevent two competing local-user mappings. A concurrent/stale identity or membership change must fail safely and be re-evaluated before a later request. No process-local lock is sufficient.
+
+Do not blindly retry external token validation on every failure. Only bounded discovery/JWKS refresh for an unknown `kid` is permitted; if it does not establish a trusted key, reject. Provider outage, failed local identity lookup or authorization failure never falls back to mock, local-password, anonymous, default-tenant or default-admin access. Public route handling uses an explicit allow-list; unclassified routes remain protected.

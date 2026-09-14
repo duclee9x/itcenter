@@ -9,30 +9,25 @@
 - Release decision: `BLOCKED_FOR_RC` until the items in
   [RELEASE_BACKLOG.md](RELEASE_BACKLOG.md) are verified.
 - Release-readiness assessment: commit `3a0cda2`.
-- Current release item: RELEASE-001, `NOT_STARTED / BLOCKED` by
-  `SECURITY_DECISION / SPEC_GAP`.
+- Current release item: RELEASE-001, `NOT_STARTED / READY`; R1 is
+  `CODE_COMPLETE`, and the runtime adapter remains outstanding.
 - Unrelated user change in `AGENTS.md` is preserved and must remain outside
   release-planning commits unless a later explicit scope requires a separate
   relevant edit.
 
 ## Next action
 
-Resolve [RELEASE-001-R1 — Production Authentication Contract](items/RELEASE-001-R1_PRODUCTION_AUTHENTICATION_CONTRACT.md).
-The existing contracts distinguish authentication from authorization,
-prefer OIDC/OAuth2 for human users and mTLS/workload identity for services,
-define fail-closed ports, and specify tenant-scoped RBAC. They do not choose a
-production identity provider or a complete API credential/session and
-principal-mapping flow. Do not select one by assumption.
-
-Once the R1 security decisions are approved and normative, update the RELEASE
-backlog item and derive readiness again. Only then may RELEASE-001 move to
-`READY / NOT_STARTED`; this handoff does not authorize runtime work before
-that state is persisted.
+RELEASE-001-R1 — Production Authentication Contract is persisted and
+`CODE_COMPLETE`. It fixes provider-neutral OIDC 1.0, the RFC 9068 JWT access
+token profile, local IdentityLink and tenant-membership resolution, local
+RBAC, fail-closed behavior, bootstrap/emergency access boundaries and
+acceptance tests. RELEASE-001 is now `READY / NOT_STARTED`. Its runtime
+adapter has not been implemented. Do not automatically switch to RELEASE-002.
 
 ## Release order
 
-The current independent READY items are RELEASE-002 through RELEASE-005
-except RELEASE-001, which is blocked by its contract gap. RELEASE-006 waits
+The current independent READY items are RELEASE-001 through RELEASE-005.
+RELEASE-006 waits
 for RELEASE-004 and RELEASE-005; RELEASE-007 waits for RELEASE-004; the final
 RELEASE-GATE-001 waits for every initial remediation item to be verified.
 Follow [RELEASE_DEPENDENCY_GRAPH.md](RELEASE_DEPENDENCY_GRAPH.md).
