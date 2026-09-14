@@ -89,10 +89,12 @@ protocol operation.
   authorization evidence.
 - Existing Agent Gateway defines authenticated enrolled-Agent identity as a
   precondition and handles heartbeat/inventory plus typed claim/report
-  workflows. It does not normatively choose the production credential,
-  enrollment trust, credential lifecycle or channel/replay profile; those
-  security decisions are tracked by RELEASE-002-R1. The runtime remains
-  fail-closed until RELEASE-002 implements an approved profile.
+  workflows. Production identity now follows RELEASE-002-R1: per-Agent
+  private-CA mTLS credentials, canonical pre-provisioned registration,
+  single-use enrollment, server-derived tenant/Asset, and durable
+  session/message replay protection as specified by
+  [RELEASE-002-R1](../docs/release/items/RELEASE-002-R1_PRODUCTION_AGENT_AUTHENTICATION_CONTRACT.md).
+  The runtime remains fail-closed until RELEASE-002 implements this profile.
 - No TASK-091 execution aggregate, restart command protocol, runtime marker
   or restart verification implementation exists before this task.
 - PostgreSQL migrations are owned by Automation for execution history and by

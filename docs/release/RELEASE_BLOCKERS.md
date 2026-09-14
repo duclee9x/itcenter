@@ -28,17 +28,17 @@ is included in the approved release scope.
 - **Release-blocking:** Yes
 - **Evidence:** `apps/worker/src/main.ts`; `apps/worker/src/host.ts`; `docs/runbooks/local-development.md`.
 
-## RR-03 — TASK-091 production Agent authentication profile is undefined
+## RR-03 — Production Agent mTLS adapter and credentials are not deployed
 
-- **Type:** `SECURITY_GAP`
+- **Type:** `PRODUCTION_CONFIGURATION`
 - **Severity:** High
 - **Affected capability:** Agent Gateway and self-healing execution
 - **Production impact:** `apps/agent-gateway/src/main.ts` uses `unavailableAuthentication`. TASK-091 requires identity for an enrolled Agent and fail-closed execution; test authentication is synthetic. Production execution cannot authenticate a real Agent today.
-- **Required action:** Resolve RELEASE-002-R1 and approve one coherent credential, enrollment, tenant/Asset binding, issuance, rotation/revocation, expiry, replay/channel, stolen-credential, audit and readiness profile. The general mTLS/workload identity options do not constitute that decision. Keep the production gateway fail-closed until the contract is approved and implemented.
-- **Verification:** After contract approval, test the selected credential and trust bootstrap in staging, including valid/invalid/expired/revoked/unknown Agent, wrong tenant/Asset/execution, replay, duplicate delivery, rotation/re-enrollment, late TASK-091 evidence, audit and readiness. Prove the production gateway rejects test authentication.
+- **Required action:** Implement RELEASE-002 under the completed [R1 mTLS contract](items/RELEASE-002-R1_PRODUCTION_AGENT_AUTHENTICATION_CONTRACT.md): operator-controlled private Agent CA, per-Agent X.509 certificates, pre-provisioned AgentRegistration, one-time Enrollment Token, secure issuance/rotation/revocation, server-derived tenant/Asset binding, durable session/message replay protection, audit and readiness. Keep the production gateway fail-closed until the adapter and production configuration are usable.
+- **Verification:** In staging, prove end-to-end mTLS through the promoted RELEASE-007 topology; test valid/invalid/expired/revoked/unknown Agent, enrollment and rotation, wrong tenant/Asset/execution, message replay, existing-connection revocation, late TASK-091 evidence, audit and readiness. Prove test authentication is rejected.
 - **Owner/domain:** Agent Gateway / Automation (TASK-091)
 - **Release-blocking:** Yes when Agent execution is in scope; assumed in this assessment
-- **Evidence:** [RELEASE-002 item](items/RELEASE-002_PRODUCTION_AGENT_AUTH.md); [R1 decision contract](items/RELEASE-002-R1_PRODUCTION_AGENT_AUTHENTICATION_CONTRACT.md); `apps/agent-gateway/src/main.ts`; `tasks/TASK-091_IMPLEMENTATION_REPORT.md`; `docs/HELPDESK_INCIDENT_MONITORING_AGENT_WORKFLOW.md`.
+- **Evidence:** [RELEASE-002 item](items/RELEASE-002_PRODUCTION_AGENT_AUTH.md); [R1 mTLS contract](items/RELEASE-002-R1_PRODUCTION_AGENT_AUTHENTICATION_CONTRACT.md); `apps/agent-gateway/src/main.ts`; `tasks/TASK-091_IMPLEMENTATION_REPORT.md`; `docs/HELPDESK_INCIDENT_MONITORING_AGENT_WORKFLOW.md`.
 
 ## RR-04 — No production build, immutable deployment, or rollback path
 

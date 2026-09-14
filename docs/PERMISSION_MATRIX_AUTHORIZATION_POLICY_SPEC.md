@@ -2705,13 +2705,18 @@ TASK-096 feed/detail/history requires `recommendation.read`; interaction require
 
 ### RELEASE-002 — Agent authentication does not grant execution authority
 
-Agent credentials establish only a registered machine identity. They do not
-grant arbitrary Agent Gateway routes, cross-tenant access, Asset mutation, or
-authority over another Agent's execution. Each route must continue to enforce
-the canonical Agent registration, tenant and Asset binding and exact
-execution/command target. The production credential profile and corresponding
-route scopes are not selected; RELEASE-002-R1 records the security gap. Do
-not map Agent credentials to human roles or a wildcard SystemPrincipal.
+Agent mTLS authenticates a specific registered machine identity only.
+Enrollment-token issuance, Agent registration/disable/retirement, credential
+revocation, and forced credential rotation require the narrow local
+permissions `agent.enrollment_token.issue`, `agent.registration.manage`,
+`agent.credential.revoke`, and `agent.credential.force_rotate` as specified by
+[RELEASE-002-R1](../release/items/RELEASE-002-R1_PRODUCTION_AGENT_AUTHENTICATION_CONTRACT.md).
+Normal self-rotation requires the Agent's current valid certificate and exact
+registration binding. Agent credentials grant no human role, wildcard
+SystemPrincipal capability, arbitrary Agent Gateway route, cross-tenant
+access, Asset mutation, or authority over another Agent's execution. Each
+route enforces current registration, tenant/Asset and exact
+execution/command/session/message scope.
 
 # 112. RELEASE-001-R1 — OIDC Principal and Local Authorization
 

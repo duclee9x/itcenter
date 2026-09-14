@@ -5046,3 +5046,33 @@ IdentityLink also carries a constrained `identity_class` of `STANDARD` or
 `EMERGENCY`; the database permits EMERGENCY only for HUMAN identities. This
 classification grants no membership or permission. A tenant-scoped unlink
 revokes a link only when it has no active membership in another tenant.
+
+### RELEASE-002-R1 — canonical Agent registration, credentials, and messages
+
+The existing Agent-owned `agent.agents` row is the canonical
+AgentRegistration; do not introduce a parallel Agent registry. It owns the
+server-assigned Agent ID, tenant, and required canonical same-tenant Asset
+binding. Registration security lifecycle (`ACTIVE`, `DISABLED`, `RETIRED`)
+is distinct from operational liveness. One active registration may bind an
+Asset in a tenant; retiring/replacing a registration retains its history.
+
+An Agent-owned AgentCredential references exactly one registration and
+retains certificate serial, SHA-256 fingerprint, SPKI/public identity
+reference, server-issued credential URI SAN, validity, lifecycle
+(`ACTIVE`, `REVOKED`, `EXPIRED`, `REPLACED`), revocation/replacement
+lineage, provenance and audit references. At most two credentials may be
+valid for one registration during the fixed 24-hour rotation overlap. Store
+no Agent or CA private key. A one-time Enrollment Token is bound to a single
+registration/tenant/Asset and stores only a cryptographic verifier plus
+expiry, consumed/revoked state, and issuance provenance.
+
+Each authenticated TLS connection has a server-established Agent session
+bound to its credential and registration. State-changing protocol receipts
+have durable uniqueness on `(tenant_id, agent_id, agent_session_id,
+message_id)` and retain a canonical payload fingerprint and prior outcome;
+reusing the same identity with different content conflicts. TASK-091 execution
+and attempt references remain owned by Automation and are referenced for
+authorization/idempotency rather than copied into a second business store.
+These are normative data-model requirements only; R1 authorizes no migration
+or runtime table creation. See the
+[RELEASE-002-R1 contract](release/items/RELEASE-002-R1_PRODUCTION_AGENT_AUTHENTICATION_CONTRACT.md).

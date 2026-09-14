@@ -3269,13 +3269,24 @@ and retains all memberships/audit. A tenant-scoped unlink is rejected while
 another tenant still has an active membership on that link. No migration
 creates an emergency classification or IdentityLink from legacy rows.
 
-### RELEASE-002 — Agent credential storage decision pending
+### RELEASE-002-R1 — Agent registration and credential storage boundary
 
-`agent.agents` remains the canonical registration record for current Agent
-ID, tenant and required Asset binding. Existing enrollment-token hash and
-expiry columns are legacy persistence evidence only; they do not specify
-issuance, validation, rotation, revocation or channel semantics. RELEASE-002-R1
-must select a credential profile and storage boundary before runtime schema
-changes are designed. Never persist plaintext long-lived credentials or
-infer identity from descriptive device attributes. R1 authorizes no migration
-and does not alter the current fail-closed Agent Gateway.
+`agent.agents` remains the canonical server-owned AgentRegistration for
+Agent ID, tenant and required same-tenant Asset binding. Agent security
+lifecycle is separate from operational liveness. Agent-owned persistence may
+store AgentCredential certificate serial, fingerprint/SPKI reference,
+credential lifecycle, validity, revocation/replacement lineage, provenance,
+and audit references; it may store only a cryptographic verifier and metadata
+for one-time Enrollment Tokens. A durable enrollment/session/message receipt
+may store the idempotency identity, canonical payload fingerprint and prior
+outcome needed by TASK-091 replay semantics.
+
+Never store an Agent private key or CA signing private key in the database or
+repository. Do not retain raw Enrollment Tokens, infer identity from
+hostname/IP/MAC, or fabricate legacy credential/registration mappings.
+Existing enrollment-token hash/expiry columns are legacy evidence and do not
+by themselves prove a valid token or credential. Any migration may preserve
+them as legacy data, but may activate credentials only from deterministic
+issuance evidence under the R1 contract. R1 is a data contract only; it adds
+no runtime schema migration and leaves the production Agent Gateway
+fail-closed until RELEASE-002 implementation.

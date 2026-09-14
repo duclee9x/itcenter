@@ -2958,3 +2958,33 @@ contexts, then retry link revocation in an authorized tenant.
 Concurrent bootstrap is serialized by a database transaction advisory lock
 and permanent singleton marker. Emergency identity authentication fails
 closed if its required audit append cannot commit.
+
+### RELEASE-002-R1 — authenticated Agent message replay and idempotency
+
+TLS/mTLS protects the transport channel; application message deduplication is
+separate and remains owned by TASK-091/Agent application boundaries. Each
+state-changing message carries the server-established `agent_session_id`, a
+stable `message_id` supplied through the canonical `Idempotency-Key`, and the
+relevant execution-attempt identity where applicable. Persist uniqueness on
+`(tenant_id, agent_id, agent_session_id, message_id)` and bind the record to a
+canonical request fingerprint and prior outcome.
+
+The same authenticated Agent/session/message identity with the same
+canonical payload returns the durable prior outcome without a second state
+transition. Reusing that identity with different content is a conflict and
+security anomaly; it must not be processed as a new command. Messages from a
+previous Agent session are not current-session evidence. Concurrent duplicate
+delivery produces one logical transition using durable database constraints
+and the owning TASK-091 transaction. No process-local lock is sufficient.
+TLS 1.3 early data (0-RTT) is disabled for Agent endpoints. Authentication or
+credential-state lookup failures fail closed and are not treated as empty
+dedupe results. A late authenticated ACK after TASK-091 reaches `UNKNOWN`
+may be retained only under TASK-091's reconciliation-evidence rules and
+cannot rewind/resurrect the execution.
+
+Enrollment and rotation requests likewise bind a durable attempt/idempotency
+identity to the canonical payload. External certificate signing must be
+reconciled by that same attempt after uncertain outcomes; do not hold a DB
+transaction open across PKI calls or blindly issue a second credential.
+Exact credential lifecycle and failure rules are normative in the
+[RELEASE-002-R1 contract](release/items/RELEASE-002-R1_PRODUCTION_AGENT_AUTHENTICATION_CONTRACT.md).

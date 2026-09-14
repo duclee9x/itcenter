@@ -2270,14 +2270,15 @@ claim containing `mfa`, and append a restricted `IDENTITY.EMERGENCY_IDENTITY_USE
 audit record for each successful emergency authentication. No raw token or
 claims payload is audited.
 
-### RELEASE-002 — Agent machine identity is a separate security boundary
+### RELEASE-002 — Agent machine identity is separate from human OIDC
 
-The human OIDC IdentityLink and TenantMembership flow does not provision
-Agent identities. `agent.agents` is the existing tenant/Asset registration
-record; its legacy enrollment-token hash/expiry columns do not define a
-production credential or enrollment protocol. Agent credentials must resolve
-to a registered Agent and its canonical tenant/Asset binding, without mapping
-the Agent into a human User or granting human roles. The credential,
-enrollment, rotation/revocation, replay/channel and incident-response profile
-is pending RELEASE-002-R1 security decisions. Until an approved profile is
-implemented, Agent Gateway authentication remains fail-closed.
+Agent identity is a distinct machine principal and is not provisioned through
+human IdentityLink/TenantMembership. Production Agent access uses one
+private-Agent-CA mTLS certificate per AgentCredential, bound to a canonical
+pre-provisioned `agent.agents` registration and its required tenant/Asset.
+One-time enrollment, certificate lifecycle, session/replay, local revocation
+and authorization semantics are normative in
+[RELEASE-002-R1](../release/items/RELEASE-002-R1_PRODUCTION_AGENT_AUTHENTICATION_CONTRACT.md).
+An Agent certificate cannot authenticate as a human or inherit human roles;
+human OIDC tokens cannot authenticate as an Agent. Until RELEASE-002 runtime
+is implemented, the Agent Gateway remains fail-closed.

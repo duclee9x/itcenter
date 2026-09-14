@@ -1032,24 +1032,28 @@ STALE
 # 27. Agent Enrollment Workflow
 
 ```text
-Asset exists
+Canonical Asset exists
 ↓
-Generate enrollment token
+Authorized operator provisions AgentRegistration bound to tenant + Asset
 ↓
-Agent install
+Authorized operator issues a one-time, 10-minute Enrollment Token
 ↓
-Mutual authentication
+Agent generates its keypair locally and submits CSR over server-authenticated TLS
 ↓
-Match hostname/serial
+Agent Certificate Issuer returns a CA-signed client certificate with server-set URI SAN
 ↓
-Bind Agent ↔ Asset
+AgentCredential is activated and token consumed atomically
 ↓
-Initial Inventory
+Agent reconnects with mandatory mTLS
 ↓
-Health baseline
-↓
-AGENT.ENROLLED
+Initial Inventory / health baseline through authenticated AgentPrincipal
 ```
+
+Hostname, serial text, IP, MAC, and Agent-provided tenant/device fields are
+not identity or binding authority. The server-side registration establishes
+Agent, tenant and Asset. Unknown clients cannot self-register. See the
+[RELEASE-002-R1 contract](../release/items/RELEASE-002-R1_PRODUCTION_AGENT_AUTHENTICATION_CONTRACT.md)
+for registration, enrollment, rotation, revocation and session rules.
 
 Nếu không match asset:
 
@@ -1681,15 +1685,17 @@ positive authenticated acknowledgement for that exact `command_id` after the
 Agent durably records it for execution. Acceptance does not prove successful
 restart.
 
-The TASK-091 execution contract does not select the production Agent
-credential or enrollment protocol. RELEASE-002-R1 records the security gap:
-credential type, trust bootstrap, expiry, rotation/revocation, replay/channel
-binding and credential-compromise handling must be approved before a
-production Agent adapter is implemented. Until then the Agent Gateway stays
-fail-closed. Agent identity and tenant continue to come from the canonical
-registered Agent principal, never from request-supplied tenant/Agent values;
-this requirement alone does not make a particular credential protocol
-normative.
+Production Agent authentication is mTLS with one private-Agent-CA-issued
+X.509 certificate per Agent, as normatively defined by
+[RELEASE-002-R1](../release/items/RELEASE-002-R1_PRODUCTION_AGENT_AUTHENTICATION_CONTRACT.md).
+The certificate resolves to a pre-provisioned AgentRegistration; tenant and
+Asset come from that server-owned registration. Enrollment uses a bound,
+single-use ten-minute token and a locally generated Agent keypair. Rotation,
+revocation, server-established sessions and durable
+`(tenant, agent, session, message)` dedupe follow R1. The authenticated
+principal does not accept Agent-supplied tenant/Agent identity. The runtime
+remains fail-closed until RELEASE-002 is implemented; the final mTLS ingress
+topology is validated under RELEASE-007.
 
 ## 44.3 Pre-execution baseline and restart proof
 

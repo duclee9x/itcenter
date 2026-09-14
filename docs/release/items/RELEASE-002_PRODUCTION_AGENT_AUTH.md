@@ -1,20 +1,21 @@
 # RELEASE-002 — Production Agent Authentication for TASK-091
 
-| Field          | Value                                                                                                                                |
-| -------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| Status         | `BLOCKED / NOT_STARTED`                                                                                                              |
-| Readiness      | `BLOCKED`                                                                                                                            |
-| Dependencies   | None                                                                                                                                 |
-| Blocker        | `SECURITY_DECISION / SPEC_GAP`: Agent credential, enrollment, lifecycle, and channel-binding semantics are not normatively selected. |
-| Planning child | [RELEASE-002-R1 — Production Agent Authentication Contract](RELEASE-002-R1_PRODUCTION_AGENT_AUTHENTICATION_CONTRACT.md)              |
+| Field        | Value                                                                                                                                     |
+| ------------ | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| Status       | `READY / NOT_STARTED`                                                                                                                     |
+| Readiness    | `READY`                                                                                                                                   |
+| Dependencies | None                                                                                                                                      |
+| Blocker      | None. Production Agent Gateway remains fail-closed until RELEASE-002 is implemented and verified.                                         |
+| Contract     | [RELEASE-002-R1 — Production Agent Authentication Contract](RELEASE-002-R1_PRODUCTION_AGENT_AUTHENTICATION_CONTRACT.md) (`CODE_COMPLETE`) |
 
 ## Purpose
 
-Provide the production TASK-091 Agent Gateway with authentication for
-registered machine/device identities. This is separate from the human OIDC
-API adapter in RELEASE-001. A valid Agent identity proves who sent a request;
-TASK-091 and the owning domain still authorize the operation and bind it to
-the authenticated Agent, tenant, Asset/device, execution and command.
+Provide the production TASK-091 Agent Gateway with mutual-TLS authentication
+for registered machine/device identities. Each Agent has its own CA-issued
+X.509 client certificate and locally generated keypair. This is separate
+from human OIDC in RELEASE-001. TASK-091 and the owning domain still authorize
+the operation and bind it to the authenticated Agent, tenant, Asset/device,
+execution and command.
 
 ## Repository evidence
 
@@ -40,25 +41,20 @@ the authenticated Agent, tenant, Asset/device, execution and command.
 
 ## Required boundary
 
-Until RELEASE-002 has an approved production profile and runtime verification,
-Agent execution remains unavailable. An unknown Agent may not self-enroll.
-Agent identity, tenant, and Asset binding must come from canonical registered
-records; a request body, hostname, address, or caller-selected tenant cannot
-establish them. Authentication does not grant permission to acknowledge a
-different Agent's execution or mutate unrelated domain state.
-
-The generic authentication choices in `API_COMMAND_CONTRACT_SPEC.md` are not
-an Agent credential decision. The selected mechanism, trust bootstrap,
-credential lifecycle, replay resistance, transport assumptions, failure
-behavior and operational readiness must be fixed by R1 before runtime work.
+R1 normatively fixes mTLS, the private Agent CA, pre-provisioned registration,
+single-use Enrollment Token, certificate issuance/rotation/revocation,
+server-derived tenant, session/message replay, and TASK-091 execution binding.
+Until runtime implementation is complete, Agent execution remains unavailable.
+Unknown clients cannot self-enroll; host/network attributes cannot identify
+an Agent; an Agent cannot choose a tenant.
 
 ## Release evidence required
 
-After R1 is resolved and runtime work is separately authorized, acceptance
-must prove registered identity, tenant/Asset and execution binding; invalid,
-unknown, expired and revoked credentials; rotation/re-enrollment; replay and
-duplicate delivery; production rejection of test adapters; fail-closed
-configuration/provider behavior; credential secrecy; audit and operational
-readiness; and preservation of TASK-091 `UNKNOWN` and late-evidence semantics.
-Real credential provisioning and staging validation are required before this
+Acceptance must prove registration/enrollment, mTLS certificate validation,
+tenant/Asset and execution binding; invalid, unknown, expired and revoked
+credentials; rotation/re-enrollment; replay and duplicate delivery;
+production rejection of test adapters; fail-closed configuration/provider
+behavior; credential secrecy; audit and operational readiness; and
+preservation of TASK-091 `UNKNOWN` and late-evidence semantics. Real private
+PKI provisioning and mTLS validation through staging are required before this
 release item can be `VERIFIED`.

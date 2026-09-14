@@ -3032,20 +3032,32 @@ All API routes require authentication by default and are classified as PUBLIC, P
 
 See the normative [RELEASE-001-R1 contract](release/items/RELEASE-001-R1_PRODUCTION_AUTHENTICATION_CONTRACT.md) for principal, IdentityLink/TenantMembership, bootstrap, emergency access, audit, errors and acceptance rules. RELEASE-007 remains responsible for TLS ingress configuration, trusted proxy policy and rate limiting.
 
-### RELEASE-002 production Agent authentication decision gap
+### RELEASE-002 production Agent mTLS authentication
 
-The general service-authentication methods listed above do not select a
-production credential for the Agent Gateway. TASK-091 requires an
-authenticated enrolled Agent and binds its requests to the canonical Agent,
-tenant, Asset and exact execution/command, but the credential type, enrollment
-trust bootstrap, issuance, expiry, rotation/revocation, replay and
-authenticated-channel semantics are not normatively defined. RELEASE-002 is
-blocked on the security decision recorded in
-[RELEASE-002-R1](release/items/RELEASE-002-R1_PRODUCTION_AGENT_AUTHENTICATION_CONTRACT.md).
-Until an approved contract and runtime adapter exist, Agent Gateway
-production authentication remains unavailable and fail-closed. Do not infer
-Agent authentication from human OIDC, arbitrary service tokens, client
-tenant claims, or generic mTLS/workload-identity options.
+The Agent Gateway uses TLS 1.2+ with mandatory mTLS and one private-Agent-CA
+X.509 credential per pre-provisioned Agent. It does not use human OIDC,
+bearer-only tokens, `X-Tenant-ID`, or client-supplied identity headers as
+Agent authority. The canonical `agent.agents` registration binds Agent ID,
+tenant and required Asset; the verified certificate maps through an
+AgentCredential to that registration. Certificate URI SAN is server-issued
+`urn:itcenter:agent-credential:<credential_id>`; CN/hostname/org/tenant
+attributes do not authorize. A server-authenticated TLS Enrollment Token
+flow bootstraps the first cert; keypairs are generated locally and private
+keys never leave the Agent. Certificate validity is at most 30 days, normal
+rotation begins at seven days remaining, and old/new overlap is at most 24
+hours. Current local credential/registration state is checked for each
+request/message; revocation is immediate at the next check and state-store
+failure denies access. Agent tenant is server-derived, not selected by
+`X-Tenant-ID` or request data.
+
+Every state-changing Agent message binds the authenticated server session and
+`Idempotency-Key` message ID to tenant, Agent and canonical request payload.
+Same identity/content returns its durable prior outcome; changed content
+conflicts. TASK-091 additionally enforces exact execution/attempt/command and
+target-Agent binding. Late authenticated evidence after `UNKNOWN` remains
+reconciliation evidence only. Production remains fail-closed until the
+RELEASE-002 runtime adapter is implemented. See the normative
+[RELEASE-002-R1 contract](release/items/RELEASE-002-R1_PRODUCTION_AGENT_AUTHENTICATION_CONTRACT.md).
 
 The concrete tenant selector, exact header validation, route classification, HTTP error precedence, and tenant-local User membership binding are normative in [RELEASE-001-R2](release/items/RELEASE-001-R2_EXPLICIT_TENANT_CONTEXT_MEMBERSHIP_FOUNDATION.md). No path/query/token/default selector competes with `X-Tenant-ID`; proxy-supplied authenticated-tenant headers are not trusted. R2 additionally fixes public `GET /api/v1/health/live` and `/api/v1/health/ready`; capabilities is a protected tenant-scoped route. See R2 for the exact canonical tenant ID grammar and duplicate-header rejection rule.
 

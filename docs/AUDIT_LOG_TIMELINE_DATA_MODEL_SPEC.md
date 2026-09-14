@@ -3736,13 +3736,21 @@ with the local principal, tenant, IdentityLink reference and request
 correlation. Failure to persist this audit evidence fails authentication
 closed. Routine standard-user API authentication remains unaudited per request.
 
-### RELEASE-002 — Agent credential lifecycle audit requirements
+### RELEASE-002-R1 — Agent credential lifecycle audit requirements
 
-The production Agent profile must define audit evidence for trusted
-enrollment, credential issuance/rotation/revocation, canonical Agent/Asset
-binding changes, and security-relevant authentication failure patterns.
-Audit may reference the credential record/version and Agent/tenant without
-including credential material, private keys, bearer tokens, enrollment
-secrets, or full authentication payloads. Audit failure behavior for each
-operation must be fixed by RELEASE-002-R1 before implementation. No separate
-Agent authentication audit store is authorized.
+Use the canonical append-only audit infrastructure for Agent registration
+provision/disable/retire and Agent/Asset binding changes, Enrollment Token
+issue/revoke/consume, certificate issuance/rotation/revocation, forced
+re-enrollment, and security-relevant authentication anomalies. Record actor,
+tenant, Agent/credential reference, reason, timestamp, correlation and
+idempotency reference as applicable. Successful enrollment/rotation must
+commit credential state and required audit evidence atomically where they
+share the database. If required audit cannot be committed, do not activate
+the credential or report success. Failed attempts use the existing security
+event/audit policy and are rate/volume controlled.
+
+Audit may reference certificate serial/fingerprint and credential version but
+must never contain an Agent private key, CA signing key, raw Enrollment Token,
+secret material, or unnecessary full certificate/authentication payload.
+No separate Agent authentication audit store is authorized. See the
+[RELEASE-002-R1 contract](release/items/RELEASE-002-R1_PRODUCTION_AGENT_AUTHENTICATION_CONTRACT.md).

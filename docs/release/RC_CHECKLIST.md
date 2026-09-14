@@ -71,12 +71,13 @@ or use explicitly disposable staging fixtures.
       unknown `kid` performs only bounded trusted-JWKS refresh; unavailable
       JWKS without a valid cached key fails closed; no mock, anonymous,
       default-admin or local-password fallback is enabled.
-- [ ] If TASK-091 is enabled, confirm RELEASE-002's Agent credential,
-      enrollment, tenant/Asset binding, rotation/revocation, expiry,
-      replay/channel and stolen-credential profile is approved before
-      provisioning. Configure real enrolled-Agent credentials according to
-      that profile; exercise its rotation/revocation and negative cases. Never
-      use fake/test authentication in staging or production.
+- [ ] If TASK-091 is enabled, configure the RELEASE-002-R1 private Agent CA
+      and mTLS client certificates through the actual RELEASE-007 topology.
+      Provision canonical AgentRegistration and one-time Enrollment Tokens;
+      test certificate issuance, rotation/24-hour overlap, immediate local
+      revocation, session/message replay rejection and exact TASK-091 Agent,
+      tenant, Asset and execution binding. Prove test/mocked authentication is
+      rejected. Never use fake credentials in staging or production.
 - [ ] Configure only approved tenant-scoped system principals and narrow
       capabilities; review effective grants and absence of wildcard/tenantless
       authority.

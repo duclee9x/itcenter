@@ -91,6 +91,17 @@ start, the only working tree change was the unrelated user edit to
 `AGENTS.md`. The RELEASE-001 implementation and its verification are recorded
 in [the implementation report](items/RELEASE-001_IMPLEMENTATION_REPORT.md).
 
+### Subsequent release-contract reconciliation
+
+The original RR-03 observation that the production Agent authentication
+profile was unspecified has been resolved by
+[RELEASE-002-R1](items/RELEASE-002-R1_PRODUCTION_AGENT_AUTHENTICATION_CONTRACT.md),
+which normatively selects per-Agent mTLS credentials, trusted enrollment,
+rotation/revocation, server-derived tenant/Asset binding and replay/session
+semantics. The runtime adapter and production credentials are still absent;
+RR-03 remains a production-configuration blocker for launch scope including
+Agent execution. This contract update does not itself verify deployment.
+
 ## Findings summary
 
 | ID    | Type                     | Severity | Finding                                                                                                                                    | Release-blocking                                                          |
