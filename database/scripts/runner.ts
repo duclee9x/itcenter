@@ -75,6 +75,9 @@ export async function migrate(
     // Reporting stores only governed definitions, immutable KPI snapshots and
     // source watermarks. It has no foreign keys into domain-owned facts.
     { owner: "reporting" },
+    // TASK-096 owns only the derived recommendation projection/revision and
+    // interaction store; all source facts remain in their domain schemas.
+    { owner: "recommendation" },
     // The deterministic Incident Asset-link backfill consumes the validated
     // Monitoring Asset-reference column added after the initial Incident pass.
     {

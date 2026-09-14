@@ -4938,3 +4938,5 @@ domains; source adapters are tenant-scoped read contracts. Incident generation
 uses the immutable correlation decision ID and its stable evaluation identity.
 Replacement generation is the canonical candidate ID/version paired with its
 exact assessment ID. These source identities are not Recommendation revisions.
+
+TASK-096 owns tenant-scoped `recommendation.recommendations`, immutable `recommendation_revisions`, actor/revision-bound append-only `recommendation_interactions`, and per-family `source_watermarks`. The projection references source identities and minimal evidence only; canonical Incident, Knowledge, Asset and candidate facts remain owner-domain data.

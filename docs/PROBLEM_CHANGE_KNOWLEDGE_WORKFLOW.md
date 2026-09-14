@@ -1635,3 +1635,5 @@ exact version, audience and `knowledge.read` before presentation, and stores
 references/summaries only. It does not search/rank Knowledge independently,
 copy article bodies, generate fallback explanations or mutate a session. Any
 Knowledge outcome continues through TASK-093.
+
+TASK-096 discovers already presented TASK-093 session items through the Problem-owned query, rechecks session access and current published/audience eligibility, and preserves rank/reason codes. It stores no article body and does not rerank or generate fallback guidance.

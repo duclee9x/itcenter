@@ -1896,3 +1896,5 @@ resolved reviews, terminal subjects/Roots and unauthorized Incident references
 are excluded. Query failure returns `SOURCE_UNAVAILABLE`, not an empty feed.
 The adapter does not score, attach, detach or write TASK-096 recommendation
 state.
+
+TASK-096 consumes eligible TASK-092 REVIEW decisions through the Incident source query, preserves source score/profile/reason evidence in revisions, and navigates to correlation review. Recommendation interaction cannot attach or detach Incidents.

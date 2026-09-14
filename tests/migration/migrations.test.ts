@@ -21,12 +21,12 @@ test("empty DB applies all migrations; rerun is idempotent and changed migration
   try {
     await migrate(db.pool);
     await migrate(db.pool);
-    const recommendationTables = await db.pool.query(
+    const knowledgeRecommendationTables = await db.pool.query(
       `SELECT tablename FROM pg_tables WHERE schemaname='problem'
         AND tablename IN ('knowledge_recommendation_sessions','knowledge_recommendation_items','knowledge_recommendation_interactions') ORDER BY tablename`,
     );
     assert.deepEqual(
-      recommendationTables.rows.map((row) => row.tablename),
+      knowledgeRecommendationTables.rows.map((row) => row.tablename),
       [
         "knowledge_recommendation_interactions",
         "knowledge_recommendation_items",
@@ -53,7 +53,7 @@ test("empty DB applies all migrations; rerun is idempotent and changed migration
       "SELECT schemaname,tablename FROM pg_tables WHERE schemaname IN ('identity','platform','audit')",
     );
     // TASK-090-R1, TASK-092, TASK-094-R2 and TASK-095 add scoped system principal storage.
-    assert.equal(tables.rowCount, 26);
+    assert.equal(tables.rowCount, 27);
     const domainSchemas = await db.pool.query(
       "SELECT schema_name FROM information_schema.schemata WHERE schema_name = ANY($1::text[])",
       [
@@ -78,10 +78,23 @@ test("empty DB applies all migrations; rerun is idempotent and changed migration
           "procurement",
           "contract",
           "document",
+          "recommendation",
         ],
       ],
     );
-    assert.equal(domainSchemas.rowCount, 20);
+    assert.equal(domainSchemas.rowCount, 21);
+    const recommendationTables = await db.pool.query(
+      `SELECT tablename FROM pg_tables WHERE schemaname='recommendation' ORDER BY tablename`,
+    );
+    assert.deepEqual(
+      recommendationTables.rows.map((row) => row.tablename),
+      [
+        "recommendation_interactions",
+        "recommendation_revisions",
+        "recommendations",
+        "source_watermarks",
+      ],
+    );
     const incidentServiceColumns = await db.pool.query(
       "SELECT column_name,data_type FROM information_schema.columns WHERE table_schema='incident' AND table_name='incidents' AND column_name IN ('service_id','legacy_service_id')",
     );

@@ -3133,3 +3133,5 @@ presentation-eligibility ports. No Recommendation persistence or runtime
 aggregation was added. Parent TASK-096 is `READY / NOT_STARTED`; TASK-097
 remains `WAITING_DEPENDENCY / NOT_STARTED`. No direct cross-domain SQL is
 allowed.
+
+TASK-096 runtime supports exactly three advisory families with Recommendation-owned current projections, immutable revisions/interactions, source-domain reads, explicit family availability and tenant/RBAC checks. It creates no Work Queue items, ActionIntents, source commands or cross-family score.

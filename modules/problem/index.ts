@@ -29,6 +29,10 @@ export {
   transitionRecommendationSession,
   readKnowledgeApplicabilityForRecommendation,
 } from "./application/recommendations.js";
+export {
+  queryRecommendationSourceSessions,
+  type RecommendationSourceContext,
+} from "./application/recommendation-source.js";
 export type {
   RecommendationContext,
   RecommendationApplicability,

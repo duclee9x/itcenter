@@ -3222,3 +3222,5 @@ assessment composition executes inside Asset. Both reads are tenant-filtered
 and authorization-aware. Recommendation consumers call these application
 ports and must not query `incident.correlation_*`, `asset.replacement_plans`
 or scoring tables directly.
+
+TASK-096 stores only derived recommendation identity, current projection, immutable revisions, actor interactions and reconciliation watermarks in the Recommendation schema. Projection workers call Incident, Problem/Knowledge and Asset source application boundaries; Recommendation persistence is not cross-domain source-of-truth.

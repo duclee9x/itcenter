@@ -370,3 +370,5 @@ P5 automation boundary: TASK-090 evaluates event-triggered rules and creates
 durable policy-gated Action Intents. TASK-091 consumes only eligible intents
 and owns action execution, self-healing, retry, verification and
 compensation. TASK-090 never invokes a remediation adapter.
+
+TASK-096 depends on TASK-092, TASK-093, TASK-094 and TASK-096-R1/R2. It aggregates canonical Incident REVIEW, Knowledge guidance and replacement candidate artifacts, and owns no source decision or execution. TASK-097 remains downstream and is not started by TASK-096 implementation.

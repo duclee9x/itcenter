@@ -205,6 +205,21 @@ export const permissions: readonly Permission[] = [
     action: "read",
   },
   {
+    code: "recommendation.read",
+    resource_type: "recommendation",
+    action: "read",
+  },
+  {
+    code: "recommendation.interact",
+    resource_type: "recommendation",
+    action: "interact",
+  },
+  {
+    code: "recommendation.projection.reconcile",
+    resource_type: "recommendation_projection",
+    action: "reconcile",
+  },
+  {
     code: "incident.correlation.link",
     resource_type: "incident",
     action: "correlation.link",

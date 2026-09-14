@@ -143,6 +143,7 @@ import { handleAutomationExecutionRoute } from "./automation-execution-routes.js
 import { handleServiceReferenceRoute } from "./service-reference-routes.js";
 import { handleKnowledgeRoute } from "./knowledge-routes.js";
 import { handleKnowledgeRecommendationRoute } from "./knowledge-recommendation-routes.js";
+import { handleRecommendationRoute } from "./recommendation-routes.js";
 
 const networkExceptionQueue = {
   createReference: createNetworkExceptionWorkItem,
@@ -304,6 +305,17 @@ export function apiServer(
         res,
         context,
         config,
+        authentication,
+        authorization,
+        uow,
+      })
+    )
+      return true;
+    if (
+      await handleRecommendationRoute({
+        req,
+        res,
+        context,
         authentication,
         authorization,
         uow,

@@ -3701,3 +3701,5 @@ outcome without copying Incident comments, Ticket descriptions, Knowledge body
 or financial source data. Source-domain decisions retain their own audit
 records; recommendation projection events do not duplicate them. Routine feed
 reads need not create compliance audit records.
+
+A successful actor DISMISSED interaction appends an audit record referencing the recommendation and exact revision. VIEWED/OPENED_SOURCE and projection refresh remain Recommendation-owned derived evidence; source audit is not copied into Recommendation storage.

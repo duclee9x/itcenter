@@ -2300,3 +2300,5 @@ stable source generation; the adapter does not join an unrelated assessment,
 refresh scoring, change candidate state or issue a replacement action. Reads
 require Asset and scoring read authorization. Source failures remain distinct
 from successful empty results.
+
+TASK-096 surfaces only active TASK-059 candidates backed by a current TASK-094 PLAN/PRIORITY assessment. Its source action opens canonical candidate review; recommendation state is not approval, purchase, retirement or disposal.

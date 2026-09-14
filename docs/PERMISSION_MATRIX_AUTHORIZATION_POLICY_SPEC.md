@@ -2700,3 +2700,5 @@ requires `asset.read` plus `asset.scoring.read`, including resource-scoped
 checks for each Asset. No correlation mutation or `replacement.create_candidate`
 permission is granted by these read adapters. Unauthorized records are
 omitted without returning their source identifiers or explanations.
+
+TASK-096 feed/detail/history requires `recommendation.read`; interaction requires `recommendation.interact`. Each source adapter rechecks narrow Incident, Knowledge/session/audience or Asset/scoring read permissions. The scoped `SYSTEM_RECOMMENDATION` worker also requires explicit tenant grants for reconciliation and source reads; wildcard and tenantless principals are invalid.

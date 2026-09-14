@@ -5708,3 +5708,5 @@ correlation and causation. These events describe projection/interaction facts;
 they are not Incident, Knowledge, Asset, Work Queue, Procurement or Automation
 commands. Source events are consumed idempotently through the application
 projection path; Recommendation events never invoke source mutations.
+
+TASK-096 v1 uses periodic source reconciliation and does not publish a new Recommendation outbox event. A DISMISSED interaction is audited; source-domain events/audits remain authoritative for their workflows.

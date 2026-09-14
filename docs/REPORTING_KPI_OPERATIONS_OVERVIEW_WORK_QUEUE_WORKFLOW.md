@@ -2208,3 +2208,5 @@ assessments. It does not add a KPI, create Work Items, compare family scores,
 or trigger Automation. Family source failure is exposed as unavailable rather
 than an empty family. Canonical source authorization is required before
 presentation.
+
+TASK-096 Recommendations remain advisory discovery records, separate from actionable Work Queue items. Its feed exposes per-family source availability; it neither creates queue work nor executes any source workflow.

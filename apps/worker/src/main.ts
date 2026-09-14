@@ -21,6 +21,7 @@ import { incidentCorrelationTask } from "./incident-correlation.js";
 import { warrantyStateProjectionTask } from "./warranty-state-projection.js";
 import { assetScoringTask } from "./asset-scoring.js";
 import { reportingSnapshotTask } from "./reporting-snapshots.js";
+import { recommendationReconciliationTask } from "./recommendations.js";
 const config = loadConfig(process.env, "worker", 3002);
 const log = logger(config);
 const pool = createPool(
@@ -93,6 +94,11 @@ host.start([
     pool,
     uow: new PostgresUnitOfWork(pool),
     reportFailure: () => log("error", "reporting.snapshot.failed"),
+  }),
+  recommendationReconciliationTask({
+    pool,
+    uow: new PostgresUnitOfWork(pool),
+    reportFailure: () => log("error", "recommendation.reconciliation.failed"),
   }),
 ]);
 const server = createHttpServer(config, async () => false);

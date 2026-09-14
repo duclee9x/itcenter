@@ -3014,3 +3014,5 @@ identity and only current eligible REVIEW evidence. Asset results carry the
 active review candidate and its exact current assessment reference/version.
 These are domain-owned read contracts, not public recommendation endpoints or
 Recommendation persistence. Neither query invokes a source command.
+
+TASK-096 exposes `GET /api/v1/recommendations`, detail/revision reads and `POST /api/v1/recommendations/{id}/commands/interact`. Filters are allow-listed family/context/state values. Interactions accept only VIEWED, DISMISSED or OPENED_SOURCE with an idempotency key and current revision; no generic accept/source mutation endpoint exists. Family availability is returned independently as AVAILABLE, AVAILABLE_EMPTY or SOURCE_UNAVAILABLE.

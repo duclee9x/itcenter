@@ -1319,3 +1319,5 @@ context filtering and actor-scoped view/dismiss/open metadata; it is not a
 global recommender, Work Queue or automation workflow. A recommendation only
 navigates to its owning workflow. It never executes the suggested action.
 See `tasks/TASK-096_EXPLAINABLE_RECOMMENDATION_LAYER.md`.
+
+TASK-096 runtime exposes only the three governed families through a tenant-scoped Recommendation feed. Periodic reconciliation consumes owner queries, records immutable source-generation revisions, and never executes the typed source navigation actions.

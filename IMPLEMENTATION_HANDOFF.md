@@ -2,16 +2,13 @@
 
 ## Current Task
 
-TASK-096 — Explainable Recommendation Layer — is `READY / NOT_STARTED` after
-TASK-096-R1 contract completion and TASK-096-R2 source-adapter completion.
-The Recommendation aggregation runtime has not started. See
-`tasks/TASK-096_EXPLAINABLE_RECOMMENDATION_LAYER.md` and
-`tasks/TASK-096-R2_IMPLEMENTATION_REPORT.md`. Incident/TASK-092 exposes a
-tenant-scoped current REVIEW-decision read boundary; Asset/TASK-059/TASK-094
-exposes active candidates bound to their current fresh assessments. Knowledge
-continues to compose TASK-093 session and eligibility queries. No cross-domain
-private-table SQL or Recommendation-owned persistence is used. TASK-097 remains
-`WAITING_DEPENDENCY / NOT_STARTED`. TASK-095 is `CODE_COMPLETE`; see
+TASK-097 — Phase 5 System Integration + Intelligence Gate — is
+`READY / NOT_STARTED` and has not been started. TASK-096 — Explainable
+Recommendation Layer — is `CODE_COMPLETE`; see
+`tasks/TASK-096_IMPLEMENTATION_REPORT.md`. Its three-family runtime consumes
+owner-domain Incident, Knowledge, and replacement candidate sources, preserves
+source evidence in immutable revisions, and revalidates eligibility and
+authorization at presentation time. TASK-095 is `CODE_COMPLETE`; see
 `tasks/TASK-095_IMPLEMENTATION_REPORT.md` for the nine-KPI runtime, R2/R3
 source integration, snapshot/backfill, drill-down authorization, CSV and full
 verification results.
@@ -32,9 +29,9 @@ XLSX/PDF and underlying-record bulk export.
 TASK-095-R1 — Governed KPI + Analytics Contract — is `CODE_COMPLETE`
 (specification only). TASK-095-R2 historical-state and R3 typed-SLA
 prerequisites are `CODE_COMPLETE`. Main TASK-095 runtime and acceptance are
-also `CODE_COMPLETE`; TASK-096-R1 and TASK-096-R2 are `CODE_COMPLETE`; TASK-096 is
-`READY / NOT_STARTED`. TASK-097 remains `WAITING_DEPENDENCY / NOT_STARTED` on
-TASK-096.
+also `CODE_COMPLETE`; TASK-096-R1 and TASK-096-R2 are `CODE_COMPLETE`; TASK-096
+is `CODE_COMPLETE`. TASK-097 is `READY / NOT_STARTED` after dependency
+recalculation and has not been started.
 
 TASK-093 is `CODE_COMPLETE`; see
 `tasks/TASK-093_IMPLEMENTATION_REPORT.md`.
@@ -62,9 +59,9 @@ Advanced Reporting + Governed KPI + Analytics (`CODE_COMPLETE`). See
 - Verification passed: `npm test` (185 tests: 68 unit/architecture, 2
   contract, 6 migration, 50 integration, 59 E2E), typecheck, lint/boundary,
   format check, migration tests and `git diff --check`.
-- TASK-096-R1 and TASK-096-R2 are `CODE_COMPLETE`; TASK-096 is
-  `READY / NOT_STARTED` and
-  TASK-097 remains `WAITING_DEPENDENCY / NOT_STARTED`.
+- TASK-096-R1, TASK-096-R2 and TASK-096 are `CODE_COMPLETE`; see
+  `tasks/TASK-096_IMPLEMENTATION_REPORT.md`. TASK-097 is
+  `READY / NOT_STARTED`; no TASK-097 runtime work has begun.
 
 ## Last Completed Remediation — TASK-096-R2
 
@@ -78,7 +75,8 @@ Recommendation Source Read Adapters Foundation (`CODE_COMPLETE`). See
 - Full verification passed: `npm test` (189 tests: 68 unit/architecture, 2
   contract, 6 migration, 54 integration, 59 E2E), typecheck, lint/boundary,
   format, migration tests and `git diff --check`.
-- TASK-096 remains ready; its aggregation runtime is not implemented.
+- TASK-096 has since entered runtime implementation; this historical R2 note
+  records its state at R2 completion only.
 
 ## Previous Remediation — TASK-096-R1
 

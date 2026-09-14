@@ -1,11 +1,11 @@
 # Current Task
 
-TASK-096 — Explainable Recommendation Layer — is `READY / NOT_STARTED`.
-TASK-096-R1's normative aggregation contract and TASK-096-R2's Incident and
-Asset source read adapters are complete. The Recommendation aggregation
-runtime has not started. See `tasks/TASK-096_EXPLAINABLE_RECOMMENDATION_LAYER.md`
-and `tasks/TASK-096-R2_IMPLEMENTATION_REPORT.md`. TASK-097 remains
-`WAITING_DEPENDENCY / NOT_STARTED`.
+TASK-097 — Phase 5 System Integration + Intelligence Gate — is
+`READY / NOT_STARTED`. TASK-096 — Explainable Recommendation Layer — is
+`CODE_COMPLETE`; see `tasks/TASK-096_IMPLEMENTATION_REPORT.md`. TASK-096
+aggregates exactly three canonical source families, preserves immutable
+explanations and actor-scoped interactions, and revalidates source
+authorization at read time. TASK-097 is next but has not been started.
 
 TASK-094 — Asset Risk + Replacement Scoring — is `CODE_COMPLETE`; see
 `tasks/TASK-094_IMPLEMENTATION_REPORT.md`.
@@ -23,12 +23,6 @@ TASK-095 — Advanced Reporting + Governed KPI + Analytics — is
 snapshot/backfill, authorized drill-down and aggregate CSV are implemented and
 verified. See `tasks/TASK-095_IMPLEMENTATION_REPORT.md`.
 
-TASK-096-R2 — Recommendation Source Read Adapters Foundation — is
-`CODE_COMPLETE`; see `tasks/TASK-096-R2_IMPLEMENTATION_REPORT.md`. It adds
-read-only Incident/TASK-092 and Asset/TASK-059/TASK-094 query boundaries
-within their owning domains. Knowledge continues to use existing TASK-093
-session and eligibility queries. No Recommendation aggregation or persistence
-was added.
-
-TASK-097 remains `WAITING_DEPENDENCY / NOT_STARTED` until TASK-096 completes.
-The unrelated `AGENTS.md` change remains outside the TASK-096-R2 commit.
+TASK-096-R1 and TASK-096-R2 are `CODE_COMPLETE`. TASK-096 uses their canonical
+Incident and replacement candidate sources plus TASK-093 Knowledge queries.
+The unrelated `AGENTS.md` change remains outside the TASK-096 commit.

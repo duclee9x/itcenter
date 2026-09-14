@@ -222,8 +222,8 @@ Only generate a detailed `TASK-xxx_*.md` when the task becomes `READY` or is the
 | `TASK-095` | `F-048` | `WF-RPT01` | P5 | P1 | Advanced Reporting + Governed KPI + Analytics | TASK-039, TASK-061, TASK-076, TASK-092, TASK-093, TASK-094, TASK-095-R1, TASK-095-R2, TASK-095-R3 | **SATISFIED** | CODE_COMPLETE | `TASK-095_ADVANCED_REPORTING_GOVERNED_KPI_ANALYTICS.md` |
 | `TASK-096-R1` | `F-050` | `WF-INT01` | P5 | P0 | Explainable Recommendation Layer Contract | TASK-090, TASK-092, TASK-093, TASK-094, TASK-095 | **SATISFIED** | CODE_COMPLETE | `TASK-096-R1_EXPLAINABLE_RECOMMENDATION_CONTRACT_GAP.md` |
 | `TASK-096-R2` | `F-050` | `WF-INT01` | P5 | P0 | Recommendation Source Read Adapters Foundation | TASK-059, TASK-092, TASK-093, TASK-094, TASK-096-R1 | **SATISFIED** | CODE_COMPLETE | `TASK-096-R2_RECOMMENDATION_SOURCE_READ_ADAPTERS.md` |
-| `TASK-096` | `F-050` | `WF-INT01` | P5 | P2 | Explainable Recommendation Layer | TASK-090, TASK-092, TASK-093, TASK-094, TASK-095, TASK-096-R1, TASK-096-R2 | **READY** | NOT_STARTED | `TASK-096_EXPLAINABLE_RECOMMENDATION_LAYER.md` |
-| `TASK-097` | `PHASE-GATE` | `P5-E2E` | P5 | P0 | Phase 5 System Integration + Intelligence Gate | TASK-091, TASK-092, TASK-093, TASK-094, TASK-095, TASK-096 | **WAITING_DEPENDENCY** | NOT_STARTED | `GENERATE_ON_READY` |
+| `TASK-096` | `F-050` | `WF-INT01` | P5 | P2 | Explainable Recommendation Layer | TASK-090, TASK-092, TASK-093, TASK-094, TASK-095, TASK-096-R1, TASK-096-R2 | **SATISFIED** | CODE_COMPLETE | `TASK-096_EXPLAINABLE_RECOMMENDATION_LAYER.md` |
+| `TASK-097` | `PHASE-GATE` | `P5-E2E` | P5 | P0 | Phase 5 System Integration + Intelligence Gate | TASK-091, TASK-092, TASK-093, TASK-094, TASK-095, TASK-096 | **READY** | NOT_STARTED | `GENERATE_ON_READY` |
 
 ---
 
@@ -347,7 +347,7 @@ Only generate a detailed `TASK-xxx_*.md` when the task becomes `READY` or is the
 - **TASK-095 — Advanced Reporting + Governed KPI + Analytics:** `CODE_COMPLETE`; all nine governed KPIs, R2/R3 source integrations, snapshots/backfill, RBAC drill-down, aggregate CSV and acceptance verification are recorded in `tasks/TASK-095_IMPLEMENTATION_REPORT.md`.
 - **TASK-096-R1 — Explainable Recommendation Layer Contract:** `CODE_COMPLETE`; normative scope and ownership are persisted.
 - **TASK-096-R2 — Recommendation Source Read Adapters Foundation:** `CODE_COMPLETE`; Incident correlation review and Asset replacement-candidate/current-assessment source reads are implemented within their owning domains. See `tasks/TASK-096-R2_IMPLEMENTATION_REPORT.md`.
-- **TASK-096 — Explainable Recommendation Layer:** `READY / NOT_STARTED`; source prerequisites are satisfied; the Recommendation aggregation runtime has not started.
+- **TASK-096 — Explainable Recommendation Layer:** `CODE_COMPLETE`; see `tasks/TASK-096_IMPLEMENTATION_REPORT.md` for the three-family aggregation, immutable projection/revisions, actor interactions, authorization and reconciliation verification.
 - **TASK-097 — Phase 5 System Integration + Intelligence Gate:** Advanced automation/intelligence capabilities integrated.
 
 ---
@@ -364,8 +364,8 @@ reports and commits confirm TASK-015 (`32c3267`), TASK-036 (`e043c31`) and
 TASK-038 (`296336a`) are `CODE_COMPLETE`.
 
 ```text
-CURRENT = TASK-096 (READY / NOT_STARTED; TASK-096-R1 contract and TASK-096-R2 source adapters are complete.)
-NEXT = TASK-096 is ready for implementation. TASK-097 remains WAITING_DEPENDENCY until TASK-096 is CODE_COMPLETE.
+CURRENT = TASK-097 (READY / NOT_STARTED; TASK-096 implementation and verification are complete.)
+NEXT = TASK-097 is ready after dependency recalculation; implementation has not started.
 TASK-059 = SATISFIED (CODE_COMPLETE)
 TASK-061 = SATISFIED (CODE_COMPLETE)
 TASK-070-R1 = SATISFIED (CODE_COMPLETE)
@@ -403,8 +403,8 @@ TASK-095-R3 = SATISFIED / CODE_COMPLETE (typed SLA target purpose and canonical 
 TASK-095 = SATISFIED / CODE_COMPLETE (see TASK-095_IMPLEMENTATION_REPORT.md)
 TASK-096-R1 = SATISFIED / CODE_COMPLETE (normative aggregation contract persisted)
 TASK-096-R2 = SATISFIED / CODE_COMPLETE (Incident/TASK-092 and Asset/TASK-059/TASK-094 read adapters implemented and verified)
-TASK-096 = READY / NOT_STARTED (all declared dependencies, contract and source adapters satisfied; aggregation runtime not started)
-TASK-097 = WAITING_DEPENDENCY / NOT_STARTED (TASK-096 is not complete)
+TASK-096 = SATISFIED / CODE_COMPLETE (three-family aggregation runtime and acceptance verification complete; see tasks/TASK-096_IMPLEMENTATION_REPORT.md)
+TASK-097 = READY / NOT_STARTED (all declared dependencies are satisfied; runtime implementation not started)
 ```
 
 TASK-061's acceptance criteria and verification gates passed; its implementation
@@ -479,9 +479,9 @@ see `tasks/TASK-095_IMPLEMENTATION_REPORT.md`. TASK-096-R1 completed the
 normative Explainable Recommendation Aggregation Layer contract in
 `tasks/TASK-096_EXPLAINABLE_RECOMMENDATION_LAYER.md`. TASK-096-R2 added the
 Incident and Asset owner-domain source adapters; see
-`tasks/TASK-096-R2_IMPLEMENTATION_REPORT.md`. TASK-096 is
-`READY / NOT_STARTED`; recommendation aggregation runtime has not begun. TASK-097 remains
-`WAITING_DEPENDENCY / NOT_STARTED` until TASK-096 completes.
+`tasks/TASK-096-R2_IMPLEMENTATION_REPORT.md`. TASK-096 runtime is
+`CODE_COMPLETE`; see `tasks/TASK-096_IMPLEMENTATION_REPORT.md`. TASK-097 is
+`READY / NOT_STARTED` after dependency recalculation and has not been started.
 
 ---
 

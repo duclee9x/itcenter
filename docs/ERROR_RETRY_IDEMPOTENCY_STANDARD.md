@@ -2913,3 +2913,5 @@ bounded pagination uses that owner-domain order. Read queries do not create
 source side effects. A failed SQL read is rolled back to a local savepoint so
 the caller may safely report `SOURCE_UNAVAILABLE` without converting the
 failed transaction into an apparent empty result.
+
+TASK-096 serializes projection identity with a transaction-scoped advisory lock and durable uniqueness on tenant/family/source and source generation. Same-generation reconciliation creates no duplicate revision. Interaction idempotency binds actor, key, recommendation revision and request hash; a key reused with different content conflicts. Source-family failure leaves revision history intact and is exposed as SOURCE_UNAVAILABLE.

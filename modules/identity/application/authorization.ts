@@ -5,7 +5,8 @@ export interface AuthorizationInput {
     | "USER"
     | "SYSTEM_AUTOMATION"
     | "SYSTEM_CORRELATION"
-    | "SYSTEM_ASSET_SCORING";
+    | "SYSTEM_ASSET_SCORING"
+    | "SYSTEM_RECOMMENDATION";
   tenantId: string;
   action: string;
   resourceType: string;
@@ -33,7 +34,8 @@ export async function evaluateAuthorization(
   if (
     input.principalType === "SYSTEM_AUTOMATION" ||
     input.principalType === "SYSTEM_CORRELATION" ||
-    input.principalType === "SYSTEM_ASSET_SCORING"
+    input.principalType === "SYSTEM_ASSET_SCORING" ||
+    input.principalType === "SYSTEM_RECOMMENDATION"
   ) {
     const effectiveAt =
       input.at ??
@@ -44,7 +46,9 @@ export async function evaluateAuthorization(
         ? "identity.automation_principals"
         : input.principalType === "SYSTEM_CORRELATION"
           ? "identity.correlation_principals"
-          : "identity.asset_scoring_principals";
+          : input.principalType === "SYSTEM_ASSET_SCORING"
+            ? "identity.asset_scoring_principals"
+            : "identity.recommendation_principals";
     const rows = await tx.query<{
       code: string;
       role_code: string;
