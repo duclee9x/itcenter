@@ -2,9 +2,9 @@
 
 | Field           | Value                                                                                |
 | --------------- | ------------------------------------------------------------------------------------ |
-| Status          | `READY / NOT_STARTED`                                                                |
-| Readiness       | `READY`                                                                              |
-| Blocker         | Cleared by RELEASE-004-R1                                                            |
+| Status          | `CODE_COMPLETE / NOT VERIFIED`                                                       |
+| Readiness       | `N/A`                                                                                |
+| Blocker         | Actual immutable-image deployment and acceptance evidence in Linux staging remain.   |
 | Overall release | `BLOCKED_FOR_RC`                                                                     |
 | Contract        | [RELEASE-004-R1](RELEASE-004-R1_IMMUTABLE_ARTIFACT_DEPLOYMENT_PROMOTION_CONTRACT.md) |
 
@@ -20,18 +20,18 @@ application rollback versus database forward-fix behavior.
 
 ## Current blocker
 
-RELEASE-004-R1 now normatively selects Linux + Docker Engine + Compose v2,
-one shared OCI image, Caddy for API HTTPS, operator-triggered deployment,
-isolated Compose staging, a one-shot migration service, and exact-digest
-promotion/rollback semantics. Runtime and pipeline implementation has not
-started; the existing repository still has no production images, registry
-configuration, deployment manifests, scripts, or staging environment.
+RELEASE-004 runtime, build, and deployment implementation is `CODE_COMPLETE`
+against its authoritative R1. The approved platform is Linux + Docker Engine
 
-RELEASE-004-R1 clears the operational-decision blocker and makes this item
-`READY / NOT_STARTED`. Implement only this approved Compose v2 contract in the
-separate RELEASE-004 implementation activity. RELEASE-005 remains
-independent; RELEASE-006 and RELEASE-007 retain their declared dependencies on
-RELEASE-004.
+- Compose v2, one shared OCI image, Caddy for API HTTPS, operator-triggered
+  deployment, isolated Compose staging, a one-shot migration service, and
+  exact-digest promotion/rollback semantics. Local verification passes; no
+  clean CI-published immutable artifact has yet been deployed to Linux staging.
+
+RELEASE-004-R1 cleared the operational-decision blocker. RELEASE-005 remains
+independent; RELEASE-006 waits for RELEASE-005 and verified migration/recovery
+inputs. RELEASE-007 is `READY / NOT_STARTED` because the deployment topology
+is implemented. Neither item is started in this activity.
 
 ## Scope after the blocker is cleared
 
@@ -61,3 +61,6 @@ rehearsal (RELEASE-006), or edge TLS/rate limiting (RELEASE-007).
 - Full repository verification and an implementation report. `CODE_COMPLETE`
   does not imply `VERIFIED`; actual staging deployment and promotion evidence
   are required for verification.
+
+See [RELEASE-004 implementation report](RELEASE-004_IMPLEMENTATION_REPORT.md)
+for implemented paths, tests, and staging evidence still outstanding.

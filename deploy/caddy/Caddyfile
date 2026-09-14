@@ -1,0 +1,4 @@
+{$API_HOSTNAME} {
+	tls /run/secrets/api_tls_certificate /run/secrets/api_tls_key
+	reverse_proxy api:3000
+}

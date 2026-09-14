@@ -1,0 +1,201 @@
+services:
+  postgres:
+    image: ${POSTGRES_IMAGE:?Set immutable POSTGRES_IMAGE}
+    profiles: ["compose-postgres"]
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?Set POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER:?Set POSTGRES_USER}
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+    secrets: [postgres_password]
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    networks: [private]
+    healthcheck:
+      test:
+        ["CMD-SHELL", 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
+
+  api:
+    image: ${APP_IMAGE:?Set APP_IMAGE to an immutable image digest}
+    user: "1000:1000"
+    command: ["node", "dist/apps/api/src/main.js"]
+    restart: unless-stopped
+    init: true
+    stop_grace_period: 12s
+    env_file: ${RUNTIME_ENV_FILE:?Set RUNTIME_ENV_FILE}
+    environment:
+      APP_ENV: ${APP_ENV:?Set APP_ENV}
+      HOST: 0.0.0.0
+      PORT: "3000"
+      AUTH_MODE: ${AUTH_MODE:?Set AUTH_MODE=oidc}
+      OIDC_ISSUER: ${OIDC_ISSUER:?Set OIDC_ISSUER}
+      OIDC_AUDIENCE: ${OIDC_AUDIENCE:?Set OIDC_AUDIENCE}
+      DATABASE_SECRET_REF: file:/run/secrets/database_url
+      APP_VERSION: ${APP_VERSION:-0.0.0}
+      GIT_COMMIT: ${GIT_COMMIT:-unknown}
+      BUILD_TIME: ${BUILD_TIME:-unknown}
+      IMAGE_DIGEST: ${IMAGE_DIGEST:-}
+    secrets: [database_url]
+    expose: ["3000"]
+    networks: [private]
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/api/v1/health/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+      start_period: 30s
+
+  agent-gateway:
+    image: ${APP_IMAGE:?Set APP_IMAGE to an immutable image digest}
+    user: "1000:1000"
+    command: ["node", "dist/apps/agent-gateway/src/main.js"]
+    restart: unless-stopped
+    init: true
+    stop_grace_period: 12s
+    env_file: ${RUNTIME_ENV_FILE:?Set RUNTIME_ENV_FILE}
+    environment:
+      APP_ENV: ${APP_ENV:?Set APP_ENV}
+      HOST: 0.0.0.0
+      PORT: "3001"
+      AUTH_MODE: ${AUTH_MODE:?Set AUTH_MODE=oidc}
+      OIDC_ISSUER: ${OIDC_ISSUER:?Set OIDC_ISSUER}
+      OIDC_AUDIENCE: ${OIDC_AUDIENCE:?Set OIDC_AUDIENCE}
+      AGENT_AUTH_MODE: ${AGENT_AUTH_MODE:?Set AGENT_AUTH_MODE=mtls}
+      DATABASE_SECRET_REF: file:/run/secrets/database_url
+      AGENT_TLS_CERT_REF: file:/run/secrets/agent_tls_cert
+      AGENT_TLS_KEY_REF: file:/run/secrets/agent_tls_key
+      AGENT_CA_CERT_REF: file:/run/secrets/agent_ca_certificate
+      AGENT_CA_SIGNING_KEY_REF: file:/run/secrets/agent_ca_signing_key
+      APP_VERSION: ${APP_VERSION:-0.0.0}
+      GIT_COMMIT: ${GIT_COMMIT:-unknown}
+      BUILD_TIME: ${BUILD_TIME:-unknown}
+      IMAGE_DIGEST: ${IMAGE_DIGEST:-}
+    secrets:
+      - database_url
+      - agent_tls_cert
+      - agent_tls_key
+      - agent_ca_certificate
+      - agent_ca_signing_key
+      - agent_ca_signing_passphrase
+    networks: [private]
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "require('node:https').get({hostname:'127.0.0.1',port:3001,path:'/api/v1/health/ready',rejectUnauthorized:false},r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+      start_period: 30s
+
+  worker:
+    image: ${APP_IMAGE:?Set APP_IMAGE to an immutable image digest}
+    user: "1000:1000"
+    command: ["node", "dist/apps/worker/src/main.js"]
+    restart: unless-stopped
+    init: true
+    stop_grace_period: 12s
+    env_file: ${RUNTIME_ENV_FILE:?Set RUNTIME_ENV_FILE}
+    environment:
+      APP_ENV: ${APP_ENV:?Set APP_ENV}
+      HOST: 0.0.0.0
+      PORT: "3002"
+      AUTH_MODE: ${AUTH_MODE:?Set AUTH_MODE=oidc}
+      OIDC_ISSUER: ${OIDC_ISSUER:?Set OIDC_ISSUER}
+      OIDC_AUDIENCE: ${OIDC_AUDIENCE:?Set OIDC_AUDIENCE}
+      DATABASE_SECRET_REF: file:/run/secrets/database_url
+      APP_VERSION: ${APP_VERSION:-0.0.0}
+      GIT_COMMIT: ${GIT_COMMIT:-unknown}
+      BUILD_TIME: ${BUILD_TIME:-unknown}
+      IMAGE_DIGEST: ${IMAGE_DIGEST:-}
+    secrets: [database_url]
+    expose: ["3002"]
+    networks: [private]
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3002/api/v1/health/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+      start_period: 65s
+
+  migrate:
+    image: ${APP_IMAGE:?Set APP_IMAGE to an immutable image digest}
+    user: "1000:1000"
+    command: ["node", "dist/database/scripts/migrate.js"]
+    profiles: ["migration"]
+    restart: "no"
+    env_file: ${RUNTIME_ENV_FILE:?Set RUNTIME_ENV_FILE}
+    environment:
+      APP_ENV: ${APP_ENV:?Set APP_ENV}
+      AUTH_MODE: ${AUTH_MODE:?Set AUTH_MODE=oidc}
+      OIDC_ISSUER: ${OIDC_ISSUER:?Set OIDC_ISSUER}
+      OIDC_AUDIENCE: ${OIDC_AUDIENCE:?Set OIDC_AUDIENCE}
+      DATABASE_SECRET_REF: file:/run/secrets/database_url
+    secrets: [database_url]
+    networks: [private]
+
+  caddy:
+    image: ${CADDY_IMAGE:?Set immutable CADDY_IMAGE}
+    restart: unless-stopped
+    init: true
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      API_HOSTNAME: ${API_HOSTNAME:?Set API_HOSTNAME}
+    ports: []
+    secrets: [api_tls_certificate, api_tls_key]
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks: [private]
+    command: ["caddy", "run", "--config", "/etc/caddy/Caddyfile"]
+
+secrets:
+  database_url:
+    file: ${DATABASE_URL_FILE:?Set DATABASE_URL_FILE}
+  postgres_password:
+    file: ${POSTGRES_PASSWORD_FILE:?Set POSTGRES_PASSWORD_FILE}
+  agent_tls_cert:
+    file: ${AGENT_TLS_CERT_FILE:?Set AGENT_TLS_CERT_FILE}
+  agent_tls_key:
+    file: ${AGENT_TLS_KEY_FILE:?Set AGENT_TLS_KEY_FILE}
+  agent_ca_certificate:
+    file: ${AGENT_CA_CERT_FILE:?Set AGENT_CA_CERT_FILE}
+  agent_ca_signing_key:
+    file: ${AGENT_CA_SIGNING_KEY_FILE:?Set AGENT_CA_SIGNING_KEY_FILE}
+  agent_ca_signing_passphrase:
+    file: ${AGENT_CA_SIGNING_PASSPHRASE_FILE:?Set AGENT_CA_SIGNING_PASSPHRASE_FILE to a protected file (empty when unused)}
+  api_tls_certificate:
+    file: ${API_TLS_CERT_FILE:?Set API_TLS_CERT_FILE}
+  api_tls_key:
+    file: ${API_TLS_KEY_FILE:?Set API_TLS_KEY_FILE}
+
+volumes:
+  postgres_data:
+  caddy_data:
+  caddy_config:
+
+networks:
+  private:
+    internal: false

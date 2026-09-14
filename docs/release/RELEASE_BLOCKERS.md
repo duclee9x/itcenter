@@ -40,17 +40,17 @@ is included in the approved release scope.
 - **Release-blocking:** Yes when Agent execution is in scope; assumed in this assessment
 - **Evidence:** [RELEASE-002 item](items/RELEASE-002_PRODUCTION_AGENT_AUTH.md); [implementation report](items/RELEASE-002_IMPLEMENTATION_REPORT.md); [R1 mTLS contract](items/RELEASE-002-R1_PRODUCTION_AGENT_AUTHENTICATION_CONTRACT.md); `apps/agent-gateway/src/main.ts`; `tasks/TASK-091_IMPLEMENTATION_REPORT.md`; `docs/HELPDESK_INCIDENT_MONITORING_AGENT_WORKFLOW.md`.
 
-## RR-04 — No production build, immutable deployment, or rollback path
+## RR-04 — Immutable deployment pipeline lacks staging verification
 
 - **Type:** `OPERATIONAL_GAP`
 - **Severity:** High
 - **Affected capability:** Release packaging and deployment of API, Worker, Agent Gateway
-- **Production impact:** The repository has no production Dockerfile/image pipeline, staging or production manifests, or promotion/rollback runbook. `infra/docker/compose.yaml` is a local PostgreSQL setup; `npm run build` creates code output and is not a production deployment artifact. There is no evidence of immutable image tagging, signing/SBOM, configuration injection, process supervision, ordered rollout or health-gated promotion.
-- **Required action:** Implement the approved [RELEASE-004-R1](items/RELEASE-004-R1_IMMUTABLE_ARTIFACT_DEPLOYMENT_PROMOTION_CONTRACT.md) contract: one OCI image, registry digest promotion, Linux/Docker Compose v2 topology, isolated staging, operator-authorized deploy, one-shot same-image migration, readiness/smoke gates, secret separation, and exact-digest rollback/forward-fix handling.
-- **Verification:** Build once, record digest, deploy that digest to staging, execute the RC checklist, promote the identical digest to production, and demonstrate rollback/forward-fix without rebuilding a different artifact.
+- **Production impact:** RELEASE-004 now provides a single multi-process OCI image, protected GitHub Actions publication, digest-based Linux/Docker Compose v2 deployment, isolated environment projects, a one-shot migration command, readiness/smoke gates, staging acceptance attestation, exact-schema rollback guard, and systemd boot integration. Local build, Compose rendering, and repository acceptance pass. A clean CI-published digest has not been deployed on a Linux staging host, and the external registry/approval environment is not configured here.
+- **Required action:** Configure the protected `release-publish` environment and registry secrets; publish an RC from a clean protected commit; provision isolated staging OIDC, Agent CA, database and TLS material; deploy the exact image digest; complete and review RELEASE-001/002/003 evidence; issue the staging attestation. Production migration/promotion remains subject to RELEASE-005/006 readiness and release-owner approval.
+- **Verification:** Deploy the clean RC digest to Linux Compose staging, prove API/Gateway/Worker readiness, real OIDC and Agent mTLS plus tenant/RBAC and drain checks, verify migration and smoke, record acceptance evidence, and confirm any production promotion consumes that identical digest. Exercise exact-digest rollback only when the schema guard permits it; no database rollback claim is made.
 - **Owner/domain:** Platform / Release Engineering
 - **Release-blocking:** Yes
-- **Evidence:** [RELEASE-004 item](items/RELEASE-004_IMMUTABLE_BUILD_STAGING_PROMOTION_ROLLBACK.md); [R1 contract](items/RELEASE-004-R1_IMMUTABLE_ARTIFACT_DEPLOYMENT_PROMOTION_CONTRACT.md); `package.json`; `infra/docker/compose.yaml`; `README.md` (local development and no production deployment claim).
+- **Evidence:** [RELEASE-004 item](items/RELEASE-004_IMMUTABLE_BUILD_STAGING_PROMOTION_ROLLBACK.md); [implementation report](items/RELEASE-004_IMPLEMENTATION_REPORT.md); [R1 contract](items/RELEASE-004-R1_IMMUTABLE_ARTIFACT_DEPLOYMENT_PROMOTION_CONTRACT.md); `Dockerfile`; `deploy/compose.yaml`; `.github/workflows/ci.yml`.
 
 ## RR-05 — Production migration compatibility is unproven
 

@@ -17,7 +17,9 @@
   `CODE_COMPLETE / NOT VERIFIED`. Staging/orchestrator verification remains.
   See
   [RELEASE-003-R1](items/RELEASE-003-R1_PRODUCTION_READINESS_CRITICAL_WORKER_CONTRACT.md).
-- RELEASE-004-R1 is `CODE_COMPLETE`; RELEASE-004 is `READY / NOT_STARTED`.
+- RELEASE-004-R1 and its runtime implementation are `CODE_COMPLETE`;
+  RELEASE-004 is not `VERIFIED` pending a real Linux staging deployment of a
+  clean CI-published image digest and acceptance evidence.
   Its authoritative Linux/Docker Compose v2 contract is at
   [RELEASE-004-R1](items/RELEASE-004-R1_IMMUTABLE_ARTIFACT_DEPLOYMENT_PROMOTION_CONTRACT.md).
 - Unrelated user change in `AGENTS.md` is preserved and must remain outside
@@ -31,18 +33,18 @@ staging IdP before `VERIFIED`; RR-01 remains open. RELEASE-002 runtime and
 automated tests are complete under its R1 mTLS contract, but real CA
 provisioning and staging topology validation remain before `VERIFIED`.
 RELEASE-003 runtime is implemented and automated checks pass; staging/
-orchestrator verification remains required before `VERIFIED`. RELEASE-004-R1
-resolves the deployment decisions and authorizes a separate implementation
-activity using one OCI image promoted unchanged through Docker Compose v2 on a
-Linux host. The selected v1 deployment is single-host and explicitly not HA.
-The production operator runs the versioned deployment command; the server
-pulls but never builds the image. See the R1 contract before implementation.
-Do not begin RELEASE-005, RELEASE-006, or RELEASE-007 in that activity.
+orchestrator verification remains required before `VERIFIED`. RELEASE-004 is
+implemented using one OCI image promoted unchanged through Docker Compose v2
+on a Linux host. The selected v1 deployment is single-host and explicitly not
+HA. The next RELEASE-004 action is staging deployment and evidence capture;
+this implementation activity does not start RELEASE-005, RELEASE-006, or
+RELEASE-007.
 
 ## Release order
 
-RELEASE-004 and RELEASE-005 are independently READY. RELEASE-006 waits for
-RELEASE-004 and RELEASE-005; RELEASE-007 waits for RELEASE-004; the final
+RELEASE-005 remains independently READY. RELEASE-007 is READY because the
+RELEASE-004 topology is implemented, but is not started here. RELEASE-006
+waits for RELEASE-005 and verified migration/recovery inputs; the final
 RELEASE-GATE-001 waits for every initial remediation item to be verified.
 Follow [RELEASE_DEPENDENCY_GRAPH.md](RELEASE_DEPENDENCY_GRAPH.md).
 

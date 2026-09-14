@@ -1,4 +1,5 @@
 import type { Config } from "../../../packages/config/src/index.js";
+import { buildInfoFromEnvironment } from "../../../packages/config/src/build-info.js";
 import { handleAssetScoringRoute } from "./asset-scoring-routes.js";
 import { handleReportingRoute } from "./reporting-routes.js";
 import { handleSlaTargetPurposeRoute } from "./sla-target-purpose-routes.js";
@@ -509,6 +510,7 @@ export function apiServer(
             objectStore?.production_verified === true;
           json(res, 200, {
             data: {
+              build: buildInfoFromEnvironment(),
               commercial_document_storage: {
                 status: !configured
                   ? "UNAVAILABLE_NOT_READY"

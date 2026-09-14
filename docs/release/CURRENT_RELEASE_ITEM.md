@@ -4,9 +4,9 @@
 | ------------- | ------------------------------------------------------------------------------------------ |
 | Selected item | RELEASE-004 — Immutable Build / Staging / Promotion / Rollback Pipeline                    |
 | Priority      | P0                                                                                         |
-| Status        | `NOT_STARTED`                                                                              |
-| Readiness     | `READY`                                                                                    |
-| Blocker       | None; deployment decisions are fixed by RELEASE-004-R1.                                    |
+| Status        | `CODE_COMPLETE / NOT VERIFIED`                                                             |
+| Readiness     | `N/A`                                                                                      |
+| Blocker       | Real immutable-image staging deployment and acceptance evidence are pending.               |
 | Contract      | [RELEASE-004-R1](items/RELEASE-004-R1_IMMUTABLE_ARTIFACT_DEPLOYMENT_PROMOTION_CONTRACT.md) |
 | Item          | [RELEASE-004](items/RELEASE-004_IMMUTABLE_BUILD_STAGING_PROMOTION_ROLLBACK.md)             |
 
@@ -23,11 +23,14 @@ remains pending. RELEASE-004-R1 has resolved its contract gap and selects
 Linux + Docker Engine + Docker Compose v2, one shared immutable OCI image,
 isolated staging, operator-triggered deployment, a controlled migration step,
 readiness/smoke gates, and exact-digest rollback/forward-fix semantics.
-RELEASE-004 implementation has not started. Overall release remains
-`BLOCKED_FOR_RC`.
+RELEASE-004 is `CODE_COMPLETE`, but is not `VERIFIED`: no clean CI-published
+digest has yet been deployed through the intended Linux staging topology.
+Overall release remains `BLOCKED_FOR_RC`.
 
-RELEASE-005 remains independently `READY`. RELEASE-006 and RELEASE-007 remain
-`WAITING_DEPENDENCY` on RELEASE-004 (and RELEASE-005 for RELEASE-006). Do not
-start those items automatically. See
+RELEASE-005 remains independently `READY`. RELEASE-007 is now
+`READY / NOT_STARTED` because its deployment-topology dependency is
+implemented; RELEASE-006 remains `WAITING_DEPENDENCY` on RELEASE-005.
+RELEASE-GATE-001 remains blocked on verification evidence. Do not start another
+release item automatically. See
 [RELEASE_BACKLOG.md](RELEASE_BACKLOG.md) and
 [RELEASE_DEPENDENCY_GRAPH.md](RELEASE_DEPENDENCY_GRAPH.md).

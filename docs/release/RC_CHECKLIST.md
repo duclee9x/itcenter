@@ -7,8 +7,9 @@ or use explicitly disposable staging fixtures.
 
 RELEASE-004-R1 normatively selects the Linux/Docker Compose v2 deployment
 model, shared OCI artifact, operator-run deployment, migration and promotion
-gates, and recovery rules. RELEASE-004 implementation and staging evidence
-remain required before production promotion. Follow
+gates, and recovery rules. RELEASE-004 implementation is `CODE_COMPLETE`; real
+Linux staging deployment and acceptance evidence remain required before
+`VERIFIED` or production promotion. Follow
 [RELEASE-004-R1](items/RELEASE-004-R1_IMMUTABLE_ARTIFACT_DEPLOYMENT_PROMOTION_CONTRACT.md)
 for the binding decisions; this checklist does not replace that contract.
 
@@ -33,6 +34,34 @@ for the binding decisions; this checklist does not replace that contract.
       production promotion; do not rebuild between environments.
 - [ ] Confirm environment configuration and secret references are injected at
       deploy time and are absent from the artifact/logs.
+
+### RELEASE-004 Compose deployment evidence
+
+- [ ] Run the protected `Bootstrap CI` workflow from a clean protected commit;
+      retain the committed `release/rc/<id>.json`, immutable image digest,
+      workflow provenance, lockfile hash, and generated SBOM reference.
+- [ ] Render `deploy/compose.yaml` with exactly one `APP_IMAGE` digest for API,
+      Agent Gateway, Worker, and the one-shot migration service. Pin Caddy and
+      PostgreSQL image references by digest as well.
+- [ ] Deploy the identical candidate digest to the isolated `itsm-staging`
+      Compose project. Confirm migration succeeds before rollout; then require
+      API, Gateway, and Worker readiness plus smoke checks. `DEGRADED` is not
+      accepted as a successful staging release.
+- [ ] Exercise real staging OIDC, `X-Tenant-ID` membership/RBAC, direct Agent
+      mTLS, credential revocation, Worker profiles, and readiness-first drain.
+      Capture separate RELEASE-001/002/003 evidence bound to the same release
+      id, digest, commit, and schema revision.
+- [ ] Review the completed evidence file and run
+      `deploy/scripts/verify-staging.sh`; confirm the attestation is generated
+      only after all three runtime releases are accepted as `VERIFIED`.
+- [ ] Production deployment consumes that same digest and accepted staging
+      attestation. Until RELEASE-005/006 and other RC blockers are cleared,
+      production promotion remains unauthorized.
+- [ ] Rollback uses the exact retained prior digest and refuses to proceed
+      unless the target image supports the current schema revision; never run a
+      database down migration as part of application rollback.
+- [ ] Verify the host boot unit restores the recorded release without running
+      migration, and inspect bounded Docker log rotation on the Linux host.
 
 ## Migration rehearsal and recovery
 

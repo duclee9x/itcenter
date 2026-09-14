@@ -1,6 +1,6 @@
 # Release Readiness Reconciliation
 
-**Assessment date:** 2026-09-14
+**Assessment date:** 2026-09-15
 
 **Roadmap baseline reviewed:** `af42b52` — `Complete TASK-097 Phase 5 integration gate`
 
@@ -22,8 +22,9 @@ The repository is not ready to produce and promote a production Release
 Candidate. The decisive blockers are: the API authentication adapter is
 implemented but has not been configured and validated against a real staging
 OIDC provider; RELEASE-003 readiness is implemented but has not been validated
-against staging deployables/orchestrator probes; no staging/production image and
-promotion path is present; no production-like migration compatibility
+against staging deployables/orchestrator probes; the immutable image/Compose
+pipeline is implemented but has not been exercised with a real CI-published
+digest in Linux staging; no production-like migration compatibility
 rehearsal exists; no production backup/restore drill or RPO/RTO is evidenced;
 and TLS/rate limiting are not supplied by a checked-in deployment edge. Agent
 execution additionally remains fail-closed until its real Agent CA and
@@ -97,13 +98,18 @@ v2 on a Linux host. Same-host staging uses an isolated Compose project by
 default. An authorized operator runs the versioned deployment command; the
 production host pulls but never builds. Caddy serves API HTTPS, while Agent
 mTLS terminates directly in Agent Gateway. Migration, readiness, smoke,
-promotion, and exact-digest rollback gates are defined in the contract.
+promotion, and exact-digest rollback gates are implemented.
 
-RELEASE-004-R1 is `CODE_COMPLETE` and clears `SPEC_GAP / OPERATIONAL_DECISION`;
-RELEASE-004 is `READY / NOT_STARTED`. The production build, registry, Compose
-deployment, and rollback mechanism remain unimplemented under RR-04.
-RELEASE-005 remains independently ready; RELEASE-006 and RELEASE-007 remain
-waiting for their declared dependencies. Overall readiness remains
+RELEASE-004-R1 and its runtime implementation are `CODE_COMPLETE`. The
+implementation provides one OCI image, GitHub Actions publication with
+provenance/SBOM, immutable digest deployment using Docker Compose v2, isolated
+staging/production projects, ordered migration, readiness/smoke gates,
+staging-evidence attestation, stateful exact-digest rollback, and systemd host
+boot integration. Automated repository checks pass, but no clean CI-published
+digest has been deployed through a real Linux staging host; RELEASE-004 is not
+`VERIFIED` and RR-04 remains open. RELEASE-005 is independently ready,
+RELEASE-006 waits on RELEASE-005, and RELEASE-007 is now `READY / NOT_STARTED`
+because its topology dependency is implemented. Overall readiness remains
 `BLOCKED_FOR_RC`.
 
 ## Evidence and verification baseline
@@ -209,8 +215,9 @@ No secret values belong in this document or in source control.
 2. Validate the implemented RELEASE-003 readiness profiles in staging;
    establish the deployment edge, TLS, trusted proxy, rate/size limits, and
    process supervision.
-3. Implement the approved RELEASE-004-R1 build-once Compose pipeline and
-   promote the staging-verified OCI digest unchanged to production.
+3. Deploy a clean CI-published digest through the implemented RELEASE-004
+   Compose pipeline to staging; verify the same digest, real OIDC/mTLS,
+   readiness, and drain behavior before promotion is considered.
 4. Rehearse migrations against a production-like previous schema. Measure
    duration/locks, test runtime roles, establish expand/forward-fix behavior,
    and record whether N-1 can operate during/after migration.

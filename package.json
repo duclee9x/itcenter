@@ -16,7 +16,7 @@
     "format:check": "prettier --check .",
     "lint": "eslint . && tsx scripts/check-boundaries.ts",
     "typecheck": "tsc --noEmit",
-    "build": "tsc && node scripts/copy-contracts.mjs",
+    "build": "tsc -p tsconfig.build.json && node scripts/copy-contracts.mjs",
     "test:unit": "tsx --test tests/unit/*.test.ts tests/architecture/*.test.ts",
     "test:contract": "tsx --test tests/contract/*.test.ts",
     "test:migration": "tsx --test tests/migration/*.test.ts",

@@ -8,10 +8,10 @@ flowchart TD
   R001[RELEASE-001 API Authentication & Authorization]
   R002[RELEASE-002 Agent Authentication — CODE_COMPLETE / staging verification pending]
   R003[RELEASE-003 Worker Readiness — CODE_COMPLETE / staging verification pending]
-  R004[RELEASE-004 Immutable Build / Promotion — READY / NOT_STARTED]
+  R004[RELEASE-004 Immutable Build / Promotion — CODE_COMPLETE / NOT VERIFIED]
   R005[RELEASE-005 Backup / Restore]
   R006[RELEASE-006 Migration Rehearsal / N-1]
-  R007[RELEASE-007 TLS Ingress / Rate Limiting]
+  R007[RELEASE-007 TLS Ingress / Rate Limiting — READY / NOT_STARTED]
   G001[RELEASE-GATE-001 RC Re-verification]
 
   R004 --> R006
@@ -42,22 +42,23 @@ flowchart TD
 
 ## Derived readiness
 
-Derived state after RELEASE-004-R1 contract completion:
+Derived state after RELEASE-004 implementation:
 
 - **CODE_COMPLETE, awaiting environment verification:** RELEASE-001.
 - **CODE_COMPLETE, awaiting environment verification:** RELEASE-002.
 - **CODE_COMPLETE, awaiting staging verification:** RELEASE-003.
-- **READY:** RELEASE-004, RELEASE-005.
+- **CODE_COMPLETE / NOT VERIFIED:** RELEASE-004.
+- **READY:** RELEASE-005, RELEASE-007.
 - **BLOCKED:** None.
-- **WAITING_DEPENDENCY:** RELEASE-006, RELEASE-007, RELEASE-GATE-001.
-  RELEASE-006 depends on RELEASE-004 and RELEASE-005; RELEASE-007 depends on
-  RELEASE-004.
+- **WAITING_DEPENDENCY:** RELEASE-006, RELEASE-GATE-001. RELEASE-006 waits
+  for RELEASE-005 and verified artifact/recovery inputs; the final gate waits
+  for all verification evidence.
 
 “Ready” means eligible to start under the release-item status model. It does
-not claim implementation or verification. RELEASE-004 is
-`READY / NOT_STARTED` under
+not claim verification. RELEASE-004 is `CODE_COMPLETE / NOT VERIFIED` under
 [RELEASE-004-R1](items/RELEASE-004-R1_IMMUTABLE_ARTIFACT_DEPLOYMENT_PROMOTION_CONTRACT.md).
-RELEASE-001 through RELEASE-003 remain unverified pending their environment
-evidence. RELEASE-005 is independent. Any newly discovered blocker must be
-recorded on the affected item and readiness recomputed; dependencies must not
-be bypassed.
+Its staging deployment remains pending. RELEASE-001 through RELEASE-003 remain
+unverified pending their environment evidence. RELEASE-005 is independent.
+RELEASE-007 may begin because the topology is implemented, but it is not
+started in this activity. Any newly discovered blocker must be recorded on
+the affected item and readiness recomputed; dependencies must not be bypassed.

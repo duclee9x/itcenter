@@ -1,0 +1,13 @@
+# Copy to RUNTIME_ENV_FILE. Values below are configuration and secret references only.
+APP_ENV=production
+AUTH_MODE=oidc
+OIDC_ISSUER=https://idp.example.invalid
+OIDC_AUDIENCE=itcenter-api
+DATABASE_SECRET_REF=file:/run/secrets/database_url
+AGENT_AUTH_MODE=mtls
+AGENT_TLS_CERT_REF=file:/run/secrets/agent_tls_cert
+AGENT_TLS_KEY_REF=file:/run/secrets/agent_tls_key
+AGENT_CA_CERT_REF=file:/run/secrets/agent_ca_certificate
+AGENT_CA_SIGNING_KEY_REF=file:/run/secrets/agent_ca_signing_key
+# Set only when the mounted CA signing key is encrypted:
+# AGENT_CA_SIGNING_PASSPHRASE_REF=file:/run/secrets/agent_ca_signing_passphrase

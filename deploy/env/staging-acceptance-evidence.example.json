@@ -1,0 +1,19 @@
+{
+  "release_id": "REPLACE_WITH_RC_ID",
+  "image": "registry.example.invalid/itcenter/app@sha256:REPLACE_WITH_64_HEX_DIGEST",
+  "source_commit": "REPLACE_WITH_40_HEX_COMMIT",
+  "schema_revision": "REPLACE_WITH_64_HEX_SCHEMA_REVISION",
+  "overall_status": "PENDING",
+  "releases": {
+    "RELEASE-001": "PENDING",
+    "RELEASE-002": "PENDING",
+    "RELEASE-003": "PENDING"
+  },
+  "evidence_refs": {
+    "RELEASE-001": "",
+    "RELEASE-002": "",
+    "RELEASE-003": ""
+  },
+  "accepted_by": "",
+  "accepted_at": ""
+}
