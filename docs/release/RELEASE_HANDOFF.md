@@ -42,7 +42,7 @@ Lima Linux VM. The selected v1 deployment is single-host and explicitly not
 HA. RELEASE-004 staging deployment and evidence capture remain pending;
 RELEASE-005 implementation is now code-complete, while its protected
 backup/restore and RPO/RTO evidence require operational verification. This
-activity does not start RELEASE-006 or RELEASE-007.
+activity does not start RELEASE-006 runtime work or RELEASE-007.
 
 ## Release order
 
@@ -51,10 +51,13 @@ use guest-side PostgreSQL logical interfaces, age encryption, a verified
 `HOST_PROTECTED` Lima mount and isolated Podman Compose restore projects; they
 never use Podman volume internals. RPO 6h and RTO 2h remain UNVERIFIED until
 the required rehearsal. See [RELEASE-005 implementation report](items/RELEASE-005_IMPLEMENTATION_REPORT.md).
-RELEASE-006 is eligible from its code dependencies but must not be started
-automatically. RELEASE-007 is READY because
-the RELEASE-004 topology is implemented, but is not started here. RELEASE-006
-waits for RELEASE-005 and verified migration/recovery inputs; the final
+RELEASE-006 is `BLOCKED / NOT_STARTED`: its N/N-1 artifact identity,
+compatibility matrix, migration timeout/lock policy, destructive-change policy,
+failure/retry semantics and rehearsal evidence contract are not yet normative.
+See [RELEASE-006-R1](items/RELEASE-006-R1_POSTGRESQL_MIGRATION_COMPATIBILITY_CONTRACT.md).
+RELEASE-007 is READY because the RELEASE-004 topology is implemented, but is
+not started here. RELEASE-006 also depends on RELEASE-005 verification inputs;
+the final
 RELEASE-GATE-001 waits for every initial remediation item to be verified.
 Follow [RELEASE_DEPENDENCY_GRAPH.md](RELEASE_DEPENDENCY_GRAPH.md).
 
@@ -66,4 +69,6 @@ Follow [RELEASE_DEPENDENCY_GRAPH.md](RELEASE_DEPENDENCY_GRAPH.md).
   client deprecation debt in the blocking backlog unless launch scope changes.
 - Keep runtime fail-closed behavior until real production adapters are
   configured and verified.
+- Do not implement RELEASE-006 runtime or begin RELEASE-007 while the
+  RELEASE-006-R1 contract gap remains open.
 - Keep `AGENTS.md` unrelated working-tree changes unstaged and uncommitted.

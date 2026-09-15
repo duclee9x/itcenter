@@ -2,13 +2,13 @@
 
 | Field         | Value                                                                                 |
 | ------------- | ------------------------------------------------------------------------------------- |
-| Selected item | RELEASE-005 — Backup / Restore + RPO / RTO Validation                                 |
+| Selected item | RELEASE-006 — PostgreSQL Migration Rehearsal + N-1 Compatibility                         |
 | Priority      | P0                                                                                    |
-| Status        | `CODE_COMPLETE / NOT VERIFIED`                                                        |
-| Readiness     | `N/A`                                                                                 |
-| Blocker       | RPO/RTO and production-like protected restore evidence remain unverified.             |
-| Contract      | [RELEASE-005-R1](items/RELEASE-005-R1_POSTGRESQL_BACKUP_RESTORE_RECOVERY_CONTRACT.md) |
-| Item          | [RELEASE-005](items/RELEASE-005_BACKUP_RESTORE_RPO_RTO.md)                            |
+| Status        | `BLOCKED / NOT_STARTED`                                                               |
+| Readiness     | `BLOCKED`                                                                             |
+| Blocker       | `SPEC_GAP / OPERATIONAL_DECISION`: N/N-1 compatibility and rehearsal acceptance contract is incomplete. |
+| Contract      | [RELEASE-006-R1](items/RELEASE-006-R1_POSTGRESQL_MIGRATION_COMPATIBILITY_CONTRACT.md) |
+| Item          | RELEASE-006 planning item                                                             |
 
 RELEASE-001 runtime is `CODE_COMPLETE` but not `VERIFIED`; real provider and
 staging acceptance remain open. RELEASE-002-R1 fixes Agent authentication as
@@ -29,10 +29,10 @@ the intended Linux staging topology.
 Overall release remains `BLOCKED_FOR_RC`.
 
 RELEASE-005 is `CODE_COMPLETE / NOT VERIFIED`; its protected backup and restore
-rehearsal remain operational verification work. RELEASE-006 is now eligible
-from its code dependencies but is not started. RELEASE-007 is now
-`READY / NOT_STARTED` because its deployment-topology dependency is
-implemented; RELEASE-006 remains `WAITING_DEPENDENCY` on RELEASE-005.
+rehearsal remain operational verification work. RELEASE-006 is
+`BLOCKED / NOT_STARTED` because its N/N-1 compatibility and rehearsal contract
+is incomplete. RELEASE-007 remains `READY / NOT_STARTED` because its
+deployment-topology dependency is implemented; it is not started here.
 RELEASE-GATE-001 remains blocked on verification evidence. Do not start another
 release item automatically. See
 [RELEASE_BACKLOG.md](RELEASE_BACKLOG.md) and

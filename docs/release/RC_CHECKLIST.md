@@ -27,6 +27,12 @@ for the binding decisions; this checklist does not replace those contracts.
 - [ ] Release owner, security reviewer, DB operator, service owner and rollback
       decision-maker are named.
 
+- [ ] Complete and approve RELEASE-006-R1 before implementing or running
+      migration rehearsal: exact N-1 artifact/fixture, four-cell compatibility
+      matrix, destructive/expand-contract policy, timeout/lock budget,
+      partial-failure/retry behavior, rehearsal dataset/load, and evidence/
+      approval criteria.
+
 ## Build and artifact identity
 
 - [ ] Build from a reviewed immutable commit.

@@ -10,7 +10,7 @@ flowchart TD
   R003[RELEASE-003 Worker Readiness — CODE_COMPLETE / staging verification pending]
   R004[RELEASE-004 Immutable Build / Promotion — CODE_COMPLETE / NOT VERIFIED]
   R005[RELEASE-005 Backup / Restore — CODE_COMPLETE / NOT VERIFIED]
-  R006[RELEASE-006 Migration Rehearsal / N-1 — READY / NOT_STARTED]
+  R006[RELEASE-006 Migration Rehearsal / N-1 — BLOCKED / NOT_STARTED]
   R007[RELEASE-007 TLS Ingress / Rate Limiting — READY / NOT_STARTED]
   G001[RELEASE-GATE-001 RC Re-verification]
 
@@ -49,10 +49,10 @@ Derived state after RELEASE-004 implementation:
 - **CODE_COMPLETE, awaiting staging verification:** RELEASE-003.
 - **CODE_COMPLETE / NOT VERIFIED:** RELEASE-004.
 - **CODE_COMPLETE / NOT VERIFIED:** RELEASE-005.
-- **READY:** RELEASE-006, RELEASE-007. RELEASE-006 is eligible from its code
-  dependencies but is not started; recovery and artifact verification remain
-  release-gate evidence.
-- **BLOCKED:** None.
+- **READY:** RELEASE-007. RELEASE-006 is blocked by its unresolved
+  compatibility/rehearsal contract, even though its implementation inputs are
+  present.
+- **BLOCKED:** RELEASE-006 (`SPEC_GAP / OPERATIONAL_DECISION`).
 - **WAITING_DEPENDENCY:** RELEASE-GATE-001, which waits for all verification
   evidence.
 
