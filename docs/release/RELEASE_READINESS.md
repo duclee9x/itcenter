@@ -8,6 +8,11 @@
 
 **Decision:** `BLOCKED_FOR_RC`
 
+The consolidated verification closure is recorded in
+[RELEASE_VERIFICATION_SUMMARY.md](RELEASE_VERIFICATION_SUMMARY.md). No item is
+promoted to `VERIFIED` without its contract-defined staging or
+production-like evidence.
+
 ## Scope and decision
 
 This is a deployment-readiness assessment, not a new product task. It assumes

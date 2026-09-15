@@ -2,6 +2,12 @@
 
 ## Current position
 
+The latest verification closure is
+[RELEASE_VERIFICATION_SUMMARY.md](RELEASE_VERIFICATION_SUMMARY.md). The
+environment pre-flight found no immutable RC metadata, no staging OIDC/Agent
+credentials, no Lima `age` executable, and no writable HOST_PROTECTED mount;
+the release remains `BLOCKED_FOR_RC`.
+
 - Product implementation roadmap: complete through Phase 5; TASK-097 is
   `CODE_COMPLETE / VERIFIED`.
 - Product roadmap is frozen for this planning activity. Do not create

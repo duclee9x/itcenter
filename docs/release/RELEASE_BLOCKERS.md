@@ -4,6 +4,11 @@ Each finding has exactly one primary classification from the release
 reconciliation taxonomy. A conditional blocker is blocking when its capability
 is included in the approved release scope.
 
+The current cross-item evidence inventory is maintained in
+[RELEASE_VERIFICATION_SUMMARY.md](RELEASE_VERIFICATION_SUMMARY.md). The
+repository and local tests do not substitute for staging/production-like
+evidence.
+
 ## RR-01 — Production OIDC provider and staging acceptance are not verified
 
 - **Type:** `RELEASE_BLOCKER`
