@@ -3,27 +3,6 @@
 This file contains only operator-controlled inputs still missing for release
 verification. It contains no credentials or secret values.
 
-## Protected release branch for GHCR publication
-
-Enable the repository's approved branch protection/ruleset for `master`. The
-publish workflow intentionally requires `github.ref_protected == true` and
-now publishes to `ghcr.io/duclee9x/itcenter` using the job-scoped
-`GITHUB_TOKEN` with `packages: write`; no PAT or registry password is required
-by the checked-in workflow.
-
-Validation:
-
-```sh
-curl -fsSL https://api.github.com/repos/duclee9x/itcenter/branches/master \
-  | jq -r '.protected'
-```
-
-Expected output: `true`. Then dispatch Bootstrap CI with a new release id and
-verify the resulting RC metadata references the exact GHCR digest.
-
-Blocks: RELEASE-004 registry-backed RC publication and exact-digest staging
-attestation.
-
 ## Recovery escrow governance
 
 Provide non-secret governed references for:
@@ -78,10 +57,14 @@ nc -vz <host-address> <agent-mtls-port>
 Blocks production ACME/external-reachability evidence only. RELEASE-007 local
 staging verification may use the approved independent Caddy CA mode.
 
-## Current local candidate reference
+## Current registry candidate deployment follow-up
 
-The current local candidate is `RC-LOCAL-CCA7D1B`, built from committed
-`cca7d1b3bfc7510635d4db1be67bafa65981a8a3`, with local image identity
-`sha256:474f72db0aca9f5464c365a4b9e47db695e100a45b852b32bf5e21be70b72b0f`.
-It is intentionally marked `NOT_VERIFIED` and `NOT_PROMOTED` until the exact
-GHCR digest is published and deployed.
+`RC-CCA7D1B-20260916-R3` is published at
+`ghcr.io/duclee9x/itcenter@sha256:3715744c11e133d7068651d7df6fe1ef2f1377643bf65e6635f4fcadfdac1d9e`.
+The digest was pulled into Lima and exercised in the isolated staging stack.
+The remaining action is a repository-side deployment integration correction:
+the canonical staging deployment must load the non-secret Keycloak CA trust
+configuration used by the HTTPS staging issuer. This is not an operator
+credential request.
+
+Blocks: RELEASE-004 staging attestation and dependent release verification.

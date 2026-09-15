@@ -95,22 +95,67 @@ remain partial staging evidence. The Lima guest has no installed user
 `itcenter-backup.timer`, so the scheduled RPO path was not executed; the
 checked-in six-hour timer definition remains available for operator install.
 
-No registry-backed immutable RC metadata, completed RFC9068 OIDC acceptance,
-Agent registration/credential acceptance, public staging DNS/ACME evidence, or
-production escrow governance evidence is available. No release is therefore
-VERIFIED.
+At the time of the initial summary, no registry-backed immutable RC metadata
+was available. Phase 5 adds that RC and exact-digest local staging evidence;
+completed RFC9068 negative acceptance, Agent registration/credential
+acceptance, canonical deployment attestation, scheduled backup evidence,
+application restore validation, the migration matrix, public production
+edge evidence and production escrow governance are still unavailable. No
+release is therefore VERIFIED.
+
+## Phase 5 exact registry candidate and staging edge evidence
+
+Bootstrap CI run `35010287210` completed successfully for both `verify` and
+`publish-oci` after the protected `master` prerequisite was enabled. The
+workflow source is `e690ea47a7eb4b70057247b2793dd0db67918c7e`. It published
+`RC-CCA7D1B-20260916-R3` to GHCR with image digest
+`sha256:3715744c11e133d7068651d7df6fe1ef2f1377643bf65e6635f4fcadfdac1d9e`.
+The RC metadata was committed at `76ab410`; SBOM and provenance are recorded
+as generated. The digest was pulled into Lima and inspected as `linux/arm64`.
+
+The isolated staging API, Agent Gateway and Worker were recreated from that
+exact digest. Their inspected image digest is the RC digest above. PostgreSQL
+and Caddy remain separate infrastructure images. The API and PostgreSQL have
+no published host port; only Caddy staging ports and the dedicated Gateway
+mTLS port are published. API readiness became usable after the staging
+Keycloak CA was trusted, and the canonical smoke command returned
+`SMOKE_READY`.
+
+The local staging edge checks passed: HTTP returned the HTTPS redirect, HTTPS
+reached `/api/v1/health/live` with `200`, the required security headers were
+present, unauthenticated capabilities returned `401`, and a body above 2 MiB
+returned `413`. A bounded real-token general limiter check returned `206` at
+the normal threshold and `99` `429` responses after the bucket was exhausted;
+the mutation check returned `80` route responses followed by one `429`.
+The direct Gateway readiness endpoint returned `200` through its separate
+forwarded port. These are local/internal staging results, not public DNS or
+production ACME evidence.
+
+The first canonical `deploy.sh` attempt exposed a deployment integration gap:
+the current staging env uses an HTTPS Keycloak issuer, but `deploy.sh` does
+not load the existing non-secret Keycloak CA compose override. The stack was
+then started with that isolated override and the exact RC digest, without
+changing the image or validator. This leaves canonical registry-backed
+staging attestation incomplete until the deployment path accepts the required
+staging trust configuration.
+
+The general and mutation checks do not close RELEASE-007 by themselves. Real
+OIDC negative-token and authorization evidence, canonical Agent enrollment
+and negative mTLS behavior, readiness failure/drain evidence, scheduled
+backup/timer evidence, application restore validation, the N-1 migration
+matrix, and production escrow governance remain open.
 
 ## Verification result
 
-| Item        | Result                         | Evidence / remaining blocker                                                                                                                                                             |
-| ----------- | ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| RELEASE-001 | `CODE_COMPLETE / NOT VERIFIED` | Real Keycloak/JWKS/RS256 `at+jwt` token is now accepted and authorized for the staging tenant; the complete negative-token, revoked-membership and RBAC matrix remains incomplete.       |
-| RELEASE-002 | `CODE_COMPLETE / NOT VERIFIED` | Phase 4 Linux/OpenSSL remediation and focused issuer/mTLS tests pass; canonical enrollment, credential acceptance and negative staging matrix remain incomplete.                         |
-| RELEASE-003 | `CODE_COMPLETE / NOT VERIFIED` | API reaches READY, all three mandatory workers are healthy, and Gateway reaches expected DEGRADED; dependency-failure, worker-failure and drain transitions are not fully evidenced.     |
-| RELEASE-004 | `CODE_COMPLETE / NOT VERIFIED` | New local immutable candidate `RC-LOCAL-CCA7D1B` exists and CI verify is green; protected branch/GHCR publication and exact-digest staging attestation remain required.                  |
-| RELEASE-005 | `CODE_COMPLETE / NOT VERIFIED` | Staging protected backup and isolated schema restore pass; application restore validation, production escrow, scheduled timer evidence and qualifying RPO/RTO remain.                    |
-| RELEASE-006 | `CODE_COMPLETE / NOT VERIFIED` | Transitional N-1 artifact is prepared, but baseline/application compatibility and backup-gated N-1→N rehearsal remain blocked by incomplete OIDC/application runtime acceptance.         |
-| RELEASE-007 | `CODE_COMPLETE / NOT VERIFIED` | Local staging edge, redirect, trusted HTTPS, readiness, 401, 413 and mutation 429 pass. General-limit, spoof, modern/obsolete TLS and direct Agent application checks remain incomplete. |
+| Item        | Result                         | Evidence / remaining blocker                                                                                                                                                                                 |
+| ----------- | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| RELEASE-001 | `CODE_COMPLETE / NOT VERIFIED` | Real Keycloak/JWKS/RS256 `at+jwt` token is accepted in the isolated stack; the complete negative-token, revoked-membership and RBAC matrix remains incomplete.                                               |
+| RELEASE-002 | `CODE_COMPLETE / NOT VERIFIED` | Linux/OpenSSL remediation and direct TLS handshake pass; canonical enrollment, credential acceptance and negative staging matrix remain incomplete.                                                          |
+| RELEASE-003 | `CODE_COMPLETE / NOT VERIFIED` | API readiness and three mandatory workers are healthy; dependency-failure, worker-failure and drain transitions are not fully evidenced.                                                                     |
+| RELEASE-004 | `CODE_COMPLETE / NOT VERIFIED` | Registry RC publication and exact-digest pull pass; canonical deployment/attestation is incomplete because the staging OIDC CA override is outside `deploy.sh`.                                              |
+| RELEASE-005 | `CODE_COMPLETE / NOT VERIFIED` | Protected backup, checksum and isolated schema restore pass; application restore validation, scheduled timer evidence, production escrow and measured RPO/RTO remain open.                                   |
+| RELEASE-006 | `CODE_COMPLETE / NOT VERIFIED` | Transitional N-1 is preserved, but baseline/application compatibility and backup-gated N-1→N rehearsal remain incomplete.                                                                                    |
+| RELEASE-007 | `CODE_COMPLETE / NOT VERIFIED` | Local exact-RC edge checks pass for redirect, HTTPS, headers, 401, 413, general/mutation 429 and direct Gateway reachability; spoof, TLS-version and full direct Agent application checks remain incomplete. |
 
 **RPO:** `UNVERIFIED` for production release closure. Staging backup age was
 within six hours and provides `MET` staging evidence only.
