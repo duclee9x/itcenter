@@ -44,8 +44,8 @@ RELEASE-005 implementation is now code-complete, while its protected
 backup/restore and RPO/RTO evidence require operational verification. This
 activity implements RELEASE-006's isolated migration rehearsal infrastructure;
 its qualifying N-1 and production-like evidence remain pending. RELEASE-007
-is `BLOCKED / NOT_STARTED` because its edge security decisions are not yet
-normatively complete.
+R1 is now complete and the item is `READY / NOT_STARTED`; runtime edge work
+has not started.
 
 ## Release order
 
@@ -61,10 +61,11 @@ exact-schema defaults, the four-cell matrix, 10-second lock timeout,
 10-minute statement timeout and 30-minute migration budget. See [the
 implementation report](items/RELEASE-006_IMPLEMENTATION_REPORT.md) and
 [RELEASE-006-R1](items/RELEASE-006-R1_POSTGRESQL_MIGRATION_COMPATIBILITY_CONTRACT.md).
-RELEASE-007 is `BLOCKED / NOT_STARTED` pending
-[RELEASE-007-R1](items/RELEASE-007-R1_PRODUCTION_EDGE_TLS_RATE_LIMITING_CONTRACT.md),
-which must define its security limits and certificate/proxy policy before
-runtime work. RELEASE-006 also depends on RELEASE-005 verification inputs;
+RELEASE-007 is `READY / NOT_STARTED` after
+[RELEASE-007-R1](items/RELEASE-007-R1_PRODUCTION_EDGE_TLS_RATE_LIMITING_CONTRACT.md)
+fixed its security limits, certificate lifecycle and trusted-proxy policy.
+Runtime work has not started. RELEASE-006 also depends on RELEASE-005
+verification inputs;
 the final
 RELEASE-GATE-001 waits for every initial remediation item to be verified.
 Follow [RELEASE_DEPENDENCY_GRAPH.md](RELEASE_DEPENDENCY_GRAPH.md).
@@ -77,5 +78,5 @@ Follow [RELEASE_DEPENDENCY_GRAPH.md](RELEASE_DEPENDENCY_GRAPH.md).
   client deprecation debt in the blocking backlog unless launch scope changes.
 - Keep runtime fail-closed behavior until real production adapters are
   configured and verified.
-- Do not implement RELEASE-007 runtime while its security contract is blocked.
+- Do not begin RELEASE-GATE-001 automatically after RELEASE-007 implementation.
 - Keep `AGENTS.md` unrelated working-tree changes unstaged and uncommitted.

@@ -2,19 +2,18 @@
 
 | Field          | Value                                                |
 | -------------- | ---------------------------------------------------- |
-| Status         | `CODE_COMPLETE / PLANNING_ONLY`                      |
+| Status         | `CODE_COMPLETE`                                      |
 | Parent item    | `RELEASE-007`                                        |
-| Current status | `BLOCKED / NOT_STARTED`                              |
-| Blocker        | `SPEC_GAP / SECURITY_DECISION`                       |
+| Current status | `READY / NOT_STARTED`                                |
+| Blocker        | None                                                 |
 | Runtime        | Lima VM, rootless Podman, `podman compose`           |
 | Topology       | Caddy → API; Agent → direct TCP/mTLS → Agent Gateway |
 
 ## Purpose
 
-RELEASE-007 cannot safely change the edge configuration until the following
-security and operational decisions are explicit. This document records the
-gap and the facts found during state recovery. It does not implement Caddy,
-Compose, application, or Agent Gateway changes.
+This document fixes the v1 edge security and operational decisions for
+RELEASE-007. It does not implement Caddy, Compose, application, or Agent
+Gateway changes.
 
 ## Reconciled current topology
 
@@ -42,79 +41,76 @@ Compose, application, or Agent Gateway changes.
 - The application does not establish a completed trusted-proxy policy for
   arbitrary client-supplied `X-Forwarded-*` or `Forwarded` values.
 
-## Decisions required before implementation
+## Normative v1 decisions
 
 ### Certificate ownership and lifecycle
 
-Choose and record the production certificate source:
-
-- Caddy-managed ACME with approved DNS/domain automation; or
-- operator-provisioned certificate/key mounted from protected external secret
-  storage.
-
-The decision must define renewal, persistent Caddy state, staging
-certificate/domain isolation, expiry failure behavior, and whether HSTS is
-enabled after production HTTPS is stable. Missing certificate configuration
-must fail closed; plaintext API fallback is forbidden. Staging may use an
-approved local/internal certificate mode but must not reuse production private
-material.
+Caddy owns production certificate lifecycle through Caddy-supported automatic
+public ACME issuance with an operator-configured hostname and DNS. Caddy
+certificate/account state persists in a protected production Podman volume,
+isolated from staging. Operator-provisioned certificate/key files are an
+explicit alternative mode, mounted externally read-only where possible. ACME
+failure while the installed certificate remains valid continues serving HTTPS
+and raises an operational failure; expiry or missing TLS material makes the
+API unavailable. Plaintext fallback is forbidden. Staging uses an independent
+Caddy internal/local CA or staging ACME hostname.
 
 ### HTTPS and port ownership
 
-Confirm that production port `80` is redirect-only and port `443` is the API
-HTTPS edge. Confirm the Lima guest-to-macOS forwarding required to expose
-guest `80/443` safely under rootless Podman. Confirm that Agent Gateway's
-dedicated TCP/mTLS port is forwarded independently and is never sent through
-Caddy HTTP routing.
+Production guest port `80` is redirect-only and guest port `443` is the API
+HTTPS edge. Lima forwards these guest ports to operator-selected macOS host
+ports. Agent Gateway's dedicated TCP/mTLS port is forwarded independently and
+is never sent through Caddy HTTP routing. PostgreSQL and the raw API HTTP port
+remain private.
 
 ### Trusted proxy and forwarded headers
 
-Define the exact trusted boundary: Caddy is the only trusted reverse proxy for
-API traffic. Define which normalized headers Caddy sets, which application
-addresses are trusted, and how public client-supplied `X-Forwarded-For`,
-`X-Forwarded-Proto`, `X-Forwarded-Host`, and `Forwarded` values are discarded
-or replaced. Define whether client IP is used for rate limiting, audit, or
-logs, and the privacy/retention rule for that value.
+Caddy is the only trusted reverse proxy and exactly one application proxy hop
+is trusted. Caddy normalizes `X-Forwarded-For`, `X-Forwarded-Proto`, and
+`X-Forwarded-Host`; public client-supplied forwarding values are discarded or
+replaced. API client IP, used by the limiter, is accepted only through that
+bounded boundary. Forwarded metadata never grants auth, tenant, RBAC, or
+Agent identity.
 
 ### Rate-limit policy
 
-The API contract requires rate limiting and `429`/`Retry-After`, but does not
-define numeric production limits. Approve a small policy for:
-
-- general API traffic;
-- authentication-sensitive or unauthenticated traffic that actually exists;
-- expensive or bulk/mutating traffic;
-- health endpoints used by local readiness checks.
-
-For each group define the counting key, window/algorithm, burst behavior,
-response headers, staging override mechanism, and whether the policy is
-per-Caddy-instance. Redis or a distributed limiter is not required for the
-single-host v1 unless explicitly chosen.
+Rate limiting is enforced by API middleware behind Caddy, using an in-memory
+per-process token-bucket or equivalent implementation. The key is trusted
+client IP. The general `/api/v1/*` bucket is 300 requests per 60 seconds with
+a 100-request burst. `POST`, `PUT`, `PATCH`, and `DELETE` under `/api/v1/*`
+also require a 60 requests per 60 seconds bucket with a 20-request burst.
+Both buckets apply to mutations. A hit returns `429` and `Retry-After` where
+practical. Health endpoints are exempt for trusted local probes and may have a
+generous abuse ceiling when public. The authenticated capabilities endpoint
+uses the normal API bucket. Limits are local to the single API process; no
+distributed/global guarantee or Redis dependency exists.
 
 ### Request size and proxy timeouts
 
-Define the maximum edge request body and any endpoint exceptions required by
-current upload/import flows. Define header limits and upstream read/write/
-idle timeouts. The values must be compatible with the existing application
-body parsers and Node 10-second request/header timeout behavior. No runtime
-number may be invented solely while editing Caddy.
+The production edge request-body limit is 2 MiB for ordinary JSON/API
+requests. Repository inspection found no raw upload/import route requiring a
+larger public body, so there is no v1 exception. Oversized requests return
+`413`. The upstream connect timeout is 5 seconds, response-header timeout is
+30 seconds, and the normal request/upstream budget is 60 seconds. Long-running
+work must use existing asynchronous workflows rather than an unlimited proxy
+timeout.
 
 ### Security headers and CORS
 
-Define the baseline headers appropriate to this API. Decide whether the
-instance serves a browser UI, which determines whether CSP, frame policy and
-CORS are needed. If HSTS is enabled, define the exact production hostname
-scope and explicitly exclude preload/subdomain-wide policy unless separately
-approved. Caddy must not add wildcard authenticated CORS.
+Production API responses add `X-Content-Type-Options: nosniff`,
+`Referrer-Policy: no-referrer`, and `X-Frame-Options: DENY`. HSTS is
+production-only with `max-age=86400`, without `includeSubDomains` or
+`preload`. CSP is not added because this edge serves an API, and CORS remains
+application-owned; Caddy never adds wildcard authenticated CORS.
 
 ### Failure and verification policy
 
-Define whether invalid Caddy configuration is validated before rollout and
-how known-good edge state is retained on failure. Define the staging smoke
-requirements for TLS trust, HTTP redirect, 429 behavior, body rejection,
-forwarded-header spoofing, protected capabilities, health endpoints, direct
-Agent mTLS, and raw API/PostgreSQL exposure. Define the acceptance evidence
-needed before RELEASE-007 becomes `VERIFIED`.
+Deployment validates Caddy configuration before switching edge state and fails
+without replacing a known-good configuration when validation fails. Staging
+must test TLS trust, HTTP redirect, 429 behavior for both buckets, 2 MiB body
+rejection, forwarded-header spoofing, protected capabilities, health paths,
+direct Agent mTLS, and raw API/PostgreSQL exposure before RELEASE-007 can be
+`VERIFIED`.
 
 ## Non-negotiable boundaries already fixed
 
@@ -129,9 +125,18 @@ needed before RELEASE-007 becomes `VERIFIED`.
 - The deployment remains `SINGLE_HOST / NO_HA`; edge rate limits do not claim
   DDoS protection.
 
-## Exit condition
+## Operational cleanup rule
 
-After the decisions above are approved and persisted, update the parent item to
-`READY / NOT_STARTED`, clear `SPEC_GAP / SECURITY_DECISION`, and implement
-RELEASE-007 in a separate run. Until then, no Caddy or Compose runtime change
-is authorized by this contract.
+RELEASE-007 implementation and rehearsal work must clean task-owned temporary
+containers, images, networks, volumes, Compose projects, scratch files,
+generated test certificates, and temporary logs on success and failure. Use
+deterministic `itsm-release007-test-*` or `itsm-edge-test-*` names. Never run
+global prune and never delete release artifacts, LKG/current images, backup or
+evidence data, persistent staging/production volumes, or unrelated user files.
+Report `podman system df` where Podman was used.
+
+## Completion
+
+The edge contract is internally consistent. RELEASE-007 is `READY /
+NOT_STARTED`; implementation is a separate authorized run. RELEASE-GATE-001
+must not start automatically.

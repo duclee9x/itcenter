@@ -83,11 +83,11 @@ is included in the approved release scope.
 - **Severity:** Critical
 - **Affected capability:** Public and internal HTTP endpoints
 - **Production impact:** API and Agent Gateway use Node HTTP listeners. No checked-in production ingress/reverse-proxy configuration proves TLS termination, trusted proxy handling or rate limiting. API contract specifications require rate limits, but no application limiter or configured edge policy was found. There is no CORS policy (which is acceptable if no cross-origin browser client is exposed, but must be decided), nor a deployment-level request-size policy. App code does not consume forwarded headers as trusted identity, which should remain the default until proxy trust is explicitly configured.
-- **Required action:** Complete [RELEASE-007-R1](items/RELEASE-007-R1_PRODUCTION_EDGE_TLS_RATE_LIMITING_CONTRACT.md) by approving certificate ownership/renewal, HTTPS and Lima port exposure, trusted forwarded headers, numeric rate/body/timeout limits, security headers and failure behavior. Only then implement the Caddy edge and tests.
+- **Required action:** Implement [RELEASE-007-R1](items/RELEASE-007-R1_PRODUCTION_EDGE_TLS_RATE_LIMITING_CONTRACT.md): Caddy ACME/manual certificate modes, HTTPS redirect, API middleware limits, bounded one-hop forwarding, 2 MiB body limit, timeouts, headers and fail-closed validation. Then capture the required staging edge evidence.
 - **Verification:** External staging scan and positive/negative TLS tests; spoofed forwarded-header test; rate-limit behavior and `429` response; oversized-body rejection; CORS preflight/denial tests if browser access is enabled; ensure no direct unencrypted listener is reachable.
 - **Owner/domain:** Security Engineering / Platform Networking
 - **Release-blocking:** Yes
-- **Evidence:** [RELEASE-007-R1](items/RELEASE-007-R1_PRODUCTION_EDGE_TLS_RATE_LIMITING_CONTRACT.md); `apps/api/src/server.ts`; `apps/agent-gateway/src/server.ts`; `packages/observability/src/index.ts`; `docs/API_COMMAND_CONTRACT_SPEC.md` rate-limit and transport requirements; absence of production ingress configuration.
+- **Evidence:** [RELEASE-007-R1](items/RELEASE-007-R1_PRODUCTION_EDGE_TLS_RATE_LIMITING_CONTRACT.md); [RELEASE-007 item](items/RELEASE-007_PRODUCTION_TLS_INGRESS_RATE_LIMITING.md); `apps/api/src/server.ts`; `apps/agent-gateway/src/server.ts`; `packages/observability/src/index.ts`; `docs/API_COMMAND_CONTRACT_SPEC.md` rate-limit and transport requirements. Runtime edge implementation and staging evidence remain pending.
 
 ## RR-08 — Metrics, traces, and actionable alerts are not production-wired
 

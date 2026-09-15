@@ -283,3 +283,40 @@ attestation. Production promotion uses that same digest and attestation. A
 real staging deployment remains required before RELEASE-004 is `VERIFIED`.
 RELEASE-007 will complete API ingress controls; it does not change direct
 Agent mTLS termination.
+
+## RELEASE-007 edge policy
+
+The approved edge is Caddy → API. Production guest port 80 redirects to 443;
+Lima forwards those guest ports to the operator-selected macOS host ports.
+Agent Gateway remains a separate direct TCP/mTLS port (production 3001,
+staging 13001) and is never routed through Caddy. The API raw port 3000 and
+PostgreSQL remain private.
+
+Caddy owns API TLS and persistent certificate/account state. Production uses
+Caddy automatic public ACME by default, with external operator-provisioned
+certificate/key files as an explicit alternative. Staging uses a separate
+internal CA or staging ACME hostname. TLS private keys are external mounted
+secrets; no plaintext fallback is allowed. Configure the required DNS,
+certificate paths and Lima forwarding before deployment.
+
+Rate limiting is implemented in API middleware behind exactly one trusted Caddy
+hop. The general `/api/v1/*` limit is 300 requests per 60 seconds per trusted
+client IP with a 100-request burst. Mutating methods add a 60/60 bucket with a
+20-request burst. Limits are in-memory and local to the single API process;
+hits return 429 and `Retry-After` where practical. Health probes remain usable,
+and `/api/v1/health/capabilities` remains authenticated and rate limited.
+
+The edge body limit is 2 MiB and oversized requests return 413. Upstream
+connect, response-header and normal request budgets are 5 seconds, 30 seconds
+and 60 seconds. Production adds `nosniff`, `no-referrer` and `DENY` frame
+headers, plus HSTS `max-age=86400` without `includeSubDomains` or `preload`.
+CORS remains application-owned. Caddy configuration must validate before edge
+replacement, and an invalid TLS or rate-limit configuration fails deployment.
+
+All RELEASE-007 tests and rehearsals must clean their task-owned temporary
+containers, images, networks, volumes, Compose projects, generated test
+certificates and scratch files on success and failure. Use
+`itsm-release007-test-*` or `itsm-edge-test-*` names and preserve release
+artifacts, backup/evidence data, persistent volumes and unrelated files. Never
+run `podman system prune -a` automatically. Report `podman system df` after
+Podman-based work where practical.
