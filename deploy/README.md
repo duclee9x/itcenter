@@ -219,6 +219,33 @@ schema compatibility. RELEASE-006 rehearsal evidence must include fresh
 install, N-1 upgrade, data validation, lock/duration observations, Worker and
 relevant Gateway checks, and the complete four-cell matrix.
 
+The implementation command runs inside the Lima guest and is isolated by
+default:
+
+```sh
+bash deploy/scripts/rehearse-migration.sh \
+  --from release/rc/<n-minus-1>.json \
+  --to release/rc/<candidate>.json \
+  --config /opt/itcenter/deploy/env/staging.env \
+  --evidence-dir /var/lib/itcenter/release-state/migration-rehearsals
+```
+
+Both metadata files must identify exact schema revisions and immutable OCI
+images. A transitional N-1 file must additionally identify its committed
+source revision, migration-step prefix and deterministic artifact provenance;
+the command never invents a historical digest. `--test-mode` is reserved for
+isolated implementation tests and does not satisfy RELEASE-005 protected
+backup, RPO/RTO, or production-like verification.
+
+The command rejects production configuration, uses a unique
+`itsm-migration-rehearsal-*` Compose project and removes its containers,
+network and volume on completion. A failed backup gate, migration, schema
+check, readiness check or smoke check exits non-zero, preserves its JSON
+evidence, and never performs an automatic restore or down migration. The
+recorded rollback result is `APPLICATION_ROLLBACK_SUPPORTED` only when the
+exact App N-1 + Schema N pair has been proven; otherwise it is
+`FORWARD_FIX_REQUIRED`.
+
 ## Guest boot and shutdown
 
 The checked-in unit is a systemd **user** unit. Install reviewed runtime

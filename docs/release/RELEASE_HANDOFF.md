@@ -42,7 +42,9 @@ Lima Linux VM. The selected v1 deployment is single-host and explicitly not
 HA. RELEASE-004 staging deployment and evidence capture remain pending;
 RELEASE-005 implementation is now code-complete, while its protected
 backup/restore and RPO/RTO evidence require operational verification. This
-activity does not start RELEASE-006 runtime work or RELEASE-007.
+activity implements RELEASE-006's isolated migration rehearsal infrastructure;
+its qualifying N-1 and production-like evidence remain pending. RELEASE-007
+is not started.
 
 ## Release order
 
@@ -51,10 +53,13 @@ use guest-side PostgreSQL logical interfaces, age encryption, a verified
 `HOST_PROTECTED` Lima mount and isolated Podman Compose restore projects; they
 never use Podman volume internals. RPO 6h and RTO 2h remain UNVERIFIED until
 the required rehearsal. See [RELEASE-005 implementation report](items/RELEASE-005_IMPLEMENTATION_REPORT.md).
-RELEASE-006 is `READY / NOT_STARTED` after completion of its R1 contract.
-The contract fixes controlled maintenance, exact-schema defaults, the four-cell
-matrix, 10-second lock timeout, 10-minute statement timeout and 30-minute
-migration budget. See [RELEASE-006-R1](items/RELEASE-006-R1_POSTGRESQL_MIGRATION_COMPATIBILITY_CONTRACT.md).
+RELEASE-006 is `CODE_COMPLETE / NOT VERIFIED` after implementing the isolated
+Podman rehearsal command, exact four-cell matrix evidence, timeout controls and
+rollback-mode derivation. Its contract fixes controlled maintenance,
+exact-schema defaults, the four-cell matrix, 10-second lock timeout,
+10-minute statement timeout and 30-minute migration budget. See [the
+implementation report](items/RELEASE-006_IMPLEMENTATION_REPORT.md) and
+[RELEASE-006-R1](items/RELEASE-006-R1_POSTGRESQL_MIGRATION_COMPATIBILITY_CONTRACT.md).
 RELEASE-007 is READY because the RELEASE-004 topology is implemented, but is
 not started here. RELEASE-006 also depends on RELEASE-005 verification inputs;
 the final

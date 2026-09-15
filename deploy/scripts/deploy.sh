@@ -80,7 +80,8 @@ if [[ "$environment" == production ]]; then
   [[ -n "$backup_ref" ]] || { failure_reason=PRE_MIGRATION_BACKUP_FAILED; die "$failure_reason"; }
 fi
 
-compose --profile migration run --rm migrate || {
+run_migration_with_budget "$CONTAINER_CLI" compose "${COMPOSE_ARGS[@]}" \
+  --profile migration run --rm migrate || {
   failure_reason=MIGRATION_FAILED
   die "$failure_reason"
 }

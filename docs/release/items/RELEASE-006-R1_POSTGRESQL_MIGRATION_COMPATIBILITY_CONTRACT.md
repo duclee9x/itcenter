@@ -1,13 +1,13 @@
 # RELEASE-006-R1 — PostgreSQL Migration Compatibility & Rehearsal Contract
 
-| Field | Value |
-| --- | --- |
-| Release item | RELEASE-006 — PostgreSQL Migration Rehearsal + N-1 Compatibility |
-| Type | Normative planning/specification contract |
-| Status | `CODE_COMPLETE` |
-| Runtime | macOS host → Lima VM → rootless Podman → `podman compose` → PostgreSQL |
-| Deployment mode | `CONTROLLED_MAINTENANCE`, `SINGLE_HOST`, `NO_HA` |
-| RPO/RTO dependency | RELEASE-005 remains `CODE_COMPLETE / NOT VERIFIED` |
+| Field              | Value                                                                  |
+| ------------------ | ---------------------------------------------------------------------- |
+| Release item       | RELEASE-006 — PostgreSQL Migration Rehearsal + N-1 Compatibility       |
+| Type               | Normative planning/specification contract                              |
+| Status             | `CODE_COMPLETE`                                                        |
+| Runtime            | macOS host → Lima VM → rootless Podman → `podman compose` → PostgreSQL |
+| Deployment mode    | `CONTROLLED_MAINTENANCE`, `SINGLE_HOST`, `NO_HA`                       |
+| RPO/RTO dependency | RELEASE-005 remains `CODE_COMPLETE / NOT VERIFIED`                     |
 
 ## Purpose and boundary
 
@@ -46,12 +46,12 @@ release artifacts.
 Every completed rehearsal persists exactly one result for every cell:
 `SUPPORTED`, `UNSUPPORTED`, or `NOT_APPLICABLE`.
 
-| Application | Schema | V1 rule |
-| --- | --- | --- |
-| N-1 | N-1 | `SUPPORTED`; mandatory healthy baseline |
-| N | N-1 | `UNSUPPORTED` by default; actual rehearsal result is recorded |
-| N-1 | N | `UNSUPPORTED` by default; actual rehearsal result is recorded |
-| N | N | `SUPPORTED`; mandatory target state |
+| Application | Schema | V1 rule                                                       |
+| ----------- | ------ | ------------------------------------------------------------- |
+| N-1         | N-1    | `SUPPORTED`; mandatory healthy baseline                       |
+| N           | N-1    | `UNSUPPORTED` by default; actual rehearsal result is recorded |
+| N-1         | N      | `UNSUPPORTED` by default; actual rehearsal result is recorded |
+| N           | N      | `SUPPORTED`; mandatory target state                           |
 
 The defaults are release-pair defaults, not a permanent claim about all future
 releases. A rehearsal may prove a particular cross-version cell supported;
@@ -98,12 +98,12 @@ evidence and an explicit deployment decision.
 
 The normative v1 budgets are:
 
-| Setting | Value | Meaning |
-| --- | --- | --- |
-| `lock_timeout` | 10 seconds | conflicting lock acquisition fails |
-| `statement_timeout` | 10 minutes | one migration statement fails after the limit |
-| overall migration timeout | 30 minutes | the migration stage fails/escalates |
-| maintenance migration budget | 30 minutes | expected maximum migration execution window |
+| Setting                      | Value      | Meaning                                       |
+| ---------------------------- | ---------- | --------------------------------------------- |
+| `lock_timeout`               | 10 seconds | conflicting lock acquisition fails            |
+| `statement_timeout`          | 10 minutes | one migration statement fails after the limit |
+| overall migration timeout    | 30 minutes | the migration stage fails/escalates           |
+| maintenance migration budget | 30 minutes | expected maximum migration execution window   |
 
 The overall timeout is distinct from PostgreSQL session settings. It is not a
 promise that PostgreSQL automatically rolls back every operation at exactly

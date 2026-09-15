@@ -1,15 +1,43 @@
 import path from "node:path";
 import type pg from "pg";
 import { readFile } from "node:fs/promises";
-import { readExpectedMigrationManifest } from "../../packages/persistence/src/migration-manifest.js";
+import {
+  limitMigrationManifest,
+  readExpectedMigrationManifest,
+} from "../../packages/persistence/src/migration-manifest.js";
+
+export const DEFAULT_MIGRATION_LOCK_TIMEOUT = "10s";
+export const DEFAULT_MIGRATION_STATEMENT_TIMEOUT = "10min";
+
+function migrationSetting(name: string, fallback: string): string {
+  const value = process.env[name]?.trim();
+  return value || fallback;
+}
+
+export async function applyMigrationSessionSettings(
+  client: Pick<pg.PoolClient, "query">,
+): Promise<void> {
+  await client.query("SELECT set_config('lock_timeout', $1, false)", [
+    migrationSetting("MIGRATION_LOCK_TIMEOUT", DEFAULT_MIGRATION_LOCK_TIMEOUT),
+  ]);
+  await client.query("SELECT set_config('statement_timeout', $1, false)", [
+    migrationSetting(
+      "MIGRATION_STATEMENT_TIMEOUT",
+      DEFAULT_MIGRATION_STATEMENT_TIMEOUT,
+    ),
+  ]);
+}
+
 export async function migrate(
   pool: pg.Pool,
   root = path.resolve("database/migrations"),
 ): Promise<void> {
-  const manifest = await readExpectedMigrationManifest(root);
+  const allMigrations = await readExpectedMigrationManifest(root);
+  const manifest = limitMigrationManifest(allMigrations);
   const client = await pool.connect();
   try {
     await client.query("SELECT pg_advisory_lock(70911000)");
+    await applyMigrationSessionSettings(client);
     await client.query("CREATE SCHEMA IF NOT EXISTS migration_meta");
     await client.query(
       "CREATE TABLE IF NOT EXISTS migration_meta.applied(name text PRIMARY KEY,checksum text NOT NULL,applied_at timestamptz NOT NULL DEFAULT now())",

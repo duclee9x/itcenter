@@ -58,12 +58,12 @@ is included in the approved release scope.
 - **Severity:** High
 - **Affected capability:** PostgreSQL schema deployment and application rollback
 - **Production impact:** The migration runner uses deterministic owner ordering, checksums, an advisory lock and one transaction per migration. Existing tests cover fresh bootstrap, rerun and selected legacy cases, but no production-like prior-schema upgrade, migration duration/lock measurement, N-1 compatibility, deployment ordering, or forward-recovery rehearsal is recorded. A failed migration rolls back that migration; earlier successful migrations remain applied. No down-migration system is established.
-- **Required action:** Rehearse the exact release migrations on a sanitized production-like copy at expected scale; measure lock/duration; prove runtime/migration DB roles; define pre-migration backup, expand/contract ordering and forward-fix policy. Explicitly test whether N-1 can run after schema N; if not, use a coordinated rollout and forward recovery rather than assuming rollback.
+- **Required action:** Run `deploy/scripts/rehearse-migration.sh` in the Lima guest with exact N and N-1 metadata, then capture the isolated fresh-install/N-1 upgrade evidence. For RC verification, repeat it with a qualifying candidate artifact, protected pre-migration backup, production-like data shape and accepted runtime/secret provisioning. Measure lock/duration and explicitly test whether N-1 can run after Schema N; if not, use the coordinated rollout and forward recovery already implemented.
 - **Contract:** [RELEASE-006-R1](items/RELEASE-006-R1_POSTGRESQL_MIGRATION_COMPATIBILITY_CONTRACT.md) is complete. It fixes controlled maintenance, exact-schema defaults, the four-cell matrix, timeout/lock budgets, destructive/expand-contract classification, partial-failure/retry policy and evidence requirements.
 - **Verification:** Capture before/after schema checks, migration logs and timings; test fresh bootstrap and prior-version upgrade; start old/new binaries at each intended rollout boundary; restore the pre-migration backup into isolation and validate.
 - **Owner/domain:** Data Platform / Migration owners
 - **Release-blocking:** Yes
-- **Evidence:** `database/scripts/runner.ts`; `tests/migration/migrations.test.ts`; `docs/runbooks/local-development.md`.
+- **Evidence:** [RELEASE-006 implementation report](items/RELEASE-006_IMPLEMENTATION_REPORT.md); `deploy/scripts/rehearse-migration.sh`; `database/scripts/runner.ts`; `tests/architecture/release006-migration.test.ts`; `tests/migration/migrations.test.ts`. The real qualifying rehearsal remains pending.
 
 ## RR-06 — Production backup and restore policy and evidence are incomplete
 

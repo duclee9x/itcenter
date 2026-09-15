@@ -53,7 +53,8 @@ trap on_exit EXIT
 
 compose config --quiet || { failure_reason=COMPOSE_CONFIG_INVALID; die "$failure_reason"; }
 compose --profile migration pull migrate || { failure_reason=IMAGE_PULL_FAILED; die "$failure_reason"; }
-current_schema=$(compose --profile migration run --rm --no-deps migrate \
+current_schema=$(run_migration_with_budget "$CONTAINER_CLI" compose "${COMPOSE_ARGS[@]}" \
+  --profile migration run --rm --no-deps migrate \
   node dist/database/scripts/current-schema-revision.js 2>/dev/null) || {
   failure_reason=FORWARD_FIX_REQUIRED_SCHEMA_INCOMPATIBLE
   die "$failure_reason"

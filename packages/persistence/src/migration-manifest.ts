@@ -67,6 +67,18 @@ export interface MigrationManifestEntry {
   checksum: string;
 }
 
+export function limitMigrationManifest(
+  manifest: readonly MigrationManifestEntry[],
+  raw = process.env.MIGRATION_MAX_STEPS,
+): MigrationManifestEntry[] {
+  if (!raw?.trim()) return [...manifest];
+  if (!/^\d+$/.test(raw.trim())) throw new Error("MIGRATION_MAX_STEPS_INVALID");
+  const count = Number(raw);
+  if (!Number.isSafeInteger(count) || count < 1 || count > manifest.length)
+    throw new Error("MIGRATION_MAX_STEPS_INVALID");
+  return manifest.slice(0, count);
+}
+
 export async function listMigrationFiles(
   root = path.resolve("database/migrations"),
 ): Promise<string[]> {

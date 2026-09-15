@@ -30,16 +30,16 @@ Each entry records a `status` and a derived `readiness` independently.
 These are exactly the seven remediation items and one final gate authorized
 for this backlog. Initial P0 entries are listed in priority order.
 
-| ID               | Title                                                     | Priority | Status          | Readiness            | Dependencies                    | Blocker / note                                                                                                          |
-| ---------------- | --------------------------------------------------------- | -------: | --------------- | -------------------- | ------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| RELEASE-001      | Production API Authentication & Authorization Adapter     |       P0 | `CODE_COMPLETE` | `N/A`                | None                            | Automated acceptance passes; real IdP/staging validation remains before VERIFIED and keeps RR-01 open.                  |
-| RELEASE-002      | Production Agent Authentication for TASK-091              |       P0 | `CODE_COMPLETE` | `N/A`                | None                            | Automated implementation passes; real CA provisioning and staging-topology mTLS verification remain.                    |
-| RELEASE-003      | Worker Readiness & Background Processing Health           |       P0 | `CODE_COMPLETE` | `N/A`                | None                            | Runtime and automated checks pass; deployable-profile staging verification remains before `VERIFIED`.                   |
-| RELEASE-004      | Immutable Build / Staging / Promotion / Rollback Pipeline |       P0 | `CODE_COMPLETE` | `N/A`                | None                            | Runtime/pipeline checks pass; real Linux staging deployment and acceptance evidence remain before VERIFIED.             |
-| RELEASE-005      | Backup / Restore + RPO / RTO Validation                   |       P0 | `CODE_COMPLETE` | `N/A`                | None                            | Automation and pre-migration gate pass repository checks; RPO/RTO remain UNVERIFIED pending real rehearsal.             |
-| RELEASE-006      | PostgreSQL Migration Rehearsal + N-1 Compatibility        |       P0 | `NOT_STARTED`   | `READY`              | RELEASE-004, RELEASE-005        | R1 is complete. Use controlled maintenance, exact-schema defaults, 30-minute migration budget, timeout/lock evidence, and the N/N-1 matrix. |
-| RELEASE-007      | Production TLS Ingress + Rate Limiting                    |       P0 | `NOT_STARTED`   | `READY`              | RELEASE-004                     | Topology dependency is code-complete; validation remains scoped to the actual Compose deployment.                       |
-| RELEASE-GATE-001 | Release Candidate Readiness Re-verification               |     Gate | `NOT_STARTED`   | `WAITING_DEPENDENCY` | RELEASE-001 through RELEASE-007 | Run only after each required item is verified and all blockers are cleared.                                             |
+| ID               | Title                                                     | Priority | Status          | Readiness            | Dependencies                    | Blocker / note                                                                                                   |
+| ---------------- | --------------------------------------------------------- | -------: | --------------- | -------------------- | ------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| RELEASE-001      | Production API Authentication & Authorization Adapter     |       P0 | `CODE_COMPLETE` | `N/A`                | None                            | Automated acceptance passes; real IdP/staging validation remains before VERIFIED and keeps RR-01 open.           |
+| RELEASE-002      | Production Agent Authentication for TASK-091              |       P0 | `CODE_COMPLETE` | `N/A`                | None                            | Automated implementation passes; real CA provisioning and staging-topology mTLS verification remain.             |
+| RELEASE-003      | Worker Readiness & Background Processing Health           |       P0 | `CODE_COMPLETE` | `N/A`                | None                            | Runtime and automated checks pass; deployable-profile staging verification remains before `VERIFIED`.            |
+| RELEASE-004      | Immutable Build / Staging / Promotion / Rollback Pipeline |       P0 | `CODE_COMPLETE` | `N/A`                | None                            | Runtime/pipeline checks pass; real Linux staging deployment and acceptance evidence remain before VERIFIED.      |
+| RELEASE-005      | Backup / Restore + RPO / RTO Validation                   |       P0 | `CODE_COMPLETE` | `N/A`                | None                            | Automation and pre-migration gate pass repository checks; RPO/RTO remain UNVERIFIED pending real rehearsal.      |
+| RELEASE-006      | PostgreSQL Migration Rehearsal + N-1 Compatibility        |       P0 | `CODE_COMPLETE` | `N/A`                | RELEASE-004, RELEASE-005        | Rehearsal tooling and evidence are implemented; real qualifying N-1/Podman verification remains before VERIFIED. |
+| RELEASE-007      | Production TLS Ingress + Rate Limiting                    |       P0 | `NOT_STARTED`   | `READY`              | RELEASE-004                     | Topology dependency is code-complete; validation remains scoped to the actual Compose deployment.                |
+| RELEASE-GATE-001 | Release Candidate Readiness Re-verification               |     Gate | `NOT_STARTED`   | `WAITING_DEPENDENCY` | RELEASE-001 through RELEASE-007 | Run only after each required item is verified and all blockers are cleared.                                      |
 
 RELEASE-001's R1 and R2 contracts and runtime implementation are
 `CODE_COMPLETE`; real provider/staging verification remains outstanding. The
@@ -91,10 +91,11 @@ remain unchanged. RELEASE-004 runtime and pipeline
 are `CODE_COMPLETE`; it is not `VERIFIED` until a clean CI-published digest
 has been deployed and accepted in real Linux staging. RELEASE-005 is
 code-complete with its recovery-policy contract complete, but its protected
-rehearsal remains unverified. RELEASE-006 is `READY / NOT_STARTED` after
+rehearsal remains unverified. RELEASE-006 is `CODE_COMPLETE / NOT VERIFIED` after
 completion of the
 compatibility and rehearsal contract recorded in
 [RELEASE-006-R1](items/RELEASE-006-R1_POSTGRESQL_MIGRATION_COMPATIBILITY_CONTRACT.md).
-It is not started in this activity. RELEASE-007 remains `READY / NOT_STARTED`
-but is not started in this activity.
+The implementation is recorded in [the RELEASE-006 report](items/RELEASE-006_IMPLEMENTATION_REPORT.md);
+qualifying N-1 and production-like verification remain open. RELEASE-007
+remains `READY / NOT_STARTED` and is not started in this activity.
 Overall readiness remains `BLOCKED_FOR_RC`.

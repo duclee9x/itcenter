@@ -165,3 +165,16 @@ verify_rc_metadata() {
 config_revision() {
   sha256sum "$@" | sha256sum | awk '{print $1}'
 }
+
+migration_timeout_seconds() {
+  local value=${MIGRATION_TIMEOUT_SECONDS:-1800}
+  [[ "$value" =~ ^[0-9]+$ ]] && (( value >= 1 && value <= 1800 )) || die MIGRATION_TIMEOUT_INVALID
+  printf '%s\n' "$value"
+}
+
+run_migration_with_budget() {
+  command -v timeout >/dev/null 2>&1 || die MIGRATION_TIMEOUT_TOOL_UNAVAILABLE
+  local seconds
+  seconds=$(migration_timeout_seconds)
+  timeout --signal=TERM "$seconds" "$@"
+}

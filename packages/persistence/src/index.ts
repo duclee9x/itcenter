@@ -1,5 +1,6 @@
 import pg from "pg";
 export {
+  limitMigrationManifest,
   listMigrationFiles,
   migrationManifestRevision,
   readExpectedMigrationManifest,

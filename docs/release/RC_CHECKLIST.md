@@ -31,6 +31,10 @@ for the binding decisions; this checklist does not replace those contracts.
       defaults, four-cell compatibility matrix, timeout/lock budgets,
       destructive/expand-contract policy, partial-failure/retry behavior,
       rehearsal dataset/load, and evidence/approval criteria.
+- [x] Implement `deploy/scripts/rehearse-migration.sh` with isolated
+      Podman Compose projects, exact N/N-1 metadata, migration timeouts,
+      backup-gate enforcement and per-run compatibility evidence. This is
+      implementation evidence only; the qualifying rehearsal remains open.
 
 ## Build and artifact identity
 
