@@ -108,9 +108,9 @@ jobs:
         env:
           IMAGE_DIGEST: ${{ steps.image.outputs.digest }}
           WORKFLOW_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          LOCKFILE_SHA: ${{ hashFiles('package-lock.json') }}
           BUILD_TIME: ${{ steps.build-info.outputs.built_at }}
         run: |
+          LOCKFILE_SHA="$(sha256sum package-lock.json | awk '{print $1}')"
           node deploy/scripts/create-rc-metadata.mjs \
             "$RELEASE_ID" "$IMAGE_REPOSITORY" "$IMAGE_DIGEST" \
             "$GITHUB_SHA" "$BUILD_TIME" \
