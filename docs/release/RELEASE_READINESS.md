@@ -108,8 +108,8 @@ staging/production projects, ordered migration, readiness/smoke gates,
 staging-evidence attestation, stateful exact-digest rollback, and systemd host
 boot integration. Automated repository checks pass, but no clean CI-published
 digest has been deployed through a real Linux staging host; RELEASE-004 is not
-`VERIFIED` and RR-04 remains open. RELEASE-005 is currently blocked by
-unresolved RPO/RTO and recovery-policy decisions, RELEASE-006 waits on
+`VERIFIED` and RR-04 remains open. RELEASE-005 is ready with its R1
+recovery-policy decisions complete, RELEASE-006 waits on
 RELEASE-005, and RELEASE-007 is now `READY / NOT_STARTED`
 because its topology dependency is implemented. Overall readiness remains
 `BLOCKED_FOR_RC`.

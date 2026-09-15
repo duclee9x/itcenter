@@ -9,7 +9,7 @@ flowchart TD
   R002[RELEASE-002 Agent Authentication — CODE_COMPLETE / staging verification pending]
   R003[RELEASE-003 Worker Readiness — CODE_COMPLETE / staging verification pending]
   R004[RELEASE-004 Immutable Build / Promotion — CODE_COMPLETE / NOT VERIFIED]
-  R005[RELEASE-005 Backup / Restore — BLOCKED / contract gap]
+  R005[RELEASE-005 Backup / Restore — READY / NOT_STARTED]
   R006[RELEASE-006 Migration Rehearsal / N-1]
   R007[RELEASE-007 TLS Ingress / Rate Limiting — READY / NOT_STARTED]
   G001[RELEASE-GATE-001 RC Re-verification]
@@ -48,8 +48,8 @@ Derived state after RELEASE-004 implementation:
 - **CODE_COMPLETE, awaiting environment verification:** RELEASE-002.
 - **CODE_COMPLETE, awaiting staging verification:** RELEASE-003.
 - **CODE_COMPLETE / NOT VERIFIED:** RELEASE-004.
-- **BLOCKED:** RELEASE-005 — recovery policy contract decisions are pending.
-- **READY:** RELEASE-007.
+- **READY:** RELEASE-005, RELEASE-007.
+- **BLOCKED:** None.
 - **WAITING_DEPENDENCY:** RELEASE-006, RELEASE-GATE-001. RELEASE-006 waits
   for RELEASE-005 and verified artifact/recovery inputs; the final gate waits
   for all verification evidence.
@@ -58,7 +58,8 @@ Derived state after RELEASE-004 implementation:
 not claim verification. RELEASE-004 is `CODE_COMPLETE / NOT VERIFIED` under
 [RELEASE-004-R1](items/RELEASE-004-R1_IMMUTABLE_ARTIFACT_DEPLOYMENT_PROMOTION_CONTRACT.md).
 Its staging deployment remains pending. RELEASE-001 through RELEASE-003 remain
-unverified pending their environment evidence. RELEASE-005 is independent.
+unverified pending their environment evidence. RELEASE-005 is independent and
+its recovery policy contract is complete.
 RELEASE-007 may begin because the topology is implemented, but it is not
 started in this activity. Any newly discovered blocker must be recorded on
 the affected item and readiness recomputed; dependencies must not be bypassed.

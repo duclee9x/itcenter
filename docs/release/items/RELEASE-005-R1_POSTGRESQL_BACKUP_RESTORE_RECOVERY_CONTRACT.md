@@ -1,137 +1,165 @@
 # RELEASE-005-R1 — PostgreSQL Backup / Restore / Recovery Contract
 
-**Status:** `PLANNING / BLOCKED`
+**Status:** `CODE_COMPLETE`
 **Parent:** [RELEASE-005 — Backup / Restore + RPO / RTO Validation](RELEASE-005_BACKUP_RESTORE_RPO_RTO.md)
-**Scope:** recovery and operational decisions only. This document authorizes
-no backup or restore runtime implementation.
+**Scope:** normative v1 recovery policy. Runtime implementation is a later
+RELEASE-005 activity.
 
-## Decision boundary
+## Recovery objectives
 
-RELEASE-005 cannot safely implement production automation until the recovery
-policy is approved. The repository currently has a local development helper
-using PostgreSQL custom-format `pg_dump`/`pg_restore`, a 24-hour local backup
-loop, and a RELEASE-004 pre-migration reference hook. These are not production
-backup evidence. No production schedule, off-host destination, retention,
-encryption policy, restore authorization, RPO, RTO, or measured rehearsal is
-currently normative.
+The production requirements are **RPO 6 hours** and **RTO 2 hours**. RPO is
+the age of the newest successfully completed `HOST_PROTECTED` backup at the
+recovery point. It must include successful encryption, copy to the required
+off-Lima destination, and checksum verification. RPO status is
+`UNVERIFIED`, `MET`, or `NOT_MET`; a Lima-only artifact never qualifies.
 
-The canonical deployment boundary remains macOS host → Lima VM → rootless
-Podman → `podman compose`. PostgreSQL backup and restore must use PostgreSQL
-protocol tooling through `podman compose exec`/`run` when the database is
-Compose-managed. External PostgreSQL must use the same connection contract;
-backup must never copy Podman volume internals or a live PostgreSQL data
-directory.
+RTO measurement starts when the operator begins the documented recovery
+procedure and ends only after artifact retrieval, checksum/decryption,
+PostgreSQL restore, schema validation, required configuration/secrets,
+compatible application OCI startup, and representative application
+validation. `pg_restore` completion alone is not recovery completion. RTO is
+`MET` only when measured total recovery time is at most two hours.
 
-## Authoritative data and recovery scope
+## Backup policy
 
-PostgreSQL is the authoritative mutable application store for the implemented
-release. Audit, outbox/inbox, identity, membership, Agent credential metadata,
-TASK-091 state, worker state, and business records must be covered by the
-database backup. Search, cache, and worker runtime state are rebuildable or
-re-established and are not authoritative backup inputs.
+Production takes a PostgreSQL logical custom-format backup every six hours and
+takes a new protected pre-migration backup before every production
+schema-changing deployment. The pre-migration backup does not replace the
+schedule. A systemd timer inside the Lima guest is the scheduler; Lima is
+expected to remain running continuously. A missed window, stopped Lima VM,
+unavailable PostgreSQL, unavailable host mount, encryption failure, or timer
+failure makes RPO `NOT_MET` until a protected backup succeeds.
 
-The repository does not currently provide a production object-storage adapter
-or a separate application file store. If file/object evidence is enabled for
-launch, its owner must add that store to the approved recovery scope before
-RELEASE-005 can be marked ready. A backup must never be described as complete
-while authoritative data exists outside PostgreSQL and is not recoverable.
+The format is `pg_dump -Fc`, restored with `pg_restore` and PostgreSQL-major
+compatible tooling already supplied by the deployment environment. V1 does
+not use PITR or WAL archiving. If measurement cannot meet either objective,
+the result is a new recovery remediation; compliance is never asserted from a
+timer or design estimate.
 
-Agent CA private signing material, OIDC configuration, database credentials,
-registry credentials, Caddy/TLS keys, and other recovery-critical secrets are
-external operator-managed material. They must not be placed in a database
-dump or backup directory. The owner, escrow/recovery location, access
-authorization, and restore validation for each enabled secret must be
-recorded before verification. In particular, loss of the Agent CA key can
-prevent enrollment and rotation and is a `RECOVERY_GAP` until independently
-protected recovery is demonstrated.
-
-## Backup and artifact model
-
-The implementation target, subject to approval, is a consistent logical
-PostgreSQL custom-format dump (`pg_dump -Fc`) produced by the PostgreSQL
-client compatible with the deployed major version. Every artifact will have
-an immutable backup id, temporary/incomplete state, SHA-256 checksum, and
-metadata linking environment, database identity, PostgreSQL major version,
-schema revision, RELEASE-004 RC/release id, OCI digest/source commit when
-known, timing, size, and storage locations. A backup becomes protected only
-after the required off-host copy and checksum verification succeed.
-
-The lifecycle is:
+Each backup set contains an immutable sortable id with environment, UTC
+timestamp and unique suffix, plus:
 
 ```text
-TEMPORARY → COMPLETE_LOCAL → OFF_HOST_VERIFIED → PROTECTED
+<backup-id>.dump.age
+<backup-id>.json
+<backup-id>.sha256
 ```
 
-Partial, checksum-invalid, or failed-copy artifacts cannot become latest-good.
-Restore verifies the checksum before `pg_restore`, restores into an isolated
-target by default, validates schema and deterministic data/integrity checks,
-and records retrieval, restore, application validation, and total durations.
-Production restore requires an explicit environment, backup id, destructive
-confirmation, authorized operator, and recovery runbook. No down migration is
-implicit in restore.
+Temporary files are incomplete and cannot become latest-good. A backup is
+successful only after `pg_dump`, `age` encryption, metadata finalization,
+SHA-256 generation, copy to `HOST_PROTECTED`, and copied-checksum verification
+all succeed. Metadata contains backup id, environment, type, PostgreSQL major,
+schema revision, release id, source commit, OCI digest, start/completion
+times, original/encrypted size, checksum, storage locations, protection state,
+and verification state. It contains no secrets.
 
-## Off-host failure-domain decision
+## Encryption and storage levels
 
-The following destinations are distinct and must not be conflated:
+Production backup artifacts are encrypted with `age` using a configured public
+recipient. The private recovery identity is never committed, placed in the
+OCI image, written to metadata, or stored only inside Lima. It has at least
+one protected escrow copy outside Lima and is not encrypted only by itself.
 
-| Level           | Meaning                                                    | Current decision                                             |
-| --------------- | ---------------------------------------------------------- | ------------------------------------------------------------ |
-| `LOCAL_VM_COPY` | File in the Lima guest or a Podman volume                  | Never sufficient for release recovery                        |
-| `HOST_COPY`     | Explicit Lima mount to a macOS host backup directory       | Proposed minimum; protects VM loss but not host/disk loss    |
-| `REMOTE_COPY`   | NAS, external disk, or object storage outside the Mac host | Required if host-loss protection is part of approved RPO/RTO |
+Storage levels are explicit:
 
-The current Lima configuration exposes the developer home mount but does not
-define a dedicated production backup mount. The operator must approve an
-explicit guest path such as `/mnt/host-backups/itcenter` mapped to a named
-macOS host directory, with separate permissions and capacity monitoring. A
-host copy may satisfy the minimum RC requirement only after the owner accepts
-that total physical host/disk loss remains outside its protection. Otherwise
-an additional remote copy is mandatory.
+| Level              | Definition                                                                                                       | Requirement                                                         |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| `LIMA_LOCAL`       | Lima filesystem or Podman volume                                                                                 | Never satisfies production protection or RPO                        |
+| `HOST_PROTECTED`   | Encrypted artifact copied to an explicit Lima mount backed by a macOS host directory, with checksum verification | Required minimum v1 level                                           |
+| `REMOTE_PROTECTED` | Copy outside the physical Mac host                                                                               | Optional v1; required only if host-loss protection is adopted later |
 
-## Decisions requiring approval
+The operator configures `HOST_BACKUP_PATH` on macOS and
+`GUEST_BACKUP_MOUNT` inside Lima. The guest mount must be explicitly
+validated; absence or fallback to a same-VM directory fails the backup. A
+host copy protects against Lima loss, VM corruption, Podman volume loss, and
+PostgreSQL volume corruption, but not total Mac/disk loss. That limitation is
+accepted as `KNOWN_LIMITATION` for v1. No S3, NAS, or other remote service is
+required.
 
-These values are intentionally unresolved; examples are not normative:
+Backups use a per-environment Lima `flock`; concurrent production backups are
+not allowed. Retention keeps the latest 28 successful six-hour backups and
+four weekly protected backups, selecting one successful protected backup per
+completed UTC week. Retention runs only after a new protected backup succeeds
+and never deletes the latest-good, current pre-migration, held, or active
+rehearsal backup. Storage pressure causes backup failure and alerting rather
+than retention violations.
 
-| Decision              | Proposed simple profile for review                                                                                            | Required evidence/owner           |
-| --------------------- | ----------------------------------------------------------------------------------------------------------------------------- | --------------------------------- |
-| RPO                   | Daily logical backup plus a successful pre-migration backup; exact maximum data loss is pending approval                      | Service owner / DB operator       |
-| RTO                   | Restore initiation to validated database and usable application; duration target is pending approval                          | Service owner / DB operator       |
-| Schedule              | Daily timer inside Lima, with Lima continuously running; external/manual fallback if this availability assumption is rejected | Platform operator                 |
-| Backup type           | `pg_dump -Fc` with PostgreSQL-major compatibility check                                                                       | DB operator                       |
-| Required destination  | `HOST_COPY` minimum, or `HOST_COPY + REMOTE_COPY` if host-loss protection is required                                         | Service owner / security reviewer |
-| Encryption            | FileVault/host encryption assumption versus approved artifact encryption mechanism                                            | Security reviewer                 |
-| Retention             | Review example: 7 daily and 4 weekly, with latest-good, active recovery targets, and legal/manual holds protected             | Data owner                        |
-| Restore authorization | Isolated restore by authorized operator; destructive production restore requires explicit approval and confirmation           | Release owner / DB operator       |
-| Pre-migration gate    | Verified required off-host backup reference before production migration                                                       | Release owner                     |
-| Failure handling      | Backup/copy/checksum/restore validation failure stops the operation; migration failure never auto-restores                    | Release owner                     |
-| Recovery secrets      | Independent escrow and restore test for Agent CA, OIDC, DB, registry, and TLS material                                        | Security / platform owners        |
-| Ownership             | Named backup operator, restore operator, alert owner, and evidence approver                                                   | Service owner                     |
+## Authoritative data and secrets
 
-No RPO/RTO value, schedule, retention, destination level, or encryption claim
-becomes normative merely because it appears in the proposed column.
+PostgreSQL is the only authoritative mutable application-data backup target in
+RELEASE-005 v1. This includes business records, audit, outbox/inbox, identity,
+membership, Agent credential metadata, TASK-091 state, and worker-owned
+durable state. Search, cache, and in-process worker state are rebuildable.
+The current release has no production object-storage or separate application
+file store; if that changes, recovery scope must be expanded before release
+verification. Podman volume internals and live PostgreSQL data directories are
+never backup interfaces.
 
-## Readiness and evidence
+Database backup does not contain recovery-critical secrets. Separate protected
+escrow outside Lima is required for the `age` identity, OIDC configuration,
+Agent CA/private issuer material, application encryption keys if introduced,
+database credentials, registry access, and Caddy/TLS material. Escrow
+references may be validated without reading or logging values. Agent CA loss
+can block enrollment and rotation; no complete recovery claim is allowed
+without an independently protected CA copy.
 
-Backup status is `UNVERIFIED`, `MET`, or `NOT_MET`. A timer, file existence,
-or checksum alone is not evidence of a met RPO. Verification requires a dated
-production-like or approved sanitized rehearsal that retrieves a protected
-off-host artifact, verifies it, restores an isolated PostgreSQL instance,
-checks the schema and immutable history, runs safe application reads using the
-matching immutable OCI image where feasible, and records measured RPO/RTO
-outcomes.
+## Restore and authorization
 
-Retention must not remove the latest-known-good backup, an active rollback or
-recovery target, or a protected/manual hold. Retention is applied only after
-successful artifact verification and must preserve failed-attempt history.
+Normal verification restores to a fresh isolated PostgreSQL instance, new
+Podman volume, and new Compose project; it never reuses production storage.
+The canonical flow verifies the encrypted artifact checksum, decrypts with
+the separately supplied `age` identity, starts compatible PostgreSQL, runs
+`pg_restore`, validates schema revision and deterministic integrity fixtures,
+starts the matching immutable OCI application image where feasible, performs
+safe reads, records retrieval/decryption/restore/validation/total durations,
+and removes rehearsal resources safely.
 
-RELEASE-004 production deployment must consume this contract's verified
-pre-migration backup reference before migration. RELEASE-006 separately owns
-N/N-1 migration compatibility and must use the same immutable OCI artifact and
-the proven recovery path.
+Production restore is privileged and destructive. It requires an explicit
+production environment, exact backup id, operator-initiated command,
+recovery-runbook invocation, and the stable flag
+`--confirm-production-restore`. No generic command selects production by
+default. Deployment or migration failure never triggers an automatic restore
+or down migration.
 
-## Current blocker
+Restore rehearsal is required at least once before the RC gate, after material
+backup/restore automation changes, and after a PostgreSQL major-version
+change. Verification requires actual Podman/Lima execution, a protected
+off-Lima encrypted copy, checksum verification, fresh restore, application
+validation, and measured RPO/RTO evidence. Status remains `UNVERIFIED` until
+that evidence exists.
 
-`RELEASE-005 = BLOCKED / NOT_STARTED` with blocker
-`SPEC_GAP / OPERATIONAL_DECISION`. The unresolved decisions above must be
-approved and persisted before scripts, timers, migrations, or restore
-automation are implemented.
+## Integration and ownership
+
+The RELEASE-004 production deployment sequence is:
+
+```text
+deployment lock → config validation → new HOST_PROTECTED pre-migration backup
+→ protected-copy verification → migration → rollout → readiness/smoke
+```
+
+Migration does not start if the backup gate fails. RELEASE-004 remains the
+deployment owner; RELEASE-005 supplies the backup gate and evidence.
+
+The systemd timer/production host runtime owns scheduled backup execution. The
+system operator owns backup failure response and restore rehearsal. An
+authorized system operator performs production restore. The system operator
+and security custodian own secret and Agent-CA escrow. No multi-team approval
+workflow is required for this simple v1 deployment.
+
+Future `REMOTE_PROTECTED` transports must reuse this encrypted artifact and
+metadata format. RELEASE-006 uses the same immutable OCI artifact, Podman
+Compose topology, and verified recovery path for migration compatibility
+rehearsal.
+
+## Acceptance plan
+
+The implementation must test successful and failed dump/encryption/copy,
+checksum mismatch, unavailable host mount, backup lock contention, incomplete
+artifacts, 28-plus-4 retention and holds, corrupt restore, fresh PostgreSQL
+restore, schema/application validation, production safety guard, pre-migration
+blocking, RPO age calculation, and RTO duration recording. It must not log DB
+passwords, storage tokens, CA keys, OIDC secrets, or raw key material.
+
+R1 resolves every operational decision required for implementation. It does
+not claim that RPO/RTO are achieved; those remain `UNVERIFIED` until the
+measured recovery rehearsal is accepted.

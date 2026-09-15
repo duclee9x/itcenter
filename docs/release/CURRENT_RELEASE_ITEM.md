@@ -4,9 +4,9 @@
 | ------------- | ------------------------------------------------------------------------------------- |
 | Selected item | RELEASE-005 — Backup / Restore + RPO / RTO Validation                                 |
 | Priority      | P0                                                                                    |
-| Status        | `BLOCKED / NOT_STARTED`                                                               |
-| Readiness     | `BLOCKED`                                                                             |
-| Blocker       | `SPEC_GAP / OPERATIONAL_DECISION`: recovery policy decisions are not approved.        |
+| Status        | `READY / NOT_STARTED`                                                                 |
+| Readiness     | `READY`                                                                               |
+| Blocker       | None; RPO/RTO and recovery policy are defined, but runtime evidence is pending.       |
 | Contract      | [RELEASE-005-R1](items/RELEASE-005-R1_POSTGRESQL_BACKUP_RESTORE_RECOVERY_CONTRACT.md) |
 | Item          | [RELEASE-005](items/RELEASE-005_BACKUP_RESTORE_RPO_RTO.md)                            |
 
@@ -28,7 +28,7 @@ not `VERIFIED`: no clean CI-published digest has yet been deployed through
 the intended Linux staging topology.
 Overall release remains `BLOCKED_FOR_RC`.
 
-RELEASE-005 is `BLOCKED / NOT_STARTED` pending its recovery contract. RELEASE-007 is now
+RELEASE-005 is `READY / NOT_STARTED` with its recovery contract complete. RELEASE-007 is now
 `READY / NOT_STARTED` because its deployment-topology dependency is
 implemented; RELEASE-006 remains `WAITING_DEPENDENCY` on RELEASE-005.
 RELEASE-GATE-001 remains blocked on verification evidence. Do not start another

@@ -69,12 +69,12 @@ is included in the approved release scope.
 - **Type:** `RECOVERY_GAP`
 - **Severity:** Critical
 - **Affected capability:** PostgreSQL data protection and disaster recovery
-- **Production impact:** The repository documents local `pg_dump`/`pg_restore` helpers only. There is no approved production backup schedule/target, off-host level, encryption assumption, restore authorization, recovery-secret escrow, RPO, RTO, retention/immutability evidence, restore validation, or pre-migration backup procedure. A backup job without a successful isolated restore is not recovery evidence.
-- **Required action:** Approve [RELEASE-005-R1](items/RELEASE-005-R1_POSTGRESQL_BACKUP_RESTORE_RECOVERY_CONTRACT.md), including service-approved RPO/RTO, retention, off-host destination and recovery ownership; then implement the production policy, require a verified pre-migration backup, and restore into an isolated PostgreSQL environment to validate schema, tenant data, immutable history and application reads.
+- **Production impact:** RELEASE-005-R1 now normatively defines RPO 6 hours, RTO 2 hours, six-hour `pg_dump -Fc` backups, `age` encryption, HOST_PROTECTED off-Lima copies, retention, restore authorization, and recovery-secret escrow. No production implementation or measured recovery evidence exists yet; these are required before the objectives can be marked achieved.
+- **Required action:** Implement the approved [RELEASE-005-R1](items/RELEASE-005-R1_POSTGRESQL_BACKUP_RESTORE_RECOVERY_CONTRACT.md), require a verified pre-migration backup, and restore into an isolated PostgreSQL environment to validate schema, tenant data, immutable history, application reads, and measured RPO/RTO.
 - **Verification:** Dated restore-drill record with source backup identifier, measured recovery time/data point, integrity checks and application smoke results. Repeat on the agreed cadence and after material storage/migration changes.
 - **Owner/domain:** Database Operations / Service Owner
 - **Release-blocking:** Yes
-- **Evidence:** [RELEASE-005-R1](items/RELEASE-005-R1_POSTGRESQL_BACKUP_RESTORE_RECOVERY_CONTRACT.md); `README.md` local backup section; `scripts/local-dev.sh`; `docs/DATABASE_STORAGE_BOUNDARY_SPEC.md` backup/restore principles; no production runbook was found.
+- **Evidence:** [RELEASE-005-R1](items/RELEASE-005-R1_POSTGRESQL_BACKUP_RESTORE_RECOVERY_CONTRACT.md); `README.md` local backup section; `scripts/local-dev.sh`; `docs/DATABASE_STORAGE_BOUNDARY_SPEC.md` backup/restore principles; production implementation and rehearsal remain pending.
 
 ## RR-07 — Production network edge controls are not configured
 

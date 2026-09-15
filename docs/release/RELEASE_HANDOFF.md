@@ -45,7 +45,7 @@ RELEASE-007.
 
 ## Release order
 
-RELEASE-005 is blocked pending approval of its PostgreSQL recovery contract.
+RELEASE-005 is ready with its PostgreSQL recovery contract complete.
 Its future backup/restore operations must use guest-side
 `podman compose exec`/`run` and PostgreSQL logical interfaces, never Podman
 volume internals. See [RELEASE-005-R1](items/RELEASE-005-R1_POSTGRESQL_BACKUP_RESTORE_RECOVERY_CONTRACT.md).
