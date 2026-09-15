@@ -271,7 +271,8 @@ All v1 deployment-platform decisions are now fixed by this contract.
 RELEASE-004-R1 is `CODE_COMPLETE`; the `SPEC_GAP / OPERATIONAL_DECISION`
 blocker is cleared; RELEASE-004 is `READY / NOT_STARTED`. This permits a
 separate future RELEASE-004 implementation activity but does not implement
-it. RELEASE-005 remains independently `READY / NOT_STARTED`; RELEASE-006 and
+it. RELEASE-005 remains independently scoped but is currently blocked by its
+recovery-policy contract; RELEASE-006 and
 RELEASE-007 remain `WAITING_DEPENDENCY`. RELEASE-001 through RELEASE-003
 remain `CODE_COMPLETE / NOT VERIFIED`, and overall release remains
 `BLOCKED_FOR_RC`.

@@ -64,17 +64,17 @@ is included in the approved release scope.
 - **Release-blocking:** Yes
 - **Evidence:** `database/scripts/runner.ts`; `tests/migration/migrations.test.ts`; `docs/runbooks/local-development.md`.
 
-## RR-06 — Production backup and restore have not been proven
+## RR-06 — Production backup and restore policy and evidence are incomplete
 
 - **Type:** `RECOVERY_GAP`
 - **Severity:** Critical
 - **Affected capability:** PostgreSQL data protection and disaster recovery
-- **Production impact:** The repository documents local `pg_dump`/`pg_restore` helpers only. There is no production backup schedule/target, restore verification, RPO, RTO, retention/immutability evidence, restore validation, or pre-migration backup procedure. A backup job without a successful isolated restore is not recovery evidence.
-- **Required action:** Assign an operator and implement the production backup policy; set service-approved RPO/RTO and retention; require a verified pre-migration backup; restore into an isolated PostgreSQL environment and validate schema, tenant data, immutable history and application reads.
+- **Production impact:** The repository documents local `pg_dump`/`pg_restore` helpers only. There is no approved production backup schedule/target, off-host level, encryption assumption, restore authorization, recovery-secret escrow, RPO, RTO, retention/immutability evidence, restore validation, or pre-migration backup procedure. A backup job without a successful isolated restore is not recovery evidence.
+- **Required action:** Approve [RELEASE-005-R1](items/RELEASE-005-R1_POSTGRESQL_BACKUP_RESTORE_RECOVERY_CONTRACT.md), including service-approved RPO/RTO, retention, off-host destination and recovery ownership; then implement the production policy, require a verified pre-migration backup, and restore into an isolated PostgreSQL environment to validate schema, tenant data, immutable history and application reads.
 - **Verification:** Dated restore-drill record with source backup identifier, measured recovery time/data point, integrity checks and application smoke results. Repeat on the agreed cadence and after material storage/migration changes.
 - **Owner/domain:** Database Operations / Service Owner
 - **Release-blocking:** Yes
-- **Evidence:** `README.md` local backup section; `scripts/local-dev.sh`; `docs/DATABASE_STORAGE_BOUNDARY_SPEC.md` backup/restore and RPO/RTO requirements; no production runbook was found.
+- **Evidence:** [RELEASE-005-R1](items/RELEASE-005-R1_POSTGRESQL_BACKUP_RESTORE_RECOVERY_CONTRACT.md); `README.md` local backup section; `scripts/local-dev.sh`; `docs/DATABASE_STORAGE_BOUNDARY_SPEC.md` backup/restore principles; no production runbook was found.
 
 ## RR-07 — Production network edge controls are not configured
 

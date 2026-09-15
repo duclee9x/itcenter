@@ -68,6 +68,13 @@ for the binding decisions; this checklist does not replace those contracts.
 
 ## Migration rehearsal and recovery
 
+RELEASE-005 is blocked until its recovery contract is approved. Do not treat
+the local development helper as production evidence.
+
+- [ ] Approve RELEASE-005-R1 RPO/RTO, backup type/frequency, retention,
+      encryption, off-host destination level, restore authorization, recovery
+      ownership and Agent CA/other secret escrow.
+
 - [ ] Create an isolated, production-like PostgreSQL environment from the
       expected previous schema/data shape using approved sanitized data.
 - [ ] Take and identify a pre-migration backup.

@@ -28,7 +28,8 @@ exact-digest promotion/rollback semantics. Local verification passes; no
 clean CI-published immutable artifact has yet been deployed to Linux staging.
 
 RELEASE-004-R1 cleared the operational-decision blocker. RELEASE-005 remains
-independent; RELEASE-006 waits for RELEASE-005 and verified migration/recovery
+independent but is currently blocked by its recovery-policy contract;
+RELEASE-006 waits for RELEASE-005 and verified migration/recovery
 inputs. RELEASE-007 is `READY / NOT_STARTED` because the deployment topology
 is implemented. Neither item is started in this activity.
 

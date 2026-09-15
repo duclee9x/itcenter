@@ -45,9 +45,11 @@ RELEASE-007.
 
 ## Release order
 
-RELEASE-005 remains independently READY. Its future PostgreSQL backup/restore
-operations must use guest-side `podman compose exec`/`run` and PostgreSQL
-logical interfaces, never Podman volume internals. RELEASE-007 is READY because
+RELEASE-005 is blocked pending approval of its PostgreSQL recovery contract.
+Its future backup/restore operations must use guest-side
+`podman compose exec`/`run` and PostgreSQL logical interfaces, never Podman
+volume internals. See [RELEASE-005-R1](items/RELEASE-005-R1_POSTGRESQL_BACKUP_RESTORE_RECOVERY_CONTRACT.md).
+RELEASE-007 is READY because
 the RELEASE-004 topology is implemented, but is not started here. RELEASE-006
 waits for RELEASE-005 and verified migration/recovery inputs; the final
 RELEASE-GATE-001 waits for every initial remediation item to be verified.

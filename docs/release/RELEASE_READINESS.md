@@ -108,8 +108,9 @@ staging/production projects, ordered migration, readiness/smoke gates,
 staging-evidence attestation, stateful exact-digest rollback, and systemd host
 boot integration. Automated repository checks pass, but no clean CI-published
 digest has been deployed through a real Linux staging host; RELEASE-004 is not
-`VERIFIED` and RR-04 remains open. RELEASE-005 is independently ready,
-RELEASE-006 waits on RELEASE-005, and RELEASE-007 is now `READY / NOT_STARTED`
+`VERIFIED` and RR-04 remains open. RELEASE-005 is currently blocked by
+unresolved RPO/RTO and recovery-policy decisions, RELEASE-006 waits on
+RELEASE-005, and RELEASE-007 is now `READY / NOT_STARTED`
 because its topology dependency is implemented. Overall readiness remains
 `BLOCKED_FOR_RC`.
 
@@ -159,23 +160,23 @@ deployment.
 
 ## Findings summary
 
-| ID    | Type                     | Severity | Finding                                                                                                                                   | Release-blocking                                                          |
-| ----- | ------------------------ | -------- | ----------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
-| RR-01 | RELEASE_BLOCKER          | Critical | RELEASE-001 is implemented, but no real OIDC provider configuration or staging acceptance evidence is recorded.                           | Yes                                                                       |
-| RR-02 | OPERATIONAL_GAP          | High     | RELEASE-003 readiness is implemented and automated checks pass; staging/orchestrator verification remains.                                | Yes                                                                       |
-| RR-03 | PRODUCTION_CONFIGURATION | High     | RELEASE-002 mTLS code is complete, but private-CA provisioning and staging-topology validation remain; Agent execution stays unavailable. | Yes when Agent execution is in launch scope; assumed in this assessment   |
-| RR-04 | OPERATIONAL_GAP          | High     | No production build/image, immutable promotion, staging deployment, or rollback procedure is present.                                     | Yes                                                                       |
-| RR-05 | DATA_MIGRATION_GAP       | High     | No production-like prior-schema upgrade, lock/duration measurement, N-1 compatibility, or forward-recovery rehearsal is evidenced.        | Yes                                                                       |
-| RR-06 | RECOVERY_GAP             | Critical | No production backup/restore procedure, verified restore, RPO/RTO, or pre-migration backup control is evidenced.                          | Yes                                                                       |
-| RR-07 | SECURITY_GAP             | Critical | TLS ingress and rate limiting are not implemented/configured in a deployment edge; no production edge policy is evidenced.                | Yes                                                                       |
-| RR-08 | OBSERVABILITY_GAP        | High     | Readiness/worker metrics are still process-local; no exporter, tracing, or alert routing is wired.                                        | Yes for monitored production operation                                    |
-| RR-09 | PRODUCTION_CONFIGURATION | High     | Production secret, database roles, system-principal grants and capability-specific adapters need deployment provisioning and validation.  | Yes for enabled capabilities                                              |
-| RR-10 | PRODUCTION_CONFIGURATION | Medium   | Concrete object/artifact storage and scanning adapters are not wired for artifact-dependent workflows.                                    | Conditional on those workflows being in release scope                     |
-| RR-11 | OPERATIONAL_GAP          | Medium   | External broker publishing/acknowledgement and poison-event operations are not deployed; current outbox path is local/database-backed.    | Conditional on broker-dependent integrations                              |
-| RR-12 | PERFORMANCE_GAP          | Medium   | There is no production dataset load baseline or measured capacity envelope.                                                               | No for a limited RC; required before capacity claims/scale-up             |
-| RR-13 | OPERATIONAL_GAP          | Medium   | Production retention/archive operations for growing append-only records are not configured.                                               | No for initial RC; owner/limits required before sustained production      |
-| RR-14 | KNOWN_LIMITATION         | Low      | TASK-094 economic repair-cost evidence is intentionally unavailable without a canonical repair-cost ledger.                               | No, unless complete economic scoring is a release promise                 |
-| RR-15 | TECH_DEBT                | Low      | A PostgreSQL client-query deprecation warning is emitted by the Operations Overview request path.                                         | No for current pinned runtime; address before incompatible driver upgrade |
+| ID    | Type                     | Severity | Finding                                                                                                                                              | Release-blocking                                                          |
+| ----- | ------------------------ | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| RR-01 | RELEASE_BLOCKER          | Critical | RELEASE-001 is implemented, but no real OIDC provider configuration or staging acceptance evidence is recorded.                                      | Yes                                                                       |
+| RR-02 | OPERATIONAL_GAP          | High     | RELEASE-003 readiness is implemented and automated checks pass; staging/orchestrator verification remains.                                           | Yes                                                                       |
+| RR-03 | PRODUCTION_CONFIGURATION | High     | RELEASE-002 mTLS code is complete, but private-CA provisioning and staging-topology validation remain; Agent execution stays unavailable.            | Yes when Agent execution is in launch scope; assumed in this assessment   |
+| RR-04 | OPERATIONAL_GAP          | High     | No production build/image, immutable promotion, staging deployment, or rollback procedure is present.                                                | Yes                                                                       |
+| RR-05 | DATA_MIGRATION_GAP       | High     | No production-like prior-schema upgrade, lock/duration measurement, N-1 compatibility, or forward-recovery rehearsal is evidenced.                   | Yes                                                                       |
+| RR-06 | RECOVERY_GAP             | Critical | Production backup/restore policy decisions and evidence are incomplete; no approved RPO/RTO, off-host target, or pre-migration control is evidenced. | Yes                                                                       |
+| RR-07 | SECURITY_GAP             | Critical | TLS ingress and rate limiting are not implemented/configured in a deployment edge; no production edge policy is evidenced.                           | Yes                                                                       |
+| RR-08 | OBSERVABILITY_GAP        | High     | Readiness/worker metrics are still process-local; no exporter, tracing, or alert routing is wired.                                                   | Yes for monitored production operation                                    |
+| RR-09 | PRODUCTION_CONFIGURATION | High     | Production secret, database roles, system-principal grants and capability-specific adapters need deployment provisioning and validation.             | Yes for enabled capabilities                                              |
+| RR-10 | PRODUCTION_CONFIGURATION | Medium   | Concrete object/artifact storage and scanning adapters are not wired for artifact-dependent workflows.                                               | Conditional on those workflows being in release scope                     |
+| RR-11 | OPERATIONAL_GAP          | Medium   | External broker publishing/acknowledgement and poison-event operations are not deployed; current outbox path is local/database-backed.               | Conditional on broker-dependent integrations                              |
+| RR-12 | PERFORMANCE_GAP          | Medium   | There is no production dataset load baseline or measured capacity envelope.                                                                          | No for a limited RC; required before capacity claims/scale-up             |
+| RR-13 | OPERATIONAL_GAP          | Medium   | Production retention/archive operations for growing append-only records are not configured.                                                          | No for initial RC; owner/limits required before sustained production      |
+| RR-14 | KNOWN_LIMITATION         | Low      | TASK-094 economic repair-cost evidence is intentionally unavailable without a canonical repair-cost ledger.                                          | No, unless complete economic scoring is a release promise                 |
+| RR-15 | TECH_DEBT                | Low      | A PostgreSQL client-query deprecation warning is emitted by the Operations Overview request path.                                                    | No for current pinned runtime; address before incompatible driver upgrade |
 
 Finding definitions, owner, actions, and verification are in
 [RELEASE_BLOCKERS.md](RELEASE_BLOCKERS.md). Known product limits are in
@@ -222,9 +223,9 @@ No secret values belong in this document or in source control.
 4. Rehearse migrations against a production-like previous schema. Measure
    duration/locks, test runtime roles, establish expand/forward-fix behavior,
    and record whether N-1 can operate during/after migration.
-5. Set backup/restore ownership and RPO/RTO; perform a restore into an
-   isolated database and verify application-level integrity before any
-   production data migration.
+5. Approve RELEASE-005-R1 recovery policy decisions, set backup/restore
+   ownership and RPO/RTO; then perform a restore into an isolated database and
+   verify application-level integrity before any production data migration.
 6. Export metrics/logs, configure actionable alerts, and verify API, DB,
    workers, outbox, execution, Reporting and Recommendation signals.
 7. Run the RC checklist, including safe smoke tests, capacity observation,

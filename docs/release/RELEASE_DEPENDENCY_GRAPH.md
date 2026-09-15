@@ -9,7 +9,7 @@ flowchart TD
   R002[RELEASE-002 Agent Authentication — CODE_COMPLETE / staging verification pending]
   R003[RELEASE-003 Worker Readiness — CODE_COMPLETE / staging verification pending]
   R004[RELEASE-004 Immutable Build / Promotion — CODE_COMPLETE / NOT VERIFIED]
-  R005[RELEASE-005 Backup / Restore]
+  R005[RELEASE-005 Backup / Restore — BLOCKED / contract gap]
   R006[RELEASE-006 Migration Rehearsal / N-1]
   R007[RELEASE-007 TLS Ingress / Rate Limiting — READY / NOT_STARTED]
   G001[RELEASE-GATE-001 RC Re-verification]
@@ -48,8 +48,8 @@ Derived state after RELEASE-004 implementation:
 - **CODE_COMPLETE, awaiting environment verification:** RELEASE-002.
 - **CODE_COMPLETE, awaiting staging verification:** RELEASE-003.
 - **CODE_COMPLETE / NOT VERIFIED:** RELEASE-004.
-- **READY:** RELEASE-005, RELEASE-007.
-- **BLOCKED:** None.
+- **BLOCKED:** RELEASE-005 — recovery policy contract decisions are pending.
+- **READY:** RELEASE-007.
 - **WAITING_DEPENDENCY:** RELEASE-006, RELEASE-GATE-001. RELEASE-006 waits
   for RELEASE-005 and verified artifact/recovery inputs; the final gate waits
   for all verification evidence.
