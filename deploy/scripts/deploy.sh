@@ -26,6 +26,16 @@ acquire_deployment_lock "$environment"
 ensure_container_runtime
 
 state_root=$(release_state_root)
+failure_reason=DEPLOYMENT_FAILED
+on_exit() {
+  local result=$?
+  if (( result != 0 )); then
+    write_event "$environment" "$release_id" FAILED "$failure_reason" "$image" \
+      "$source_commit" "$schema_revision" "$config_rev" || true
+  fi
+}
+trap on_exit EXIT
+
 if [[ "$environment" == production ]]; then
   [[ -n "$staging_attestation" ]] || staging_attestation="$state_root/staging/attestations/$release_id.json"
   [[ -r "$staging_attestation" ]] || die STAGING_VERIFICATION_REQUIRED
@@ -38,23 +48,11 @@ if [[ "$environment" == production ]]; then
      (.evidence_refs["RELEASE-002"]|type)=="string" and
      (.evidence_refs["RELEASE-003"]|type)=="string"' \
     "$staging_attestation" >/dev/null || die STAGING_VERIFICATION_MISMATCH
-  backup_ref=$(read_env_value "$config_file" PRE_MIGRATION_BACKUP_REF)
-  [[ -n "$backup_ref" && "$backup_ref" != REPLACE_* ]] || die PRE_MIGRATION_BACKUP_REQUIRED
   approval_ref=$(read_env_value "$config_file" PRODUCTION_APPROVAL_REF)
 else
   backup_ref=""
   approval_ref=""
 fi
-
-failure_reason=DEPLOYMENT_FAILED
-on_exit() {
-  local result=$?
-  if (( result != 0 )); then
-    write_event "$environment" "$release_id" FAILED "$failure_reason" "$image" \
-      "$source_commit" "$schema_revision" "$config_rev" || true
-  fi
-}
-trap on_exit EXIT
 
 compose config --quiet || { failure_reason=COMPOSE_CONFIG_INVALID; die "$failure_reason"; }
 compose pull || { failure_reason=IMAGE_PULL_FAILED; die "$failure_reason"; }
@@ -69,9 +67,17 @@ if [[ "$(read_env_value "$config_file" DB_MODE)" == compose ]]; then
 fi
 
 if [[ "$environment" == production ]]; then
-  printf 'BACKUP_REFERENCE_REQUIRED %s\n' "$approval_ref" >/dev/null
-  # RELEASE-005 owns backup execution and evidence; this is only a recorded prerequisite reference.
-  [[ -n "$backup_ref" ]] || { failure_reason=PRE_MIGRATION_BACKUP_REQUIRED; die "$failure_reason"; }
+  export BACKUP_RELEASE_ID="$release_id" BACKUP_SOURCE_COMMIT="$source_commit" \
+    BACKUP_IMAGE_DIGEST="$image"
+  backup_output=$(mktemp)
+  if ! "$DEPLOY_ROOT/scripts/backup.sh" production "$config_file" --reason pre-migration >"$backup_output" 2>&1; then
+    rm -f "$backup_output"
+    failure_reason=PRE_MIGRATION_BACKUP_FAILED
+    die "$failure_reason"
+  fi
+  backup_ref=$(awk '$1=="BACKUP_SUCCEEDED" {print $3}' "$backup_output")
+  rm -f "$backup_output"
+  [[ -n "$backup_ref" ]] || { failure_reason=PRE_MIGRATION_BACKUP_FAILED; die "$failure_reason"; }
 fi
 
 compose --profile migration run --rm migrate || {

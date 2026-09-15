@@ -69,12 +69,12 @@ is included in the approved release scope.
 - **Type:** `RECOVERY_GAP`
 - **Severity:** Critical
 - **Affected capability:** PostgreSQL data protection and disaster recovery
-- **Production impact:** RELEASE-005-R1 now normatively defines RPO 6 hours, RTO 2 hours, six-hour `pg_dump -Fc` backups, `age` encryption, HOST_PROTECTED off-Lima copies, retention, restore authorization, and recovery-secret escrow. No production implementation or measured recovery evidence exists yet; these are required before the objectives can be marked achieved.
-- **Required action:** Implement the approved [RELEASE-005-R1](items/RELEASE-005-R1_POSTGRESQL_BACKUP_RESTORE_RECOVERY_CONTRACT.md), require a verified pre-migration backup, and restore into an isolated PostgreSQL environment to validate schema, tenant data, immutable history, application reads, and measured RPO/RTO.
+- **Production impact:** RELEASE-005 now implements the approved six-hour `pg_dump -Fc` schedule, `age` encryption, HOST_PROTECTED off-Lima copies, retention, restore authorization, escrow-reference checks and the pre-migration gate. No production-like protected backup/restore rehearsal or measured RPO/RTO evidence exists yet.
+- **Required action:** Provision the writable Lima host mount, age tooling/identity custody and Agent-CA escrow; execute the backup and fresh isolated restore procedure, validate the compatible application image and record measured RPO/RTO.
 - **Verification:** Dated restore-drill record with source backup identifier, measured recovery time/data point, integrity checks and application smoke results. Repeat on the agreed cadence and after material storage/migration changes.
 - **Owner/domain:** Database Operations / Service Owner
 - **Release-blocking:** Yes
-- **Evidence:** [RELEASE-005-R1](items/RELEASE-005-R1_POSTGRESQL_BACKUP_RESTORE_RECOVERY_CONTRACT.md); `README.md` local backup section; `scripts/local-dev.sh`; `docs/DATABASE_STORAGE_BOUNDARY_SPEC.md` backup/restore principles; production implementation and rehearsal remain pending.
+- **Evidence:** [RELEASE-005-R1](items/RELEASE-005-R1_POSTGRESQL_BACKUP_RESTORE_RECOVERY_CONTRACT.md); [implementation report](items/RELEASE-005_IMPLEMENTATION_REPORT.md); `deploy/scripts/backup.sh`; `deploy/scripts/restore.sh`; production-like rehearsal remains pending.
 
 ## RR-07 — Production network edge controls are not configured
 

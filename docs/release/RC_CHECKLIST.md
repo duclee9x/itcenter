@@ -75,6 +75,10 @@ development helper as production evidence.
       encryption, off-host destination level, restore authorization, recovery
       ownership and Agent CA/other secret escrow.
 
+- [x] Implement the RELEASE-005 protected backup command, six-hour timer,
+      retention/status evidence, isolated restore path and pre-migration gate;
+      RPO/RTO remain UNVERIFIED until the real rehearsal below succeeds.
+
 - [ ] Create an isolated, production-like PostgreSQL environment from the
       expected previous schema/data shape using approved sanitized data.
 - [ ] Take and identify a pre-migration backup.

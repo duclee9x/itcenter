@@ -43,7 +43,13 @@ AGENT_GATEWAY_HEALTH_RESOLVE=agent-staging.example.invalid:13001:127.0.0.1
 # AGENT_MTLS_SMOKE_KEY_FILE=/home/itcenter/.config/itcenter/staging/secrets/agent-smoke-key.pem
 SMOKE_TIMEOUT_SECONDS=180
 PRODUCTION_APPROVAL_REF=NOT_APPLICABLE_STAGING
-PRE_MIGRATION_BACKUP_REF=NOT_APPLICABLE_STAGING
+GUEST_BACKUP_MOUNT=/mnt/host-backups/itcenter-staging
+LIMA_WORK_DIR=/home/itcenter/.local/state/itcenter/backups/staging-work
+BACKUP_AGE_RECIPIENT=REPLACE_WITH_STAGING_AGE_RECIPIENT
+BACKUP_MOUNT_FSTYPES=virtiofs,9p
+BACKUP_ESCROW_AGE_IDENTITY_REF=NOT_APPLICABLE_STAGING
+BACKUP_ESCROW_AGENT_CA_REF=NOT_APPLICABLE_STAGING
+POSTGRES_MAJOR_VERSION=18
 # Optional protected API smoke inputs (file contains a short-lived staging token).
 # SMOKE_BEARER_TOKEN_FILE=/home/itcenter/.config/itcenter/staging/secrets/smoke-token
 # SMOKE_TENANT_ID=staging-smoke-tenant

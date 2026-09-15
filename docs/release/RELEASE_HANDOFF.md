@@ -39,17 +39,20 @@ RELEASE-003 runtime is implemented and automated checks pass; staging/
 orchestrator verification remains required before `VERIFIED`. RELEASE-004
 uses one OCI image promoted unchanged through Podman and `podman compose` in a
 Lima Linux VM. The selected v1 deployment is single-host and explicitly not
-HA. The next RELEASE-004 action is staging deployment and evidence capture;
-this implementation activity does not start RELEASE-005, RELEASE-006, or
-RELEASE-007.
+HA. RELEASE-004 staging deployment and evidence capture remain pending;
+RELEASE-005 implementation is now code-complete, while its protected
+backup/restore and RPO/RTO evidence require operational verification. This
+activity does not start RELEASE-006 or RELEASE-007.
 
 ## Release order
 
-RELEASE-005 is ready with its PostgreSQL recovery contract complete.
-Its future backup/restore operations must use guest-side
-`podman compose exec`/`run` and PostgreSQL logical interfaces, never Podman
-volume internals. See [RELEASE-005-R1](items/RELEASE-005-R1_POSTGRESQL_BACKUP_RESTORE_RECOVERY_CONTRACT.md).
-RELEASE-007 is READY because
+RELEASE-005 is `CODE_COMPLETE / NOT VERIFIED`. Its backup/restore operations
+use guest-side PostgreSQL logical interfaces, age encryption, a verified
+`HOST_PROTECTED` Lima mount and isolated Podman Compose restore projects; they
+never use Podman volume internals. RPO 6h and RTO 2h remain UNVERIFIED until
+the required rehearsal. See [RELEASE-005 implementation report](items/RELEASE-005_IMPLEMENTATION_REPORT.md).
+RELEASE-006 is eligible from its code dependencies but must not be started
+automatically. RELEASE-007 is READY because
 the RELEASE-004 topology is implemented, but is not started here. RELEASE-006
 waits for RELEASE-005 and verified migration/recovery inputs; the final
 RELEASE-GATE-001 waits for every initial remediation item to be verified.

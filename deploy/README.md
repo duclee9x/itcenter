@@ -125,9 +125,22 @@ mounts. Do not use production credentials in staging.
 Use `DB_MODE=external` by default. For a Compose-managed database, set
 `DB_MODE=compose`, configure the protected URL to address `postgres`, and
 provide the separate password file. PostgreSQL remains on the project's
-private network. RELEASE-005 owns backup/restore; its implementation should
-use PostgreSQL-native dump/restore through `podman compose exec` or
-`podman compose run`, never copy Podman volume internals.
+private network. RELEASE-005 owns backup/restore. `deploy/scripts/backup.sh`
+uses `pg_dump -Fc`, encrypts with `age`, computes SHA-256 over the encrypted
+artifact and publishes only after verification to the configured writable
+`GUEST_BACKUP_MOUNT`. A Lima-only directory or Podman volume never satisfies
+`HOST_PROTECTED`.
+
+The six-hour guest timer is installed with
+`systemctl --user enable --now itcenter-backup.timer`. `backup-status.sh`
+reports RPO from the latest protected copy; `restore.sh --backup <id>
+--target rehearsal --config <env> --age-identity <identity>` uses a fresh
+Podman Compose project. Production restore requires an exact backup id,
+`--target production` and `--confirm-production-restore`. No migration or
+deployment failure automatically restores a database. RPO is 6 hours and RTO
+is 2 hours, both `UNVERIFIED` until a production-like rehearsal supplies
+evidence. Age identity and Agent CA escrow references are checked without
+reading private material.
 
 The guest's Podman reports the `journald` log driver. Configure bounded
 systemd-journald retention on the Linux guest (for example `SystemMaxUse`,
@@ -153,9 +166,9 @@ record a pending attempt, run the one-shot migration with the same
 `APP_IMAGE`, then start services and wait on RELEASE-003 application readiness
 and smoke checks. They stop on any failure; only a successful deployment
 updates `CURRENT`/`LAST_KNOWN_GOOD`. Migration is never launched by every
-application container. Before RELEASE-005/006 recovery evidence exists,
-production schema-changing promotion remains blocked; a backup reference is
-not backup proof.
+application container. Production schema-changing promotion first invokes the
+RELEASE-005 protected pre-migration backup and stops if its host-copy
+verification fails; RPO/RTO evidence remains a separate release gate.
 
 ```sh
 # Inside Lima guest, from the reviewed deployment checkout

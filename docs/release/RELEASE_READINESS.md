@@ -108,9 +108,11 @@ staging/production projects, ordered migration, readiness/smoke gates,
 staging-evidence attestation, stateful exact-digest rollback, and systemd host
 boot integration. Automated repository checks pass, but no clean CI-published
 digest has been deployed through a real Linux staging host; RELEASE-004 is not
-`VERIFIED` and RR-04 remains open. RELEASE-005 is ready with its R1
-recovery-policy decisions complete, RELEASE-006 waits on
-RELEASE-005, and RELEASE-007 is now `READY / NOT_STARTED`
+`VERIFIED` and RR-04 remains open. RELEASE-005 is `CODE_COMPLETE / NOT
+VERIFIED`: the approved backup/restore automation and pre-migration gate are
+implemented, while protected backup, fresh restore, escrow and measured
+RPO/RTO evidence remain pending. RELEASE-006 is now eligible from its code
+dependencies but is not started, and RELEASE-007 is `READY / NOT_STARTED`
 because its topology dependency is implemented. Overall readiness remains
 `BLOCKED_FOR_RC`.
 
@@ -223,9 +225,9 @@ No secret values belong in this document or in source control.
 4. Rehearse migrations against a production-like previous schema. Measure
    duration/locks, test runtime roles, establish expand/forward-fix behavior,
    and record whether N-1 can operate during/after migration.
-5. Approve RELEASE-005-R1 recovery policy decisions, set backup/restore
-   ownership and RPO/RTO; then perform a restore into an isolated database and
-   verify application-level integrity before any production data migration.
+5. Execute the RELEASE-005 protected backup and isolated restore rehearsal,
+   verify application-level integrity and record measured RPO/RTO before any
+   production data migration.
 6. Export metrics/logs, configure actionable alerts, and verify API, DB,
    workers, outbox, execution, Reporting and Recommendation signals.
 7. Run the RC checklist, including safe smoke tests, capacity observation,

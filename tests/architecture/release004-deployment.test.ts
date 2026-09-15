@@ -125,7 +125,8 @@ test("deployment gates on digest, migration, and exact readiness; rollback check
       deploy.indexOf("up -d --wait --remove-orphans"),
   );
   assert.match(deploy, /STAGING_VERIFICATION_REQUIRED/);
-  assert.match(deploy, /PRE_MIGRATION_BACKUP_REQUIRED/);
+  assert.match(deploy, /backup\.sh.*pre-migration/);
+  assert.match(deploy, /PRE_MIGRATION_BACKUP_FAILED/);
   assert.match(smoke, /\.data\.status == "READY"/);
   assert.match(smoke, /\.data\.profile == "WORKER"/);
   assert.match(rollback, /current-schema-revision\.js/);
