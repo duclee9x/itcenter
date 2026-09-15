@@ -264,6 +264,17 @@ production tests are allowed.
 - [ ] If rollback is unsafe after schema migration, execute the documented
       forward-fix path; do not roll back to an incompatible N-1 binary.
 
+## Phase 4 verification update
+
+- [x] Linux Agent issuer remediation committed in `cca7d1b` and verified by
+      Bootstrap CI run `35007367015`.
+- [x] Runtime image includes OpenSSL and the issuer uses the Debian Bookworm
+      OpenSSL 3.0-compatible signing path.
+- [ ] Publish and deploy the new candidate from GHCR after `master` branch
+      protection is enabled.
+- [ ] Complete Agent enrollment, release verification evidence and recovery
+      RPO/RTO closure.
+
 ## Final decision
 
 - [ ] `READY_FOR_RC` — no unresolved release blocker for the approved scope.

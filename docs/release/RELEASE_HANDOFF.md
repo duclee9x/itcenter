@@ -2,11 +2,18 @@
 
 ## Current position
 
+Phase 4 focused remediation is committed as `cca7d1b` and pushed to
+`origin/master`; Bootstrap CI run `35007367015` passed. The runtime image now
+includes OpenSSL and the Agent issuer is compatible with Debian Bookworm
+OpenSSL 3.0. The next candidate is local-only until `master` is protected and
+the GHCR publish workflow can produce an immutable registry digest.
+
 The latest verification closure is
 [RELEASE_VERIFICATION_SUMMARY.md](RELEASE_VERIFICATION_SUMMARY.md). The
-environment pre-flight found no immutable RC metadata, no staging OIDC/Agent
-credentials, no Lima `age` executable, and no writable HOST_PROTECTED mount;
-the release remains `BLOCKED_FOR_RC`.
+environment now has a local immutable candidate, staging OIDC/PKI material,
+Lima `age` and a writable HOST_PROTECTED mount; the release remains
+`BLOCKED_FOR_RC` because registry publication and qualifying verification
+evidence are incomplete.
 
 - Product implementation roadmap: complete through Phase 5; TASK-097 is
   `CODE_COMPLETE / VERIFIED`.

@@ -8,6 +8,12 @@
 
 **Decision:** `BLOCKED_FOR_RC`
 
+Phase 4 remediation commit `cca7d1b` is pushed and its GitHub Actions verify
+run `35007367015` is green. The Linux Agent certificate issuer now has its
+OpenSSL runtime dependency and uses an OpenSSL 3.0-compatible signing path.
+This removes the prior runtime/CI defect but does not by itself provide
+staging enrollment, registry publication, or release verification evidence.
+
 The consolidated verification closure is recorded in
 [RELEASE_VERIFICATION_SUMMARY.md](RELEASE_VERIFICATION_SUMMARY.md). No item is
 promoted to `VERIFIED` without its contract-defined staging or
@@ -23,17 +29,14 @@ may be excluded only by a recorded release-scope decision. Authentication,
 tenant isolation, database recovery, safe migration, and deployment controls
 remain required for any production release.
 
-The repository is not ready to produce and promote a production Release
-Candidate. The decisive blockers are: the API authentication adapter is
-implemented but has not been configured and validated against a real staging
-OIDC provider; RELEASE-003 readiness is implemented but has not been validated
-against staging deployables/orchestrator probes; the immutable image/Compose
-pipeline is implemented but has not been exercised with a real CI-published
-digest in Linux staging; no production-like migration compatibility
-rehearsal exists; RELEASE-006 is ready for a later implementation run, and no production backup/restore drill or RPO/RTO is evidenced;
-and TLS/rate limiting are not supplied by a checked-in deployment edge. Agent
-execution additionally remains fail-closed until its real Agent CA and
-credentials are configured and mTLS is validated through staging.
+The repository is not ready to promote a production Release Candidate. The
+remaining decisive blockers are incomplete negative OIDC and Agent mTLS
+staging evidence, the absence of a registry-backed immutable digest and exact
+digest staging attestation, incomplete migration rehearsal, incomplete
+application restore validation and scheduled RPO/RTO evidence, and production
+escrow governance. The focused Linux/OpenSSL defect is remediated and CI is
+green, while Agent execution remains fail-closed until canonical enrollment
+and mTLS acceptance are validated through staging.
 
 Do not bypass fail-closed behavior to clear these findings. Read
 [RELEASE_BLOCKERS.md](RELEASE_BLOCKERS.md) for actions and acceptance evidence,

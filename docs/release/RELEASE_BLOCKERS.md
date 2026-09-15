@@ -9,13 +9,18 @@ The current cross-item evidence inventory is maintained in
 repository and local tests do not substitute for staging/production-like
 evidence.
 
+Phase 4 update: focused Linux/OpenSSL remediation is committed in `cca7d1b`
+and Bootstrap CI run `35007367015` passed. The previous missing-OpenSSL image
+defect is closed as an implementation blocker; RELEASE-002 still requires
+canonical staging enrollment and direct mTLS acceptance evidence.
+
 ## RR-01 — Production OIDC provider and staging acceptance are not verified
 
 - **Type:** `RELEASE_BLOCKER`
 - **Severity:** Critical
 - **Affected capability:** API authentication, authorization, all protected user APIs
-- **Production impact:** RELEASE-001 runtime is `CODE_COMPLETE` and automated PostgreSQL tests pass, but no production OIDC issuer/audience, IdentityLink provisioning, or local authorization grants have been supplied and validated in staging. Runtime intentionally fails startup or denies access without valid trust configuration; the API is therefore not yet usable for production users.
-- **Required action:** Configure the approved provider-neutral OIDC profile using a real staging IdP, provision test identities and tenant-local memberships/RBAC through governed operations, and retain fail-closed behavior for missing or invalid configuration.
+- **Production impact:** RELEASE-001 runtime is `CODE_COMPLETE`; pinned Keycloak staging now supplies a real RFC9068 `at+jwt` token and the authorized staging identity is accepted. The complete negative-token, membership and local-RBAC matrix is still not recorded.
+- **Required action:** Complete the negative OIDC matrix against the existing Keycloak staging provider and retain fail-closed behavior for missing or invalid configuration.
 - **Verification:** In staging, exercise R1 token, issuer, audience, key rotation and clock-tolerance cases; verify R2 missing/malformed/duplicate header errors, selected-tenant membership and local permission; deny provisioning/tenant/permission negative cases; prove User/membership/permission revocation takes effect; and confirm IdP role/tenant claims grant nothing. RR-01 remains open until staging evidence is recorded.
 - **Owner/domain:** Identity / Platform API
 - **Release-blocking:** Yes
@@ -38,8 +43,8 @@ evidence.
 - **Type:** `PRODUCTION_CONFIGURATION`
 - **Severity:** High
 - **Affected capability:** Agent Gateway and self-healing execution
-- **Production impact:** RELEASE-002 implements direct Gateway mTLS, Agent registration/credential lifecycle, enrollment, rotation/revocation, server-derived tenant/Asset binding, per-session message receipts, TASK-091 execution binding, audit and fail-closed readiness. No real private Agent CA or staging topology has yet been configured and validated; production Agent execution remains unavailable until that is done.
-- **Required action:** Provision the operator-controlled private Agent CA and server/Agent certificates through the approved secret/PKI process. Configure the immutable staging release and validate direct mTLS through the intended RELEASE-007 topology. Keep production fail-closed behavior enabled.
+- **Production impact:** RELEASE-002 implements direct Gateway mTLS, registration/credential lifecycle, enrollment, rotation/revocation, server-derived tenant/Asset binding, per-session message receipts, TASK-091 execution binding, audit and fail-closed readiness. Staging CA material and direct TLS handshake evidence exist; canonical enrollment has not yet been rerun with the remediated image.
+- **Required action:** Deploy the new candidate and complete canonical enrollment, credential acceptance and the direct mTLS negative matrix through the intended RELEASE-007 topology. Keep production fail-closed behavior enabled.
 - **Verification:** In staging, prove end-to-end mTLS through the promoted RELEASE-007 topology; test valid/invalid/expired/revoked/unknown Agent, enrollment and rotation, wrong tenant/Asset/execution, message replay, existing-connection revocation, late TASK-091 evidence, audit and readiness. Prove test authentication is rejected.
 - **Owner/domain:** Agent Gateway / Automation (TASK-091)
 - **Release-blocking:** Yes when Agent execution is in scope; assumed in this assessment
@@ -75,8 +80,8 @@ evidence.
 - **Type:** `RECOVERY_GAP`
 - **Severity:** Critical
 - **Affected capability:** PostgreSQL data protection and disaster recovery
-- **Production impact:** RELEASE-005 now implements the approved six-hour `pg_dump -Fc` schedule, `age` encryption, HOST_PROTECTED off-Lima copies, retention, restore authorization, escrow-reference checks and the pre-migration gate. No production-like protected backup/restore rehearsal or measured RPO/RTO evidence exists yet.
-- **Required action:** Provision the writable Lima host mount, age tooling/identity custody and Agent-CA escrow; execute the backup and fresh isolated restore procedure, validate the compatible application image and record measured RPO/RTO.
+- **Production impact:** RELEASE-005 now implements the approved six-hour `pg_dump -Fc` schedule, `age` encryption, HOST_PROTECTED off-Lima copies, retention, restore authorization, escrow-reference checks and the pre-migration gate. A protected staging backup, checksum and isolated schema restore pass, but application validation, scheduled-timer evidence, production escrow and measured RPO/RTO remain open.
+- **Required action:** Install and exercise the checked-in Lima user timer, validate the compatible application after restore, record measured RPO/RTO and provide governed production escrow references.
 - **Verification:** Dated restore-drill record with source backup identifier, measured recovery time/data point, integrity checks and application smoke results. Repeat on the agreed cadence and after material storage/migration changes.
 - **Owner/domain:** Database Operations / Service Owner
 - **Release-blocking:** Yes
@@ -87,8 +92,8 @@ evidence.
 - **Type:** `SECURITY_GAP`
 - **Severity:** Critical
 - **Affected capability:** Public and internal HTTP endpoints
-- **Production impact:** API and Agent Gateway use Node HTTP listeners. No checked-in production ingress/reverse-proxy configuration proves TLS termination, trusted proxy handling or rate limiting. API contract specifications require rate limits, but no application limiter or configured edge policy was found. There is no CORS policy (which is acceptable if no cross-origin browser client is exposed, but must be decided), nor a deployment-level request-size policy. App code does not consume forwarded headers as trusted identity, which should remain the default until proxy trust is explicitly configured.
-- **Required action:** Capture the required staging edge evidence for the implemented [RELEASE-007-R1](items/RELEASE-007-R1_PRODUCTION_EDGE_TLS_RATE_LIMITING_CONTRACT.md) topology: real DNS/certificate mode, Lima forwarding, public HTTPS, rate/body limits, forwarded-header spoofing, and direct Agent mTLS.
+- **Production impact:** RELEASE-007 now includes checked-in Caddy TLS termination, bounded trusted-proxy handling, application rate limiting, body limits and direct Agent mTLS topology. Local staging redirect/HTTPS/headers/401/413 evidence exists; full edge and direct application-path evidence remains open.
+- **Required action:** Capture the remaining staging edge evidence for the implemented [RELEASE-007-R1](items/RELEASE-007-R1_PRODUCTION_EDGE_TLS_RATE_LIMITING_CONTRACT.md) topology. Public DNS/ACME is a production prerequisite; local staging may use the approved internal CA.
 - **Verification:** External staging scan and positive/negative TLS tests; spoofed forwarded-header test; rate-limit behavior and `429` response; oversized-body rejection; CORS preflight/denial tests if browser access is enabled; ensure no direct unencrypted listener is reachable.
 - **Owner/domain:** Security Engineering / Platform Networking
 - **Release-blocking:** Yes

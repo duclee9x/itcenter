@@ -1,14 +1,14 @@
 # Current Release Item
 
-| Field         | Value                                                                                |
-| ------------- | ------------------------------------------------------------------------------------ |
-| Selected item | RELEASE-007 — Production TLS Ingress + Rate Limiting                                 |
-| Priority      | P0                                                                                   |
-| Status        | `CODE_COMPLETE / NOT VERIFIED`                                                       |
-| Readiness     | `N/A`                                                                                |
-| Blocker       | Real staging/public-edge verification remains; RELEASE-GATE-001 is not started.      |
-| Contract      | [RELEASE-007-R1](items/RELEASE-007-R1_PRODUCTION_EDGE_TLS_RATE_LIMITING_CONTRACT.md) |
-| Item          | [RELEASE-007](items/RELEASE-007_PRODUCTION_TLS_INGRESS_RATE_LIMITING.md)             |
+| Field         | Value                                                                                                                     |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| Selected item | RELEASE-007 — Production TLS Ingress + Rate Limiting                                                                      |
+| Priority      | P0                                                                                                                        |
+| Status        | `CODE_COMPLETE / NOT VERIFIED`                                                                                            |
+| Readiness     | `N/A`                                                                                                                     |
+| Blocker       | Exact GHCR RC publication, staging enrollment/verification and recovery evidence remain; RELEASE-GATE-001 is not started. |
+| Contract      | [RELEASE-007-R1](items/RELEASE-007-R1_PRODUCTION_EDGE_TLS_RATE_LIMITING_CONTRACT.md)                                      |
+| Item          | [RELEASE-007](items/RELEASE-007_PRODUCTION_TLS_INGRESS_RATE_LIMITING.md)                                                  |
 
 RELEASE-001 runtime is `CODE_COMPLETE` but not `VERIFIED`; real provider and
 staging acceptance remain open. RELEASE-002-R1 fixes Agent authentication as
@@ -33,8 +33,9 @@ rehearsal remain operational verification work. RELEASE-006 is
 `CODE_COMPLETE / NOT VERIFIED`; its isolated rehearsal infrastructure is
 implemented, but qualifying N-1 and production-like evidence remain open.
 RELEASE-007 is `CODE_COMPLETE / NOT VERIFIED`. Its Caddy/API edge controls,
-direct Agent mTLS topology, validation and smoke hooks are implemented. Real
-staging DNS/certificate/network verification is still required.
+direct Agent mTLS topology, validation and smoke hooks are implemented. Local
+staging internal-CA evidence is partial; public DNS/ACME remains a production
+prerequisite rather than a local staging blocker.
 RELEASE-GATE-001 remains blocked on verification evidence. Do not start another
 release item automatically. See
 [RELEASE_BACKLOG.md](RELEASE_BACKLOG.md) and

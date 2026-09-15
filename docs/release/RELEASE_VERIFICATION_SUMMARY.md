@@ -80,11 +80,14 @@ through the edge, while a wrong tenant remains denied. The remaining
 RELEASE-001 negative-token matrix is not yet complete.
 
 The canonical Agent enrollment attempt reached the existing
-`CertificateIssuerPort` but the candidate Gateway image has no `openssl`
-executable, so issuer readiness is unavailable and no AgentCredential was
-created. This is recorded as a runtime image/tooling gap; no raw credential
-row was fabricated. The direct mTLS listener still completes the TLS
-handshake and Gateway remains `DEGRADED` as designed.
+`CertificateIssuerPort` but the old candidate Gateway image had no `openssl`
+executable, so issuer readiness was unavailable and no AgentCredential was
+created. Phase 4 remediated this by installing Debian Bookworm OpenSSL in the
+runtime image and replacing unsupported OpenSSL 3.0 `x509 -not_before` /
+`-not_after` flags with the portable `openssl ca -startdate` / `-enddate`
+path. The issuer now passes in the Linux runtime image and the focused Agent
+tests pass; canonical staging enrollment still needs to be rerun with the new
+candidate.
 
 The API edge rate limiter produced HTTP 429 for the mutation threshold in an
 isolated loop. The Caddy path, raw API/DB exposure checks and local TLS checks
@@ -102,9 +105,9 @@ VERIFIED.
 | Item        | Result                         | Evidence / remaining blocker                                                                                                                                                             |
 | ----------- | ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | RELEASE-001 | `CODE_COMPLETE / NOT VERIFIED` | Real Keycloak/JWKS/RS256 `at+jwt` token is now accepted and authorized for the staging tenant; the complete negative-token, revoked-membership and RBAC matrix remains incomplete.       |
-| RELEASE-002 | `CODE_COMPLETE / NOT VERIFIED` | Direct mTLS listener and CA/client handshake pass, but canonical enrollment stopped because the Gateway image lacks `openssl`; no AgentCredential acceptance evidence exists.            |
+| RELEASE-002 | `CODE_COMPLETE / NOT VERIFIED` | Phase 4 Linux/OpenSSL remediation and focused issuer/mTLS tests pass; canonical enrollment, credential acceptance and negative staging matrix remain incomplete.                         |
 | RELEASE-003 | `CODE_COMPLETE / NOT VERIFIED` | API reaches READY, all three mandatory workers are healthy, and Gateway reaches expected DEGRADED; dependency-failure, worker-failure and drain transitions are not fully evidenced.     |
-| RELEASE-004 | `CODE_COMPLETE / NOT VERIFIED` | Local OCI candidate exists, but a protected registry-backed RC and exact-digest staging deployment/attestation are still required.                                                       |
+| RELEASE-004 | `CODE_COMPLETE / NOT VERIFIED` | New local immutable candidate `RC-LOCAL-CCA7D1B` exists and CI verify is green; protected branch/GHCR publication and exact-digest staging attestation remain required.                  |
 | RELEASE-005 | `CODE_COMPLETE / NOT VERIFIED` | Staging protected backup and isolated schema restore pass; application restore validation, production escrow, scheduled timer evidence and qualifying RPO/RTO remain.                    |
 | RELEASE-006 | `CODE_COMPLETE / NOT VERIFIED` | Transitional N-1 artifact is prepared, but baseline/application compatibility and backup-gated N-1→N rehearsal remain blocked by incomplete OIDC/application runtime acceptance.         |
 | RELEASE-007 | `CODE_COMPLETE / NOT VERIFIED` | Local staging edge, redirect, trusted HTTPS, readiness, 401, 413 and mutation 429 pass. General-limit, spoof, modern/obsolete TLS and direct Agent application checks remain incomplete. |
@@ -114,6 +117,30 @@ within six hours and provides `MET` staging evidence only.
 
 **RTO:** `UNVERIFIED` for release closure. The isolated database restore was
 under two hours, but application usability validation was not completed.
+
+## Phase 4 remediation evidence
+
+Focused remediation commit `cca7d1b3bfc7510635d4db1be67bafa65981a8a3`
+fixes Linux Agent certificate issuance. The runtime image now contains
+OpenSSL 3.0 from Debian Bookworm, the issuer uses the OpenSSL-3.0-compatible
+`ca` signing path with bounded stderr diagnostics, and the issuer preserves
+the server-controlled URI SAN, clientAuth EKU, requested serial and 30-day
+maximum lifetime. The local focused issuer test, full repository suite and
+Linux-like runtime-image issuer exercise pass.
+
+GitHub Actions Bootstrap CI run `35007367015` for this commit completed with
+`success`. A new local candidate was built from the committed source:
+
+| Field                    | Value                                                                     |
+| ------------------------ | ------------------------------------------------------------------------- |
+| Release                  | `RC-LOCAL-CCA7D1B`                                                        |
+| Source                   | `cca7d1b3bfc7510635d4db1be67bafa65981a8a3`                                |
+| Local OCI image identity | `sha256:474f72db0aca9f5464c365a4b9e47db695e100a45b852b32bf5e21be70b72b0f` |
+| Schema                   | `95886cdc18d735163a76863d050e37b7629c3015bbe37b756b9764a260636fdb`        |
+| Registry digest          | Not available; publish job requires protected `master`                    |
+
+GitHub reports `master` as unprotected. The publish safeguard remains in
+place; no GHCR digest or registry-backed RC has been fabricated.
 
 ## Environment readiness
 

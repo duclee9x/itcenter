@@ -3,27 +3,26 @@
 This file contains only operator-controlled inputs still missing for release
 verification. It contains no credentials or secret values.
 
-## OCI registry-backed RC
+## Protected release branch for GHCR publication
 
-Provide the protected registry configuration required by the existing release
-workflow:
-
-- `OCI_REGISTRY`
-- `OCI_REPOSITORY`
-- protected `OCI_USERNAME` and `OCI_PASSWORD` in CI secret storage
-
-Why: the local candidate is usable for inspection but is not a promotable RC
-identity. RELEASE-004 deployment and all qualifying staging evidence require
-one immutable repository digest plus RC metadata.
+Enable the repository's approved branch protection/ruleset for `master`. The
+publish workflow intentionally requires `github.ref_protected == true` and
+now publishes to `ghcr.io/duclee9x/itcenter` using the job-scoped
+`GITHUB_TOKEN` with `packages: write`; no PAT or registry password is required
+by the checked-in workflow.
 
 Validation:
 
 ```sh
-podman pull "$OCI_REGISTRY/$OCI_REPOSITORY@sha256:<digest>"
-podman inspect "$OCI_REGISTRY/$OCI_REPOSITORY@sha256:<digest>"
+curl -fsSL https://api.github.com/repos/duclee9x/itcenter/branches/master \
+  | jq -r '.protected'
 ```
 
-Blocks: RELEASE-004, then RELEASE-001/002/003/006/007 staging verification.
+Expected output: `true`. Then dispatch Bootstrap CI with a new release id and
+verify the resulting RC metadata references the exact GHCR digest.
+
+Blocks: RELEASE-004 registry-backed RC publication and exact-digest staging
+attestation.
 
 ## Recovery escrow governance
 
@@ -61,7 +60,7 @@ HOST_PROTECTED destination and inspect the timer's next/last run. This is
 required for RELEASE-005 RPO evidence; the current Lima guest has no installed
 user timer.
 
-## Public staging edge (optional local path already prepared)
+## Public production edge (not required for local staging TLS)
 
 For public ACME/production-like edge evidence, provide a staging hostname with
 DNS resolving to the intended Lima/macOS path and the operator-controlled
@@ -76,11 +75,13 @@ curl --resolve <staging-host>:443:<host-address> https://<staging-host>/health/l
 nc -vz <host-address> <agent-mtls-port>
 ```
 
-Blocks: public portion of RELEASE-007 verification and the corresponding
-production-like edge evidence.
+Blocks production ACME/external-reachability evidence only. RELEASE-007 local
+staging verification may use the approved independent Caddy CA mode.
 
 ## Current local candidate reference
 
-The bootstrap-only local candidate is recorded outside Git at the host-backed
-verification path as `RC-LOCAL-7EA3001.json`. It is intentionally marked
-`NOT_VERIFIED` and `NOT_PROMOTED`.
+The current local candidate is `RC-LOCAL-CCA7D1B`, built from committed
+`cca7d1b3bfc7510635d4db1be67bafa65981a8a3`, with local image identity
+`sha256:474f72db0aca9f5464c365a4b9e47db695e100a45b852b32bf5e21be70b72b0f`.
+It is intentionally marked `NOT_VERIFIED` and `NOT_PROMOTED` until the exact
+GHCR digest is published and deployed.
