@@ -44,8 +44,9 @@ RELEASE-005 implementation is now code-complete, while its protected
 backup/restore and RPO/RTO evidence require operational verification. This
 activity implements RELEASE-006's isolated migration rehearsal infrastructure;
 its qualifying N-1 and production-like evidence remain pending. RELEASE-007
-R1 is now complete and the item is `READY / NOT_STARTED`; runtime edge work
-has not started.
+is now `CODE_COMPLETE / NOT VERIFIED`; the edge implementation is recorded in
+[its implementation report](items/RELEASE-007_IMPLEMENTATION_REPORT.md), and
+real staging edge evidence remains.
 
 ## Release order
 
@@ -61,10 +62,10 @@ exact-schema defaults, the four-cell matrix, 10-second lock timeout,
 10-minute statement timeout and 30-minute migration budget. See [the
 implementation report](items/RELEASE-006_IMPLEMENTATION_REPORT.md) and
 [RELEASE-006-R1](items/RELEASE-006-R1_POSTGRESQL_MIGRATION_COMPATIBILITY_CONTRACT.md).
-RELEASE-007 is `READY / NOT_STARTED` after
+RELEASE-007 is `CODE_COMPLETE / NOT VERIFIED` after
 [RELEASE-007-R1](items/RELEASE-007-R1_PRODUCTION_EDGE_TLS_RATE_LIMITING_CONTRACT.md)
 fixed its security limits, certificate lifecycle and trusted-proxy policy.
-Runtime work has not started. RELEASE-006 also depends on RELEASE-005
+RELEASE-006 also depends on RELEASE-005
 verification inputs;
 the final
 RELEASE-GATE-001 waits for every initial remediation item to be verified.

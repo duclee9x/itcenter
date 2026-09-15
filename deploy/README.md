@@ -281,8 +281,12 @@ digest has deployed and the OIDC, tenant/RBAC, real Agent mTLS, worker,
 readiness and drain evidence is reviewed. It writes a digest-bound acceptance
 attestation. Production promotion uses that same digest and attestation. A
 real staging deployment remains required before RELEASE-004 is `VERIFIED`.
-RELEASE-007 will complete API ingress controls; it does not change direct
-Agent mTLS termination.
+RELEASE-007 implements the API ingress controls; it does not change direct
+Agent mTLS termination. Production selects `CADDY_CONFIG_FILE=./caddy/Caddyfile.production`
+with `CADDY_CERT_MODE=acme` by default. Staging selects
+`Caddyfile.staging` with `CADDY_CERT_MODE=internal`. Manual production TLS
+uses `Caddyfile.production.manual` and the external certificate override
+Compose file; private keys remain operator-mounted.
 
 ## RELEASE-007 edge policy
 

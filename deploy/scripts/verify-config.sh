@@ -37,6 +37,8 @@ for key in APP_IMAGE POSTGRES_IMAGE CADDY_IMAGE APP_VERSION GIT_COMMIT BUILD_TIM
   BACKUP_ESCROW_AGENT_CA_REF; do
   require_value "$key"
 done
+cert_mode=$(value CADDY_CERT_MODE)
+[[ "$cert_mode" == acme || "$cert_mode" == internal || "$cert_mode" == manual ]] || die CADDY_CERT_MODE_INVALID
 [[ "$(value OIDC_ISSUER)" == https://* && -n "$(value OIDC_AUDIENCE)" ]] || die OIDC_CONFIG_INVALID
 for key in OIDC_ISSUER API_HOSTNAME AGENT_GATEWAY_HOSTNAME API_HEALTH_URL \
   API_HEALTH_RESOLVE AGENT_GATEWAY_HEALTH_URL AGENT_GATEWAY_HEALTH_RESOLVE; do
@@ -71,9 +73,16 @@ grep -Fqx "OIDC_ISSUER=$(value OIDC_ISSUER)" "$runtime_file" || die OIDC_CONFIG_
 grep -Fqx "OIDC_AUDIENCE=$(value OIDC_AUDIENCE)" "$runtime_file" || die OIDC_CONFIG_MISMATCH
 
 for key in DATABASE_URL_FILE AGENT_TLS_CERT_FILE AGENT_TLS_KEY_FILE AGENT_CA_CERT_FILE \
-  AGENT_GATEWAY_HEALTH_CA_FILE AGENT_CA_SIGNING_KEY_FILE API_TLS_CERT_FILE API_TLS_KEY_FILE; do
+  AGENT_GATEWAY_HEALTH_CA_FILE AGENT_CA_SIGNING_KEY_FILE; do
   secure_file "$(value "$key")"
 done
+if [[ "$cert_mode" == manual ]]; then
+  secure_file "$(value API_TLS_CERT_FILE)"
+  secure_file "$(value API_TLS_KEY_FILE)"
+else
+  secure_file "$(value API_TLS_CERT_FILE)" true
+  secure_file "$(value API_TLS_KEY_FILE)" true
+fi
 if [[ "$(value DB_MODE)" == compose ]]; then
   secure_file "$(value POSTGRES_PASSWORD_FILE)"
 else

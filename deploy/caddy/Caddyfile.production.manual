@@ -1,9 +1,14 @@
+http://{$API_HOSTNAME} {
+	redir https://{host}{uri} permanent
+}
+
 {$API_HOSTNAME} {
 	tls /run/secrets/api_tls_certificate /run/secrets/api_tls_key
 	request_body {
 		max_size 2MB
 	}
 	header {
+		Strict-Transport-Security "max-age=86400"
 		X-Content-Type-Options "nosniff"
 		Referrer-Policy "no-referrer"
 		X-Frame-Options "DENY"

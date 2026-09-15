@@ -11,7 +11,7 @@ flowchart TD
   R004[RELEASE-004 Immutable Build / Promotion — CODE_COMPLETE / NOT VERIFIED]
   R005[RELEASE-005 Backup / Restore — CODE_COMPLETE / NOT VERIFIED]
   R006[RELEASE-006 Migration Rehearsal / N-1 — CODE_COMPLETE / NOT VERIFIED]
-  R007[RELEASE-007 TLS Ingress / Rate Limiting — READY / NOT_STARTED]
+  R007[RELEASE-007 TLS Ingress / Rate Limiting — CODE_COMPLETE / NOT VERIFIED]
   G001[RELEASE-GATE-001 RC Re-verification]
 
   R004 --> R006
@@ -52,9 +52,9 @@ Derived state after RELEASE-004 implementation:
 - **CODE_COMPLETE / NOT VERIFIED:** RELEASE-006. Its isolated Podman
   rehearsal tooling, timeout controls and matrix evidence path are implemented;
   qualifying N-1 and production-like rehearsal evidence remain pending.
-- **READY:** RELEASE-007. R1 fixes certificate lifecycle, trusted one-hop
-  forwarding, rate/body/timeout limits, direct Agent mTLS and failure policy;
-  implementation has not started.
+- **CODE_COMPLETE / NOT VERIFIED:** RELEASE-007. Caddy/API edge controls,
+  trusted one-hop forwarding, rate/body/timeout limits and direct Agent mTLS
+  topology are implemented; real staging edge evidence remains.
 - **BLOCKED:** None for the individual not-started items; verification
   blockers remain release-gate evidence.
 - **WAITING_DEPENDENCY:** RELEASE-GATE-001, which waits for all verification
@@ -67,8 +67,8 @@ Its staging deployment remains pending. RELEASE-001 through RELEASE-003 remain
 unverified pending their environment evidence. RELEASE-005 is independent and
 its implementation is code-complete; protected backup, restore and RPO/RTO
 evidence remain unverified.
-RELEASE-007 is ready after
+RELEASE-007 is code-complete after
 [RELEASE-007-R1](items/RELEASE-007-R1_PRODUCTION_EDGE_TLS_RATE_LIMITING_CONTRACT.md)
-completion, but remains unstarted in this activity. Any newly discovered
+completion and its implementation report, but remains unverified. Any newly discovered
 blocker must be recorded on the affected item and readiness recomputed;
 dependencies must not be bypassed.

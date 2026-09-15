@@ -55,6 +55,10 @@ compose() {
   "${CONTAINER_CLI:-podman}" compose "${COMPOSE_ARGS[@]}" "$@"
 }
 
+validate_caddy_config() {
+  compose run --rm --no-deps caddy caddy validate --config /etc/caddy/Caddyfile
+}
+
 version_at_least() {
   local version=$1 min_major=$2 min_minor=$3 min_patch=$4
   local pattern='([0-9]+)\.([0-9]+)\.([0-9]+)'

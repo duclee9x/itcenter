@@ -1,0 +1,11 @@
+services:
+  caddy:
+    secrets: [api_tls_certificate, api_tls_key]
+
+secrets:
+  api_tls_certificate:
+    file: ${API_TLS_CERT_FILE:?Set API_TLS_CERT_FILE}
+    x-podman.relabel: z
+  api_tls_key:
+    file: ${API_TLS_KEY_FILE:?Set API_TLS_KEY_FILE}
+    x-podman.relabel: z

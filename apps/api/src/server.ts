@@ -11,6 +11,7 @@ import {
   ReadinessCheckCache,
   type ReadinessSnapshot,
 } from "../../../packages/observability/src/index.js";
+import { createApiEdgePolicy } from "./edge-policy.js";
 import {
   authenticate,
   authorize,
@@ -5523,5 +5524,7 @@ export function apiServer(
         work: dispatch,
       });
     },
+    undefined,
+    config.environment === "test" ? undefined : createApiEdgePolicy(),
   );
 }

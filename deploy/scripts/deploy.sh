@@ -56,6 +56,7 @@ fi
 
 compose config --quiet || { failure_reason=COMPOSE_CONFIG_INVALID; die "$failure_reason"; }
 compose pull || { failure_reason=IMAGE_PULL_FAILED; die "$failure_reason"; }
+validate_caddy_config || { failure_reason=CADDY_CONFIG_INVALID; die "$failure_reason"; }
 write_event "$environment" "$release_id" PENDING DEPLOYMENT_STARTED "$image" \
   "$source_commit" "$schema_revision" "$config_rev"
 

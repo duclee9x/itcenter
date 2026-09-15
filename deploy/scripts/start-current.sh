@@ -19,6 +19,7 @@ export GIT_COMMIT=$source_commit APP_VERSION=$app_version BUILD_TIME=$build_time
 acquire_deployment_lock production
 ensure_container_runtime
 compose config --quiet || die COMPOSE_CONFIG_INVALID
+validate_caddy_config || die CADDY_CONFIG_INVALID
 compose pull api agent-gateway worker caddy || die IMAGE_PULL_FAILED
 if [[ "$(read_env_value "$config_file" DB_MODE)" == compose ]]; then
   compose --profile compose-postgres pull postgres || die DATABASE_IMAGE_PULL_FAILED

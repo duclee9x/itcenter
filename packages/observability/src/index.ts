@@ -90,6 +90,13 @@ export type Route = (
   res: ServerResponse,
   context: CorrelationContext,
 ) => Promise<boolean>;
+export interface RequestPolicy {
+  beforeRoute(
+    req: IncomingMessage,
+    res: ServerResponse,
+    context: CorrelationContext,
+  ): boolean;
+}
 export function json(res: ServerResponse, status: number, body: unknown): void {
   res.statusCode = status;
   res.setHeader("Content-Type", "application/json");
@@ -100,6 +107,7 @@ function requestListener(
   ready: () => Promise<boolean | ReadinessSnapshot>,
   route?: Route,
   metrics = new Metrics(),
+  policy?: RequestPolicy,
 ): (req: IncomingMessage, res: ServerResponse) => void {
   const log = logger(config);
   let lastReadinessKey: string | undefined;
@@ -198,6 +206,7 @@ function requestListener(
           });
           return;
         }
+        if (policy?.beforeRoute(req, res, context)) return;
         if (route && (await route(req, res, context))) return;
         throw new ApplicationError("NOT_FOUND", "Route not found.");
       } catch (error) {
@@ -216,8 +225,11 @@ export function createHttpServer(
   ready: () => Promise<boolean | ReadinessSnapshot>,
   route?: Route,
   metrics = new Metrics(),
+  policy?: RequestPolicy,
 ) {
-  const server = createServer(requestListener(config, ready, route, metrics));
+  const server = createServer(
+    requestListener(config, ready, route, metrics, policy),
+  );
   server.requestTimeout = 10000;
   server.headersTimeout = 10000;
   return server;
@@ -229,10 +241,11 @@ export function createHttpsServer(
   tls: TlsServerOptions,
   route?: Route,
   metrics = new Metrics(),
+  policy?: RequestPolicy,
 ) {
   const server = createTlsServer(
     tls,
-    requestListener(config, ready, route, metrics),
+    requestListener(config, ready, route, metrics, policy),
   );
   server.requestTimeout = 10000;
   server.headersTimeout = 10000;

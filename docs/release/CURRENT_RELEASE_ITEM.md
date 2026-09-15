@@ -4,9 +4,9 @@
 | ------------- | ------------------------------------------------------------------------------------ |
 | Selected item | RELEASE-007 — Production TLS Ingress + Rate Limiting                                 |
 | Priority      | P0                                                                                   |
-| Status        | `READY / NOT_STARTED`                                                                |
-| Readiness     | `READY`                                                                              |
-| Blocker       | None; RELEASE-007-R1 is complete.                                                    |
+| Status        | `CODE_COMPLETE / NOT VERIFIED`                                                       |
+| Readiness     | `N/A`                                                                                |
+| Blocker       | Real staging/public-edge verification remains; RELEASE-GATE-001 is not started.      |
 | Contract      | [RELEASE-007-R1](items/RELEASE-007-R1_PRODUCTION_EDGE_TLS_RATE_LIMITING_CONTRACT.md) |
 | Item          | [RELEASE-007](items/RELEASE-007_PRODUCTION_TLS_INGRESS_RATE_LIMITING.md)             |
 
@@ -32,9 +32,9 @@ RELEASE-005 is `CODE_COMPLETE / NOT VERIFIED`; its protected backup and restore
 rehearsal remain operational verification work. RELEASE-006 is
 `CODE_COMPLETE / NOT VERIFIED`; its isolated rehearsal infrastructure is
 implemented, but qualifying N-1 and production-like evidence remain open.
-RELEASE-007 is `READY / NOT_STARTED` after completion of its edge security
-contract. No runtime edge change has started; implementation must preserve
-direct Agent mTLS and the Podman/Lima topology.
+RELEASE-007 is `CODE_COMPLETE / NOT VERIFIED`. Its Caddy/API edge controls,
+direct Agent mTLS topology, validation and smoke hooks are implemented. Real
+staging DNS/certificate/network verification is still required.
 RELEASE-GATE-001 remains blocked on verification evidence. Do not start another
 release item automatically. See
 [RELEASE_BACKLOG.md](RELEASE_BACKLOG.md) and

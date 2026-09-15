@@ -13,6 +13,7 @@ ensure_container_runtime
 
 api_url=$(read_env_value "$config_file" API_HEALTH_URL)
 api_resolve=$(read_env_value "$config_file" API_HEALTH_RESOLVE)
+api_http_redirect_url=$(read_env_value "$config_file" API_HTTP_REDIRECT_URL)
 gateway_url=$(read_env_value "$config_file" AGENT_GATEWAY_HEALTH_URL)
 gateway_resolve=$(read_env_value "$config_file" AGENT_GATEWAY_HEALTH_RESOLVE)
 gateway_ca=$(read_env_value "$config_file" AGENT_GATEWAY_HEALTH_CA_FILE)
@@ -20,6 +21,15 @@ gateway_ca=$(read_env_value "$config_file" AGENT_GATEWAY_HEALTH_CA_FILE)
 
 api_body=$(curl --fail --silent --show-error --max-time 5 --resolve "$api_resolve" "$api_url") || die API_READINESS_FAILED
 printf '%s' "$api_body" | jq -e '.data.status == "READY" and .data.profile == "API"' >/dev/null || die API_NOT_READY
+
+if [[ -n "$api_http_redirect_url" ]]; then
+  redirect_headers=$(mktemp)
+  curl --silent --show-error --max-time 5 --output /dev/null \
+    --dump-header "$redirect_headers" --write-out '%{http_code}' \
+    "$api_http_redirect_url" | grep -Eq '^(301|302|307|308)$' || die PUBLIC_HTTP_REDIRECT_FAILED
+  grep -Eiq '^location:[[:space:]]*https://' "$redirect_headers" || die PUBLIC_HTTP_REDIRECT_TARGET_INVALID
+  rm -f "$redirect_headers"
+fi
 
 gateway_body=$(curl --fail --silent --show-error --max-time 5 --cacert "$gateway_ca" --resolve "$gateway_resolve" "$gateway_url") || die AGENT_GATEWAY_READINESS_FAILED
 printf '%s' "$gateway_body" | jq -e '.data.status == "READY" and .data.profile == "AGENT_GATEWAY"' >/dev/null || die AGENT_GATEWAY_NOT_READY
