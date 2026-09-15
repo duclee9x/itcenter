@@ -41,6 +41,26 @@ presence/governance without reading or logging secret values.
 
 Blocks: RELEASE-005 verification, RPO/RTO closure and RC approval.
 
+## Lima scheduled backup timer
+
+Install the checked-in user units in the canonical Lima guest and enable the
+six-hour timer after resolving the production configuration paths:
+
+```sh
+mkdir -p ~/.config/systemd/user
+install -m 0644 deploy/systemd/itcenter-backup.service ~/.config/systemd/user/
+install -m 0644 deploy/systemd/itcenter-backup.timer ~/.config/systemd/user/
+systemctl --user daemon-reload
+systemctl --user enable --now itcenter-backup.timer
+systemctl --user start itcenter-backup.service
+systemctl --user status itcenter-backup.timer --no-pager
+```
+
+Validation: record a successful scheduled-equivalent encrypted backup on the
+HOST_PROTECTED destination and inspect the timer's next/last run. This is
+required for RELEASE-005 RPO evidence; the current Lima guest has no installed
+user timer.
+
 ## Public staging edge (optional local path already prepared)
 
 For public ACME/production-like edge evidence, provide a staging hostname with

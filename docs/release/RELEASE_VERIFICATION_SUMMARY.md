@@ -71,6 +71,27 @@ reachable and a valid staging certificate completes the TLS handshake directly
 to Gateway; canonical AgentRegistration/AgentCredential acceptance has not
 been completed.
 
+Phase 3 enabled the Keycloak 26.3.3 client setting
+`access.token.header.type.rfc9068=true`; a newly issued real token now has
+`typ=at+jwt`, `alg=RS256`, the expected issuer and audience, and the API
+accepts its signature and identity. The staging tenant membership and local
+RBAC data are present. An authorized capabilities request is now accepted
+through the edge, while a wrong tenant remains denied. The remaining
+RELEASE-001 negative-token matrix is not yet complete.
+
+The canonical Agent enrollment attempt reached the existing
+`CertificateIssuerPort` but the candidate Gateway image has no `openssl`
+executable, so issuer readiness is unavailable and no AgentCredential was
+created. This is recorded as a runtime image/tooling gap; no raw credential
+row was fabricated. The direct mTLS listener still completes the TLS
+handshake and Gateway remains `DEGRADED` as designed.
+
+The API edge rate limiter produced HTTP 429 for the mutation threshold in an
+isolated loop. The Caddy path, raw API/DB exposure checks and local TLS checks
+remain partial staging evidence. The Lima guest has no installed user
+`itcenter-backup.timer`, so the scheduled RPO path was not executed; the
+checked-in six-hour timer definition remains available for operator install.
+
 No registry-backed immutable RC metadata, completed RFC9068 OIDC acceptance,
 Agent registration/credential acceptance, public staging DNS/ACME evidence, or
 production escrow governance evidence is available. No release is therefore
@@ -78,15 +99,15 @@ VERIFIED.
 
 ## Verification result
 
-| Item        | Result                         | Evidence / remaining blocker                                                                                                                                                                                              |
-| ----------- | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| RELEASE-001 | `CODE_COMPLETE / NOT VERIFIED` | Real Keycloak/JWKS/RS256 provider and IdentityLink staging data exist; token acceptance is blocked because Keycloak emits `typ=JWT` while the RFC9068 adapter requires `at+jwt`, so tenant/RBAC acceptance is incomplete. |
-| RELEASE-002 | `CODE_COMPLETE / NOT VERIFIED` | Direct mTLS listener and CA/client handshake pass; canonical AgentRegistration/AgentCredential, binding, replay, enrollment, rotation and revocation evidence are still required.                                         |
-| RELEASE-003 | `CODE_COMPLETE / NOT VERIFIED` | API reaches READY, all three mandatory workers are healthy, and Gateway reaches expected DEGRADED; dependency-failure, worker-failure and drain transitions are not fully evidenced.                                      |
-| RELEASE-004 | `CODE_COMPLETE / NOT VERIFIED` | Local OCI candidate exists, but a protected registry-backed RC and exact-digest staging deployment/attestation are still required.                                                                                        |
-| RELEASE-005 | `CODE_COMPLETE / NOT VERIFIED` | Staging protected backup and isolated schema restore pass after the focused `-T` remediation; application validation, production escrow governance and qualifying measured RPO/RTO remain.                                |
-| RELEASE-006 | `CODE_COMPLETE / NOT VERIFIED` | Transitional N-1 artifact is prepared, but baseline/application compatibility and backup-gated N-1→N rehearsal remain blocked by incomplete OIDC/application runtime acceptance.                                          |
-| RELEASE-007 | `CODE_COMPLETE / NOT VERIFIED` | Local staging edge is exercised: redirect, trusted HTTPS, readiness, 401 protection and 413 body limit pass. Public DNS/ACME and direct Agent application acceptance remain unverified.                                   |
+| Item        | Result                         | Evidence / remaining blocker                                                                                                                                                             |
+| ----------- | ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| RELEASE-001 | `CODE_COMPLETE / NOT VERIFIED` | Real Keycloak/JWKS/RS256 `at+jwt` token is now accepted and authorized for the staging tenant; the complete negative-token, revoked-membership and RBAC matrix remains incomplete.       |
+| RELEASE-002 | `CODE_COMPLETE / NOT VERIFIED` | Direct mTLS listener and CA/client handshake pass, but canonical enrollment stopped because the Gateway image lacks `openssl`; no AgentCredential acceptance evidence exists.            |
+| RELEASE-003 | `CODE_COMPLETE / NOT VERIFIED` | API reaches READY, all three mandatory workers are healthy, and Gateway reaches expected DEGRADED; dependency-failure, worker-failure and drain transitions are not fully evidenced.     |
+| RELEASE-004 | `CODE_COMPLETE / NOT VERIFIED` | Local OCI candidate exists, but a protected registry-backed RC and exact-digest staging deployment/attestation are still required.                                                       |
+| RELEASE-005 | `CODE_COMPLETE / NOT VERIFIED` | Staging protected backup and isolated schema restore pass; application restore validation, production escrow, scheduled timer evidence and qualifying RPO/RTO remain.                    |
+| RELEASE-006 | `CODE_COMPLETE / NOT VERIFIED` | Transitional N-1 artifact is prepared, but baseline/application compatibility and backup-gated N-1→N rehearsal remain blocked by incomplete OIDC/application runtime acceptance.         |
+| RELEASE-007 | `CODE_COMPLETE / NOT VERIFIED` | Local staging edge, redirect, trusted HTTPS, readiness, 401, 413 and mutation 429 pass. General-limit, spoof, modern/obsolete TLS and direct Agent application checks remain incomplete. |
 
 **RPO:** `UNVERIFIED` for production release closure. Staging backup age was
 within six hours and provides `MET` staging evidence only.
@@ -96,19 +117,19 @@ under two hours, but application usability validation was not completed.
 
 ## Environment readiness
 
-| Prerequisite                   | Status                 | Evidence / boundary                                                                                                                   |
-| ------------------------------ | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| Local immutable OCI candidate  | `READY`                | `RC-LOCAL-7EA3001`; local-only, not a promotable RC.                                                                                  |
-| Registry-backed RC metadata    | `OPERATOR_REQUIRED`    | Registry URL/repository and protected publish credentials are absent.                                                                 |
-| `age` in Lima                  | `READY`                | `age 1.3.1`.                                                                                                                          |
-| HOST_PROTECTED mount           | `READY`                | Writable host-backed `virtiofs`; marker write/read/remove passed.                                                                     |
-| Staging age escrow             | `READY`                | Staging identity exists outside Lima on the host-backed path; production governance remains separate.                                 |
-| Staging Agent PKI              | `READY`                | Staging CA/server/client material exists outside the repository; application enrollment is still required.                            |
-| Agent CA/private issuer escrow | `OPERATOR_REQUIRED`    | Production recovery custody/reference is not evidenced.                                                                               |
-| Staging OIDC                   | `STAGING_PARTIAL`      | Pinned Keycloak 26.3.3, real realm/user/JWKS and RS256 token exist; `typ=JWT` versus required RFC9068 `at+jwt` blocks API acceptance. |
-| Staging TLS                    | `READY` (local)        | Independent local staging mode is configured; public DNS/ACME remains unverified.                                                     |
-| Lima port forwarding           | `EXERCISED (LOOPBACK)` | HTTP, HTTPS and Agent mTLS listeners responded through macOS/Lima loopback; public reachability remains unverified.                   |
-| N-1 release reference          | `READY`                | Transitional reference from `7c403ab53f...`; local artifact only, not a historical production release.                                |
+| Prerequisite                   | Status                   | Evidence / boundary                                                                                                                |
+| ------------------------------ | ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------- |
+| Local immutable OCI candidate  | `READY`                  | `RC-LOCAL-7EA3001`; local-only, not a promotable RC.                                                                               |
+| Registry-backed RC metadata    | `OPERATOR_REQUIRED`      | Registry URL/repository and protected publish credentials are absent.                                                              |
+| `age` in Lima                  | `READY`                  | `age 1.3.1`.                                                                                                                       |
+| HOST_PROTECTED mount           | `READY`                  | Writable host-backed `virtiofs`; marker write/read/remove passed.                                                                  |
+| Staging age escrow             | `READY`                  | Staging identity exists outside Lima on the host-backed path; production governance remains separate.                              |
+| Staging Agent PKI              | `READY`                  | Staging CA/server/client material exists outside the repository; application enrollment is still required.                         |
+| Agent CA/private issuer escrow | `OPERATOR_REQUIRED`      | Production recovery custody/reference is not evidenced.                                                                            |
+| Staging OIDC                   | `READY (PARTIAL MATRIX)` | Pinned Keycloak 26.3.3 issues real RS256 `at+jwt` tokens and API accepts the authorized staging identity; negative matrix remains. |
+| Staging TLS                    | `READY` (local)          | Independent local staging mode is configured; public DNS/ACME remains unverified.                                                  |
+| Lima port forwarding           | `EXERCISED (LOOPBACK)`   | HTTP, HTTPS and Agent mTLS listeners responded through macOS/Lima loopback; public reachability remains unverified.                |
+| N-1 release reference          | `READY`                  | Transitional reference from `7c403ab53f...`; local artifact only, not a historical production release.                             |
 
 The exact unresolved operator actions are maintained in
 `docs/release/RELEASE_OPERATOR_PREREQUISITES.md`.
