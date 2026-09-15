@@ -18,59 +18,64 @@ migration tests, diff check, Podman Compose rendering, and Caddy staging/
 production validation. Those results establish `CODE_COMPLETE`; they do not
 establish staging verification.
 
-The canonical Lima guest was inspected directly. It reports Podman 5.8.4 and
-podman-compose 1.6.0, but `age --version` returns `command not found`. The
-configured staging path `/mnt/host-backups/itcenter-staging` is absent and not
-writable. The guest mount table shows the repository mount `/Users/duclee` as
-read-only virtiofs, which does not satisfy HOST_PROTECTED. No temporary marker
-was created because the required destination does not exist.
+The bootstrap prepared a local verification candidate from committed source
+`7ea3001eccad81dc30c33702179b35aec6d13428`. Its local OCI digest is
+`sha256:83942d94521fe2236c8a28277fae5fd689754163ef6d30503cb404f872b4d49d`,
+with schema revision
+`95886cdc18d735163a76863d050e37b7629c3015bbe37b756b9764a260636fdb`.
+This is a `LOCAL_OPERATOR_BUILD`, not a registry-backed RC and remains
+`NOT_VERIFIED`. Non-secret local metadata is stored outside the repository at
+the host-backed staging verification path.
 
-The repository contains only example environment files and
-`release/rc/README.md`; there is no immutable RC JSON record or candidate
-digest. The staging configuration still contains `example.invalid` hosts and
-placeholder image, OIDC, backup and certificate values. No staging OIDC
-identity/membership, Agent CA/client certificate, protected escrow references,
-or usable immutable N-1 artifact was available. The Lima guest only has a
-local smoke image plus base PostgreSQL/Caddy images; those are not an RC
-candidate.
+The Lima guest now has Podman 5.8.4, podman-compose 1.6.0 and `age 1.3.1`.
+`/mnt/host-backups/itcenter-staging` is a writable `virtiofs` mount; a
+temporary marker write/read/remove test passed. A staging-only age identity
+and Agent CA/server/client PKI were generated outside the repository with
+restricted permissions. These staging materials do not constitute production
+escrow or RELEASE-005 verification. Loopback Lima forwards for staging HTTP,
+HTTPS and Agent mTLS ports are configured, but no deployed listener/public
+network path has yet been verified.
+
+No registry-backed immutable RC metadata, staging OIDC provider, Agent
+registration/credential, usable N-1 release artifact/reference, public
+staging DNS/ACME evidence, or production escrow governance evidence is
+available. No release is therefore VERIFIED.
 
 ## Verification result
 
-| Item        | Result                         | Evidence / remaining blocker                                                                                                                                                                                                                  |
-| ----------- | ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| RELEASE-001 | `CODE_COMPLETE / NOT VERIFIED` | No real staging OIDC issuer, RFC9068 test token, IdentityLink and TenantMembership set, or RBAC acceptance evidence. Provision staging IdP/test identities, then run the R1/R2 positive and negative matrix.                                  |
-| RELEASE-002 | `CODE_COMPLETE / NOT VERIFIED` | No staging Agent CA, client certificate, registration/credential or direct forwarded TCP acceptance evidence. Provision staging PKI and execute mTLS, binding, replay, enrollment, rotation and revocation checks.                            |
-| RELEASE-003 | `CODE_COMPLETE / NOT VERIFIED` | No candidate has been deployed through the Lima Podman lifecycle. Deploy the immutable RC and exercise API/Gateway/Worker readiness, dependency failures, worker criticality and drain.                                                       |
-| RELEASE-004 | `CODE_COMPLETE / NOT VERIFIED` | No CI-published immutable candidate digest or real staging deployment/attestation. Publish a protected RC and deploy the exact digest through `deploy/scripts/deploy.sh`.                                                                     |
-| RELEASE-005 | `CODE_COMPLETE / NOT VERIFIED` | `age` is absent; HOST_PROTECTED is absent/not writable; no protected backup, restore, escrow, RPO or RTO evidence exists. Install age, configure a writable macOS-backed Lima mount, provision escrow, then run backup and restore rehearsal. |
-| RELEASE-006 | `CODE_COMPLETE / NOT VERIFIED` | No usable immutable N-1 artifact/reference and no qualifying candidate migration rehearsal. Supply N/N-1 release metadata, run the backup-gated controlled-maintenance rehearsal and persist its matrix/evidence.                             |
-| RELEASE-007 | `CODE_COMPLETE / NOT VERIFIED` | No real staging DNS/certificate, Lima port forwarding, public HTTPS smoke, forwarded-header, body/rate-limit or direct Agent mTLS edge evidence. Configure staging edge and run checks through Caddy and the direct Gateway port.             |
+| Item        | Result                         | Evidence / remaining blocker                                                                                                                                                   |
+| ----------- | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| RELEASE-001 | `CODE_COMPLETE / NOT VERIFIED` | Staging OIDC issuer, RFC9068 test identity/token, IdentityLink, TenantMembership and RBAC evidence are still required.                                                         |
+| RELEASE-002 | `CODE_COMPLETE / NOT VERIFIED` | Staging CA/certificates exist, but registration/credential setup and direct mTLS acceptance, binding, replay, enrollment, rotation and revocation evidence are still required. |
+| RELEASE-003 | `CODE_COMPLETE / NOT VERIFIED` | Candidate deployment has not run through the Lima Podman lifecycle; readiness, dependency failure, worker criticality and drain evidence are still required.                   |
+| RELEASE-004 | `CODE_COMPLETE / NOT VERIFIED` | Local OCI candidate exists, but a protected registry-backed RC and exact-digest staging deployment/attestation are still required.                                             |
+| RELEASE-005 | `CODE_COMPLETE / NOT VERIFIED` | Age and writable HOST_PROTECTED staging prerequisites are prepared. Protected backup, restore, production escrow governance, measured RPO and RTO evidence are still required. |
+| RELEASE-006 | `CODE_COMPLETE / NOT VERIFIED` | No usable immutable N-1 artifact/reference or qualifying candidate migration rehearsal exists.                                                                                 |
+| RELEASE-007 | `CODE_COMPLETE / NOT VERIFIED` | Local TLS material/configuration and Lima forwards are prepared, but deployed edge, public/network path, HTTPS smoke and direct Agent mTLS evidence are still required.        |
 
 **RPO:** `UNVERIFIED` — no successful HOST_PROTECTED backup timestamp.
 
 **RTO:** `UNVERIFIED` — no actual encrypted restore rehearsal with application
 validation.
 
-## Required operator actions
+## Environment readiness
 
-1. Publish an immutable RC OCI image and RC metadata containing release id,
-   source commit, schema revision and digest. Make the same digest available to
-   the Lima guest.
-2. Configure non-placeholder staging OIDC, test identities, tenant membership
-   and local permissions. Provision staging Agent CA, server/client
-   certificates, registration and credentials without committing secrets.
-3. Install `age` in the Lima guest and configure a writable explicit Lima host
-   mount. Validate with `age --version`, `findmnt -T "$GUEST_BACKUP_MOUNT"`, a
-   temporary write/remove probe, and the configured `BACKUP_MOUNT_FSTYPES`.
-4. Configure age identity and Agent CA escrow references outside Lima.
-5. Configure staging DNS or a deliberately trusted staging hostname, Caddy
-   certificate mode, and Lima forwarding for HTTP/HTTPS and the Agent mTLS
-   port. Validate with the Podman Compose deployment path, not direct API
-   container access.
-6. Run RELEASE-004 deployment, RELEASE-001/002/003 acceptance, the protected
-   RELEASE-005 backup/restore rehearsal with measured RPO/RTO, and the
-   RELEASE-006 N-1 migration rehearsal. Attach non-secret evidence to the
-   corresponding release records.
+| Prerequisite                   | Status                    | Evidence / boundary                                                                                        |
+| ------------------------------ | ------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| Local immutable OCI candidate  | `READY`                   | `RC-LOCAL-7EA3001`; local-only, not a promotable RC.                                                       |
+| Registry-backed RC metadata    | `OPERATOR_REQUIRED`       | Registry URL/repository and protected publish credentials are absent.                                      |
+| `age` in Lima                  | `READY`                   | `age 1.3.1`.                                                                                               |
+| HOST_PROTECTED mount           | `READY`                   | Writable host-backed `virtiofs`; marker write/read/remove passed.                                          |
+| Staging age escrow             | `READY`                   | Staging identity exists outside Lima on the host-backed path; production governance remains separate.      |
+| Staging Agent PKI              | `READY`                   | Staging CA/server/client material exists outside the repository; application enrollment is still required. |
+| Agent CA/private issuer escrow | `OPERATOR_REQUIRED`       | Production recovery custody/reference is not evidenced.                                                    |
+| Staging OIDC                   | `OPERATOR_REQUIRED`       | No provider, test identity or token supplied.                                                              |
+| Staging TLS                    | `READY` (local)           | Independent local staging mode is configured; public DNS/ACME remains unverified.                          |
+| Lima port forwarding           | `CONFIGURED / UNVERIFIED` | Loopback forwards configured for staging HTTP/HTTPS/Agent mTLS; deployed listeners are still required.     |
+| N-1 release reference          | `OPERATOR_REQUIRED`       | No previous immutable artifact is available; use the authorized transitional reference.                    |
+
+The exact unresolved operator actions are maintained in
+`docs/release/RELEASE_OPERATOR_PREREQUISITES.md`.
 
 Until every item above has qualifying evidence and RPO/RTO are measured, do
 not mark any item `VERIFIED`, advance `CURRENT_RELEASE_ITEM` to
