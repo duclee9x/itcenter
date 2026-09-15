@@ -1,0 +1,27 @@
+{
+  "release_id": "RC-CCA7D1B-20260916-R2",
+  "application_version": "0.0.0",
+  "source_repository": "duclee9x/itcenter",
+  "source_commit": "487608e1a648be32712659b1887a53cba51861ba",
+  "image_repository": "ghcr.io/duclee9x/itcenter",
+  "image_digest": "sha256:fd97ea82a45cfb6bba378b10ecbc4918b7ceb6ebb5a5d6e506356f2d0d70003f",
+  "schema_revision": "95886cdc18d735163a76863d050e37b7629c3015bbe37b756b9764a260636fdb",
+  "build_time": "2026-09-15T18:51:00.000Z",
+  "dependency_lock_sha256": "729ef04487c98a1c6f8cd1afc2d37ad823996a62be3fe4121f1fd688fc1ae00b",
+  "workflow": "https://github.com/duclee9x/itcenter/actions/runs/35009692856",
+  "sbom": {
+    "status": "GENERATED",
+    "subject": "ghcr.io/duclee9x/itcenter@sha256:fd97ea82a45cfb6bba378b10ecbc4918b7ceb6ebb5a5d6e506356f2d0d70003f",
+    "reference": "https://github.com/duclee9x/itcenter/actions/runs/35009692856"
+  },
+  "provenance": {
+    "status": "GENERATED",
+    "reference": "https://github.com/duclee9x/itcenter/actions/runs/35009692856"
+  },
+  "staging": {
+    "status": "PENDING"
+  },
+  "production": {
+    "status": "PENDING"
+  }
+}
