@@ -24,6 +24,10 @@ LABEL org.opencontainers.image.title="IT Operations Hub" \
       org.opencontainers.image.created="${BUILD_TIME}" \
       org.opencontainers.image.source="${SOURCE_REPOSITORY}"
 
+RUN apt-get update \
+  && apt-get install --no-install-recommends -y openssl \
+  && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 COPY --from=build --chown=node:node /app/package.json ./package.json
 COPY --from=build --chown=node:node /app/node_modules ./node_modules

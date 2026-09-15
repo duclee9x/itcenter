@@ -4,7 +4,7 @@ import {
   createPublicKey,
   X509Certificate,
 } from "node:crypto";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawn } from "node:child_process";
@@ -37,33 +37,48 @@ function normalizedSerialHex(value: string): string {
 function runOpenSsl(
   command: string,
   args: string[],
-  input?: { privateKey: string; passphrase?: string },
+  input?: { passphrase?: string },
 ): Promise<string> {
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, {
       stdio: input?.passphrase
-        ? ["pipe", "pipe", "ignore", "pipe"]
-        : ["pipe", "pipe", "ignore"],
+        ? ["ignore", "pipe", "pipe", "pipe"]
+        : ["ignore", "pipe", "pipe"],
       env: { PATH: process.env.PATH ?? "/usr/bin:/bin" },
       windowsHide: true,
     });
     const output: Buffer[] = [];
+    const errors: Buffer[] = [];
     child.stdout?.on("data", (chunk: Buffer) => output.push(chunk));
-    child.once("error", () =>
-      reject(new Error("Certificate issuer unavailable")),
-    );
+    child.stderr?.on("data", (chunk: Buffer) => {
+      const current = Buffer.concat(errors);
+      if (current.length < 4096)
+        errors.push(chunk.subarray(0, 4096 - current.length));
+    });
+    child.once("error", (error) => {
+      reject(
+        new Error(
+          `OpenSSL ${args[0] ?? "command"} unavailable: ${error.message}`,
+        ),
+      );
+    });
     child.once("close", (code) => {
       if (code === 0) resolve(Buffer.concat(output).toString("utf8"));
-      else reject(new Error("Certificate signing failed"));
-    });
-    if (input) {
-      child.stdin?.end(input.privateKey);
-      if (input.passphrase) {
-        const passphraseStream = child.stdio[3] as Writable | null;
-        passphraseStream?.end(input.passphrase);
+      else {
+        const stderr = Buffer.concat(errors)
+          .toString("utf8")
+          .trim()
+          .replaceAll(/\s+/g, " ");
+        reject(
+          new Error(
+            `OpenSSL ${args[0] ?? "command"} failed (exit ${code ?? "unknown"})${stderr ? `: ${stderr}` : ""}`,
+          ),
+        );
       }
-    } else {
-      child.stdin?.end();
+    });
+    if (input?.passphrase) {
+      const passphraseStream = child.stdio[3] as Writable | null;
+      passphraseStream?.end(input.passphrase);
     }
   });
 }
@@ -132,20 +147,38 @@ export class OpenSslAgentCertificateIssuer implements AgentCertificateIssuerPort
     try {
       const csrPath = join(directory, "request.csr");
       const caPath = join(directory, "agent-ca.pem");
-      const extensionPath = join(directory, "extensions.cnf");
+      const caKeyPath = join(directory, "agent-ca.key");
+      const configPath = join(directory, "openssl.cnf");
+      const databasePath = join(directory, "index.txt");
+      const serialPath = join(directory, "serial");
+      const newCertificatesPath = join(directory, "newcerts");
       const certificatePath = join(directory, "issued.pem");
+      const serialForOpenSsl =
+        request.serialNumber.length % 2 === 0
+          ? request.serialNumber
+          : `0${request.serialNumber}`;
       await Promise.all([
         writeFile(csrPath, request.csrPem, { mode: 0o600, flag: "wx" }),
         writeFile(caPath, this.options.caCertificatePem, {
           mode: 0o600,
           flag: "wx",
         }),
+        writeFile(caKeyPath, this.options.caPrivateKeyPem, {
+          mode: 0o600,
+          flag: "wx",
+        }),
+        writeFile(databasePath, "", { mode: 0o600, flag: "wx" }),
+        writeFile(serialPath, `${serialForOpenSsl}\n`, {
+          mode: 0o600,
+          flag: "wx",
+        }),
         writeFile(
-          extensionPath,
-          `[agent_client]\nbasicConstraints=critical,CA:FALSE\nkeyUsage=critical,digitalSignature\nextendedKeyUsage=clientAuth\nsubjectAltName=URI:urn:itcenter:agent-credential:${request.credentialId}\n`,
+          configPath,
+          `[ca]\ndefault_ca=agent_ca\n[agent_ca]\ndir=${directory}\ndatabase=$dir/index.txt\nnew_certs_dir=$dir/newcerts\nserial=$dir/serial\ndefault_md=sha256\ndefault_days=30\npolicy=policy_any\nunique_subject=no\n[policy_any]\ncommonName=supplied\nstateOrProvinceName=optional\nlocalityName=optional\norganizationName=optional\norganizationalUnitName=optional\nemailAddress=optional\n[agent_client]\nbasicConstraints=critical,CA:FALSE\nkeyUsage=critical,digitalSignature\nextendedKeyUsage=clientAuth\nsubjectAltName=URI:urn:itcenter:agent-credential:${request.credentialId}\n`,
           { mode: 0o600, flag: "wx" },
         ),
       ]);
+      await mkdir(newCertificatesPath, { mode: 0o700 });
       await runOpenSsl(this.command, [
         "req",
         "-verify",
@@ -179,35 +212,32 @@ export class OpenSslAgentCertificateIssuer implements AgentCertificateIssuerPort
       await runOpenSsl(
         this.command,
         [
-          "x509",
-          "-req",
+          "ca",
+          "-batch",
+          "-config",
+          configPath,
           "-in",
           csrPath,
-          "-CA",
+          "-cert",
           caPath,
-          "-CAkey",
-          "/dev/stdin",
+          "-keyfile",
+          caKeyPath,
           ...(this.options.caPassphrase ? ["-passin", "fd:3"] : []),
-          "-set_serial",
-          `0x${request.serialNumber}`,
-          "-not_before",
+          "-startdate",
           opensslTime(request.notBefore),
-          "-not_after",
+          "-enddate",
           opensslTime(request.expiresAt),
-          "-sha256",
-          "-extfile",
-          extensionPath,
           "-extensions",
           "agent_client",
+          "-md",
+          "sha256",
+          "-notext",
           "-out",
           certificatePath,
         ],
-        {
-          privateKey: this.options.caPrivateKeyPem,
-          ...(this.options.caPassphrase
-            ? { passphrase: this.options.caPassphrase }
-            : {}),
-        },
+        this.options.caPassphrase
+          ? { passphrase: this.options.caPassphrase }
+          : undefined,
       );
       const certificatePem = await readFile(certificatePath, "utf8");
       const certificate = new X509Certificate(certificatePem);
@@ -215,10 +245,15 @@ export class OpenSslAgentCertificateIssuer implements AgentCertificateIssuerPort
         certificate.publicKey.export({ type: "spki", format: "der" }),
       );
       const expectedSan = `URI:urn:itcenter:agent-credential:${request.credentialId}`;
+      const issuedNotBefore = new Date(certificate.validFrom);
+      const issuedExpiresAt = new Date(certificate.validTo);
       if (
         certificate.subjectAltName !== expectedSan ||
         normalizedSerialHex(certificate.serialNumber) !==
-          normalizedSerialHex(request.serialNumber)
+          normalizedSerialHex(request.serialNumber) ||
+        issuedExpiresAt.getTime() <= issuedNotBefore.getTime() ||
+        issuedExpiresAt.getTime() - issuedNotBefore.getTime() >
+          30 * 24 * 60 * 60 * 1000
       )
         throw new Error("Issued certificate identity did not match request");
       return {
@@ -227,8 +262,8 @@ export class OpenSslAgentCertificateIssuer implements AgentCertificateIssuerPort
         fingerprintSha256: normalizedHex(certificate.fingerprint256),
         spkiSha256,
         issuerFingerprintSha256: normalizedHex(this.ca.fingerprint256),
-        notBefore: new Date(certificate.validFrom),
-        expiresAt: new Date(certificate.validTo),
+        notBefore: issuedNotBefore,
+        expiresAt: issuedExpiresAt,
       };
     } finally {
       await rm(directory, { recursive: true, force: true });
