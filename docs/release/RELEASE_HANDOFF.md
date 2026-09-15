@@ -51,10 +51,10 @@ use guest-side PostgreSQL logical interfaces, age encryption, a verified
 `HOST_PROTECTED` Lima mount and isolated Podman Compose restore projects; they
 never use Podman volume internals. RPO 6h and RTO 2h remain UNVERIFIED until
 the required rehearsal. See [RELEASE-005 implementation report](items/RELEASE-005_IMPLEMENTATION_REPORT.md).
-RELEASE-006 is `BLOCKED / NOT_STARTED`: its N/N-1 artifact identity,
-compatibility matrix, migration timeout/lock policy, destructive-change policy,
-failure/retry semantics and rehearsal evidence contract are not yet normative.
-See [RELEASE-006-R1](items/RELEASE-006-R1_POSTGRESQL_MIGRATION_COMPATIBILITY_CONTRACT.md).
+RELEASE-006 is `READY / NOT_STARTED` after completion of its R1 contract.
+The contract fixes controlled maintenance, exact-schema defaults, the four-cell
+matrix, 10-second lock timeout, 10-minute statement timeout and 30-minute
+migration budget. See [RELEASE-006-R1](items/RELEASE-006-R1_POSTGRESQL_MIGRATION_COMPATIBILITY_CONTRACT.md).
 RELEASE-007 is READY because the RELEASE-004 topology is implemented, but is
 not started here. RELEASE-006 also depends on RELEASE-005 verification inputs;
 the final
@@ -69,6 +69,6 @@ Follow [RELEASE_DEPENDENCY_GRAPH.md](RELEASE_DEPENDENCY_GRAPH.md).
   client deprecation debt in the blocking backlog unless launch scope changes.
 - Keep runtime fail-closed behavior until real production adapters are
   configured and verified.
-- Do not implement RELEASE-006 runtime or begin RELEASE-007 while the
-  RELEASE-006-R1 contract gap remains open.
+- Do not implement RELEASE-006 runtime or begin RELEASE-007 in this planning
+  activity.
 - Keep `AGENTS.md` unrelated working-tree changes unstaged and uncommitted.

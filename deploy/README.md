@@ -199,6 +199,26 @@ not exactly match that artifact's supported revision; it never runs down
 migrations. If schema is incompatible, use a reviewed forward-fix or validated
 recovery route.
 
+## RELEASE-006 migration policy
+
+Schema-changing releases use the approved `CONTROLLED_MAINTENANCE` mode. Before
+the migration service runs, production takes the RELEASE-005 protected
+pre-migration backup, drains API/Agent Gateway/Worker, sets readiness to
+`NOT_READY`, and stops new work. The candidate migration then runs from the
+same immutable image with `lock_timeout=10s`, `statement_timeout=10m`, and a
+30-minute overall migration budget. A timeout or migration failure stops the
+rollout; there is no automatic retry, down migration, or restore.
+
+The default compatibility rule is exact schema: App N uses Schema N and App
+N-1 uses Schema N-1. App N + Schema N-1 and App N-1 + Schema N are recorded for
+each release pair; the latter permits application rollback only when that exact
+pair is proven `SUPPORTED`. Otherwise the recovery result is
+`FORWARD_FIX_REQUIRED` or an explicitly authorized RELEASE-005 restore.
+The current single-host deployment does not claim zero-downtime or rolling
+schema compatibility. RELEASE-006 rehearsal evidence must include fresh
+install, N-1 upgrade, data validation, lock/duration observations, Worker and
+relevant Gateway checks, and the complete four-cell matrix.
+
 ## Guest boot and shutdown
 
 The checked-in unit is a systemd **user** unit. Install reviewed runtime

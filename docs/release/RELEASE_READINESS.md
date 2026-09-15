@@ -25,7 +25,7 @@ OIDC provider; RELEASE-003 readiness is implemented but has not been validated
 against staging deployables/orchestrator probes; the immutable image/Compose
 pipeline is implemented but has not been exercised with a real CI-published
 digest in Linux staging; no production-like migration compatibility
-rehearsal exists and the RELEASE-006 N/N-1 contract is incomplete; no production backup/restore drill or RPO/RTO is evidenced;
+rehearsal exists; RELEASE-006 is ready for a later implementation run, and no production backup/restore drill or RPO/RTO is evidenced;
 and TLS/rate limiting are not supplied by a checked-in deployment edge. Agent
 execution additionally remains fail-closed until its real Agent CA and
 credentials are configured and mTLS is validated through staging.
@@ -111,8 +111,8 @@ digest has been deployed through a real Linux staging host; RELEASE-004 is not
 `VERIFIED` and RR-04 remains open. RELEASE-005 is `CODE_COMPLETE / NOT
 VERIFIED`: the approved backup/restore automation and pre-migration gate are
 implemented, while protected backup, fresh restore, escrow and measured
-RPO/RTO evidence remain pending. RELEASE-006 is `BLOCKED / NOT_STARTED`
-because its N/N-1 compatibility and rehearsal contract is incomplete, and
+RPO/RTO evidence remain pending. RELEASE-006 is `READY / NOT_STARTED` after
+completion of its N/N-1 compatibility and rehearsal contract, and
 RELEASE-007 is `READY / NOT_STARTED`
 because its topology dependency is implemented. Overall readiness remains
 `BLOCKED_FOR_RC`.
@@ -169,7 +169,7 @@ deployment.
 | RR-02 | OPERATIONAL_GAP          | High     | RELEASE-003 readiness is implemented and automated checks pass; staging/orchestrator verification remains.                                           | Yes                                                                       |
 | RR-03 | PRODUCTION_CONFIGURATION | High     | RELEASE-002 mTLS code is complete, but private-CA provisioning and staging-topology validation remain; Agent execution stays unavailable.            | Yes when Agent execution is in launch scope; assumed in this assessment   |
 | RR-04 | OPERATIONAL_GAP          | High     | No production build/image, immutable promotion, staging deployment, or rollback procedure is present.                                                | Yes                                                                       |
-| RR-05 | DATA_MIGRATION_GAP       | High     | RELEASE-006 is blocked by an incomplete N/N-1 compatibility and rehearsal contract; no production-like prior-schema upgrade, lock/duration measurement, or forward-recovery rehearsal is evidenced. | Yes                                                                       |
+| RR-05 | DATA_MIGRATION_GAP       | High     | RELEASE-006-R1 is complete, but no production-like prior-schema upgrade, lock/duration measurement, N-1 compatibility, or forward-recovery rehearsal is evidenced. | Yes                                                                       |
 | RR-06 | RECOVERY_GAP             | Critical | Production backup/restore policy decisions and evidence are incomplete; no approved RPO/RTO, off-host target, or pre-migration control is evidenced. | Yes                                                                       |
 | RR-07 | SECURITY_GAP             | Critical | TLS ingress and rate limiting are not implemented/configured in a deployment edge; no production edge policy is evidenced.                           | Yes                                                                       |
 | RR-08 | OBSERVABILITY_GAP        | High     | Readiness/worker metrics are still process-local; no exporter, tracing, or alert routing is wired.                                                   | Yes for monitored production operation                                    |

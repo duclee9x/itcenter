@@ -37,7 +37,7 @@ for this backlog. Initial P0 entries are listed in priority order.
 | RELEASE-003      | Worker Readiness & Background Processing Health           |       P0 | `CODE_COMPLETE` | `N/A`                | None                            | Runtime and automated checks pass; deployable-profile staging verification remains before `VERIFIED`.                   |
 | RELEASE-004      | Immutable Build / Staging / Promotion / Rollback Pipeline |       P0 | `CODE_COMPLETE` | `N/A`                | None                            | Runtime/pipeline checks pass; real Linux staging deployment and acceptance evidence remain before VERIFIED.             |
 | RELEASE-005      | Backup / Restore + RPO / RTO Validation                   |       P0 | `CODE_COMPLETE` | `N/A`                | None                            | Automation and pre-migration gate pass repository checks; RPO/RTO remain UNVERIFIED pending real rehearsal.             |
-| RELEASE-006      | PostgreSQL Migration Rehearsal + N-1 Compatibility        |       P0 | `BLOCKED`       | `BLOCKED`            | RELEASE-004, RELEASE-005        | `SPEC_GAP / OPERATIONAL_DECISION`: N/N-1 artifact identity, compatibility matrix, migration timeout/lock policy, destructive-change policy, failure/retry behavior, and rehearsal evidence contract are undefined. |
+| RELEASE-006      | PostgreSQL Migration Rehearsal + N-1 Compatibility        |       P0 | `NOT_STARTED`   | `READY`              | RELEASE-004, RELEASE-005        | R1 is complete. Use controlled maintenance, exact-schema defaults, 30-minute migration budget, timeout/lock evidence, and the N/N-1 matrix. |
 | RELEASE-007      | Production TLS Ingress + Rate Limiting                    |       P0 | `NOT_STARTED`   | `READY`              | RELEASE-004                     | Topology dependency is code-complete; validation remains scoped to the actual Compose deployment.                       |
 | RELEASE-GATE-001 | Release Candidate Readiness Re-verification               |     Gate | `NOT_STARTED`   | `WAITING_DEPENDENCY` | RELEASE-001 through RELEASE-007 | Run only after each required item is verified and all blockers are cleared.                                             |
 
@@ -91,8 +91,10 @@ remain unchanged. RELEASE-004 runtime and pipeline
 are `CODE_COMPLETE`; it is not `VERIFIED` until a clean CI-published digest
 has been deployed and accepted in real Linux staging. RELEASE-005 is
 code-complete with its recovery-policy contract complete, but its protected
-rehearsal remains unverified. RELEASE-006 is `BLOCKED / NOT_STARTED` by the
-compatibility and rehearsal contract gap recorded in
+rehearsal remains unverified. RELEASE-006 is `READY / NOT_STARTED` after
+completion of the
+compatibility and rehearsal contract recorded in
 [RELEASE-006-R1](items/RELEASE-006-R1_POSTGRESQL_MIGRATION_COMPATIBILITY_CONTRACT.md).
-RELEASE-007 remains `READY / NOT_STARTED` but is not started in this activity.
+It is not started in this activity. RELEASE-007 remains `READY / NOT_STARTED`
+but is not started in this activity.
 Overall readiness remains `BLOCKED_FOR_RC`.

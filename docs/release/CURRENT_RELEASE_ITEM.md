@@ -4,11 +4,11 @@
 | ------------- | ------------------------------------------------------------------------------------- |
 | Selected item | RELEASE-006 — PostgreSQL Migration Rehearsal + N-1 Compatibility                         |
 | Priority      | P0                                                                                    |
-| Status        | `BLOCKED / NOT_STARTED`                                                               |
-| Readiness     | `BLOCKED`                                                                             |
-| Blocker       | `SPEC_GAP / OPERATIONAL_DECISION`: N/N-1 compatibility and rehearsal acceptance contract is incomplete. |
+| Status        | `READY / NOT_STARTED`                                                                |
+| Readiness     | `READY`                                                                               |
+| Blocker       | None; RELEASE-005 operational verification remains a release-gate dependency.        |
 | Contract      | [RELEASE-006-R1](items/RELEASE-006-R1_POSTGRESQL_MIGRATION_COMPATIBILITY_CONTRACT.md) |
-| Item          | RELEASE-006 planning item                                                             |
+| Item          | [RELEASE-006](items/RELEASE-006_POSTGRESQL_MIGRATION_REHEARSAL_N_MINUS_1.md)          |
 
 RELEASE-001 runtime is `CODE_COMPLETE` but not `VERIFIED`; real provider and
 staging acceptance remain open. RELEASE-002-R1 fixes Agent authentication as
@@ -30,8 +30,8 @@ Overall release remains `BLOCKED_FOR_RC`.
 
 RELEASE-005 is `CODE_COMPLETE / NOT VERIFIED`; its protected backup and restore
 rehearsal remain operational verification work. RELEASE-006 is
-`BLOCKED / NOT_STARTED` because its N/N-1 compatibility and rehearsal contract
-is incomplete. RELEASE-007 remains `READY / NOT_STARTED` because its
+`READY / NOT_STARTED` after its R1 contract completion, but is not started in
+this activity. RELEASE-007 remains `READY / NOT_STARTED` because its
 deployment-topology dependency is implemented; it is not started here.
 RELEASE-GATE-001 remains blocked on verification evidence. Do not start another
 release item automatically. See

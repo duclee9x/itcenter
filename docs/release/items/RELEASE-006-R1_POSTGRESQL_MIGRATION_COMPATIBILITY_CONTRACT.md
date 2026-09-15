@@ -3,128 +3,267 @@
 | Field | Value |
 | --- | --- |
 | Release item | RELEASE-006 — PostgreSQL Migration Rehearsal + N-1 Compatibility |
-| Type | Planning/specification only |
-| Status | `BLOCKED / NOT_STARTED` |
-| Blocker | `SPEC_GAP / OPERATIONAL_DECISION` |
-| Runtime | Lima VM, rootless Podman, `podman compose` |
-| Depends on | RELEASE-004 and RELEASE-005 implementation inputs; their verification remains open |
+| Type | Normative planning/specification contract |
+| Status | `CODE_COMPLETE` |
+| Runtime | macOS host → Lima VM → rootless Podman → `podman compose` → PostgreSQL |
+| Deployment mode | `CONTROLLED_MAINTENANCE`, `SINGLE_HOST`, `NO_HA` |
+| RPO/RTO dependency | RELEASE-005 remains `CODE_COMPLETE / NOT VERIFIED` |
 
-## Purpose
+## Purpose and boundary
 
-RELEASE-006 must produce evidence that a production-like PostgreSQL database
-can move from the immediately previous compatible release to the candidate
-release, and that application behavior at each schema boundary is known.
-Fresh-install migration tests are necessary but do not answer that question.
+This contract defines the evidence required to migrate a production-like
+PostgreSQL database safely and to state which application/schema combinations
+are usable. It does not require zero-downtime schema changes, arbitrary
+N/N-1 overlap, Kubernetes, a PostgreSQL cluster, or a new orchestration system.
+Correctness and truthful rollback behavior take priority over continuous
+availability.
 
-This document records the contract gap found during state recovery. It does
-not implement migration rehearsal automation and does not authorize RELEASE-007.
+RELEASE-006 implementation must use the exact RELEASE-004 migration command
+and the same immutable OCI candidate image. It must use the RELEASE-005
+pre-migration backup gate in rehearsal. Fixture-based evidence does not mark
+RELEASE-005 verified and does not make its RPO/RTO met.
 
-## Current repository facts
+## Version identity
 
-- The runtime PostgreSQL version observed in the local environment is 18.6.
-- The repository contains 100 SQL migration files.
-- `packages/persistence/src/migration-manifest.ts` defines deterministic owner
-  and file ordering. The manifest revision is the SHA-256 of the ordered
-  migration entries and their file checksums.
-- `database/scripts/runner.ts` serializes migration execution with advisory
-  lock `70911000`, records applied names/checksums in
-  `migration_meta.applied`, and runs each migration in its own transaction.
-  The complete migration chain is not one transaction.
-- The shared pool currently has a 5-second connection timeout and a 10-second
-  statement timeout. No migration-specific lock timeout or migration duration
-  budget is normatively defined.
-- `current-schema-revision.ts` accepts only an exact match between the
-  expected manifest and `migration_meta.applied`. RELEASE-003 therefore keeps
-  the supported schema range exact; it must not be widened by rehearsal code.
-- RELEASE-004 rollback checks the target artifact's schema revision against the
-  current database and rejects an incompatible application rollback. There is
-  no automatic database down-migration.
-- The chain contains data transformations and compatibility-sensitive DDL,
-  including legacy SLA-purpose normalization, asset-risk normalization,
-  monitoring/incident link backfill, state-history baselines, column rename,
-  constraint replacement, and Agent mTLS schema changes. These operations
-  require explicit classification during rehearsal.
+`N` is the candidate application artifact and its expected schema revision.
+`N-1` is the immediately previous production-compatible application release
+and its expected schema revision; it is not an arbitrary Git commit.
 
-## Definitions that must be fixed
+When RELEASE-004 metadata exists, identify both releases by exact OCI digest
+and release metadata. During the one transitional period where no historical
+immutable artifact exists, an N-1 reference may be:
 
-`N` is the candidate release represented by an exact immutable OCI artifact and
-its exact migration manifest. `N-1` is the immediately previous
-production-compatible release artifact and schema, not an arbitrary old Git
-commit. If no prior immutable RC exists, the contract must approve a
-deterministic application/schema fixture and record that limitation rather than
-inventing a registry digest.
+- an exact committed source revision;
+- an exact schema revision;
+- a deterministic build/rehearsal artifact; and
+- recorded provenance labelled `TRANSITIONAL_N_MINUS_1_REFERENCE`.
 
-The rehearsal must report all four combinations:
+No registry digest may be invented. Future rehearsals use actual immutable
+release artifacts.
 
-| Application | Schema | Required result |
+## Compatibility matrix
+
+Every completed rehearsal persists exactly one result for every cell:
+`SUPPORTED`, `UNSUPPORTED`, or `NOT_APPLICABLE`.
+
+| Application | Schema | V1 rule |
 | --- | --- | --- |
-| N-1 | N-1 | `SUPPORTED`, baseline validity |
-| N | N-1 | `SUPPORTED` or `UNSUPPORTED`, with evidence |
-| N-1 | N | `SUPPORTED` or `UNSUPPORTED`, with evidence |
-| N | N | `SUPPORTED`, target validation |
+| N-1 | N-1 | `SUPPORTED`; mandatory healthy baseline |
+| N | N-1 | `UNSUPPORTED` by default; actual rehearsal result is recorded |
+| N-1 | N | `UNSUPPORTED` by default; actual rehearsal result is recorded |
+| N | N | `SUPPORTED`; mandatory target state |
 
-The current repository does not provide a normative result for these four
-combinations. Exact-schema readiness and the rollback guard prove only that
-the current application expects the current manifest; they do not prove
-cross-version compatibility.
+The defaults are release-pair defaults, not a permanent claim about all future
+releases. A rehearsal may prove a particular cross-version cell supported;
+that evidence applies only to the exact release pair and schema transition.
 
-## Decisions required before implementation
+RELEASE-003 remains exact-schema by default:
 
-The following decisions are material and unresolved. RELEASE-006 remains
-blocked until they are approved in a completed R1 contract:
+```text
+MIN_SUPPORTED_SCHEMA_VERSION =
+MAX_SUPPORTED_SCHEMA_VERSION = EXPECTED_SCHEMA_VERSION
+```
 
-1. **N-1 identity:** identify the exact prior OCI release/schema or approve a
-   deterministic fixture and define how its provenance is recorded.
-2. **Compatibility policy:** approve the result and operational meaning of all
-   four matrix cells, including whether `N-1 + Schema N` permits application
-   rollback.
-3. **Migration boundary:** decide whether the current chain requires a
-   controlled maintenance window, and define rollout order when `N + Schema
-   N-1` is unsupported.
-4. **Destructive and expand/contract policy:** classify the existing rename,
-   constraint, nullability, data-transform and backfill operations; define when
-   expand/contract is required for future changes.
-5. **Timeout and lock policy:** set a migration duration budget and, where
-   applicable, `lock_timeout`, `statement_timeout`, and handling of blocked
-   application work. The incidental 10-second pool setting is not a release
-   decision.
-6. **Failure and retry policy:** define evidence and operator action for a
-   failed migration, a failed transaction, a non-transactional/partially
-   applied operation, and a safe retry. Blind rerun and automatic down
-   migration are not acceptable defaults.
-7. **Rehearsal scale and concurrency:** define the sanitized representative
-   dataset, required row-count/size envelope, concurrent operations, and lock
-   observations required to support the conclusion. A small fixture cannot
-   prove production-scale safety.
-8. **Validation and approval evidence:** define required data-integrity checks,
-   API/Worker/Agent Gateway smoke paths, machine-readable rehearsal evidence,
-   human report, production approval, and acceptance thresholds.
-9. **Forward-fix boundary:** define when an incompatible N-1 rollback becomes
-   `FORWARD_FIX_REQUIRED` and when the RELEASE-005 restore path is the approved
-   recovery action. No automatic database rollback is implied.
+No rehearsal implementation may widen this range by assumption. A separately
+documented, tested release-pair result is required before any widening.
 
-## Evidence required after the contract is complete
+## Canonical deployment strategy
 
-The implementation phase must use the exact RELEASE-004 migration command and
-the same immutable candidate image. It must exercise the RELEASE-005
-pre-migration backup gate in an isolated environment, record source/target
-schema, PostgreSQL version, artifact digest, migration duration, lock impact,
-data validation, application validation, failure behavior, and the four-cell
-compatibility matrix. It must also test a fresh install and an N-1 upgrade.
+The v1 strategy is `CONTROLLED_MAINTENANCE`:
 
-The local RELEASE-005 gaps remain dependencies for production-like evidence:
-the actual Lima runtime still lacks verified `age` availability and a writable
-HOST_PROTECTED mount, and no production-like backup/restore rehearsal has been
-accepted. A fixture-based RELEASE-006 test may be implementation evidence but
-cannot mark RELEASE-005 `VERIFIED`, RPO `MET`, or RTO `MET`.
+1. acquire the deployment lock and validate configuration;
+2. run a successful RELEASE-005 `PRE_MIGRATION` protected backup;
+3. drain the API, Agent Gateway and Worker according to RELEASE-003;
+4. make readiness `NOT_READY` and stop accepting new work;
+5. run the candidate migration from the exact immutable image;
+6. validate Schema N and data integrity;
+7. start App N, Gateway and Worker;
+8. wait for readiness and run safe smoke validation; and
+9. record release and rehearsal evidence.
 
-## Status decision
+If the backup fails, migration must not start. Caddy may return a bounded
+maintenance response or 503. Normal production writes must not be routed to an
+old application during an incompatible schema transition.
 
-`RELEASE-006-R1` is planning-only and incomplete until the decisions above are
-made. Therefore:
+Before migration, WorkerHost must stop claiming new jobs and safe in-flight
+work must drain. If the migration touches Agent/TASK-091 persistence, Agent
+Gateway must stop accepting new sessions/work before schema mutation. Existing
+authentication and session guarantees remain governed by RELEASE-002.
 
-- `RELEASE-006 = BLOCKED / NOT_STARTED`;
-- blocker = `SPEC_GAP / OPERATIONAL_DECISION`;
-- no RELEASE-006 runtime or rehearsal automation is introduced here;
-- RELEASE-007 is not started;
-- the overall release remains `BLOCKED_FOR_RC`.
+V1 does not require `ZERO_DOWNTIME_SCHEMA_MIGRATION` or
+`ROLLING_SCHEMA_UPGRADE`. A later release may adopt overlap only with new
+evidence and an explicit deployment decision.
+
+## Migration budgets and locking
+
+The normative v1 budgets are:
+
+| Setting | Value | Meaning |
+| --- | --- | --- |
+| `lock_timeout` | 10 seconds | conflicting lock acquisition fails |
+| `statement_timeout` | 10 minutes | one migration statement fails after the limit |
+| overall migration timeout | 30 minutes | the migration stage fails/escalates |
+| maintenance migration budget | 30 minutes | expected maximum migration execution window |
+
+The overall timeout is distinct from PostgreSQL session settings. It is not a
+promise that PostgreSQL automatically rolls back every operation at exactly
+30 minutes. Timeout outcomes are `LOCK_TIMEOUT`, `STATEMENT_TIMEOUT`, or
+`OVERALL_MIGRATION_TIMEOUT`; each stops rollout, records evidence, preserves
+the pre-migration backup, and requires operator recovery or forward-fix
+decision. There are no silent infinite retries.
+
+The migration runner should apply the session-local settings where it can do
+so safely. The current advisory lock and per-migration transactions remain;
+the complete chain is not assumed atomic. Any required non-transactional
+operation must be labelled `NON_TRANSACTIONAL` and document partial state,
+completion detection, retry safety, recovery, and forward-fix requirements.
+
+## Migration classification
+
+Rehearsal classifies operations as structural, data migration/backfill,
+contracting, or destructive. At minimum, `DROP TABLE`, `DROP COLUMN`,
+incompatible type replacement, destructive deletion, irreversible transforms,
+and constraints that invalidate old application assumptions are
+`DESTRUCTIVE` or `CONTRACTING`.
+
+The current chain includes compatibility-sensitive examples: column rename,
+constraint replacement, nullability changes, Agent mTLS schema changes,
+legacy SLA-purpose normalization, asset-risk normalization,
+monitoring/incident link backfill, and state-history baselines. A data
+backfill records affected tables, rehearsal row counts, duration, validation,
+and retry/idempotency behavior. A synthetic dataset is labelled `SYNTHETIC`;
+absence of production-size data is recorded as `PERFORMANCE_LIMITATION`.
+
+Expand/contract is used when a future release requires overlapping versions,
+zero downtime becomes a requirement, or measured migration risk warrants it.
+It is not mandatory for this controlled-maintenance transition, and historical
+migrations are not rewritten merely to claim rolling compatibility.
+
+## Required rehearsal cases
+
+Every candidate requires both paths:
+
+### Fresh install
+
+```text
+empty PostgreSQL
+→ complete canonical migration chain
+→ Schema N
+→ App N startup/readiness and representative validation
+```
+
+### N-1 upgrade
+
+```text
+valid Schema N-1 + deterministic representative data + healthy App N-1
+→ successful pre-migration backup gate
+→ candidate migration
+→ Schema N and data validation
+→ App N, Worker and relevant Gateway validation
+```
+
+The N-1 baseline must be `SUPPORTED`. If App N-1 cannot operate against its
+own expected schema, the rehearsal is `INVALID`. App N + Schema N-1 and App
+N-1 + Schema N are actually exercised where artifacts permit; an unsupported
+red cell is acceptable and must not be changed only to make the matrix green.
+
+After Schema N, the rehearsal emits exactly one of:
+
+- `APPLICATION_ROLLBACK_SUPPORTED`, only when the exact App N-1 + Schema N
+  pair was proven `SUPPORTED`; or
+- `FORWARD_FIX_REQUIRED`, when it was not.
+
+## Data, application and lock validation
+
+After migration, evidence must show the target manifest revision, required
+records, transformed values, foreign keys/constraints, indexes, nullability
+and absence of unexpected data loss. Migration-specific checks supplement
+generic smoke tests.
+
+App N + Schema N must pass startup, RELEASE-003 readiness, database access,
+safe representative reads, isolated safe writes and domain paths touched by
+the migration. Worker readiness and paths used by the three mandatory workers
+are included when affected. Gateway repository/runtime validation is included
+when AgentRegistration, AgentCredential or TASK-091 persistence is touched.
+Full real OIDC or Agent PKI verification is outside an unrelated schema test;
+this shortcut must not mark RELEASE-001 or RELEASE-002 verified.
+
+Rehearsal captures bounded lock evidence where feasible: lock timeout,
+strong locks such as `ACCESS EXCLUSIVE`, blocked-query evidence, long
+transactions and relevant conflict behavior. Full production write
+concurrency is not required during controlled maintenance, but bounded conflict
+tests may validate timeout behavior.
+
+Measure separately drain, pre-migration backup, migration, startup/readiness,
+smoke and total maintenance duration. Migration duration is not RELEASE-005's
+two-hour disaster RTO.
+
+## Failure, retry and recovery
+
+Any migration failure stops rollout; App N is not marked successful, the
+pre-migration backup is preserved, and evidence records the failure. There is
+no automatic restore, down migration, or blind retry.
+
+Retry is permitted only after the cause, current migration state and
+migration-specific retry safety are inspected. Re-running a successful
+migration against Schema N must be a safe current-state no-op and must not
+reapply destructive work.
+
+After committed Schema N, App N-1 rollback is forbidden unless its exact matrix
+cell is `SUPPORTED`. Recovery is either an explicitly authorized RELEASE-005
+restore, with its possible post-migration data loss considered, or a
+`FORWARD_FIX_REQUIRED` corrective release. Before App N resumes production
+writes, restoring the pre-migration backup may be simpler; after new writes,
+restore is a deliberate incident decision.
+
+## Rehearsal evidence and acceptance
+
+Each run persists non-secret evidence containing:
+
+```text
+rehearsal_id
+source_release / target_release
+source_schema / target_schema
+PostgreSQL version
+candidate OCI digest and N-1 reference
+pre-migration backup id
+migration start/end/duration
+lock and timeout results
+compatibility matrix
+data, App N, App N-1, Worker and Gateway results
+maintenance durations
+rollback result / forward-fix requirement
+final PASS or FAIL
+```
+
+`PASS` requires a valid baseline, backup gate, successful N-1→N migration,
+Schema N, data validation, supported App N + Schema N, required Worker/Gateway
+checks, complete matrix and unambiguous deployment/rollback semantics. It
+does not require unsupported cross-version cells to become supported.
+
+The rehearsal always uses a separate Podman Compose project, PostgreSQL volume,
+network and non-production configuration. It never defaults to production.
+The canonical runtime is Lima + rootless Podman + `podman compose`; Docker and
+Kubernetes are not dependencies.
+
+## Release boundaries and approval
+
+A schema-changing RC is not production-approved until the rehearsal passes,
+the matrix and rollback/forward-fix mode are recorded, the RELEASE-005 backup
+prerequisite is satisfied, and no migration blocker remains.
+
+This R1 does not change RELEASE-005's RPO 6 hours, RTO 2 hours, `age`,
+`HOST_PROTECTED`, retention or restore authorization. RELEASE-005 remains
+`CODE_COMPLETE / NOT VERIFIED` until age encryption, writable protected copy,
+restore rehearsal, measured RPO/RTO and escrow evidence are real.
+
+## R1 completion
+
+The operational decisions required by the prior gap are now fixed:
+
+- `RELEASE-006-R1 = CODE_COMPLETE`;
+- clear `SPEC_GAP / OPERATIONAL_DECISION`;
+- set `RELEASE-006 = READY / NOT_STARTED`;
+- keep `CURRENT_RELEASE_ITEM = RELEASE-006`;
+- do not implement RELEASE-006 runtime in this planning run; and
+- do not begin RELEASE-007.
