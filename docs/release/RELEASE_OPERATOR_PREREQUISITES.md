@@ -25,43 +25,6 @@ podman inspect "$OCI_REGISTRY/$OCI_REPOSITORY@sha256:<digest>"
 
 Blocks: RELEASE-004, then RELEASE-001/002/003/006/007 staging verification.
 
-## Staging OIDC provider
-
-Provide a real staging OIDC integration; do not use the mock adapter:
-
-- issuer URL;
-- API audience/client configuration;
-- staging test identity and RFC9068 access token procedure;
-- authorization/group mapping inputs;
-- callback/origin values if the selected provider requires them.
-
-Prepare the corresponding non-secret database setup for `IdentityLink`,
-`TenantMembership`, tenant-local `User` and local RBAC permissions.
-
-Validation:
-
-```sh
-deploy/scripts/verify-config.sh staging <resolved-runtime-env>
-```
-
-Then run the RELEASE-001 positive and negative token/tenant/RBAC matrix through
-the staging edge.
-
-Blocks: RELEASE-001 and the real RELEASE-003 readiness profile.
-
-## Agent registration and client credential
-
-Use the generated staging CA/client material with the existing certificate
-issuer and create the staging `AgentRegistration` and `AgentCredential` records
-for the test agent. Supply only protected runtime references to the gateway and
-test client.
-
-Validation: connect the test client through the forwarded Agent mTLS port and
-run the RELEASE-002 binding, revocation and replay checks. The path must remain
-direct TCP/mTLS and must not traverse Caddy.
-
-Blocks: RELEASE-002 and relevant RELEASE-003/007 verification.
-
 ## Recovery escrow governance
 
 Provide non-secret governed references for:
