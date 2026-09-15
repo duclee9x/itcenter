@@ -114,8 +114,8 @@ implemented, while protected backup, fresh restore, escrow and measured
 RPO/RTO evidence remain pending. RELEASE-006 is `CODE_COMPLETE / NOT VERIFIED`
 after implementation of its isolated Podman N/N-1 compatibility rehearsal; the
 qualifying rehearsal and release evidence remain pending. RELEASE-007 is
-`READY / NOT_STARTED`
-because its topology dependency is implemented. Overall readiness remains
+`BLOCKED / NOT_STARTED` because its topology exists but the edge security
+contract has unresolved decisions. Overall readiness remains
 `BLOCKED_FOR_RC`.
 
 ## Evidence and verification baseline
@@ -172,7 +172,7 @@ deployment.
 | RR-04 | OPERATIONAL_GAP          | High     | No production build/image, immutable promotion, staging deployment, or rollback procedure is present.                                                                                     | Yes                                                                       |
 | RR-05 | DATA_MIGRATION_GAP       | High     | RELEASE-006 implementation is complete, but no qualifying production-like prior-schema upgrade, lock/duration measurement, N-1 compatibility, or forward-recovery rehearsal is evidenced. | Yes                                                                       |
 | RR-06 | RECOVERY_GAP             | Critical | Production backup/restore policy decisions and evidence are incomplete; no approved RPO/RTO, off-host target, or pre-migration control is evidenced.                                      | Yes                                                                       |
-| RR-07 | SECURITY_GAP             | Critical | TLS ingress and rate limiting are not implemented/configured in a deployment edge; no production edge policy is evidenced.                                                                | Yes                                                                       |
+| RR-07 | SECURITY_GAP             | Critical | RELEASE-007 is blocked by unresolved certificate lifecycle, trusted-proxy, numeric rate/body/timeout and failure-policy decisions; no production edge policy is evidenced.                | Yes                                                                       |
 | RR-08 | OBSERVABILITY_GAP        | High     | Readiness/worker metrics are still process-local; no exporter, tracing, or alert routing is wired.                                                                                        | Yes for monitored production operation                                    |
 | RR-09 | PRODUCTION_CONFIGURATION | High     | Production secret, database roles, system-principal grants and capability-specific adapters need deployment provisioning and validation.                                                  | Yes for enabled capabilities                                              |
 | RR-10 | PRODUCTION_CONFIGURATION | Medium   | Concrete object/artifact storage and scanning adapters are not wired for artifact-dependent workflows.                                                                                    | Conditional on those workflows being in release scope                     |

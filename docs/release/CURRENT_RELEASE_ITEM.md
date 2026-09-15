@@ -1,14 +1,14 @@
 # Current Release Item
 
-| Field         | Value                                                                                 |
-| ------------- | ------------------------------------------------------------------------------------- |
-| Selected item | RELEASE-006 — PostgreSQL Migration Rehearsal + N-1 Compatibility                      |
-| Priority      | P0                                                                                    |
-| Status        | `CODE_COMPLETE / NOT VERIFIED`                                                        |
-| Readiness     | `N/A`                                                                                 |
-| Blocker       | Qualifying N-1/Podman rehearsal and release-gate evidence remain unverified.          |
-| Contract      | [RELEASE-006-R1](items/RELEASE-006-R1_POSTGRESQL_MIGRATION_COMPATIBILITY_CONTRACT.md) |
-| Item          | [RELEASE-006](items/RELEASE-006_POSTGRESQL_MIGRATION_REHEARSAL_N_MINUS_1.md)          |
+| Field         | Value                                                                                              |
+| ------------- | -------------------------------------------------------------------------------------------------- |
+| Selected item | RELEASE-007 — Production TLS Ingress + Rate Limiting                                               |
+| Priority      | P0                                                                                                 |
+| Status        | `BLOCKED / NOT_STARTED`                                                                            |
+| Readiness     | `BLOCKED`                                                                                          |
+| Blocker       | `SPEC_GAP / SECURITY_DECISION`: edge policy values and certificate/proxy decisions are unresolved. |
+| Contract      | [RELEASE-007-R1](items/RELEASE-007-R1_PRODUCTION_EDGE_TLS_RATE_LIMITING_CONTRACT.md)               |
+| Item          | RELEASE-007 implementation item                                                                    |
 
 RELEASE-001 runtime is `CODE_COMPLETE` but not `VERIFIED`; real provider and
 staging acceptance remain open. RELEASE-002-R1 fixes Agent authentication as
@@ -32,8 +32,9 @@ RELEASE-005 is `CODE_COMPLETE / NOT VERIFIED`; its protected backup and restore
 rehearsal remain operational verification work. RELEASE-006 is
 `CODE_COMPLETE / NOT VERIFIED`; its isolated rehearsal infrastructure is
 implemented, but qualifying N-1 and production-like evidence remain open.
-RELEASE-007 remains `READY / NOT_STARTED` because its
-deployment-topology dependency is implemented; it is not started here.
+RELEASE-007 is `BLOCKED / NOT_STARTED` because the topology exists but its
+security contract still lacks approved rate/body/timeout limits, certificate
+lifecycle, and trusted-proxy decisions. No runtime edge change has started.
 RELEASE-GATE-001 remains blocked on verification evidence. Do not start another
 release item automatically. See
 [RELEASE_BACKLOG.md](RELEASE_BACKLOG.md) and

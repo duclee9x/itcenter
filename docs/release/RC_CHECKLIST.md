@@ -35,6 +35,9 @@ for the binding decisions; this checklist does not replace those contracts.
       Podman Compose projects, exact N/N-1 metadata, migration timeouts,
       backup-gate enforcement and per-run compatibility evidence. This is
       implementation evidence only; the qualifying rehearsal remains open.
+- [ ] Resolve RELEASE-007-R1 before changing the edge: approve certificate
+      lifecycle, trusted forwarded headers, numeric rate/body/timeout limits,
+      HTTPS/Lima exposure and Caddy failure behavior.
 
 ## Build and artifact identity
 
