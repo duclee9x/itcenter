@@ -90,7 +90,7 @@ plain="$work_dir/$backup_id.dump"
 encrypted="$work_dir/$backup_id.dump.age"
 dump_log="$work_dir/pg_dump.stderr"
 if [[ "$(value DB_MODE)" == compose ]]; then
-  compose --profile compose-postgres run --rm --no-deps -e DATABASE_URL="$db_url" \
+  compose --profile compose-postgres run --rm --no-deps -T -e DATABASE_URL="$db_url" \
     --entrypoint sh postgres -c 'pg_dump -Fc "$DATABASE_URL"' >"$plain" 2>"$dump_log" || die PG_DUMP_FAILED
 else
   "$CONTAINER_CLI" run --rm --network host --entrypoint sh \
