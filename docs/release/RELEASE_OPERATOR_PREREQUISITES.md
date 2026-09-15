@@ -78,22 +78,6 @@ presence/governance without reading or logging secret values.
 
 Blocks: RELEASE-005 verification, RPO/RTO closure and RC approval.
 
-## N-1 release reference
-
-Provide either:
-
-1. a genuine previous immutable OCI artifact and its release metadata; or
-2. the RELEASE-006-authorized `TRANSITIONAL_N_MINUS_1_REFERENCE`, containing an
-   exact committed source revision, exact schema revision, deterministic build
-   provenance and the resulting verification artifact.
-
-Do not invent a registry digest for a release that was never published.
-
-Validation: record the reference in the migration rehearsal evidence and run
-the N-1 baseline before the candidate migration.
-
-Blocks: RELEASE-006 verification.
-
 ## Public staging edge (optional local path already prepared)
 
 For public ACME/production-like edge evidence, provide a staging hostname with

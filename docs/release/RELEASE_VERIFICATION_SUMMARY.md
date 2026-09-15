@@ -1,12 +1,13 @@
 # Release Verification Summary
 
-**Assessment date:** 2026-09-15
+**Assessment date:** 2026-09-16
 
 **Decision:** `BLOCKED_FOR_RC`
 
 This document records verification evidence for RELEASE-001 through
 RELEASE-007. It is a closure record, not a new release item. The repository
-HEAD contains `7ea3001` (`Implement RELEASE-007 production edge controls`).
+HEAD contains verification commits after `7ea3001`; focused backup capture
+remediation is `45d4154`.
 `AGENTS.md` remains an unrelated uncommitted change and is intentionally not
 part of this record.
 
@@ -36,27 +37,46 @@ escrow or RELEASE-005 verification. Loopback Lima forwards for staging HTTP,
 HTTPS and Agent mTLS ports are configured, but no deployed listener/public
 network path has yet been verified.
 
-No registry-backed immutable RC metadata, staging OIDC provider, Agent
-registration/credential, usable N-1 release artifact/reference, public
-staging DNS/ACME evidence, or production escrow governance evidence is
-available. No release is therefore VERIFIED.
+The authorized transitional N-1 reference is now prepared from
+`7c403ab53f849abe189bf28ec0d669767427f105`, with local digest
+`sha256:18f46a1f8b61cc47b551557d90c23dfcaf91b0ab9c3b9e446866fe710205a0d2`.
+It is explicitly not a historical production artifact.
+
+A staging PostgreSQL migration and backup path was exercised. Backup
+`staging-20260915T165653Z-11878-7900` completed with `HOST_PROTECTED`,
+`VERIFIED_COPY`, and SHA-256 verification. Restore rehearsal
+`restore-20260915T165710Z-8570` decrypted the artifact into a fresh isolated
+PostgreSQL project, restored it, and validated the schema in under two hours.
+Application usability was not validated in that rehearsal, so this is partial
+RELEASE-005 evidence only. An earlier backup attempt was invalid because the
+pre-fix script allocated a pseudo-TTY; that artifact was removed and the
+focused fix was committed separately.
+
+The actual staging stack attempt reached PostgreSQL and Gateway startup, but
+`verify-config.sh` rejected template values and the API failed closed during
+OIDC trust initialization. No public listeners or direct mTLS acceptance
+claim is made. No registry-backed immutable RC metadata, staging OIDC
+provider, Agent registration/credential, public staging DNS/ACME evidence, or
+production escrow governance evidence is available. No release is therefore
+VERIFIED.
 
 ## Verification result
 
-| Item        | Result                         | Evidence / remaining blocker                                                                                                                                                   |
-| ----------- | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| RELEASE-001 | `CODE_COMPLETE / NOT VERIFIED` | Staging OIDC issuer, RFC9068 test identity/token, IdentityLink, TenantMembership and RBAC evidence are still required.                                                         |
-| RELEASE-002 | `CODE_COMPLETE / NOT VERIFIED` | Staging CA/certificates exist, but registration/credential setup and direct mTLS acceptance, binding, replay, enrollment, rotation and revocation evidence are still required. |
-| RELEASE-003 | `CODE_COMPLETE / NOT VERIFIED` | Candidate deployment has not run through the Lima Podman lifecycle; readiness, dependency failure, worker criticality and drain evidence are still required.                   |
-| RELEASE-004 | `CODE_COMPLETE / NOT VERIFIED` | Local OCI candidate exists, but a protected registry-backed RC and exact-digest staging deployment/attestation are still required.                                             |
-| RELEASE-005 | `CODE_COMPLETE / NOT VERIFIED` | Age and writable HOST_PROTECTED staging prerequisites are prepared. Protected backup, restore, production escrow governance, measured RPO and RTO evidence are still required. |
-| RELEASE-006 | `CODE_COMPLETE / NOT VERIFIED` | No usable immutable N-1 artifact/reference or qualifying candidate migration rehearsal exists.                                                                                 |
-| RELEASE-007 | `CODE_COMPLETE / NOT VERIFIED` | Local TLS material/configuration and Lima forwards are prepared, but deployed edge, public/network path, HTTPS smoke and direct Agent mTLS evidence are still required.        |
+| Item        | Result                         | Evidence / remaining blocker                                                                                                                                                                   |
+| ----------- | ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| RELEASE-001 | `CODE_COMPLETE / NOT VERIFIED` | Staging OIDC issuer, RFC9068 test identity/token, IdentityLink, TenantMembership and RBAC evidence are still required.                                                                         |
+| RELEASE-002 | `CODE_COMPLETE / NOT VERIFIED` | CA chain and client key/certificate precheck pass; registration/credential setup and direct mTLS acceptance, binding, replay, enrollment, rotation and revocation evidence are still required. |
+| RELEASE-003 | `CODE_COMPLETE / NOT VERIFIED` | Candidate deployment has not run through the Lima Podman lifecycle; readiness, dependency failure, worker criticality and drain evidence are still required.                                   |
+| RELEASE-004 | `CODE_COMPLETE / NOT VERIFIED` | Local OCI candidate exists, but a protected registry-backed RC and exact-digest staging deployment/attestation are still required.                                                             |
+| RELEASE-005 | `CODE_COMPLETE / NOT VERIFIED` | Staging protected backup and isolated schema restore pass after the focused `-T` remediation; application validation, production escrow governance and qualifying measured RPO/RTO remain.     |
+| RELEASE-006 | `CODE_COMPLETE / NOT VERIFIED` | Transitional N-1 artifact is prepared, but baseline/application compatibility and backup-gated N-1→N rehearsal remain blocked by runtime/OIDC prerequisites.                                   |
+| RELEASE-007 | `CODE_COMPLETE / NOT VERIFIED` | Local TLS material/configuration and Lima forwards are prepared, but deployed edge, public/network path, HTTPS smoke and direct Agent mTLS evidence are still required.                        |
 
-**RPO:** `UNVERIFIED` — no successful HOST_PROTECTED backup timestamp.
+**RPO:** `UNVERIFIED` for production release closure. Staging backup age was
+within six hours and provides `MET` staging evidence only.
 
-**RTO:** `UNVERIFIED` — no actual encrypted restore rehearsal with application
-validation.
+**RTO:** `UNVERIFIED` for release closure. The isolated database restore was
+under two hours, but application usability validation was not completed.
 
 ## Environment readiness
 
@@ -72,7 +92,7 @@ validation.
 | Staging OIDC                   | `OPERATOR_REQUIRED`       | No provider, test identity or token supplied.                                                              |
 | Staging TLS                    | `READY` (local)           | Independent local staging mode is configured; public DNS/ACME remains unverified.                          |
 | Lima port forwarding           | `CONFIGURED / UNVERIFIED` | Loopback forwards configured for staging HTTP/HTTPS/Agent mTLS; deployed listeners are still required.     |
-| N-1 release reference          | `OPERATOR_REQUIRED`       | No previous immutable artifact is available; use the authorized transitional reference.                    |
+| N-1 release reference          | `READY`                   | Transitional reference from `7c403ab53f...`; local artifact only, not a historical production release.     |
 
 The exact unresolved operator actions are maintained in
 `docs/release/RELEASE_OPERATOR_PREREQUISITES.md`.
