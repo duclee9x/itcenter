@@ -1,5 +1,10 @@
 # RELEASE-004-R1 — Immutable Artifact & Deployment Promotion Contract
 
+> Runtime note: RELEASE-004-R2 supersedes R1's Docker Engine deployment-host
+> choice with Podman inside a Lima Linux VM and `podman compose`. R1's OCI
+> digest, single-image, promotion, migration, readiness, and rollback
+> invariants remain authoritative and unchanged.
+
 | Field                      | Value                                                   |
 | -------------------------- | ------------------------------------------------------- |
 | Scope                      | Planning and deployment contract only                   |

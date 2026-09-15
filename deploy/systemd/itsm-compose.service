@@ -1,18 +1,20 @@
 [Unit]
-Description=IT Operations Hub Docker Compose production stack
-Requires=docker.service
-After=docker.service network-online.target
+Description=IT Operations Hub Podman Compose production stack
+After=network-online.target
 Wants=network-online.target
 
 [Service]
 Type=oneshot
 RemainAfterExit=yes
 WorkingDirectory=/opt/itcenter/deploy
-EnvironmentFile=/etc/itcenter/production/compose.env
-ExecStart=/opt/itcenter/deploy/scripts/start-current.sh production /etc/itcenter/production/compose.env
-ExecStop=/opt/itcenter/deploy/scripts/stop-stack.sh production /etc/itcenter/production/compose.env
+Environment=CONTAINER_CLI=podman
+Environment=DEPLOY_STATE_ROOT=%h/.local/state/itcenter/release-state
+Environment=DEPLOY_LOCK_ROOT=%h/.local/state/itcenter/locks
+EnvironmentFile=%h/.config/itcenter/production/compose.env
+ExecStart=/opt/itcenter/deploy/scripts/start-current.sh production %h/.config/itcenter/production/compose.env
+ExecStop=/opt/itcenter/deploy/scripts/stop-stack.sh production %h/.config/itcenter/production/compose.env
 TimeoutStartSec=0
 TimeoutStopSec=20
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=default.target

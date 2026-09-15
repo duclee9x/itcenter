@@ -14,7 +14,7 @@ verify_rc_metadata "$rc_file" "$release_id" "$image"
 "$(dirname "$0")/verify-config.sh" staging "$config_file" >/dev/null
 acquire_deployment_lock staging
 
-state_root=${DEPLOY_STATE_ROOT:-/var/lib/itcenter/release-state}
+state_root=$(release_state_root)
 deployment="$state_root/staging/$release_id.json"
 [[ -r "$deployment" ]] || die STAGING_DEPLOYMENT_REQUIRED
 [[ -r "$state_root/staging/CURRENT.json" ]] || die STAGING_DEPLOYMENT_REQUIRED

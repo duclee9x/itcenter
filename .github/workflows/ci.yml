@@ -38,6 +38,10 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+      - name: Install Podman Compose manifest validator
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y podman podman-compose
       - run: bash tests/deployment/compose-config.sh
       - run: npm audit --audit-level=high
       - uses: actions/upload-artifact@v4

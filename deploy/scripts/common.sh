@@ -52,12 +52,58 @@ make_compose_context() {
 }
 
 compose() {
-  docker compose "${COMPOSE_ARGS[@]}" "$@"
+  "${CONTAINER_CLI:-podman}" compose "${COMPOSE_ARGS[@]}" "$@"
+}
+
+version_at_least() {
+  local version=$1 min_major=$2 min_minor=$3 min_patch=$4
+  local pattern='([0-9]+)\.([0-9]+)\.([0-9]+)'
+  [[ "$version" =~ $pattern ]] || return 1
+  local major=$((10#${BASH_REMATCH[1]}))
+  local minor=$((10#${BASH_REMATCH[2]}))
+  local patch=$((10#${BASH_REMATCH[3]}))
+  (( major > min_major ||
+     (major == min_major && minor > min_minor) ||
+     (major == min_major && minor == min_minor && patch >= min_patch) ))
+}
+
+ensure_container_runtime() {
+  CONTAINER_CLI=${CONTAINER_CLI:-podman}
+  case "$CONTAINER_CLI" in
+    podman|docker) ;;
+    *) die CONTAINER_CLI_UNSUPPORTED ;;
+  esac
+  command -v "$CONTAINER_CLI" >/dev/null 2>&1 || die CONTAINER_CLI_UNAVAILABLE
+  local runtime_version compose_version min_runtime_major min_runtime_minor min_runtime_patch
+  local min_compose_major min_compose_minor min_compose_patch
+  runtime_version=$("$CONTAINER_CLI" --version 2>&1) || die CONTAINER_RUNTIME_UNAVAILABLE
+  compose_version=$("$CONTAINER_CLI" compose version 2>&1) || die COMPOSE_PROVIDER_UNAVAILABLE
+  if [[ "$CONTAINER_CLI" == podman ]]; then
+    min_runtime_major=5 min_runtime_minor=8 min_runtime_patch=4
+    min_compose_major=1 min_compose_minor=6 min_compose_patch=0
+  else
+    min_runtime_major=20 min_runtime_minor=10 min_runtime_patch=0
+    min_compose_major=2 min_compose_minor=20 min_compose_patch=0
+  fi
+  version_at_least "$runtime_version" "$min_runtime_major" \
+    "$min_runtime_minor" "$min_runtime_patch" || die CONTAINER_RUNTIME_VERSION_UNSUPPORTED
+  version_at_least "$compose_version" "$min_compose_major" \
+    "$min_compose_minor" "$min_compose_patch" || die COMPOSE_PROVIDER_VERSION_UNSUPPORTED
+  export CONTAINER_CLI
+}
+
+release_state_root() {
+  printf '%s\n' "${DEPLOY_STATE_ROOT:-${XDG_STATE_HOME:-${HOME:?HOME is required}/.local/state}/itcenter/release-state}"
+}
+
+deployment_lock_root() {
+  printf '%s\n' "${DEPLOY_LOCK_ROOT:-${XDG_STATE_HOME:-${HOME:?HOME is required}/.local/state}/itcenter/locks}"
 }
 
 acquire_deployment_lock() {
   local environment=$1
-  local lock_root=${DEPLOY_LOCK_ROOT:-/var/lock}
+  local lock_root
+  lock_root=$(deployment_lock_root)
   mkdir -p "$lock_root"
   exec 9>"$lock_root/itcenter-${environment}.deploy.lock"
   flock -n 9 || die DEPLOYMENT_ALREADY_IN_PROGRESS
@@ -75,7 +121,8 @@ write_json_atomic() {
 
 write_event() {
   local environment=$1 release_id=$2 status=$3 reason=$4 image=$5 commit=$6 schema=$7 config_revision=$8
-  local state_root=${DEPLOY_STATE_ROOT:-/var/lib/itcenter/release-state}
+  local state_root
+  state_root=$(release_state_root)
   local timestamp
   timestamp="$(date -u +%Y%m%dT%H%M%S)-$$"
   write_json_atomic \

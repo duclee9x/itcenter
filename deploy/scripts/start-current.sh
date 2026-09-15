@@ -4,7 +4,7 @@ source "$(cd "$(dirname "$0")" && pwd)/common.sh"
 [[ $# -eq 2 && "$1" == production ]] || die "USAGE: start-current.sh production <env-file>"
 environment=$1
 config_file=$2
-state_root=${DEPLOY_STATE_ROOT:-/var/lib/itcenter/release-state}
+state_root=$(release_state_root)
 current="$state_root/production/CURRENT.json"
 [[ -r "$current" ]] || die CURRENT_RELEASE_UNAVAILABLE
 image=$(jq -er '.image | strings' "$current") || die CURRENT_RELEASE_INVALID
@@ -17,6 +17,7 @@ verify_image_digest "$image"
 make_compose_context "$environment" "$config_file" "$image"
 export GIT_COMMIT=$source_commit APP_VERSION=$app_version BUILD_TIME=$build_time
 acquire_deployment_lock production
+ensure_container_runtime
 compose config --quiet || die COMPOSE_CONFIG_INVALID
 compose pull api agent-gateway worker caddy || die IMAGE_PULL_FAILED
 if [[ "$(read_env_value "$config_file" DB_MODE)" == compose ]]; then

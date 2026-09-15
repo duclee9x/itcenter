@@ -8,6 +8,7 @@
 | Readiness     | `N/A`                                                                                      |
 | Blocker       | Real immutable-image staging deployment and acceptance evidence are pending.               |
 | Contract      | [RELEASE-004-R1](items/RELEASE-004-R1_IMMUTABLE_ARTIFACT_DEPLOYMENT_PROMOTION_CONTRACT.md) |
+| Runtime       | [RELEASE-004-R2](items/RELEASE-004-R2_PODMAN_LIMA_RUNTIME_ALIGNMENT.md)                    |
 | Item          | [RELEASE-004](items/RELEASE-004_IMMUTABLE_BUILD_STAGING_PROMOTION_ROLLBACK.md)             |
 
 RELEASE-001 runtime is `CODE_COMPLETE` but not `VERIFIED`; real provider and
@@ -19,12 +20,13 @@ channel remains unavailable until valid mTLS, CA and database configuration
 are deployed and proven through staging.
 
 RELEASE-003 runtime is `CODE_COMPLETE`, but staging/orchestrator verification
-remains pending. RELEASE-004-R1 has resolved its contract gap and selects
-Linux + Docker Engine + Docker Compose v2, one shared immutable OCI image,
-isolated staging, operator-triggered deployment, a controlled migration step,
-readiness/smoke gates, and exact-digest rollback/forward-fix semantics.
-RELEASE-004 is `CODE_COMPLETE`, but is not `VERIFIED`: no clean CI-published
-digest has yet been deployed through the intended Linux staging topology.
+remains pending. RELEASE-004-R1 defines immutable artifact lifecycle;
+RELEASE-004-R2 aligns runtime to Podman in a Lima Linux VM with
+`podman compose`. One OCI image, isolated staging, operator-triggered
+deployment, migration-before-rollout, readiness/smoke gates, and exact-digest
+rollback/forward-fix semantics remain. RELEASE-004 is `CODE_COMPLETE`, but is
+not `VERIFIED`: no clean CI-published digest has yet been deployed through
+the intended Linux staging topology.
 Overall release remains `BLOCKED_FOR_RC`.
 
 RELEASE-005 remains independently `READY`. RELEASE-007 is now

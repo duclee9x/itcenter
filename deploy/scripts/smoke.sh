@@ -9,6 +9,7 @@ image=$3
 expected_commit=${4:-$(read_env_value "$config_file" GIT_COMMIT)}
 verify_image_digest "$image"
 make_compose_context "$environment" "$config_file" "$image"
+ensure_container_runtime
 
 api_url=$(read_env_value "$config_file" API_HEALTH_URL)
 api_resolve=$(read_env_value "$config_file" API_HEALTH_RESOLVE)

@@ -21,12 +21,11 @@ application rollback versus database forward-fix behavior.
 ## Current blocker
 
 RELEASE-004 runtime, build, and deployment implementation is `CODE_COMPLETE`
-against its authoritative R1. The approved platform is Linux + Docker Engine
-
-- Compose v2, one shared OCI image, Caddy for API HTTPS, operator-triggered
-  deployment, isolated Compose staging, a one-shot migration service, and
-  exact-digest promotion/rollback semantics. Local verification passes; no
-  clean CI-published immutable artifact has yet been deployed to Linux staging.
+against R1 as aligned by R2. The approved platform is Podman in a Lima Linux
+VM with `podman compose`, one shared OCI image, Caddy for API HTTPS, operator-triggered
+deployment, isolated Compose staging, a one-shot migration service, and
+exact-digest promotion/rollback semantics. Local verification passes; no
+clean CI-published immutable artifact has yet been deployed to Linux staging.
 
 RELEASE-004-R1 cleared the operational-decision blocker. RELEASE-005 remains
 independent; RELEASE-006 waits for RELEASE-005 and verified migration/recovery

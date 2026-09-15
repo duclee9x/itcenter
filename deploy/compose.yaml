@@ -2,6 +2,7 @@ services:
   postgres:
     image: ${POSTGRES_IMAGE:?Set immutable POSTGRES_IMAGE}
     profiles: ["compose-postgres"]
+    userns_mode: "keep-id:uid=0,gid=0"
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB:?Set POSTGRES_DB}
@@ -22,6 +23,7 @@ services:
   api:
     image: ${APP_IMAGE:?Set APP_IMAGE to an immutable image digest}
     user: "1000:1000"
+    userns_mode: "keep-id:uid=1000,gid=1000"
     command: ["node", "dist/apps/api/src/main.js"]
     restart: unless-stopped
     init: true
@@ -58,6 +60,7 @@ services:
   agent-gateway:
     image: ${APP_IMAGE:?Set APP_IMAGE to an immutable image digest}
     user: "1000:1000"
+    userns_mode: "keep-id:uid=1000,gid=1000"
     command: ["node", "dist/apps/agent-gateway/src/main.js"]
     restart: unless-stopped
     init: true
@@ -104,6 +107,7 @@ services:
   worker:
     image: ${APP_IMAGE:?Set APP_IMAGE to an immutable image digest}
     user: "1000:1000"
+    userns_mode: "keep-id:uid=1000,gid=1000"
     command: ["node", "dist/apps/worker/src/main.js"]
     restart: unless-stopped
     init: true
@@ -140,6 +144,7 @@ services:
   migrate:
     image: ${APP_IMAGE:?Set APP_IMAGE to an immutable image digest}
     user: "1000:1000"
+    userns_mode: "keep-id:uid=1000,gid=1000"
     command: ["node", "dist/database/scripts/migrate.js"]
     profiles: ["migration"]
     restart: "no"
@@ -155,6 +160,8 @@ services:
 
   caddy:
     image: ${CADDY_IMAGE:?Set immutable CADDY_IMAGE}
+    user: "1000:1000"
+    userns_mode: "keep-id:uid=1000,gid=1000"
     restart: unless-stopped
     init: true
     depends_on:
@@ -174,22 +181,31 @@ services:
 secrets:
   database_url:
     file: ${DATABASE_URL_FILE:?Set DATABASE_URL_FILE}
+    x-podman.relabel: z
   postgres_password:
     file: ${POSTGRES_PASSWORD_FILE:?Set POSTGRES_PASSWORD_FILE}
+    x-podman.relabel: z
   agent_tls_cert:
     file: ${AGENT_TLS_CERT_FILE:?Set AGENT_TLS_CERT_FILE}
+    x-podman.relabel: z
   agent_tls_key:
     file: ${AGENT_TLS_KEY_FILE:?Set AGENT_TLS_KEY_FILE}
+    x-podman.relabel: z
   agent_ca_certificate:
     file: ${AGENT_CA_CERT_FILE:?Set AGENT_CA_CERT_FILE}
+    x-podman.relabel: z
   agent_ca_signing_key:
     file: ${AGENT_CA_SIGNING_KEY_FILE:?Set AGENT_CA_SIGNING_KEY_FILE}
+    x-podman.relabel: z
   agent_ca_signing_passphrase:
     file: ${AGENT_CA_SIGNING_PASSPHRASE_FILE:?Set AGENT_CA_SIGNING_PASSPHRASE_FILE to a protected file (empty when unused)}
+    x-podman.relabel: z
   api_tls_certificate:
     file: ${API_TLS_CERT_FILE:?Set API_TLS_CERT_FILE}
+    x-podman.relabel: z
   api_tls_key:
     file: ${API_TLS_KEY_FILE:?Set API_TLS_KEY_FILE}
+    x-podman.relabel: z
 
 volumes:
   postgres_data:

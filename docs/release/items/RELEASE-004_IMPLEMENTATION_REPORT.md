@@ -2,8 +2,9 @@
 
 **Status:** `CODE_COMPLETE / NOT VERIFIED`
 **Contract:** [RELEASE-004-R1](RELEASE-004-R1_IMMUTABLE_ARTIFACT_DEPLOYMENT_PROMOTION_CONTRACT.md)
+**Runtime remediation:** [RELEASE-004-R2 — Podman / Lima](RELEASE-004-R2_PODMAN_LIMA_RUNTIME_ALIGNMENT.md)
 **Verification boundary:** repository and local image checks pass; no CI-published
-candidate has been deployed and accepted on a Linux staging host.
+candidate has been deployed and accepted in the intended staging environment.
 
 ## Artifact and build
 
@@ -48,15 +49,23 @@ port. Caddy fronts API traffic only. Agent Gateway publishes its dedicated
 port and terminates client mTLS directly.
 
 Environment templates contain references and examples only. Runtime secret
-files are host supplied and owner-only; application/migration processes run as
-UID/GID `1000:1000`. The deployment config gate enforces OIDC and mTLS modes,
-immutable digests for app/Caddy/PostgreSQL images, protected secret files, and
-separate project/config identities. Production CA signing material never
-enters the image. Docker stdout/stderr logging is retained with a documented
-host log-rotation requirement. The included systemd unit starts the stable
-production Compose project from its recorded digest after host boot and stops
-it through the bounded drain wrapper. The topology is explicitly
-`SINGLE_HOST / NO_HA`.
+files are supplied inside the Linux deployment guest and owner-only;
+application/migration processes run as container UID/GID `1000:1000`. R2
+selects macOS host → Lima VM → Linux guest → rootless Podman → `podman compose`
+as the current operator runtime. Podman `userns_mode: keep-id` maps the
+non-root application identity to the rootless guest operator, and
+`x-podman.relabel: z` allows SELinux-protected read-only secret mounts without
+privileged containers. Podman named volumes own PostgreSQL data; operators
+must not rely on Docker volume paths. Caddy remains the API proxy, while
+Agent Gateway terminates direct mTLS on its dedicated published TCP port.
+The deployment config gate enforces OIDC and mTLS modes, immutable digests for
+app/Caddy/PostgreSQL images, protected secret files, and separate project/config
+identities. Production CA signing material never enters the image. Podman uses
+stdout/stderr with the guest's `journald` log driver; bounded
+systemd-journald retention is an operator requirement. The systemd user unit
+starts the stable production Compose project after the Lima guest boots, but
+cannot start Lima after the macOS host reboots; an operator starts the VM with
+`limactl start`. The topology is explicitly `SINGLE_HOST / NO_HA`.
 
 ## Migration, deployment, and promotion
 
@@ -100,26 +109,32 @@ edge TLS lifecycle and hardening.
 
 ## Verification
 
-| Check                         | Result                                                                                   |
-| ----------------------------- | ---------------------------------------------------------------------------------------- |
-| `npm test` with PostgreSQL    | PASS — 243 tests total; 242 passed, one Linux `flock`-availability test skipped on macOS |
-| `npm run typecheck`           | PASS                                                                                     |
-| `npm run lint`                | PASS, including module-boundary checks                                                   |
-| `npm run format:check`        | PASS                                                                                     |
-| `npm run test:migration`      | PASS — 6 migration tests                                                                 |
-| `git diff --check`            | PASS                                                                                     |
-| Compose config render         | PASS for staging and production through the local Compose-compatible provider            |
-| OCI image build               | PASS locally; runtime command/assets and non-root user inspected                         |
-| Deployment failure-gate tests | PASS — migration failure, readiness timeout, schema-incompatible rollback refused        |
-| Staging attestation test      | PASS — matching digest and all three verified evidence records required                  |
+| Check                         | Result                                                                                           |
+| ----------------------------- | ------------------------------------------------------------------------------------------------ |
+| `npm test` with PostgreSQL    | PASS — 243 tests total; 242 passed, one Linux `flock`-availability test skipped on macOS         |
+| `npm run typecheck`           | PASS                                                                                             |
+| `npm run lint`                | PASS, including module-boundary checks                                                           |
+| `npm run format:check`        | PASS                                                                                             |
+| `npm run test:migration`      | PASS — 6 migration tests                                                                         |
+| `git diff --check`            | PASS                                                                                             |
+| Compose config render         | PASS for staging and production using Podman Compose 1.6.0 in the Lima guest                     |
+| OCI image build               | PASS using rootless Podman 5.8.4; all runtime commands available                                 |
+| Podman Compose runtime smoke  | PASS — PostgreSQL, migration, API, Agent Gateway, Worker, and Caddy started; health gates passed |
+| Project isolation             | PASS — concurrent projects have distinct containers, networks, and volumes                       |
+| Rootless secret mounts        | PASS — SELinux relabel and keep-id mapping permit non-root read-only secret access               |
+| Deployment failure-gate tests | PASS — migration failure, readiness timeout, schema-incompatible rollback refused                |
+| Staging attestation test      | PASS — matching digest and all three verified evidence records required                          |
 
 The local OCI build used the dirty implementation worktree and a local-only
 tag; it is not release provenance and is not eligible for promotion. The
-workstation uses a Podman-backed Docker CLI without Buildx or the Linux
-`flock` executable; Compose configuration rendering was possible, but a full
-Linux Docker Engine `compose up`, host systemd boot, protected registry push,
-and concurrent real-`flock` execution were not performed here. GitHub Actions
-and a Linux staging host must perform those deployment checks. The external
-registry, protected `release-publish` environment, IdP, staging Agent CA,
-certificates, databases, and real secret mounts still need operator
-configuration. RELEASE-004 is therefore not `VERIFIED`.
+isolated rootless Lima smoke used ephemeral test credentials and certificates,
+not real IdP or Agent provisioning. Agent Gateway reported `DEGRADED` because
+the certificate issuer capability was unavailable, while the existing-Agent
+authentication capability reported `READY`; that is the expected R1
+separation. The smoke does not prove public/LAN Lima forwarding, a macOS host
+reboot, a clean CI-published digest, protected registry push, real staging
+OIDC, real Agent mTLS enrollment/revocation/rotation, or production promotion.
+GitHub Actions and an actual staging deployment must provide that evidence.
+The external registry, protected `release-publish` environment, IdP, staging
+Agent CA/certificates, and database still require operator configuration.
+RELEASE-004 therefore remains `CODE_COMPLETE / NOT VERIFIED`.

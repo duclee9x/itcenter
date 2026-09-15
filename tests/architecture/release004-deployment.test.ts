@@ -19,7 +19,13 @@ const digest = `registry.example.invalid/itcenter/app@sha256:${"a".repeat(64)}`;
 test("one OCI digest drives all production processes and migration", async () => {
   const compose = await read("deploy/compose.yaml");
   assert.equal((compose.match(/image: \$\{APP_IMAGE/g) ?? []).length, 4);
-  assert.equal((compose.match(/user: "1000:1000"/g) ?? []).length, 4);
+  assert.equal((compose.match(/user: "1000:1000"/g) ?? []).length, 5);
+  assert.equal(
+    (compose.match(/userns_mode: "keep-id:uid=1000,gid=1000"/g) ?? []).length,
+    5,
+  );
+  assert.equal((compose.match(/x-podman\.relabel: z/g) ?? []).length, 9);
+  assert.match(compose, /userns_mode: "keep-id:uid=0,gid=0"/);
   assert.match(compose, /dist\/apps\/api\/src\/main\.js/);
   assert.match(compose, /dist\/apps\/agent-gateway\/src\/main\.js/);
   assert.match(compose, /dist\/apps\/worker\/src\/main\.js/);
@@ -57,7 +63,15 @@ test("deployment profiles remain separate and production auth fails closed", asy
   assert.match(staging, /^COMPOSE_PROJECT_NAME=itsm-staging$/m);
   assert.match(production, /^COMPOSE_PROJECT_NAME=itsm-production$/m);
   assert.match(staging, /^AGENT_HOST_PORT=13001$/m);
+  assert.match(staging, /^STAGING_HTTP_PORT=18080$/m);
+  assert.match(staging, /^STAGING_HTTPS_PORT=18443$/m);
   assert.match(production, /^AGENT_HOST_PORT=3001$/m);
+  assert.match(production, /^PRODUCTION_HTTP_PORT=8080$/m);
+  assert.match(production, /^PRODUCTION_HTTPS_PORT=8443$/m);
+  assert.match(
+    production,
+    /^RUNTIME_ENV_FILE=\/home\/itcenter\/\.config\/itcenter\/production\/runtime\.env$/m,
+  );
   assert.match(production, /^POSTGRES_IMAGE=.*@sha256:[a-f0-9]{64}$/m);
   assert.match(production, /^CADDY_IMAGE=.*@sha256:[a-f0-9]{64}$/m);
   assert.match(staging, /\/staging\/secrets\/agent-ca-cert\.pem/);
@@ -73,6 +87,7 @@ test("deployment profiles remain separate and production auth fails closed", asy
   }
   assert.doesNotMatch(production, /latest|(^|:)main$/m);
   assert.doesNotMatch(production, /password=|PRIVATE KEY|client_secret=/i);
+  assert.match(production, /^COMPOSE_PROJECT_NAME=itsm-production$/m);
 });
 
 test("container build is pinned, multi-stage, non-root, and excludes local credentials", async () => {
@@ -120,6 +135,10 @@ test("deployment gates on digest, migration, and exact readiness; rollback check
     deploy,
     /npm (install|run build)|docker build|git (clone|pull)/,
   );
+  assert.match(common, /\$\{CONTAINER_CLI:-podman\}.*compose/);
+  assert.match(common, /COMPOSE_PROVIDER_UNAVAILABLE/);
+  assert.match(common, /XDG_STATE_HOME/);
+  assert.doesNotMatch(common, /docker compose/);
 });
 
 test("systemd host boot restores only the recorded immutable production release", async () => {
@@ -135,6 +154,8 @@ test("systemd host boot restores only the recorded immutable production release"
   assert.match(stop, /down --timeout 10/);
   assert.match(unit, /start-current\.sh/);
   assert.match(unit, /stop-stack\.sh/);
+  assert.doesNotMatch(unit, /docker\.service|Requires=docker/);
+  assert.match(unit, /WantedBy=default\.target/);
 });
 
 async function deploymentFixture(baseDir: string) {
@@ -142,7 +163,7 @@ async function deploymentFixture(baseDir: string) {
   const configFile = path.join(baseDir, "staging.env");
   const envRoot = path.join(baseDir, "staging");
   const config = staging
-    .replaceAll("/etc/itcenter/staging", envRoot)
+    .replaceAll("/home/itcenter/.config/itcenter/staging", envRoot)
     .replaceAll("idp-staging.example.invalid", "idp.staging.test")
     .replaceAll("itcenter-staging.example.invalid", "api.staging.test")
     .replaceAll("agent-staging.example.invalid", "agent.staging.test");
@@ -186,15 +207,20 @@ async function deploymentFixture(baseDir: string) {
   return { configFile, rcFile };
 }
 
-async function fakeCommands(baseDir: string, dockerBody: string) {
+async function fakeCommands(baseDir: string, podmanBody: string) {
   const bin = path.join(baseDir, "bin");
   await mkdir(bin, { recursive: true });
-  const docker = path.join(bin, "docker");
+  const podman = path.join(bin, "podman");
   await writeFile(
-    docker,
-    `#!/usr/bin/env bash\nprintf '%s\\n' "$*" >>"$FAKE_DOCKER_LOG"\n${dockerBody}\n`,
+    podman,
+    `#!/usr/bin/env bash
+if [[ "$*" == "--version" ]]; then printf 'podman version 5.8.4\\n'; exit 0; fi
+if [[ "$*" == "compose version" ]]; then printf 'podman-compose version 1.6.0\\n'; exit 0; fi
+printf '%s\\n' "$*" >>"$FAKE_PODMAN_LOG"
+${podmanBody}
+`,
   );
-  await chmod(docker, 0o700);
+  await chmod(podman, 0o700);
   const flock = path.join(bin, "flock");
   await writeFile(flock, "#!/usr/bin/env bash\nexit 0\n");
   await chmod(flock, 0o700);
@@ -289,7 +315,7 @@ test("mutable image tags are rejected before deployment commands run", async () 
   try {
     const { configFile, rcFile } = await deploymentFixture(temp);
     const bin = await fakeCommands(temp, "exit 0");
-    const dockerLog = path.join(temp, "docker.log");
+    const podmanLog = path.join(temp, "podman.log");
     const result = spawnSync(
       "bash",
       [
@@ -305,7 +331,7 @@ test("mutable image tags are rejected before deployment commands run", async () 
         env: {
           ...process.env,
           PATH: `${bin}:${process.env.PATH}`,
-          FAKE_DOCKER_LOG: dockerLog,
+          FAKE_PODMAN_LOG: podmanLog,
           DEPLOY_LOCK_ROOT: path.join(temp, "locks"),
           DEPLOY_STATE_ROOT: path.join(temp, "state"),
         },
@@ -313,7 +339,7 @@ test("mutable image tags are rejected before deployment commands run", async () 
     );
     assert.notEqual(result.status, 0);
     assert.match(result.stderr, /IMMUTABLE_IMAGE_DIGEST_REQUIRED/);
-    await assert.rejects(readFile(dockerLog));
+    await assert.rejects(readFile(podmanLog));
   } finally {
     await rm(temp, { recursive: true, force: true });
   }
@@ -327,7 +353,7 @@ test("migration failure stops rollout and preserves current/LKG state", async ()
       temp,
       '[[ "$*" == *"run --rm migrate"* ]] && exit 27\nexit 0',
     );
-    const log = path.join(temp, "docker.log");
+    const log = path.join(temp, "podman.log");
     const result = spawnSync(
       "bash",
       [
@@ -343,7 +369,7 @@ test("migration failure stops rollout and preserves current/LKG state", async ()
         env: {
           ...process.env,
           PATH: `${bin}:${process.env.PATH}`,
-          FAKE_DOCKER_LOG: log,
+          FAKE_PODMAN_LOG: log,
           DEPLOY_LOCK_ROOT: path.join(temp, "locks"),
           DEPLOY_STATE_ROOT: path.join(temp, "state"),
         },
@@ -397,7 +423,7 @@ test("readiness failure is not recorded as a successful release", async () => {
         env: {
           ...process.env,
           PATH: `${bin}:${process.env.PATH}`,
-          FAKE_DOCKER_LOG: path.join(temp, "docker.log"),
+          FAKE_PODMAN_LOG: path.join(temp, "podman.log"),
           DEPLOY_LOCK_ROOT: path.join(temp, "locks"),
           DEPLOY_STATE_ROOT: stateRoot,
         },
@@ -440,7 +466,7 @@ test("rollback refuses a current schema that differs from the target RC", async 
         env: {
           ...process.env,
           PATH: `${bin}:${process.env.PATH}`,
-          FAKE_DOCKER_LOG: path.join(temp, "docker.log"),
+          FAKE_PODMAN_LOG: path.join(temp, "podman.log"),
           DEPLOY_LOCK_ROOT: path.join(temp, "locks"),
           DEPLOY_STATE_ROOT: path.join(temp, "state"),
         },
@@ -448,7 +474,7 @@ test("rollback refuses a current schema that differs from the target RC", async 
     );
     assert.notEqual(result.status, 0);
     assert.match(result.stderr, /FORWARD_FIX_REQUIRED_SCHEMA_INCOMPATIBLE/);
-    const commands = await readFile(path.join(temp, "docker.log"), "utf8");
+    const commands = await readFile(path.join(temp, "podman.log"), "utf8");
     assert.match(commands, /current-schema-revision\.js/);
     assert.doesNotMatch(commands, /up -d --wait --remove-orphans|down --/);
   } finally {
@@ -472,9 +498,12 @@ test("deployment lock is exclusive when Linux flock is available", async (contex
     const { configFile, rcFile } = await deploymentFixture(temp);
     const bin = path.join(temp, "bin");
     await mkdir(bin, { recursive: true });
-    const docker = path.join(bin, "docker");
-    await writeFile(docker, "#!/usr/bin/env bash\nexit 0\n");
-    await chmod(docker, 0o700);
+    const podman = path.join(bin, "podman");
+    await writeFile(
+      podman,
+      '#!/usr/bin/env bash\nif [[ "$*" == "--version" ]]; then printf "podman version 5.8.4\\n"; exit 0; fi\nif [[ "$*" == "compose version" ]]; then printf "podman-compose version 1.6.0\\n"; exit 0; fi\nexit 0\n',
+    );
+    await chmod(podman, 0o700);
     const lockRoot = path.join(temp, "locks");
     await mkdir(lockRoot);
     const lockPath = path.join(lockRoot, "itcenter-staging.deploy.lock");
@@ -495,7 +524,7 @@ test("deployment lock is exclusive when Linux flock is available", async (contex
         env: {
           ...process.env,
           PATH: `${bin}:${process.env.PATH}`,
-          FAKE_DOCKER_LOG: path.join(temp, "docker.log"),
+          FAKE_PODMAN_LOG: path.join(temp, "podman.log"),
           DEPLOY_LOCK_ROOT: lockRoot,
           DEPLOY_STATE_ROOT: path.join(temp, "state"),
         },

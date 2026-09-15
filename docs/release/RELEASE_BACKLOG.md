@@ -84,9 +84,10 @@ remain required before `VERIFIED`. RELEASE-003-R1 is now `CODE_COMPLETE` and
 clears its operational-decision gap. The contract defines deployable-specific
 profiles and all 13 workers. RELEASE-003 runtime is implemented and locally
 verified; deployable-profile staging/orchestrator verification remains before
-`VERIFIED`. RELEASE-004-R1 resolves the deployment decision gap by selecting
-the immutable OCI / Docker Compose v2 / Linux host model and defining
-migration, promotion, and rollback contracts. RELEASE-004 runtime and pipeline
+`VERIFIED`. RELEASE-004-R1 defines immutable artifact lifecycle;
+RELEASE-004-R2 selects Podman in a Lima Linux VM with `podman compose` as the
+canonical runtime. Migration, promotion, readiness, and rollback semantics
+remain unchanged. RELEASE-004 runtime and pipeline
 are `CODE_COMPLETE`; it is not `VERIFIED` until a clean CI-published digest
 has been deployed and accepted in real Linux staging. RELEASE-005 remains
 independently ready; RELEASE-006 waits for RELEASE-005 and verified recovery

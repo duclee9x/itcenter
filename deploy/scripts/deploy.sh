@@ -23,8 +23,9 @@ config_rev=$(config_revision "$config_file")
 make_compose_context "$environment" "$config_file" "$image"
 export GIT_COMMIT=$source_commit APP_VERSION=$app_version BUILD_TIME=$build_time
 acquire_deployment_lock "$environment"
+ensure_container_runtime
 
-state_root=${DEPLOY_STATE_ROOT:-/var/lib/itcenter/release-state}
+state_root=$(release_state_root)
 if [[ "$environment" == production ]]; then
   [[ -n "$staging_attestation" ]] || staging_attestation="$state_root/staging/attestations/$release_id.json"
   [[ -r "$staging_attestation" ]] || die STAGING_VERIFICATION_REQUIRED

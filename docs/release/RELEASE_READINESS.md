@@ -93,16 +93,17 @@ deployment topology before `VERIFIED`.
 
 RELEASE-004-R1 resolves the deployment decision gap. V1 uses one immutable
 OCI image for API, Agent Gateway, Worker, and the migration command, built by
-the existing GitHub Actions CI and promoted by digest through Docker Compose
-v2 on a Linux host. Same-host staging uses an isolated Compose project by
+the existing GitHub Actions CI and promoted by digest through Podman and
+`podman compose` inside a Lima Linux VM. Same-host staging uses an isolated
+Compose project by
 default. An authorized operator runs the versioned deployment command; the
 production host pulls but never builds. Caddy serves API HTTPS, while Agent
 mTLS terminates directly in Agent Gateway. Migration, readiness, smoke,
 promotion, and exact-digest rollback gates are implemented.
 
-RELEASE-004-R1 and its runtime implementation are `CODE_COMPLETE`. The
+RELEASE-004-R1/R2 and its runtime implementation are `CODE_COMPLETE`. The
 implementation provides one OCI image, GitHub Actions publication with
-provenance/SBOM, immutable digest deployment using Docker Compose v2, isolated
+provenance/SBOM, immutable digest deployment using Podman Compose, isolated
 staging/production projects, ordered migration, readiness/smoke gates,
 staging-evidence attestation, stateful exact-digest rollback, and systemd host
 boot integration. Automated repository checks pass, but no clean CI-published

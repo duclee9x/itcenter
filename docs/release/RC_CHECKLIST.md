@@ -5,13 +5,15 @@ until all release blockers in [RELEASE_BLOCKERS.md](RELEASE_BLOCKERS.md) are
 closed and the release scope is approved. Smoke operations below are read-only
 or use explicitly disposable staging fixtures.
 
-RELEASE-004-R1 normatively selects the Linux/Docker Compose v2 deployment
-model, shared OCI artifact, operator-run deployment, migration and promotion
-gates, and recovery rules. RELEASE-004 implementation is `CODE_COMPLETE`; real
-Linux staging deployment and acceptance evidence remain required before
-`VERIFIED` or production promotion. Follow
+RELEASE-004-R1 defines the immutable artifact lifecycle; RELEASE-004-R2
+selects Podman in Lima Linux with `podman compose`. The shared OCI artifact,
+operator-run deployment, migration and promotion gates, and recovery rules
+remain unchanged. RELEASE-004 implementation is `CODE_COMPLETE`; real staging
+deployment and acceptance evidence remain required before `VERIFIED` or
+production promotion. Follow
 [RELEASE-004-R1](items/RELEASE-004-R1_IMMUTABLE_ARTIFACT_DEPLOYMENT_PROMOTION_CONTRACT.md)
-for the binding decisions; this checklist does not replace that contract.
+and [RELEASE-004-R2](items/RELEASE-004-R2_PODMAN_LIMA_RUNTIME_ALIGNMENT.md)
+for the binding decisions; this checklist does not replace those contracts.
 
 ## Entry gate
 
@@ -60,8 +62,9 @@ for the binding decisions; this checklist does not replace that contract.
 - [ ] Rollback uses the exact retained prior digest and refuses to proceed
       unless the target image supports the current schema revision; never run a
       database down migration as part of application rollback.
-- [ ] Verify the host boot unit restores the recorded release without running
-      migration, and inspect bounded Docker log rotation on the Linux host.
+- [ ] Verify the Lima guest user unit restores the recorded release without
+      running migration, confirm the operator starts Lima after macOS reboot,
+      and inspect bounded journald retention in the guest.
 
 ## Migration rehearsal and recovery
 
