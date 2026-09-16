@@ -403,3 +403,36 @@ migration manifests or the migration chain. The aborted evidence now uses
 `NOT_EXECUTED` for all cells after the completed N-1 baseline and keeps
 rollback as `NOT_DETERMINED`. RELEASE-006 remains `CODE_COMPLETE / NOT
 VERIFIED` until a full qualifying rehearsal executes all required cells.
+
+## Phase 12 execution evidence
+
+The previous GitHub Actions failure `35066708089` was reproduced as a temporal
+fixture problem in `tests/integration/task095-r2-state-history.test.ts`. The
+fixture calculated its pre-create `asOf` boundary from Node `Date.now()` while
+the canonical Incident `created_at` was assigned by PostgreSQL `now()`. Clock
+and precision differences could therefore place the query after the CREATE
+anchor, producing `INSUFFICIENT_HISTORY` instead of the contractually correct
+`NOT_YET_CREATED`. This is classified as `NONDETERMINISTIC_TEST_SETUP`; the
+history implementation and its contract were not changed.
+
+The fixture now reads the persisted canonical `created_at` and derives both the
+equal-timestamp ordering point and the immediately-before-create boundary from
+that value. The focused test passed 20 of 20 sequential executions, with three
+tests passing in each run. The disposable PostgreSQL used for local validation
+was isolated from staging and production.
+
+The RELEASE-006 differential investigation still shows the minimal migration
+sequence passing: the N-1 image applies 100 migrations, the R4 image runs, and
+the exact target schema revision validates. The canonical full rehearsal still
+fails at the target schema-validation checkpoint with `SCHEMA_INCOMPATIBLE`
+(exit 2); therefore the remaining classification is `REHEARSAL_HARNESS_DEFECT`.
+The required later matrix cells remain `NOT_EXECUTED`, rollback remains
+`NOT_DETERMINED`, and RELEASE-006 is not promoted.
+
+The final local repository suite passed with 125 unit tests (124 passed and one
+Linux `flock` skip), 2 contract tests, 6 migration tests, 61 integration tests,
+and 64 e2e tests. Typecheck, lint, format check, migration tests, deployment
+Compose validation, and `git diff --check` also passed with the disposable
+database configured where required. Only test fixture and release evidence
+were changed; Dockerfile, build context, shipped runtime, migrations, and the
+R4 OCI image were unchanged.

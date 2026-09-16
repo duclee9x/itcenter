@@ -365,13 +365,22 @@ test("TASK-095-R2 concurrent Incident transitions serialize by expected version 
         priority: "P2",
       }),
     );
-    const tie = new Date(Date.now() + 2000).toISOString();
+    const createdAt = await db.pool.query<{ created_at: Date | string }>(
+      "SELECT created_at FROM incident.incidents WHERE tenant_id=$1 AND id=$2",
+      [tenant, tiedIncident.id],
+    );
+    const tie = new Date(
+      Date.parse(String(createdAt.rows[0]!.created_at)) + 2000,
+    ).toISOString();
+    const immediatelyBeforeCreate = new Date(
+      Date.parse(String(createdAt.rows[0]!.created_at)) - 1,
+    ).toISOString();
     assert.deepEqual(
       await db.uow.run(tenant, (tx) =>
         queryIncidentStateAt({
           tx,
           incidentId: tiedIncident.id,
-          asOf: new Date(Date.parse(tie) - 3000).toISOString(),
+          asOf: immediatelyBeforeCreate,
         }),
       ),
       { coverage: "NOT_YET_CREATED", state: null },
