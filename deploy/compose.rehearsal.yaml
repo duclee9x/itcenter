@@ -1,0 +1,32 @@
+services:
+  api:
+    environment:
+      APP_ENV: staging
+      AUTH_MODE: unavailable
+      OIDC_ISSUER: ""
+      OIDC_AUDIENCE: ""
+
+  agent-gateway:
+    environment:
+      APP_ENV: staging
+      AUTH_MODE: unavailable
+      OIDC_ISSUER: ""
+      OIDC_AUDIENCE: ""
+    ports: []
+
+  worker:
+    environment:
+      APP_ENV: staging
+      AUTH_MODE: unavailable
+      OIDC_ISSUER: ""
+      OIDC_AUDIENCE: ""
+
+  migrate:
+    environment:
+      APP_ENV: staging
+      AUTH_MODE: unavailable
+      OIDC_ISSUER: ""
+      OIDC_AUDIENCE: ""
+
+  caddy:
+    ports: []

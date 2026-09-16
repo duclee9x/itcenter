@@ -90,6 +90,19 @@ test("deployment profiles remain separate and production auth fails closed", asy
   assert.match(production, /^COMPOSE_PROJECT_NAME=itsm-production$/m);
 });
 
+test("migration rehearsal is isolated from staging host ports", async () => {
+  const script = await read("deploy/scripts/rehearse-migration.sh");
+  const overlay = await read("deploy/compose.rehearsal.yaml");
+  const metadata = await read(
+    "deploy/scripts/generate-transitional-n1-metadata.sh",
+  );
+  assert.match(script, /compose\.rehearsal\.yaml/);
+  assert.match(script, /rollback_result=NOT_DETERMINED/);
+  assert.match(overlay, /ports: \[\]/);
+  assert.match(metadata, /migration_steps/);
+  assert.match(metadata, /git archive/);
+});
+
 test("container build is pinned, multi-stage, non-root, and excludes local credentials", async () => {
   const dockerfile = await read("Dockerfile");
   const ignore = await read(".dockerignore");

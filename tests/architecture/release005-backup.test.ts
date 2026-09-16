@@ -35,6 +35,13 @@ test("RELEASE-005 deployment integration gates migration", async () => {
   assert.match(deploy, /PRE_MIGRATION_BACKUP_FAILED/);
 });
 
+test("restore rehearsal cannot claim RTO before application validation", async () => {
+  const restore = await read("deploy/scripts/restore.sh");
+  assert.match(restore, /--application-validation-script/);
+  assert.match(restore, /application_validation/);
+  assert.doesNotMatch(restore, /result_status=MET[\s\S]{0,300}schema/);
+});
+
 test("RELEASE-005 scheduler and runtime references are Podman/Lima scoped", async () => {
   const timer = await read("deploy/systemd/itcenter-backup.timer");
   const service = await read("deploy/systemd/itcenter-backup.service");

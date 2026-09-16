@@ -2,13 +2,14 @@
 set -Eeuo pipefail
 source "$(cd "$(dirname "$0")" && pwd)/common.sh"
 
-backup_id=''; target='rehearsal'; config_file=''; identity=''; confirm=0
+backup_id=''; target='rehearsal'; config_file=''; identity=''; confirm=0; application_validation_script=''
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --backup) backup_id=${2:?}; shift 2;;
     --target) target=${2:?}; shift 2;;
     --config) config_file=${2:?}; shift 2;;
     --age-identity) identity=${2:?}; shift 2;;
+    --application-validation-script) application_validation_script=${2:?}; shift 2;;
     --confirm-production-restore) confirm=1; shift;;
     *) die "UNKNOWN_ARGUMENT_$1";;
   esac
@@ -20,6 +21,9 @@ done
 command -v age >/dev/null 2>&1 || die AGE_UNAVAILABLE
 command -v sha256sum >/dev/null 2>&1 || die SHA256SUM_UNAVAILABLE
 [[ -n "$identity" && -r "$identity" && ! -L "$identity" ]] || die AGE_IDENTITY_REQUIRED
+if [[ -n "$application_validation_script" ]]; then
+  [[ "$target" == rehearsal && -x "$application_validation_script" && ! -L "$application_validation_script" ]] || die RESTORE_APPLICATION_VALIDATION_SCRIPT_INVALID
+fi
 identity_mode=$(stat -c '%a' "$identity" 2>/dev/null || stat -f '%Lp' "$identity")
 (( (8#$identity_mode & 077) == 0 )) || die AGE_IDENTITY_PERMISSIONS
 
@@ -74,16 +78,25 @@ if [[ "$target" == rehearsal ]]; then
     -e DATABASE_URL="postgresql://$db_user:$db_password@postgres:5432/$db_name" \
     "$app_image" node dist/database/scripts/current-schema-revision.js 2>/dev/null) || die RESTORED_SCHEMA_VALIDATION_FAILED
   [[ "$schema" == "$(jq -r '.schema_revision' "$metadata")" ]] || die RESTORED_SCHEMA_MISMATCH
+  application_validation=NOT_RUN
+  if [[ -n "$application_validation_script" ]]; then
+    RESTORE_COMPOSE_PROJECT="$project" RESTORE_APP_IMAGE="$app_image" \
+      RESTORE_SCHEMA_REVISION="$(jq -r '.schema_revision' "$metadata")" \
+      RESTORE_BACKUP_ID="$backup_id" \
+      "$application_validation_script" || die RESTORE_APPLICATION_VALIDATION_FAILED
+    application_validation=PASS
+  fi
   result=MET; total_ns=$(( $(date +%s%N) - start_ns ))
   result_status=UNVERIFIED
-  (( total_ns <= 7200000000000 )) && result_status=MET || result_status=NOT_MET
+  [[ "$application_validation" == PASS && $total_ns -le 7200000000000 ]] && result_status=MET || result_status=UNVERIFIED
   evidence="$state_root/$(read_env_value "$config_file" APP_ENV)/rehearsals"
   mkdir -p "$evidence"
   jq -n --arg rehearsal_id "$run_id" --arg backup_id "$backup_id" \
     --arg started_at "$(date -u -d "@$((start_ns/1000000000))" +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u +%Y-%m-%dT%H:%M:%SZ)" \
     --arg completed_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --arg schema_revision "$(jq -r '.schema_revision' "$metadata")" \
     --arg result "$result" --arg rto_status "$result_status" --argjson total_ns "$total_ns" \
-    '{rehearsal_id:$rehearsal_id,backup_id:$backup_id,started_at:$started_at,completed_at:$completed_at,schema_revision:$schema_revision,result:$result,rto_status:$rto_status,total_duration_ns:$total_ns}' >"$evidence/$run_id.json"
+    --arg application_validation "$application_validation" \
+    '{rehearsal_id:$rehearsal_id,backup_id:$backup_id,started_at:$started_at,completed_at:$completed_at,schema_revision:$schema_revision,result:$result,rto_status:$rto_status,application_validation:$application_validation,total_duration_ns:$total_ns}' >"$evidence/$run_id.json"
   cp "$evidence/$run_id.json" "$evidence/LATEST.json"
   printf 'RESTORE_REHEARSAL_SUCCEEDED %s %s %s\n' "$run_id" "$result_status" "$evidence/$run_id.json"
 else

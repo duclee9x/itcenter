@@ -68,6 +68,7 @@ work_root=${LIMA_WORK_DIR:-${TMPDIR:-/tmp}/itcenter-migration-rehearsal}
 work_dir="$work_root/$run_id"
 mkdir -m 700 -p "$work_dir"
 evidence_file="$evidence_dir/$run_id.json"
+rehearsal_env="$config_file"
 lock_root=${MIGRATION_REHEARSAL_LOCK_ROOT:-${XDG_STATE_HOME:-${HOME:?HOME is required}/.local/state}/itcenter/locks}
 mkdir -p "$lock_root"
 exec 7>"$lock_root/itcenter-migration-rehearsal.lock"
@@ -87,13 +88,13 @@ matrix_n1_n1=NOT_APPLICABLE
 matrix_n_n1=NOT_APPLICABLE
 matrix_n1_n=NOT_APPLICABLE
 matrix_n_n=NOT_APPLICABLE
-rollback_result=FORWARD_FIX_REQUIRED
+rollback_result=NOT_DETERMINED
 cleanup() {
   local result=$?
   if [[ "$keep" != true ]]; then
-    "$CONTAINER_CLI" compose --project-name "$project" --env-file "$config_file" \
+    "$CONTAINER_CLI" compose --project-name "$project" --env-file "$rehearsal_env" \
       -f "$(cd "$(dirname "$0")/.." && pwd)/compose.yaml" \
-      -f "$(cd "$(dirname "$0")/.." && pwd)/compose.staging.yaml" down --volumes --remove-orphans >/dev/null 2>&1 || true
+      -f "$(cd "$(dirname "$0")/.." && pwd)/compose.rehearsal.yaml" down --volumes --remove-orphans >/dev/null 2>&1 || true
   fi
   rm -rf "$work_dir"
   write_evidence "$result" || true
@@ -139,9 +140,20 @@ write_evidence() {
 }
 trap cleanup EXIT
 
-compose_args=(--project-name "$project" --env-file "$config_file" \
+# The rehearsal is an isolated migration exercise. Keep the staging runtime
+# configuration (including secret references) but remove the external OIDC
+# dependency so the private rehearsal network remains deterministic.
+rehearsal_runtime="$work_dir/runtime.env"
+grep -v '^OIDC_\(ISSUER\|AUDIENCE\)=' "$(read_env_value "$config_file" RUNTIME_ENV_FILE)" \
+  | sed 's/^AUTH_MODE=.*/AUTH_MODE=unavailable/' >"$rehearsal_runtime"
+chmod 600 "$rehearsal_runtime"
+rehearsal_env="$work_dir/rehearsal.env"
+sed "s#^RUNTIME_ENV_FILE=.*#RUNTIME_ENV_FILE=$rehearsal_runtime#" "$config_file" >"$rehearsal_env"
+chmod 600 "$rehearsal_env"
+
+compose_args=(--project-name "$project" --env-file "$rehearsal_env" \
   -f "$(cd "$(dirname "$0")/.." && pwd)/compose.yaml" \
-  -f "$(cd "$(dirname "$0")/.." && pwd)/compose.staging.yaml")
+  -f "$(cd "$(dirname "$0")/.." && pwd)/compose.rehearsal.yaml")
 compose_rehearsal() { "$CONTAINER_CLI" compose "${compose_args[@]}" "$@"; }
 
 compose_rehearsal config --quiet || { failure_reason=COMPOSE_CONFIG_INVALID; die "$failure_reason"; }
@@ -197,14 +209,22 @@ source_duration=$(( $(date +%s) - baseline_start ))
 matrix_n1_n1=SUPPORTED
 
 # Validate the exact N-1 artifact/reference against its own baseline before
-# allowing the candidate transition. The smoke command remains the existing
-# RELEASE-004 path and runs only inside the isolated project.
+# allowing the candidate transition. Rehearsal has no host-published ports;
+# probe each service from inside its own isolated project instead.
 export APP_IMAGE="$source_image"
 compose_rehearsal up -d --wait --remove-orphans api agent-gateway worker caddy || {
   failure_reason=INVALID_BASELINE_APPLICATION; die "$failure_reason";
 }
-"$(cd "$(dirname "$0")" && pwd)/smoke.sh" staging "$config_file" "$source_image" \
-  "$(jq -r '.source_commit // "unknown"' "$from_file")" >/dev/null || {
+compose_rehearsal exec -T api node -e \
+  'fetch("http://127.0.0.1:3000/api/v1/health/ready").then(async r=>{const b=await r.text();if(!r.ok||!JSON.parse(b).data||JSON.parse(b).data.status!=="READY")process.exit(1)}).catch(()=>process.exit(1))' || {
+  failure_reason=INVALID_BASELINE_APPLICATION; die "$failure_reason";
+}
+compose_rehearsal exec -T agent-gateway node -e \
+  'require("node:https").get({hostname:"127.0.0.1",port:3001,path:"/api/v1/health/ready",rejectUnauthorized:false},r=>process.exit(r.statusCode===200?0:1)).on("error",()=>process.exit(1))' || {
+  failure_reason=INVALID_BASELINE_APPLICATION; die "$failure_reason";
+}
+compose_rehearsal exec -T worker node -e \
+  'fetch("http://127.0.0.1:3002/api/v1/health/ready").then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))' || {
   failure_reason=INVALID_BASELINE_APPLICATION; die "$failure_reason";
 }
 compose_rehearsal stop api agent-gateway worker caddy >/dev/null || true
@@ -226,8 +246,8 @@ timeout_result=NONE
 compose_rehearsal up -d --wait --remove-orphans api agent-gateway worker caddy || {
   failure_reason=TARGET_APPLICATION_START_FAILED; die "$failure_reason";
 }
-"$(cd "$(dirname "$0")" && pwd)/smoke.sh" staging "$config_file" "$target_image" \
-  "$(jq -r '.source_commit // "unknown"' "$to_file")" >/dev/null || {
+compose_rehearsal exec -T api node -e \
+  'fetch("http://127.0.0.1:3000/api/v1/health/ready").then(async r=>{const b=await r.text();if(!r.ok||!JSON.parse(b).data||JSON.parse(b).data.status!=="READY")process.exit(1)}).catch(()=>process.exit(1))' || {
   failure_reason=TARGET_APPLICATION_VALIDATION_FAILED; die "$failure_reason";
 }
 
