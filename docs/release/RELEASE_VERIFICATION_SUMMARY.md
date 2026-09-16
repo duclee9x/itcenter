@@ -263,3 +263,47 @@ The exact unresolved operator actions are maintained in
 Until every item above has qualifying evidence and RPO/RTO are measured, do
 not mark any item `VERIFIED`, advance `CURRENT_RELEASE_ITEM` to
 RELEASE-GATE-001, or execute the gate.
+
+## Phase 8 execution evidence
+
+Phase 8 executed the remaining acceptance paths against the exact R4 staging deployment. No release item is promoted by this phase.
+
+### RELEASE-001
+
+Real Keycloak 26.3.3 HTTPS/JWKS was exercised with a fresh RS256 RFC 9068 `at+jwt` token. The positive capabilities request returned `200`; missing, malformed, duplicate and unknown tenant selectors returned `400`, `400`, `400` and `403`; malformed bearer credentials returned `401`. The complete issuer, audience, expiry, signature, unknown-kid, token-type, membership and RBAC negative matrix was not executable with the currently provisioned staging identity. Status remains `CODE_COMPLETE / NOT VERIFIED`.
+
+### RELEASE-002
+
+Canonical enrollment was attempted through `POST /api/v1/agents/{id}/enrollment-tokens` and returned `403 PERMISSION_DENIED` for the staging principal, before a token could be issued. Direct mTLS was exercised through the Lima-forwarded Gateway port: no client certificate and a client certificate signed by an untrusted CA both returned `401`; the existing staging certificate also returned `401` because no corresponding `AgentCredential` exists. No credential row was fabricated. Status remains `CODE_COMPLETE / NOT VERIFIED`.
+
+### RELEASE-003
+
+With Keycloak stopped and the API restarted, the public edge observed `502` because the Caddy upstream was unavailable; after Keycloak recovery the API returned `READY/200`. A real API container stop produced an exited container and upstream `502`, then recovered to healthy. A real Worker container stop produced an exited Worker and it recovered to healthy. The Worker runtime is a single Node process containing all 13 tasks and exposes no per-task fault control, so an isolated degradable-worker failure could not be produced without changing runtime semantics. Required per-component failure and readiness-first drain evidence remains incomplete.
+
+### RELEASE-005
+
+The canonical restore command was executed against timer-produced HOST_PROTECTED backup `staging-20260916T015617Z-20381-487044`. It completed checksum verification, age decryption, fresh PostgreSQL restore and schema validation in rehearsal `restore-20260916T032141Z-572953` in approximately 8 seconds. The restore script does not start an application against the restored database, so representative protected read/write and application usability were not established. `RPO` remains `MET`; `RTO` remains `UNVERIFIED`.
+
+### RELEASE-006
+
+The canonical rehearsal was attempted with the preserved transitional N-1. The original metadata failed validation because `migration_steps` was absent. An isolated derived metadata attempt using the exact 100-step committed manifest created and cleaned its own Compose resources but failed while starting the rehearsal stack because canonical Gateway port `127.0.0.1:13001` was already occupied by staging. No four-cell migration matrix was recorded and status remains `CODE_COMPLETE / NOT VERIFIED`.
+
+### RELEASE-007
+
+Against R4, bounded tests produced general and mutation `429` responses with `Retry-After`; spoofed forwarded headers still produced the normal authenticated response and did not alter tenant/authentication behavior. TLS 1.3 negotiated successfully. From macOS, raw API port `3000` and PostgreSQL `5432` were closed; Caddy ports `18080`/`18443` and dedicated Gateway port `13001` were open. Status remains `CODE_COMPLETE / NOT VERIFIED` because the direct authenticated Agent application path depends on blocked canonical enrollment.
+
+### Phase 8 verification execution record
+
+| Path                                   | Result       | Evidence classification                                                     |
+| -------------------------------------- | ------------ | --------------------------------------------------------------------------- |
+| R4 OIDC positive/tenant edge checks    | PASS         | Real Keycloak HTTPS/JWKS; no token material persisted                       |
+| Canonical enrollment-token request     | BLOCKED      | `403 PERMISSION_DENIED`; staging grant missing                              |
+| Direct mTLS negative checks            | PASS         | Lima-forwarded Gateway; no private material recorded                        |
+| API dependency interruption/recovery   | PARTIAL      | Caddy observed upstream `502`; API recovered `READY/200`                    |
+| Worker container interruption/recovery | PARTIAL      | Container-level failure only; no per-task degradable control                |
+| R4 edge limits/spoof/TLS/exposure      | PASS/PARTIAL | General/mutation `429`, spoof request, TLS 1.3, port inventory              |
+| Protected restore rehearsal            | PARTIAL      | DB/schema pass; application usability not provided by restore script        |
+| N-1 migration rehearsal                | FAIL         | Transitional metadata/port collision prevented qualifying run               |
+| Final repository suite                 | PASS         | 122 unit + 2 contract + 6 migration + 61 integration + 64 e2e; 1 flock skip |
+
+The full release remains `BLOCKED_FOR_VERIFICATION`. No staging attestation was created because RELEASE-001/002/003 evidence prerequisites for the attestation are not complete.
