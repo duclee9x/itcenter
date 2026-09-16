@@ -23,6 +23,19 @@ test("RELEASE-006 rehearsal is isolated, digest-bound, and Podman-native", async
   assert.match(script, /application_services=\(api agent-gateway worker\)/);
   assert.match(script, /--profile compose-postgres up -d --wait/);
   assert.doesNotMatch(script, /--remove-orphans api agent-gateway worker/);
+  assert.match(script, /data_validation=NOT_RUN/);
+  assert.match(script, /validate_fixture pre/);
+  assert.match(script, /validate_fixture post/);
+  assert.match(script, /data_validation=PASS/);
+  assert.match(script, /fixture_pre_hash/);
+  assert.match(script, /worker_validation=PASS/);
+  assert.match(script, /gateway_validation=PASS/);
+  assert.match(script, /migration_controls:\{lock_timeout/);
+  assert.match(script, /configured_overall_timeout_seconds/);
+  assert.doesNotMatch(script, /data_validation:\(if \$status == "PASS"/);
+  assert.match(script, /matrix_n1_n.*== SUPPORTED/);
+  assert.match(script, /matrix_n1_n.*== UNSUPPORTED/);
+  assert.match(script, /rollback_result=NOT_DETERMINED/);
   assert.match(readme, /CONTROLLED_MAINTENANCE/);
   assert.match(readme, /lock_timeout=10s/);
   assert.match(readme, /statement_timeout=10m/);
@@ -53,4 +66,16 @@ test("RELEASE-006 deployment wrapper enforces the 30-minute migration budget", a
   assert.match(common, /timeout --signal=TERM/);
   assert.match(deploy, /run_migration_with_budget/);
   assert.match(rollback, /run_migration_with_budget/);
+});
+
+test("RELEASE-006 evidence requires independent fixture and service probes", async () => {
+  const script = await read("deploy/scripts/rehearse-migration.sh");
+  assert.match(script, /seed_fixture \|\|/);
+  assert.match(script, /validate_fixture pre \|\|/);
+  assert.match(script, /validate_fixture post \|\|/);
+  assert.match(script, /fixture_pre_hash.*fixture_post_hash/);
+  assert.match(script, /application_validation=PASS/);
+  assert.match(script, /worker_validation=PASS/);
+  assert.match(script, /gateway_validation=PASS/);
+  assert.match(script, /timeout_occurred/);
 });

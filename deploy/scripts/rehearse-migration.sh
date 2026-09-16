@@ -84,6 +84,18 @@ source_duration=0
 maintenance_duration=0
 lock_result=NOT_OBSERVED
 timeout_result=NONE
+configured_lock_timeout=${MIGRATION_LOCK_TIMEOUT:-10s}
+configured_statement_timeout=${MIGRATION_STATEMENT_TIMEOUT:-10min}
+configured_overall_timeout_seconds=${MIGRATION_TIMEOUT_SECONDS:-1800}
+data_validation=NOT_RUN
+worker_validation=NOT_RUN
+gateway_validation=NOT_RUN
+application_validation=NOT_RUN
+fixture_set_id=
+fixture_pre_hash=
+fixture_post_hash=
+fixture_pre_state=
+fixture_post_state=
 matrix_n1_n1=NOT_EXECUTED
 matrix_n_n1=NOT_EXECUTED
 matrix_n1_n=NOT_EXECUTED
@@ -119,6 +131,14 @@ write_evidence() {
     --arg test_mode "$test_mode" \
     --argjson source_duration "$source_duration" --argjson target_duration "$target_duration" \
     --argjson maintenance_duration "$maintenance_duration" \
+    --arg data_validation "$data_validation" --arg worker_validation "$worker_validation" \
+    --arg gateway_validation "$gateway_validation" --arg application_validation "$application_validation" \
+    --arg fixture_set_id "$fixture_set_id" --arg fixture_pre_hash "$fixture_pre_hash" \
+    --arg fixture_post_hash "$fixture_post_hash" --arg fixture_pre_state "$fixture_pre_state" \
+    --arg fixture_post_state "$fixture_post_state" \
+    --arg configured_lock_timeout "$configured_lock_timeout" \
+    --arg configured_statement_timeout "$configured_statement_timeout" \
+    --arg configured_overall_timeout_seconds "$configured_overall_timeout_seconds" \
     '{rehearsal_id:$rehearsal_id,source_release:$source_release,target_release:$target_release,
       source_schema:$source_schema,target_schema:$target_schema,postgres_major_version:$postgres_major_version,
       candidate_oci_digest:$target_image,n_minus_1_reference:$source_image,reference_type:$reference_type,
@@ -126,12 +146,15 @@ write_evidence() {
       pre_migration_backup_id:(if ($backup_id|length)>0 then $backup_id else null end),started_at:$started_at,completed_at:$completed_at,
       migration_duration_seconds:$target_duration,baseline_duration_seconds:$source_duration,
       maintenance_duration_seconds:$maintenance_duration,lock_result:$lock_result,timeout_result:$timeout_result,
+      migration_controls:{lock_timeout:$configured_lock_timeout,statement_timeout:$configured_statement_timeout,
+        overall_timeout_seconds:($configured_overall_timeout_seconds|tonumber),timeout_occurred:($timeout_result != "NONE")},
       compatibility_matrix:{"App N-1 + Schema N-1":$matrix_n1_n1,"App N + Schema N-1":$matrix_n_n1,
         "App N-1 + Schema N":$matrix_n1_n,"App N + Schema N":$matrix_n_n},
       transaction_policy:"TRANSACTIONAL_PER_MIGRATION",
-      data_validation:(if $status == "PASS" then "PASS" else "NOT_RUN" end),
-      worker_validation:(if $status == "PASS" then "PASS" else "NOT_RUN" end),
-      gateway_validation:(if $status == "PASS" then "PASS" else "NOT_RUN" end),
+      data_validation:$data_validation,worker_validation:$worker_validation,
+      gateway_validation:$gateway_validation,application_validation:$application_validation,
+      fixture:{set_id:$fixture_set_id,pre_migration_hash:$fixture_pre_hash,post_migration_hash:$fixture_post_hash,
+        pre_migration_state:$fixture_pre_state,post_migration_state:$fixture_post_state},
       rollback_result:$rollback_result,status:$status,failure_reason:(if ($failure_reason|length)>0 then $failure_reason else null end),
       evidence_class:(if $test_mode == "true" then "ISOLATED_TEST" else "PRODUCTION_LIKE" end)}' \
     >"$evidence_file.tmp.$$"
@@ -177,13 +200,37 @@ fi
 
 run_migration() {
   local max_steps=${1:-}
-  local -a env_args=(-e "MIGRATION_LOCK_TIMEOUT=${MIGRATION_LOCK_TIMEOUT:-10s}" \
-    -e "MIGRATION_STATEMENT_TIMEOUT=${MIGRATION_STATEMENT_TIMEOUT:-10min}")
+  local -a env_args=(-e "MIGRATION_LOCK_TIMEOUT=$configured_lock_timeout" \
+    -e "MIGRATION_STATEMENT_TIMEOUT=$configured_statement_timeout")
   [[ -n "$max_steps" ]] && env_args+=(-e "MIGRATION_MAX_STEPS=$max_steps")
   local seconds
   seconds=$(migration_timeout_seconds)
   timeout --signal=TERM "$seconds" "$CONTAINER_CLI" compose "${compose_args[@]}" \
     --profile migration run --rm "${env_args[@]}" migrate
+}
+fixture_sql() {
+  local phase=$1 tenant_id="release006-${run_id}" psql_user psql_db
+  psql_user=$(read_env_value "$config_file" POSTGRES_USER)
+  psql_db=$(read_env_value "$config_file" POSTGRES_DB)
+  compose_rehearsal --profile compose-postgres exec -T postgres psql -v ON_ERROR_STOP=1 -U "$psql_user" -d "$psql_db" -Atqc \
+    "SELECT tenant_id || '|' || id::text || '|' || incident_code || '|' || title || '|' || state || '|' || version::text FROM incident.incidents WHERE tenant_id='$tenant_id' AND id='$fixture_incident_id' UNION ALL SELECT tenant_id || '|' || id::text || '|' || source_type || '|' || title || '|' || state || '|' || version::text FROM operations.work_items WHERE tenant_id='$tenant_id' AND id='$fixture_work_item_id' ORDER BY 1"
+}
+seed_fixture() {
+  local tenant_id="release006-${run_id}" psql_user psql_db
+  psql_user=$(read_env_value "$config_file" POSTGRES_USER)
+  psql_db=$(read_env_value "$config_file" POSTGRES_DB)
+  compose_rehearsal --profile compose-postgres exec -T postgres psql -v ON_ERROR_STOP=1 -U "$psql_user" -d "$psql_db" -c \
+    "INSERT INTO identity.users(id,tenant_id,display_code,username,display_name,employment_status) VALUES('$fixture_user_id','$tenant_id','R6-FIXTURE-USER','release006.fixture','Release 006 Fixture','ACTIVE');
+     INSERT INTO incident.incidents(id,tenant_id,incident_code,title,source,priority,state,version,created_at,updated_at) VALUES('$fixture_incident_id','$tenant_id','R6-FIXTURE-INCIDENT','Release 006 representative incident','RELEASE006','P2','DETECTED',1,'2026-01-01T00:00:00Z','2026-01-01T00:00:00Z');
+     INSERT INTO operations.work_items(id,tenant_id,source_type,source_id,title,priority,owner_team_id,state,version,created_at,last_action_at) VALUES('$fixture_work_item_id','$tenant_id','INCIDENT','$fixture_incident_id','Release 006 representative work item','HIGH','RELEASE006','NEW',1,'2026-01-01T00:00:00Z','2026-01-01T00:00:00Z');" >/dev/null
+}
+validate_fixture() {
+  local phase=$1 rows hash
+  rows=$(fixture_sql "$phase") || return 1
+  [[ "$(wc -l <<<"$rows" | tr -d ' ')" == 2 ]] || return 1
+  hash=$(printf '%s\n' "$rows" | sha256sum | awk '{print $1}')
+  if [[ "$phase" == pre ]]; then fixture_pre_hash=$hash; fixture_pre_state=$rows; fi
+  if [[ "$phase" == post ]]; then fixture_post_hash=$hash; fixture_post_state=$rows; fi
 }
 schema_state() {
   compose_rehearsal --profile migration run --rm --no-deps migrate \
@@ -196,13 +243,19 @@ full_schema() {
 }
 application_services=(api agent-gateway worker)
 start_application_services() {
+  application_validation=NOT_RUN
+  worker_validation=NOT_RUN
+  gateway_validation=NOT_RUN
   compose_rehearsal --profile compose-postgres up -d --wait "${application_services[@]}" || return 1
   compose_rehearsal exec -T api node -e \
     'fetch("http://127.0.0.1:3000/api/v1/health/ready").then(async r=>{const b=await r.text();if(!r.ok||!JSON.parse(b).data||JSON.parse(b).data.status!=="READY")process.exit(1)}).catch(()=>process.exit(1))' || return 1
+  application_validation=PASS
   compose_rehearsal exec -T agent-gateway node -e \
     'require("node:https").get({hostname:"127.0.0.1",port:3001,path:"/api/v1/health/ready",rejectUnauthorized:false},r=>process.exit(r.statusCode===200?0:1)).on("error",()=>process.exit(1))' || return 1
+  gateway_validation=PASS
   compose_rehearsal exec -T worker node -e \
-    'fetch("http://127.0.0.1:3002/api/v1/health/ready").then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))'
+    'fetch("http://127.0.0.1:3002/api/v1/health/ready").then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))' || return 1
+  worker_validation=PASS
 }
 stop_application_services() {
   compose_rehearsal stop "${application_services[@]}" >/dev/null || true
@@ -221,6 +274,19 @@ baseline_state=$(schema_state) || { failure_reason=BASELINE_SCHEMA_STATE_INVALID
 }
 source_duration=$(( $(date +%s) - baseline_start ))
 matrix_n1_n1=SUPPORTED
+lock_result=CONFIGURED
+fixture_set_id="release006-representative-${run_id}"
+fixture_uuid() {
+  local h
+  h=$(printf '%s' "$1" | sha256sum | cut -c1-32)
+  printf '%s-%s-4%s-8%s-%s' "${h:0:8}" "${h:8:4}" "${h:13:3}" "${h:17:3}" "${h:20:12}"
+}
+fixture_user_id=$(fixture_uuid "${run_id}-user")
+fixture_incident_id=$(fixture_uuid "${run_id}-incident")
+fixture_work_item_id=$(fixture_uuid "${run_id}-work")
+seed_fixture || { failure_reason=REPRESENTATIVE_FIXTURE_SEED_FAILED; die "$failure_reason"; }
+validate_fixture pre || { failure_reason=PRE_MIGRATION_DATA_VALIDATION_FAILED; die "$failure_reason"; }
+data_validation=PASS
 
 # Validate the exact N-1 artifact/reference against its own baseline before
 # allowing the candidate transition. Rehearsal has no host-published ports;
@@ -246,6 +312,8 @@ run_migration || { failure_reason=MIGRATION_FAILED; die "$failure_reason"; }
 actual_schema=$(full_schema) || { failure_reason=TARGET_SCHEMA_VALIDATION_FAILED; die "$failure_reason"; }
 [[ "$actual_schema" == "$target_schema" ]] || { failure_reason=TARGET_SCHEMA_MISMATCH; die "$failure_reason"; }
 target_duration=$(( $(date +%s) - target_start ))
+validate_fixture post || { failure_reason=POST_MIGRATION_DATA_VALIDATION_FAILED; die "$failure_reason"; }
+[[ "$fixture_pre_hash" == "$fixture_post_hash" ]] || { failure_reason=DATA_INTEGRITY_VALIDATION_FAILED; die "$failure_reason"; }
 
 # Evaluate the old application against the migrated schema before starting
 # the target application. The result determines rollback mode.
@@ -257,8 +325,13 @@ stop_application_services
 export APP_IMAGE="$target_image"
 start_application_services || { failure_reason=TARGET_APPLICATION_START_FAILED; die "$failure_reason"; }
 matrix_n_n=SUPPORTED
-rollback_result=APPLICATION_ROLLBACK_SUPPORTED
-lock_result=NOT_OBSERVED
+if [[ "$matrix_n1_n" == SUPPORTED ]]; then
+  rollback_result=APPLICATION_ROLLBACK_SUPPORTED
+elif [[ "$matrix_n1_n" == UNSUPPORTED ]]; then
+  rollback_result=FORWARD_FIX_REQUIRED
+else
+  rollback_result=NOT_DETERMINED
+fi
 timeout_result=NONE
 
 status=PASS

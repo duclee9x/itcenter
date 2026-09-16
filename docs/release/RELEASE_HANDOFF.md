@@ -58,7 +58,8 @@ attestation remains pending;
 RELEASE-005 implementation is now code-complete, while its protected
 backup/restore and RPO/RTO evidence require operational verification. This
 activity implements RELEASE-006's isolated migration rehearsal infrastructure;
-its qualifying N-1 and production-like evidence remain pending. RELEASE-007
+its qualifying N-1 and production-like evidence are recorded and RELEASE-006
+is VERIFIED. RELEASE-007
 is now `CODE_COMPLETE / NOT VERIFIED`; the edge implementation is recorded in
 [its implementation report](items/RELEASE-007_IMPLEMENTATION_REPORT.md), and
 real staging edge evidence remains.
@@ -70,9 +71,10 @@ use guest-side PostgreSQL logical interfaces, age encryption, a verified
 `HOST_PROTECTED` Lima mount and isolated Podman Compose restore projects; they
 never use Podman volume internals. RPO 6h and RTO 2h remain UNVERIFIED until
 the required rehearsal. See [RELEASE-005 implementation report](items/RELEASE-005_IMPLEMENTATION_REPORT.md).
-RELEASE-006 is `CODE_COMPLETE / NOT VERIFIED` after implementing the isolated
-Podman rehearsal command, exact four-cell matrix evidence, timeout controls and
-rollback-mode derivation. Its contract fixes controlled maintenance,
+RELEASE-006 is `VERIFIED` after the production-like rehearsal proved the
+isolated Podman command, exact four-cell matrix, independent fixture integrity,
+Worker/Gateway probes, timeout controls and rollback-mode derivation. Its
+contract fixes controlled maintenance,
 exact-schema defaults, the four-cell matrix, 10-second lock timeout,
 10-minute statement timeout and 30-minute migration budget. See [the
 implementation report](items/RELEASE-006_IMPLEMENTATION_REPORT.md) and

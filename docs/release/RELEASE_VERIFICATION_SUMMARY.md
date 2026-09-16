@@ -198,15 +198,15 @@ matrix, and production escrow governance remain open.
 
 ## Verification result
 
-| Item        | Result                         | Evidence / remaining blocker                                                                                                                                                                                 |
-| ----------- | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| RELEASE-001 | `CODE_COMPLETE / NOT VERIFIED` | Real Keycloak/JWKS/RS256 `at+jwt` token is accepted in the isolated stack; the complete negative-token, revoked-membership and RBAC matrix remains incomplete.                                               |
-| RELEASE-002 | `CODE_COMPLETE / NOT VERIFIED` | Linux/OpenSSL remediation and direct TLS handshake pass; canonical enrollment, credential acceptance and negative staging matrix remain incomplete.                                                          |
-| RELEASE-003 | `CODE_COMPLETE / NOT VERIFIED` | API readiness and three mandatory workers are healthy; dependency-failure, worker-failure and drain transitions are not fully evidenced.                                                                     |
-| RELEASE-004 | `CODE_COMPLETE / NOT VERIFIED` | R4 registry publication, exact-digest pull and canonical `deploy.sh` staging smoke pass; full attestation still requires qualifying RELEASE-001/002/003 evidence.                                            |
-| RELEASE-005 | `CODE_COMPLETE / NOT VERIFIED` | Protected backup, checksum, isolated schema restore and staging timer execution pass; application restore validation, production escrow and complete RTO evidence remain open.                               |
-| RELEASE-006 | `CODE_COMPLETE / NOT VERIFIED` | Transitional N-1 is preserved, but baseline/application compatibility and backup-gated N-1→N rehearsal remain incomplete.                                                                                    |
-| RELEASE-007 | `CODE_COMPLETE / NOT VERIFIED` | Local exact-RC edge checks pass for redirect, HTTPS, headers, 401, 413, general/mutation 429 and direct Gateway reachability; spoof, TLS-version and full direct Agent application checks remain incomplete. |
+| Item        | Result                         | Evidence / remaining blocker                                                                                                                                                                                                         |
+| ----------- | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| RELEASE-001 | `CODE_COMPLETE / NOT VERIFIED` | Real Keycloak/JWKS/RS256 `at+jwt` token is accepted in the isolated stack; the complete negative-token, revoked-membership and RBAC matrix remains incomplete.                                                                       |
+| RELEASE-002 | `CODE_COMPLETE / NOT VERIFIED` | Linux/OpenSSL remediation and direct TLS handshake pass; canonical enrollment, credential acceptance and negative staging matrix remain incomplete.                                                                                  |
+| RELEASE-003 | `CODE_COMPLETE / NOT VERIFIED` | API readiness and three mandatory workers are healthy; dependency-failure, worker-failure and drain transitions are not fully evidenced.                                                                                             |
+| RELEASE-004 | `CODE_COMPLETE / NOT VERIFIED` | R4 registry publication, exact-digest pull and canonical `deploy.sh` staging smoke pass; full attestation still requires qualifying RELEASE-001/002/003 evidence.                                                                    |
+| RELEASE-005 | `CODE_COMPLETE / NOT VERIFIED` | Protected backup, checksum, isolated schema restore and staging timer execution pass; application restore validation, production escrow and complete RTO evidence remain open.                                                       |
+| RELEASE-006 | `VERIFIED`                     | Production-like rehearsal `migration-20260916T152837Z-1246808` passed the protected backup gate, exact schema checks, independent fixture integrity, Worker/Gateway probes, all four compatibility cells and rollback determination. |
+| RELEASE-007 | `CODE_COMPLETE / NOT VERIFIED` | Local exact-RC edge checks pass for redirect, HTTPS, headers, 401, 413, general/mutation 429 and direct Gateway reachability; spoof, TLS-version and full direct Agent application checks remain incomplete.                         |
 
 **RPO:** `MET`. The six-hour systemd timer was installed and exercised in the
 production-equivalent Lima staging environment; backup
@@ -477,3 +477,25 @@ validation, API/Worker/Agent Gateway validation, data validation, and all four
 compatibility cells. Rollback was determined as
 `APPLICATION_ROLLBACK_SUPPORTED`; the rehearsal evidence is classified
 `PRODUCTION_LIKE`.
+
+## Phase 14 RELEASE-006 evidence qualification
+
+The qualifying production-like rehearsal
+`migration-20260916T152837Z-1246808` used immutable R4 and the preserved
+transitional N-1 reference. Protected backup gate
+`staging-20260916T152838Z-24928-1246919` passed before migration. The harness
+created a deterministic synthetic incident/work-item fixture through the
+isolated database's canonical constrained tables, validated it before and
+after migration, and recorded matching SHA-256 values
+`2e5269f4784138ce8bdfd2535db697acc0a48bbd72b553d283700ee9608c0a17`.
+
+Migration controls were recorded as `lock_timeout=10s`,
+`statement_timeout=10min`, and a 1800-second overall budget. The migration
+completed in 1 second, maintenance in 79 seconds, and no timeout occurred.
+The independent API, Worker and Agent Gateway probes all passed. The matrix
+was `SUPPORTED` for N-1/N-1, N/N-1, N-1/N and N/N; therefore rollback is
+`APPLICATION_ROLLBACK_SUPPORTED`.
+
+The evidence harness no longer derives data, Worker or Gateway PASS from the
+overall status, and it leaves rollback `NOT_DETERMINED` until the N-1/N cell
+is evaluated. Focused regression coverage and the full local suite passed.

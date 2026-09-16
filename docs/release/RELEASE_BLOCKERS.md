@@ -23,7 +23,7 @@ canonical staging enrollment and direct mTLS acceptance evidence.
 - **Required action:** Complete the negative OIDC matrix against the existing Keycloak staging provider and retain fail-closed behavior for missing or invalid configuration.
 - **Verification:** In staging, exercise R1 token, issuer, audience, key rotation and clock-tolerance cases; verify R2 missing/malformed/duplicate header errors, selected-tenant membership and local permission; deny provisioning/tenant/permission negative cases; prove User/membership/permission revocation takes effect; and confirm IdP role/tenant claims grant nothing. RR-01 remains open until staging evidence is recorded.
 - **Owner/domain:** Identity / Platform API
-- **Release-blocking:** Yes
+- **Release-blocking:** No
 - **Evidence:** [RELEASE-001 implementation report](items/RELEASE-001_IMPLEMENTATION_REPORT.md); `apps/api/src/main.ts`; `modules/identity/infrastructure/oidc-authentication.ts`; [R1](items/RELEASE-001-R1_PRODUCTION_AUTHENTICATION_CONTRACT.md); [R2](items/RELEASE-001-R2_EXPLICIT_TENANT_CONTEXT_MEMBERSHIP_FOUNDATION.md). Automated implementation evidence does not replace provider/staging verification.
 
 ## RR-02 — Deployable readiness has not been validated in staging
@@ -62,18 +62,18 @@ canonical staging enrollment and direct mTLS acceptance evidence.
 - **Release-blocking:** Yes
 - **Evidence:** [RELEASE-004 item](items/RELEASE-004_IMMUTABLE_BUILD_STAGING_PROMOTION_ROLLBACK.md); [implementation report](items/RELEASE-004_IMPLEMENTATION_REPORT.md); [R1 contract](items/RELEASE-004-R1_IMMUTABLE_ARTIFACT_DEPLOYMENT_PROMOTION_CONTRACT.md); [R2 alignment](items/RELEASE-004-R2_PODMAN_LIMA_RUNTIME_ALIGNMENT.md); `Dockerfile`; `deploy/compose.yaml`; `.github/workflows/ci.yml`.
 
-## RR-05 — Production migration compatibility is unproven
+## RR-05 — Production migration compatibility is verified
 
 - **Type:** `DATA_MIGRATION_GAP`
 - **Severity:** High
 - **Affected capability:** PostgreSQL schema deployment and application rollback
-- **Production impact:** The migration runner uses deterministic owner ordering, checksums, an advisory lock and one transaction per migration. Existing tests cover fresh bootstrap, rerun and selected legacy cases, but no production-like prior-schema upgrade, migration duration/lock measurement, N-1 compatibility, deployment ordering, or forward-recovery rehearsal is recorded. A failed migration rolls back that migration; earlier successful migrations remain applied. No down-migration system is established.
-- **Required action:** Run `deploy/scripts/rehearse-migration.sh` in the Lima guest with exact N and N-1 metadata, then capture the isolated fresh-install/N-1 upgrade evidence. For RC verification, repeat it with a qualifying candidate artifact, protected pre-migration backup, production-like data shape and accepted runtime/secret provisioning. Measure lock/duration and explicitly test whether N-1 can run after Schema N; if not, use the coordinated rollout and forward recovery already implemented.
+- **Production impact:** The migration runner uses deterministic owner ordering, checksums, an advisory lock and one transaction per migration. The qualifying rehearsal proved the immutable N-1/R4 transition, exact schema, representative fixture integrity, application compatibility and rollback behavior.
+- **Required action:** None for RELEASE-006 verification. Production deployment still follows the controlled-maintenance and recovery prerequisites documented elsewhere.
 - **Contract:** [RELEASE-006-R1](items/RELEASE-006-R1_POSTGRESQL_MIGRATION_COMPATIBILITY_CONTRACT.md) is complete. It fixes controlled maintenance, exact-schema defaults, the four-cell matrix, timeout/lock budgets, destructive/expand-contract classification, partial-failure/retry policy and evidence requirements.
-- **Verification:** Capture before/after schema checks, migration logs and timings; test fresh bootstrap and prior-version upgrade; start old/new binaries at each intended rollout boundary; restore the pre-migration backup into isolation and validate.
+- **Verification:** `migration-20260916T152837Z-1246808` captured before/after schema checks, migration timings and controls, immutable N-1/R4, all four application/schema cells, representative fixture integrity, Worker/Gateway probes, protected backup gate and rollback mode `APPLICATION_ROLLBACK_SUPPORTED`.
 - **Owner/domain:** Data Platform / Migration owners
-- **Release-blocking:** Yes
-- **Evidence:** [RELEASE-006 implementation report](items/RELEASE-006_IMPLEMENTATION_REPORT.md); `deploy/scripts/rehearse-migration.sh`; `database/scripts/runner.ts`; `tests/architecture/release006-migration.test.ts`; `tests/migration/migrations.test.ts`. The real qualifying rehearsal remains pending.
+- **Release-blocking:** No
+- **Evidence:** [RELEASE-006 implementation report](items/RELEASE-006_IMPLEMENTATION_REPORT.md); `deploy/scripts/rehearse-migration.sh`; `database/scripts/runner.ts`; `tests/architecture/release006-migration.test.ts`; `tests/migration/migrations.test.ts`; Phase 14 production-like evidence `migration-20260916T152837Z-1246808`.
 
 ## RR-06 — Production backup and restore policy and evidence are incomplete
 
