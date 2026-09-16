@@ -359,3 +359,20 @@ remains `UNVERIFIED`. The remaining Agent enrollment/RBAC, real OIDC negative
 matrix, readiness failure/drain, restore application validation, target schema
 diagnosis, direct Agent application, and RELEASE-004 attestation paths remain
 open.
+
+### Phase 10 schema-output remediation follow-up
+
+The target schema failure was reproduced in Lima and diagnosed. The
+podman-compose provider emits the schema result with CRLF line endings; the
+rehearsal comparison previously treated that trailing carriage return as part
+of the digest. The rehearsal now strips CRLF and accepts only a complete
+64-hex digest before comparing it with RC metadata. Focused deployment and
+recovery architecture tests pass.
+
+After this harness correction, the rehearsal progressed past output parsing
+but failed reproducibly with `TARGET_SCHEMA_VALIDATION_FAILED` because the
+isolated database did not contain the complete expected migration manifest.
+The direct command returned `SCHEMA_INCOMPATIBLE` (exit 2). This is retained
+as the exact RELEASE-006 blocker; no matrix or rollback conclusion was
+recorded, and no release item was promoted. Disposable rehearsal resources
+were removed while staging, R4, N-1, and protected backups were preserved.

@@ -99,6 +99,8 @@ test("migration rehearsal is isolated from staging host ports", async () => {
   assert.match(script, /compose\.rehearsal\.yaml/);
   assert.match(script, /REHEARSAL_OIDC_CONTAINER/);
   assert.match(script, /compose\.oidc-ca\.yaml/);
+  assert.ok(script.includes('sub(/\\r$/, "")'));
+  assert.match(script, /awk.*\[\[:xdigit:\]\]\{64\}/);
   assert.match(script, /rollback_result=NOT_DETERMINED/);
   assert.match(overlay, /ports: \[\]/);
   assert.match(metadata, /migration_steps/);

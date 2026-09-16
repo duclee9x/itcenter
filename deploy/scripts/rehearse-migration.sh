@@ -191,7 +191,8 @@ schema_state() {
 }
 full_schema() {
   compose_rehearsal --profile migration run --rm --no-deps migrate \
-    node dist/database/scripts/current-schema-revision.js 2>/dev/null
+    node dist/database/scripts/current-schema-revision.js 2>/dev/null \
+    | awk '{ sub(/\r$/, "") } /^[[:xdigit:]]{64}$/ { value=$0 } END { if (value != "") print value; else exit 1 }'
 }
 
 # Establish and validate the N-1 baseline using a deterministic manifest prefix.
