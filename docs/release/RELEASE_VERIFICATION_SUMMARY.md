@@ -436,3 +436,44 @@ Compose validation, and `git diff --check` also passed with the disposable
 database configured where required. Only test fixture and release evidence
 were changed; Dockerfile, build context, shipped runtime, migrations, and the
 R4 OCI image were unchanged.
+
+## Phase 13 RELEASE-006 P7 root-cause evidence
+
+The preserved failing rehearsal was inspected before changing the immutable
+R4 image. Its PostgreSQL container was present before the application phase and
+was removed after `podman-compose up --remove-orphans api agent-gateway worker
+caddy` ran without the `compose-postgres` profile. The API remained alive but
+could not become ready, and the later schema helper collapsed the resulting
+environment failure into `SCHEMA_INCOMPATIBLE`.
+
+`P7_FAILING_PRIMITIVE=STALE_COMPOSE_STATE`, specifically profile-orphan
+removal of the rehearsal PostgreSQL container. The immutable migration
+manifests, database identity, and schema comparison were not defective.
+
+The rehearsal now keeps PostgreSQL in the active Compose context and excludes
+Caddy from the migration compatibility topology. Caddy is an edge component
+and is not required for RELEASE-006 application/schema compatibility. The
+matrix is evaluated by actually starting each application image against each
+schema state rather than assigning cross-version results without execution.
+
+The canonical isolated rehearsal `migration-20260916T090926Z-1040697` then
+completed through target schema validation and all four cells:
+
+- App N-1 + Schema N-1: `SUPPORTED`
+- App N + Schema N-1: `SUPPORTED`
+- App N-1 + Schema N: `SUPPORTED`
+- App N + Schema N: `SUPPORTED`
+
+Target API, Worker, and Agent Gateway validation passed; data validation passed
+and rollback was determined as `APPLICATION_ROLLBACK_SUPPORTED`. This evidence
+was isolated test evidence without the non-test backup gate, so RELEASE-006
+remains unpromoted until the full R1 production-like acceptance requirements
+are satisfied.
+
+The subsequent canonical non-test rehearsal
+`migration-20260916T091140Z-1046938` passed the protected backup gate using
+`staging-20260916T091141Z-10096-1047080`. It completed exact target schema
+validation, API/Worker/Agent Gateway validation, data validation, and all four
+compatibility cells. Rollback was determined as
+`APPLICATION_ROLLBACK_SUPPORTED`; the rehearsal evidence is classified
+`PRODUCTION_LIKE`.

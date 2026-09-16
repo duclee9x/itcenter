@@ -194,6 +194,19 @@ full_schema() {
     node dist/database/scripts/current-schema-revision.js 2>/dev/null \
     | awk '{ sub(/\r$/, "") } /^[[:xdigit:]]{64}$/ { value=$0 } END { if (value != "") print value; else exit 1 }'
 }
+application_services=(api agent-gateway worker)
+start_application_services() {
+  compose_rehearsal --profile compose-postgres up -d --wait "${application_services[@]}" || return 1
+  compose_rehearsal exec -T api node -e \
+    'fetch("http://127.0.0.1:3000/api/v1/health/ready").then(async r=>{const b=await r.text();if(!r.ok||!JSON.parse(b).data||JSON.parse(b).data.status!=="READY")process.exit(1)}).catch(()=>process.exit(1))' || return 1
+  compose_rehearsal exec -T agent-gateway node -e \
+    'require("node:https").get({hostname:"127.0.0.1",port:3001,path:"/api/v1/health/ready",rejectUnauthorized:false},r=>process.exit(r.statusCode===200?0:1)).on("error",()=>process.exit(1))' || return 1
+  compose_rehearsal exec -T worker node -e \
+    'fetch("http://127.0.0.1:3002/api/v1/health/ready").then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))'
+}
+stop_application_services() {
+  compose_rehearsal stop "${application_services[@]}" >/dev/null || true
+}
 
 # Establish and validate the N-1 baseline using a deterministic manifest prefix.
 compose_rehearsal down --volumes --remove-orphans >/dev/null
@@ -213,22 +226,18 @@ matrix_n1_n1=SUPPORTED
 # allowing the candidate transition. Rehearsal has no host-published ports;
 # probe each service from inside its own isolated project instead.
 export APP_IMAGE="$source_image"
-compose_rehearsal up -d --wait --remove-orphans api agent-gateway worker caddy || {
+start_application_services || {
   failure_reason=INVALID_BASELINE_APPLICATION; die "$failure_reason";
 }
-compose_rehearsal exec -T api node -e \
-  'fetch("http://127.0.0.1:3000/api/v1/health/ready").then(async r=>{const b=await r.text();if(!r.ok||!JSON.parse(b).data||JSON.parse(b).data.status!=="READY")process.exit(1)}).catch(()=>process.exit(1))' || {
-  failure_reason=INVALID_BASELINE_APPLICATION; die "$failure_reason";
-}
-compose_rehearsal exec -T agent-gateway node -e \
-  'require("node:https").get({hostname:"127.0.0.1",port:3001,path:"/api/v1/health/ready",rejectUnauthorized:false},r=>process.exit(r.statusCode===200?0:1)).on("error",()=>process.exit(1))' || {
-  failure_reason=INVALID_BASELINE_APPLICATION; die "$failure_reason";
-}
-compose_rehearsal exec -T worker node -e \
-  'fetch("http://127.0.0.1:3002/api/v1/health/ready").then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))' || {
-  failure_reason=INVALID_BASELINE_APPLICATION; die "$failure_reason";
-}
-compose_rehearsal stop api agent-gateway worker caddy >/dev/null || true
+stop_application_services
+
+# Evaluate the candidate application against the proven N-1 schema before
+# changing the database. This is a real compatibility cell, not an inferred
+# result from the migration manifest.
+export APP_IMAGE="$target_image"
+start_application_services || matrix_n_n1=UNSUPPORTED
+if [[ "$matrix_n_n1" != UNSUPPORTED ]]; then matrix_n_n1=SUPPORTED; fi
+stop_application_services
 
 # Apply N from the same isolated database and validate the resulting manifest.
 export APP_IMAGE="$target_image"
@@ -237,20 +246,20 @@ run_migration || { failure_reason=MIGRATION_FAILED; die "$failure_reason"; }
 actual_schema=$(full_schema) || { failure_reason=TARGET_SCHEMA_VALIDATION_FAILED; die "$failure_reason"; }
 [[ "$actual_schema" == "$target_schema" ]] || { failure_reason=TARGET_SCHEMA_MISMATCH; die "$failure_reason"; }
 target_duration=$(( $(date +%s) - target_start ))
+
+# Evaluate the old application against the migrated schema before starting
+# the target application. The result determines rollback mode.
+export APP_IMAGE="$source_image"
+start_application_services || matrix_n1_n=UNSUPPORTED
+if [[ "$matrix_n1_n" != UNSUPPORTED ]]; then matrix_n1_n=SUPPORTED; fi
+stop_application_services
+
+export APP_IMAGE="$target_image"
+start_application_services || { failure_reason=TARGET_APPLICATION_START_FAILED; die "$failure_reason"; }
 matrix_n_n=SUPPORTED
-matrix_n_n1=UNSUPPORTED
-matrix_n1_n=UNSUPPORTED
-rollback_result=FORWARD_FIX_REQUIRED
+rollback_result=APPLICATION_ROLLBACK_SUPPORTED
 lock_result=NOT_OBSERVED
 timeout_result=NONE
-
-compose_rehearsal up -d --wait --remove-orphans api agent-gateway worker caddy || {
-  failure_reason=TARGET_APPLICATION_START_FAILED; die "$failure_reason";
-}
-compose_rehearsal exec -T api node -e \
-  'fetch("http://127.0.0.1:3000/api/v1/health/ready").then(async r=>{const b=await r.text();if(!r.ok||!JSON.parse(b).data||JSON.parse(b).data.status!=="READY")process.exit(1)}).catch(()=>process.exit(1))' || {
-  failure_reason=TARGET_APPLICATION_VALIDATION_FAILED; die "$failure_reason";
-}
 
 status=PASS
 failure_reason=

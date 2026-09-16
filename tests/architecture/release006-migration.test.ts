@@ -20,6 +20,9 @@ test("RELEASE-006 rehearsal is isolated, digest-bound, and Podman-native", async
   assert.match(script, /App N \+ Schema N-1/);
   assert.match(script, /App N-1 \+ Schema N/);
   assert.match(script, /App N \+ Schema N/);
+  assert.match(script, /application_services=\(api agent-gateway worker\)/);
+  assert.match(script, /--profile compose-postgres up -d --wait/);
+  assert.doesNotMatch(script, /--remove-orphans api agent-gateway worker/);
   assert.match(readme, /CONTROLLED_MAINTENANCE/);
   assert.match(readme, /lock_timeout=10s/);
   assert.match(readme, /statement_timeout=10m/);
