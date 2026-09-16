@@ -40,7 +40,10 @@ test("RELEASE-005 scheduler and runtime references are Podman/Lima scoped", asyn
   const service = await read("deploy/systemd/itcenter-backup.service");
   const readme = await read("deploy/README.md");
   assert.match(timer, /00\/6:00:00/);
-  assert.match(service, /backup\.sh production/);
+  assert.match(service, /EnvironmentFile=%h\/\.config\/itcenter\/backup\.env/);
+  assert.match(service, /ITCENTER_DEPLOY_ROOT\/scripts\/backup\.sh/);
+  assert.match(service, /ITCENTER_BACKUP_ENVIRONMENT/);
+  assert.match(service, /ITCENTER_ENV_FILE/);
   assert.match(readme, /GUEST_BACKUP_MOUNT/);
   assert.match(readme, /UNVERIFIED/);
   assert.doesNotMatch(service, /docker/);
