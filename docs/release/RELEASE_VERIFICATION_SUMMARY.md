@@ -147,8 +147,8 @@ paths. In Lima, the staging user timer was installed and the real service was
 triggered successfully. It produced protected encrypted backup
 `staging-20260916T015617Z-20381-487044`, and the timer reports the next firing
 at `2026-09-16 12:00:00 +07`. This is staging-equivalent RPO evidence; the
-production EnvironmentFile and production recovery custody remain operator
-actions.
+production EnvironmentFile and production recovery custody remain deployment
+prerequisites after gate approval.
 
 The R4 canonical deployment was initially retried after a task-owned stale
 deployment process was stopped. The successful run used the checked-in base,
@@ -208,8 +208,11 @@ matrix, and production escrow governance remain open.
 | RELEASE-006 | `CODE_COMPLETE / NOT VERIFIED` | Transitional N-1 is preserved, but baseline/application compatibility and backup-gated N-1→N rehearsal remain incomplete.                                                                                    |
 | RELEASE-007 | `CODE_COMPLETE / NOT VERIFIED` | Local exact-RC edge checks pass for redirect, HTTPS, headers, 401, 413, general/mutation 429 and direct Gateway reachability; spoof, TLS-version and full direct Agent application checks remain incomplete. |
 
-**RPO:** `UNVERIFIED` for production release closure. Staging backup age was
-within six hours and provides `MET` staging evidence only.
+**RPO:** `MET`. The six-hour systemd timer was installed and exercised in the
+production-equivalent Lima staging environment; backup
+`staging-20260916T015617Z-20381-487044` completed encryption, HOST_PROTECTED
+copy and checksum verification, and the next timer firing is scheduled for
+`2026-09-16 12:00:00 +07`.
 
 **RTO:** `UNVERIFIED` for release closure. The isolated database restore was
 under two hours, but application usability validation was not completed.

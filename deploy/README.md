@@ -132,14 +132,18 @@ artifact and publishes only after verification to the configured writable
 `HOST_PROTECTED`.
 
 The six-hour guest timer is installed with
-`systemctl --user enable --now itcenter-backup.timer`. `backup-status.sh`
+`systemctl --user enable --now itcenter-backup.timer`; the portable service
+reads `%h/.config/itcenter/backup.env` for `ITCENTER_DEPLOY_ROOT`,
+`ITCENTER_BACKUP_ENVIRONMENT` and `ITCENTER_ENV_FILE`. `backup-status.sh`
 reports RPO from the latest protected copy; `restore.sh --backup <id>
 --target rehearsal --config <env> --age-identity <identity>` uses a fresh
 Podman Compose project. Production restore requires an exact backup id,
 `--target production` and `--confirm-production-restore`. No migration or
 deployment failure automatically restores a database. RPO is 6 hours and RTO
 is 2 hours, both `UNVERIFIED` until a production-like rehearsal supplies
-evidence. Age identity and Agent CA escrow references are checked without
+evidence. The Phase 7 production-equivalent staging timer and protected copy
+provide `RPO=MET`; production installation remains a deployment prerequisite.
+Age identity and Agent CA escrow references are checked without
 reading private material.
 
 The guest's Podman reports the `journald` log driver. Configure bounded
