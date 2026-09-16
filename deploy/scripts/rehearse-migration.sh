@@ -140,20 +140,14 @@ write_evidence() {
 }
 trap cleanup EXIT
 
-# The rehearsal is an isolated migration exercise. Keep the staging runtime
-# configuration (including secret references) but remove the external OIDC
-# dependency so the private rehearsal network remains deterministic.
-rehearsal_runtime="$work_dir/runtime.env"
-grep -v '^OIDC_\(ISSUER\|AUDIENCE\)=' "$(read_env_value "$config_file" RUNTIME_ENV_FILE)" \
-  | sed 's/^AUTH_MODE=.*/AUTH_MODE=unavailable/' >"$rehearsal_runtime"
-chmod 600 "$rehearsal_runtime"
-rehearsal_env="$work_dir/rehearsal.env"
-sed "s#^RUNTIME_ENV_FILE=.*#RUNTIME_ENV_FILE=$rehearsal_runtime#" "$config_file" >"$rehearsal_env"
-chmod 600 "$rehearsal_env"
+rehearsal_env="$config_file"
 
 compose_args=(--project-name "$project" --env-file "$rehearsal_env" \
   -f "$(cd "$(dirname "$0")/.." && pwd)/compose.yaml" \
   -f "$(cd "$(dirname "$0")/.." && pwd)/compose.rehearsal.yaml")
+if [[ -n "$(read_env_value "$config_file" OIDC_CA_CERT_FILE)" ]]; then
+  compose_args+=( -f "$(cd "$(dirname "$0")/.." && pwd)/compose.oidc-ca.yaml" )
+fi
 compose_rehearsal() { "$CONTAINER_CLI" compose "${compose_args[@]}" "$@"; }
 
 compose_rehearsal config --quiet || { failure_reason=COMPOSE_CONFIG_INVALID; die "$failure_reason"; }
@@ -174,6 +168,12 @@ fi
 compose_rehearsal --profile compose-postgres up -d --wait postgres || {
   failure_reason=REHEARSAL_DATABASE_START_FAILED; die "$failure_reason";
 }
+if [[ -n "${REHEARSAL_OIDC_CONTAINER:-}" ]]; then
+  compose_network="${project}_private"
+  "$CONTAINER_CLI" network connect --alias keycloak "$compose_network" "$REHEARSAL_OIDC_CONTAINER" || {
+    failure_reason=REHEARSAL_OIDC_NETWORK_CONNECT_FAILED; die "$failure_reason";
+  }
+fi
 
 run_migration() {
   local max_steps=${1:-}

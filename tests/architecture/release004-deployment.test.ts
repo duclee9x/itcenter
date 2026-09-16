@@ -97,6 +97,8 @@ test("migration rehearsal is isolated from staging host ports", async () => {
     "deploy/scripts/generate-transitional-n1-metadata.sh",
   );
   assert.match(script, /compose\.rehearsal\.yaml/);
+  assert.match(script, /REHEARSAL_OIDC_CONTAINER/);
+  assert.match(script, /compose\.oidc-ca\.yaml/);
   assert.match(script, /rollback_result=NOT_DETERMINED/);
   assert.match(overlay, /ports: \[\]/);
   assert.match(metadata, /migration_steps/);

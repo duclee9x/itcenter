@@ -338,3 +338,24 @@ Phase 9 status remains unchanged: no release item is promoted, RPO remains
 runtime failure/drain, application restore, migration matrix, and direct
 authenticated Agent application evidence are still blocked by their actual
 execution prerequisites. No staging attestation was created.
+
+## Phase 10 execution evidence
+
+The rehearsal integration was corrected to include the checked-in OIDC trust
+overlay and, when configured, connect the real staging Keycloak container to
+the isolated rehearsal network under the `keycloak` alias. This preserves real
+OIDC/JWKS readiness and does not weaken authentication or change the R4 OCI.
+
+The Phase 10 run reached the N-1 application startup path with real OIDC
+configuration and no host-port collision. It then failed at target schema
+validation with `TARGET_SCHEMA_MISMATCH`; the persisted evidence records the
+same source and target metadata revisions but no qualifying four-cell matrix.
+The failure is retained as a concrete migration-tooling/runtime evidence gap,
+not converted into a rollback conclusion. Temporary rehearsal resources were
+removed and live staging remained running.
+
+Phase 10 therefore promotes no release item. `RPO` remains `MET` and `RTO`
+remains `UNVERIFIED`. The remaining Agent enrollment/RBAC, real OIDC negative
+matrix, readiness failure/drain, restore application validation, target schema
+diagnosis, direct Agent application, and RELEASE-004 attestation paths remain
+open.
