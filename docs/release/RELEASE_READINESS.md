@@ -114,16 +114,16 @@ implementation provides one OCI image, GitHub Actions publication with
 provenance/SBOM, immutable digest deployment using Podman Compose, isolated
 staging/production projects, ordered migration, readiness/smoke gates,
 staging-evidence attestation, stateful exact-digest rollback, and systemd host
-boot integration. Automated repository checks pass, but no clean CI-published
-digest has been deployed through a real Linux staging host; RELEASE-004 is not
-`VERIFIED` and RR-04 remains open. RELEASE-005 is `CODE_COMPLETE / NOT
-VERIFIED`: the approved backup/restore automation and pre-migration gate are
-implemented, while protected backup, fresh restore, escrow and measured
-RPO/RTO evidence remain pending. RELEASE-006 is `CODE_COMPLETE / NOT VERIFIED`
-after implementation of its isolated Podman N/N-1 compatibility rehearsal; the
-qualifying rehearsal and release evidence remain pending. RELEASE-007 is
-`CODE_COMPLETE / NOT VERIFIED`; runtime checks pass, while real staging
-DNS/certificate/network edge evidence remains pending. Overall readiness remains
+boot integration. Phase 6 deployed the clean CI-published R4 digest through
+canonical `deploy.sh` on a real Lima staging host; RELEASE-004 remains not
+`VERIFIED` pending full acceptance evidence and attestation. RELEASE-005 is
+`CODE_COMPLETE / NOT VERIFIED`: protected backup, fresh schema restore and
+staging timer execution pass, while application restore validation, escrow and
+complete RPO/RTO closure remain pending. RELEASE-006 is `CODE_COMPLETE / NOT
+VERIFIED` after implementation of its isolated Podman N/N-1 compatibility
+rehearsal; the qualifying rehearsal remains pending. RELEASE-007 is
+`CODE_COMPLETE / NOT VERIFIED`; R4 local TLS and edge checks pass, while the
+remaining application-path evidence remains pending. Overall readiness remains
 `BLOCKED_FOR_RC`.
 
 ## Evidence and verification baseline

@@ -31,8 +31,9 @@ evidence are incomplete.
   See
   [RELEASE-003-R1](items/RELEASE-003-R1_PRODUCTION_READINESS_CRITICAL_WORKER_CONTRACT.md).
 - RELEASE-004-R1/R2 and its runtime implementation are `CODE_COMPLETE`;
-  RELEASE-004 is not `VERIFIED` pending a real Linux staging deployment of a
-  clean CI-published image digest and acceptance evidence.
+  Phase 6 deployed the clean CI-published R4 digest through canonical
+  `deploy.sh` in Lima and recorded `SMOKE_PASSED`; RELEASE-004 is not
+  `VERIFIED` pending full acceptance evidence and attestation.
   Its runtime alignment is recorded in
   [RELEASE-004-R2](items/RELEASE-004-R2_PODMAN_LIMA_RUNTIME_ALIGNMENT.md); the
   canonical runtime is Podman in Lima Linux with `podman compose`.
@@ -52,7 +53,8 @@ RELEASE-003 runtime is implemented and automated checks pass; staging/
 orchestrator verification remains required before `VERIFIED`. RELEASE-004
 uses one OCI image promoted unchanged through Podman and `podman compose` in a
 Lima Linux VM. The selected v1 deployment is single-host and explicitly not
-HA. RELEASE-004 staging deployment and evidence capture remain pending;
+HA. Phase 6 staging deployment and smoke use the exact R4 digest, while full
+attestation remains pending;
 RELEASE-005 implementation is now code-complete, while its protected
 backup/restore and RPO/RTO evidence require operational verification. This
 activity implements RELEASE-006's isolated migration rehearsal infrastructure;

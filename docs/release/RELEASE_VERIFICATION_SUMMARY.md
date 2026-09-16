@@ -103,6 +103,57 @@ application restore validation, the migration matrix, public production
 edge evidence and production escrow governance are still unavailable. No
 release is therefore VERIFIED.
 
+## Phase 6 canonical R4 deployment evidence
+
+Focused deployment integration commit `7ea1607` adds the checked-in optional
+`OIDC_CA_CERT_FILE` Compose trust overlay. `verify-config.sh` validates the
+absolute PEM certificate and rejects missing, malformed or private-key input;
+the configuration revision includes the certificate content hash. This closes
+the earlier need for an undocumented Compose override while preserving normal
+system-trusted OIDC operation when the variable is absent.
+
+Bootstrap CI run `35040086404` passed both `verify` and `publish-oci`. It
+published `RC-20260916-R4` from source
+`7ea16079860cca6c0b33b0dbf8dfd6eb6f03663f` with GHCR image
+`ghcr.io/duclee9x/itcenter@sha256:cfed2a3b011a61f1ba98c8f263dfef6341302c2a8d228ca173e396f01aa2cc91`.
+SBOM and provenance were generated; schema revision remains
+`95886cdc18d735163a76863d050e37b7629c3015bbe37b756b9764a260636fdb`.
+
+The exact R4 digest was pulled into Lima without a local rebuild. Canonical
+`verify-config.sh` and `deploy.sh staging` ran with the staging OIDC CA
+configured and returned `DEPLOYMENT_SUCCEEDED RC-20260916-R4`; deployment
+state records `SMOKE_PASSED` and configuration revision
+`fb999a453825d914e1985090ebcec4eceded5a593786900182275fdc9a01c1b9`. API,
+Agent Gateway and Worker each report the same R4 image digest. PostgreSQL and
+the raw API port remain unpublished; only Caddy's staging ports and the
+dedicated Gateway mTLS port are published.
+
+R4 edge checks through Lima loopback passed: HTTP returned `301` to HTTPS,
+HTTPS API readiness returned `200`, required security headers were present,
+capabilities without authentication returned `401`, and TLS 1.2 succeeded
+while TLS 1.0 and 1.1 failed. The direct Gateway readiness endpoint returned
+`READY` separately from Caddy. These checks are local staging evidence; they
+do not prove public production ACME or external reachability.
+
+The complete release acceptance is still open. The full OIDC negative matrix,
+canonical Agent enrollment and negative mTLS matrix, readiness failure/drain
+evidence, scheduled backup timer, application restore validation, R4 migration
+matrix and production recovery escrow remain incomplete. No RELEASE item is
+promoted to `VERIFIED` by this phase.
+
+The checked-in backup timer was also corrected in this phase: it now consumes
+an explicit user EnvironmentFile instead of hard-coded checkout and production
+paths. In Lima, the staging user timer was installed and the real service was
+triggered successfully. It produced protected encrypted backup
+`staging-20260916T015617Z-20381-487044`, and the timer reports the next firing
+at `2026-09-16 12:00:00 +07`. This is staging-equivalent RPO evidence; the
+production EnvironmentFile and production recovery custody remain operator
+actions.
+
+The R4 canonical deployment was initially retried after a task-owned stale
+deployment process was stopped. The successful run used the checked-in base,
+staging and OIDC-CA Compose context only; no ad-hoc Compose override was used.
+
 ## Phase 5 exact registry candidate and staging edge evidence
 
 Bootstrap CI run `35010287210` completed successfully for both `verify` and
@@ -152,8 +203,8 @@ matrix, and production escrow governance remain open.
 | RELEASE-001 | `CODE_COMPLETE / NOT VERIFIED` | Real Keycloak/JWKS/RS256 `at+jwt` token is accepted in the isolated stack; the complete negative-token, revoked-membership and RBAC matrix remains incomplete.                                               |
 | RELEASE-002 | `CODE_COMPLETE / NOT VERIFIED` | Linux/OpenSSL remediation and direct TLS handshake pass; canonical enrollment, credential acceptance and negative staging matrix remain incomplete.                                                          |
 | RELEASE-003 | `CODE_COMPLETE / NOT VERIFIED` | API readiness and three mandatory workers are healthy; dependency-failure, worker-failure and drain transitions are not fully evidenced.                                                                     |
-| RELEASE-004 | `CODE_COMPLETE / NOT VERIFIED` | Registry RC publication and exact-digest pull pass; canonical deployment/attestation is incomplete because the staging OIDC CA override is outside `deploy.sh`.                                              |
-| RELEASE-005 | `CODE_COMPLETE / NOT VERIFIED` | Protected backup, checksum and isolated schema restore pass; application restore validation, scheduled timer evidence, production escrow and measured RPO/RTO remain open.                                   |
+| RELEASE-004 | `CODE_COMPLETE / NOT VERIFIED` | R4 registry publication, exact-digest pull and canonical `deploy.sh` staging smoke pass; full attestation still requires qualifying RELEASE-001/002/003 evidence.                                            |
+| RELEASE-005 | `CODE_COMPLETE / NOT VERIFIED` | Protected backup, checksum, isolated schema restore and staging timer execution pass; application restore validation, production escrow and complete RTO evidence remain open.                               |
 | RELEASE-006 | `CODE_COMPLETE / NOT VERIFIED` | Transitional N-1 is preserved, but baseline/application compatibility and backup-gated N-1→N rehearsal remain incomplete.                                                                                    |
 | RELEASE-007 | `CODE_COMPLETE / NOT VERIFIED` | Local exact-RC edge checks pass for redirect, HTTPS, headers, 401, 413, general/mutation 429 and direct Gateway reachability; spoof, TLS-version and full direct Agent application checks remain incomplete. |
 
@@ -189,19 +240,19 @@ place; no GHCR digest or registry-backed RC has been fabricated.
 
 ## Environment readiness
 
-| Prerequisite                   | Status                   | Evidence / boundary                                                                                                                |
-| ------------------------------ | ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------- |
-| Local immutable OCI candidate  | `READY`                  | `RC-LOCAL-7EA3001`; local-only, not a promotable RC.                                                                               |
-| Registry-backed RC metadata    | `OPERATOR_REQUIRED`      | Registry URL/repository and protected publish credentials are absent.                                                              |
-| `age` in Lima                  | `READY`                  | `age 1.3.1`.                                                                                                                       |
-| HOST_PROTECTED mount           | `READY`                  | Writable host-backed `virtiofs`; marker write/read/remove passed.                                                                  |
-| Staging age escrow             | `READY`                  | Staging identity exists outside Lima on the host-backed path; production governance remains separate.                              |
-| Staging Agent PKI              | `READY`                  | Staging CA/server/client material exists outside the repository; application enrollment is still required.                         |
-| Agent CA/private issuer escrow | `OPERATOR_REQUIRED`      | Production recovery custody/reference is not evidenced.                                                                            |
-| Staging OIDC                   | `READY (PARTIAL MATRIX)` | Pinned Keycloak 26.3.3 issues real RS256 `at+jwt` tokens and API accepts the authorized staging identity; negative matrix remains. |
-| Staging TLS                    | `READY` (local)          | Independent local staging mode is configured; public DNS/ACME remains unverified.                                                  |
-| Lima port forwarding           | `EXERCISED (LOOPBACK)`   | HTTP, HTTPS and Agent mTLS listeners responded through macOS/Lima loopback; public reachability remains unverified.                |
-| N-1 release reference          | `READY`                  | Transitional reference from `7c403ab53f...`; local artifact only, not a historical production release.                             |
+| Prerequisite                   | Status                   | Evidence / boundary                                                                                                     |
+| ------------------------------ | ------------------------ | ----------------------------------------------------------------------------------------------------------------------- |
+| Local immutable OCI candidate  | `READY`                  | `RC-LOCAL-7EA3001`; local-only, not a promotable RC.                                                                    |
+| Registry-backed RC metadata    | `OPERATOR_REQUIRED`      | Registry URL/repository and protected publish credentials are absent.                                                   |
+| `age` in Lima                  | `READY`                  | `age 1.3.1`.                                                                                                            |
+| HOST_PROTECTED mount           | `READY`                  | Writable host-backed `virtiofs`; marker write/read/remove passed.                                                       |
+| Staging age escrow             | `READY`                  | Staging identity exists outside Lima on the host-backed path; production governance remains separate.                   |
+| Staging Agent PKI              | `READY`                  | Staging CA/server/client material exists outside the repository; application enrollment is still required.              |
+| Agent CA/private issuer escrow | `OPERATOR_REQUIRED`      | Production recovery custody/reference is not evidenced.                                                                 |
+| Staging OIDC                   | `READY (PARTIAL MATRIX)` | Pinned Keycloak 26.3.3 issues real RS256 `at+jwt` tokens and canonical R4 deploy loads its CA; negative matrix remains. |
+| Staging TLS                    | `READY` (local)          | Independent local staging mode is configured; public DNS/ACME remains unverified.                                       |
+| Lima port forwarding           | `EXERCISED (LOOPBACK)`   | HTTP, HTTPS and Agent mTLS listeners responded through macOS/Lima loopback; public reachability remains unverified.     |
+| N-1 release reference          | `READY`                  | Transitional reference from `7c403ab53f...`; local artifact only, not a historical production release.                  |
 
 The exact unresolved operator actions are maintained in
 `docs/release/RELEASE_OPERATOR_PREREQUISITES.md`.

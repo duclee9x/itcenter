@@ -5,4 +5,5 @@ After=network-online.target
 [Service]
 Type=oneshot
 Environment=PATH=/usr/local/bin:/usr/bin:/bin
-ExecStart=/home/itcenter/itcenter/deploy/scripts/backup.sh production /home/itcenter/.config/itcenter/production.env --reason scheduled
+EnvironmentFile=%h/.config/itcenter/backup.env
+ExecStart=/bin/bash -c 'exec "$ITCENTER_DEPLOY_ROOT/scripts/backup.sh" "$ITCENTER_BACKUP_ENVIRONMENT" "$ITCENTER_ENV_FILE" --reason scheduled'

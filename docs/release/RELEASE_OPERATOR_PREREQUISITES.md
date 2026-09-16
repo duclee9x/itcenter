@@ -19,13 +19,20 @@ presence/governance without reading or logging secret values.
 
 Blocks: RELEASE-005 verification, RPO/RTO closure and RC approval.
 
-## Lima scheduled backup timer
+## Production Lima scheduled backup timer
 
-Install the checked-in user units in the canonical Lima guest and enable the
-six-hour timer after resolving the production configuration paths:
+The portable checked-in unit now reads an explicit user EnvironmentFile. For
+the production-equivalent host, provide a non-secret config file containing
+the actual checkout and production environment paths:
 
 ```sh
 mkdir -p ~/.config/systemd/user
+cat > ~/.config/itcenter/backup.env <<'EOF'
+ITCENTER_DEPLOY_ROOT=/absolute/path/to/itcenter/deploy
+ITCENTER_BACKUP_ENVIRONMENT=production
+ITCENTER_ENV_FILE=/absolute/path/to/itcenter/.config/itcenter/production.env
+EOF
+chmod 600 ~/.config/itcenter/backup.env
 install -m 0644 deploy/systemd/itcenter-backup.service ~/.config/systemd/user/
 install -m 0644 deploy/systemd/itcenter-backup.timer ~/.config/systemd/user/
 systemctl --user daemon-reload
@@ -35,9 +42,9 @@ systemctl --user status itcenter-backup.timer --no-pager
 ```
 
 Validation: record a successful scheduled-equivalent encrypted backup on the
-HOST_PROTECTED destination and inspect the timer's next/last run. This is
-required for RELEASE-005 RPO evidence; the current Lima guest has no installed
-user timer.
+HOST_PROTECTED destination and inspect the timer's next/last run. The staging
+equivalent was exercised successfully in Phase 6; production installation and
+production configuration remain operator-controlled.
 
 ## Public production edge (not required for local staging TLS)
 
@@ -56,15 +63,3 @@ nc -vz <host-address> <agent-mtls-port>
 
 Blocks production ACME/external-reachability evidence only. RELEASE-007 local
 staging verification may use the approved independent Caddy CA mode.
-
-## Current registry candidate deployment follow-up
-
-`RC-CCA7D1B-20260916-R3` is published at
-`ghcr.io/duclee9x/itcenter@sha256:3715744c11e133d7068651d7df6fe1ef2f1377643bf65e6635f4fcadfdac1d9e`.
-The digest was pulled into Lima and exercised in the isolated staging stack.
-The remaining action is a repository-side deployment integration correction:
-the canonical staging deployment must load the non-secret Keycloak CA trust
-configuration used by the HTTPS staging issuer. This is not an operator
-credential request.
-
-Blocks: RELEASE-004 staging attestation and dependent release verification.

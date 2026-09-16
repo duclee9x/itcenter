@@ -55,8 +55,8 @@ canonical staging enrollment and direct mTLS acceptance evidence.
 - **Type:** `OPERATIONAL_GAP`
 - **Severity:** High
 - **Affected capability:** Release packaging and deployment of API, Worker, Agent Gateway
-- **Production impact:** RELEASE-004 provides one multi-process OCI image, protected GitHub Actions publication, and digest-based Podman Compose deployment inside Lima Linux, with isolated environment projects, one-shot migration, readiness/smoke gates, staging attestation, exact-schema rollback guard, and guest systemd integration. Podman/Lima compatibility checks are tracked in R2. A clean CI-published digest has not been deployed on a real staging topology, and the registry/approval environment remains to be configured.
-- **Required action:** Configure the protected `release-publish` environment and registry secrets; publish an RC from a clean protected commit; provision isolated staging OIDC, Agent CA, database and TLS material; deploy the exact image digest; complete and review RELEASE-001/002/003 evidence; issue the staging attestation. Production migration/promotion remains subject to RELEASE-005/006 readiness and release-owner approval.
+- **Production impact:** RELEASE-004 provides one multi-process OCI image, protected GitHub Actions publication, and digest-based Podman Compose deployment inside Lima Linux, with isolated environment projects, one-shot migration, readiness/smoke gates, staging attestation, exact-schema rollback guard, and guest systemd integration. Podman/Lima compatibility checks are tracked in R2. Phase 6 deployed the R4 CI-published digest through canonical `deploy.sh` and recorded `SMOKE_PASSED`; the staging attestation still depends on qualifying RELEASE-001/002/003 evidence.
+- **Required action:** Complete and review RELEASE-001/002/003 evidence and issue the staging attestation for the exact R4 digest. Production migration/promotion remains subject to RELEASE-005/006 readiness and release-owner approval.
 - **Verification:** Deploy the clean RC digest to Podman Compose staging in the intended Lima/Linux topology, prove API/Gateway/Worker readiness, real OIDC and Agent mTLS plus tenant/RBAC and drain checks, verify migration and smoke, record acceptance evidence, and confirm any production promotion consumes that identical digest. Exercise exact-digest rollback only when the schema guard permits it; no database rollback claim is made.
 - **Owner/domain:** Platform / Release Engineering
 - **Release-blocking:** Yes
@@ -80,8 +80,8 @@ canonical staging enrollment and direct mTLS acceptance evidence.
 - **Type:** `RECOVERY_GAP`
 - **Severity:** Critical
 - **Affected capability:** PostgreSQL data protection and disaster recovery
-- **Production impact:** RELEASE-005 now implements the approved six-hour `pg_dump -Fc` schedule, `age` encryption, HOST_PROTECTED off-Lima copies, retention, restore authorization, escrow-reference checks and the pre-migration gate. A protected staging backup, checksum and isolated schema restore pass, but application validation, scheduled-timer evidence, production escrow and measured RPO/RTO remain open.
-- **Required action:** Install and exercise the checked-in Lima user timer, validate the compatible application after restore, record measured RPO/RTO and provide governed production escrow references.
+- **Production impact:** RELEASE-005 now implements the approved six-hour `pg_dump -Fc` schedule, `age` encryption, HOST_PROTECTED off-Lima copies, retention, restore authorization, escrow-reference checks and the pre-migration gate. Protected staging backup, checksum, isolated schema restore and staging timer execution pass; application validation, production escrow and complete RTO evidence remain open.
+- **Required action:** Validate the compatible application after restore, complete the measured RTO evidence and provide governed production escrow references. Install the portable timer with the production EnvironmentFile on the production-equivalent host.
 - **Verification:** Dated restore-drill record with source backup identifier, measured recovery time/data point, integrity checks and application smoke results. Repeat on the agreed cadence and after material storage/migration changes.
 - **Owner/domain:** Database Operations / Service Owner
 - **Release-blocking:** Yes
@@ -92,7 +92,7 @@ canonical staging enrollment and direct mTLS acceptance evidence.
 - **Type:** `SECURITY_GAP`
 - **Severity:** Critical
 - **Affected capability:** Public and internal HTTP endpoints
-- **Production impact:** RELEASE-007 now includes checked-in Caddy TLS termination, bounded trusted-proxy handling, application rate limiting, body limits and direct Agent mTLS topology. Local staging redirect/HTTPS/headers/401/413 evidence exists; full edge and direct application-path evidence remains open.
+- **Production impact:** RELEASE-007 now includes checked-in Caddy TLS termination, bounded trusted-proxy handling, application rate limiting, body limits and direct Agent mTLS topology. R4 local staging redirect/HTTPS/headers/401/413/TLS and direct Gateway readiness evidence exists; full edge and direct application-path evidence remains open.
 - **Required action:** Capture the remaining staging edge evidence for the implemented [RELEASE-007-R1](items/RELEASE-007-R1_PRODUCTION_EDGE_TLS_RATE_LIMITING_CONTRACT.md) topology. Public DNS/ACME is a production prerequisite; local staging may use the approved internal CA.
 - **Verification:** External staging scan and positive/negative TLS tests; spoofed forwarded-header test; rate-limit behavior and `429` response; oversized-body rejection; CORS preflight/denial tests if browser access is enabled; ensure no direct unencrypted listener is reachable.
 - **Owner/domain:** Security Engineering / Platform Networking
