@@ -307,3 +307,34 @@ Against R4, bounded tests produced general and mutation `429` responses with `Re
 | Final repository suite                 | PASS         | 122 unit + 2 contract + 6 migration + 61 integration + 64 e2e; 1 flock skip |
 
 The full release remains `BLOCKED_FOR_VERIFICATION`. No staging attestation was created because RELEASE-001/002/003 evidence prerequisites for the attestation are not complete.
+
+## Phase 9 remediation and execution evidence
+
+Focused remediation commit `cbf071b` changes only verification and recovery
+tooling; the R4 OCI contents and runtime candidate remain unchanged. The
+rehearsal now uses a dedicated Compose overlay with no published host ports,
+creates its isolated runtime configuration, probes services from inside the
+project, and initializes rollback status as `NOT_DETERMINED`. The new
+transitional metadata generator counts SQL migrations from the exact committed
+N-1 source and generated `migration_steps=100` for `7c403ab`.
+
+The restore rehearsal now records `application_validation=NOT_RUN` and keeps
+`RTO=UNVERIFIED` unless an executable isolated application-validation harness
+passes after schema restore. This prevents a database-only restore from being
+reported as a completed RTO.
+
+The updated migration rehearsal was executed against the preserved N-1 image
+and R4 metadata while live staging remained running. The previous Gateway
+port collision was removed. The attempt then failed reproducibly at N-1 API
+startup with `Production authentication trust initialization failed`: the
+Lima podman-compose provider retains OIDC variables from the service
+environment even when the rehearsal overlay selects `AUTH_MODE=unavailable`.
+The API remained fail-closed; no OIDC validation was weakened. The isolated
+resources were removed after the failure and the live staging stack was left
+untouched.
+
+Phase 9 status remains unchanged: no release item is promoted, RPO remains
+`MET`, RTO remains `UNVERIFIED`, and the complete OIDC, Agent enrollment,
+runtime failure/drain, application restore, migration matrix, and direct
+authenticated Agent application evidence are still blocked by their actual
+execution prerequisites. No staging attestation was created.
