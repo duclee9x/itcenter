@@ -376,3 +376,30 @@ The direct command returned `SCHEMA_INCOMPATIBLE` (exit 2). This is retained
 as the exact RELEASE-006 blocker; no matrix or rollback conclusion was
 recorded, and no release item was promoted. Disposable rehearsal resources
 were removed while staging, R4, N-1, and protected backups were preserved.
+
+## Phase 11 RELEASE-006 root-cause evidence
+
+The exact immutable artifact inventory was performed inside Lima. The N-1 image
+(`localhost/itcenter-release006-n1@sha256:18f46a1f8b61cc47b551557d90c23dfcaf91b0ab9c3b9e446866fe710205a0d2`)
+and R4 (`ghcr.io/duclee9x/itcenter@sha256:cfed2a3b011a61f1ba98c8f263dfef6341302c2a8d228ca173e396f01aa2cc91`)
+each contain 100 ordered migrations. Their first and last migration IDs,
+per-migration checksums, and computed manifest revision are identical; the
+longest common prefix is 100 and there is no divergence. Both compute
+`95886cdc18d735163a76863d050e37b7629c3015bbe37b756b9764a260636fdb`.
+The transitional `migration_steps=100` therefore matches the exact N-1
+manifest length and revision.
+
+A minimal isolated database reproducer applied the N-1 image with 100 steps,
+observed 100 rows in `migration_meta.applied`, then applied the R4 image. The
+R4 exact-schema helper returned the expected revision successfully. This rules
+out `TRANSITIONAL_N_MINUS_1_REFERENCE_INVALID` and
+`REAL_APPLICATION_MIGRATION_INCOMPATIBILITY` for the tested artifacts.
+
+The full rehearsal still returned `SCHEMA_INCOMPATIBLE`/exit 2 after its
+orchestration sequence, while the minimal equivalent migration path passed.
+The classification is therefore `REHEARSAL_HARNESS_DEFECT`: the remaining
+failure is in rehearsal orchestration/state handling, not in the immutable
+migration manifests or the migration chain. The aborted evidence now uses
+`NOT_EXECUTED` for all cells after the completed N-1 baseline and keeps
+rollback as `NOT_DETERMINED`. RELEASE-006 remains `CODE_COMPLETE / NOT
+VERIFIED` until a full qualifying rehearsal executes all required cells.

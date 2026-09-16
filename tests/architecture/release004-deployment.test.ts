@@ -102,6 +102,8 @@ test("migration rehearsal is isolated from staging host ports", async () => {
   assert.ok(script.includes('sub(/\\r$/, "")'));
   assert.match(script, /awk.*\[\[:xdigit:\]\]\{64\}/);
   assert.match(script, /rollback_result=NOT_DETERMINED/);
+  assert.match(script, /matrix_n1_n1=NOT_EXECUTED/);
+  assert.match(script, /matrix_n_n1=NOT_EXECUTED/);
   assert.match(overlay, /ports: \[\]/);
   assert.match(metadata, /migration_steps/);
   assert.match(metadata, /git archive/);

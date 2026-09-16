@@ -84,10 +84,10 @@ source_duration=0
 maintenance_duration=0
 lock_result=NOT_OBSERVED
 timeout_result=NONE
-matrix_n1_n1=NOT_APPLICABLE
-matrix_n_n1=NOT_APPLICABLE
-matrix_n1_n=NOT_APPLICABLE
-matrix_n_n=NOT_APPLICABLE
+matrix_n1_n1=NOT_EXECUTED
+matrix_n_n1=NOT_EXECUTED
+matrix_n1_n=NOT_EXECUTED
+matrix_n_n=NOT_EXECUTED
 rollback_result=NOT_DETERMINED
 cleanup() {
   local result=$?
