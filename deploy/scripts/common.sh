@@ -49,6 +49,9 @@ make_compose_context() {
     -f "$COMPOSE_BASE"
     -f "$COMPOSE_OVERRIDE"
   )
+  if [[ -n "$(read_env_value "$config_file" OIDC_CA_CERT_FILE)" ]]; then
+    COMPOSE_ARGS+=( -f "$DEPLOY_ROOT/compose.oidc-ca.yaml" )
+  fi
 }
 
 compose() {
@@ -167,7 +170,17 @@ verify_rc_metadata() {
 }
 
 config_revision() {
-  sha256sum "$@" | sha256sum | awk '{print $1}'
+  local config_file=${1:-}
+  local oidc_ca_file=""
+  if [[ -n "$config_file" && -f "$config_file" ]]; then
+    oidc_ca_file=$(read_env_value "$config_file" OIDC_CA_CERT_FILE)
+  fi
+  {
+    sha256sum "$@"
+    if [[ -n "$oidc_ca_file" ]]; then
+      sha256sum "$oidc_ca_file"
+    fi
+  } | sha256sum | awk '{print $1}'
 }
 
 migration_timeout_seconds() {

@@ -40,6 +40,16 @@ done
 cert_mode=$(value CADDY_CERT_MODE)
 [[ "$cert_mode" == acme || "$cert_mode" == internal || "$cert_mode" == manual ]] || die CADDY_CERT_MODE_INVALID
 [[ "$(value OIDC_ISSUER)" == https://* && -n "$(value OIDC_AUDIENCE)" ]] || die OIDC_CONFIG_INVALID
+oidc_ca_file=$(value OIDC_CA_CERT_FILE)
+if [[ -n "$oidc_ca_file" ]]; then
+  [[ "$oidc_ca_file" == /* ]] || die OIDC_CA_CERT_PATH_INVALID
+  [[ -f "$oidc_ca_file" && -r "$oidc_ca_file" && ! -L "$oidc_ca_file" ]] || die OIDC_CA_CERT_UNAVAILABLE
+  if grep -Eq -- '-----BEGIN ([A-Z0-9 ]+ )?PRIVATE KEY-----' "$oidc_ca_file"; then
+    die OIDC_CA_CERT_PRIVATE_KEY
+  fi
+  command -v openssl >/dev/null 2>&1 || die OIDC_CA_CERT_VALIDATOR_UNAVAILABLE
+  openssl x509 -in "$oidc_ca_file" -noout >/dev/null 2>&1 || die OIDC_CA_CERT_INVALID
+fi
 for key in OIDC_ISSUER API_HOSTNAME AGENT_GATEWAY_HOSTNAME API_HEALTH_URL \
   API_HEALTH_RESOLVE AGENT_GATEWAY_HEALTH_URL AGENT_GATEWAY_HEALTH_RESOLVE; do
   [[ "$(value "$key")" != *example.invalid* && "$(value "$key")" != *REPLACE_* ]] || die CONFIG_TEMPLATE_VALUE

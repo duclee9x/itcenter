@@ -27,6 +27,8 @@ API_TLS_KEY_FILE=/home/itcenter/.config/itcenter/production/secrets/api-key.pem
 AUTH_MODE=oidc
 OIDC_ISSUER=https://idp.example.invalid
 OIDC_AUDIENCE=itcenter-api
+# Optional PEM CA certificate for an HTTPS OIDC issuer using a private CA.
+# OIDC_CA_CERT_FILE=/home/itcenter/.config/itcenter/production/secrets/oidc-ca-cert.pem
 AGENT_AUTH_MODE=mtls
 API_HOSTNAME=itcenter.example.invalid
 PRODUCTION_API_BIND_ADDRESS=0.0.0.0

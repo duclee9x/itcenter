@@ -1,0 +1,6 @@
+services:
+  api:
+    environment:
+      NODE_EXTRA_CA_CERTS: /run/secrets/oidc_ca_certificate
+    volumes:
+      - ${OIDC_CA_CERT_FILE:?OIDC_CA_CERT_FILE is required when the OIDC trust overlay is enabled}:/run/secrets/oidc_ca_certificate:ro
